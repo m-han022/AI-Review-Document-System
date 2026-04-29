@@ -262,21 +262,11 @@ html[data-ui-language="ja"] .detail-feedback-preview {
 .workspace-user-card {
   display: flex;
   align-items: center;
-  gap: var(--ds-space-3);
+  gap: var(--ds-space-2);
   padding: var(--ds-space-3);
-  border: var(--ds-border-width) solid color-mix(in srgb, var(--ds-color-white) 12%, transparent);
+  border: var(--ds-border-width) solid color-mix(in srgb, var(--ds-color-white) 8%, transparent);
   border-radius: var(--ds-radius-card);
-}
-
-.workspace-user-card__avatar {
-  display: grid;
-  place-items: center;
-  width: var(--ds-control-height);
-  height: var(--ds-control-height);
-  border-radius: var(--ds-radius-pill);
-  background: var(--ds-color-surface-muted);
-  color: var(--ds-color-text);
-  font-weight: var(--ds-font-weight-semibold);
+  background: color-mix(in srgb, var(--ds-color-white) 3%, transparent);
 }
 
 .workspace-user-card__meta {
@@ -287,7 +277,7 @@ html[data-ui-language="ja"] .detail-feedback-preview {
 
 .workspace-user-card__meta strong {
   overflow: hidden;
-  color: var(--ds-color-text-on-dark);
+  color: color-mix(in srgb, var(--ds-color-white) 88%, transparent);
   font-size: var(--ds-font-size-body);
   font-weight: var(--ds-font-weight-medium);
   line-height: var(--ds-line-height-heading);
@@ -296,7 +286,7 @@ html[data-ui-language="ja"] .detail-feedback-preview {
 }
 
 .workspace-user-card__meta span {
-  color: color-mix(in srgb, var(--ds-color-white) 64%, transparent);
+  color: color-mix(in srgb, var(--ds-color-white) 56%, transparent);
   font-size: var(--ds-font-size-caption);
 }
 

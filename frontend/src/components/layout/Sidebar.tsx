@@ -29,7 +29,7 @@ const navKeyMap: Record<NavItemKey, string> = {
 };
 
 export default function Sidebar({ activeView, onChangeView }: SidebarProps) {
-  const { t, lang, setLang } = useTranslation();
+  const { t } = useTranslation();
 
   const navItems: NavItem[] = [
     { key: "navDashboard", view: "dashboard", icon: HomeIcon },
@@ -76,31 +76,10 @@ export default function Sidebar({ activeView, onChangeView }: SidebarProps) {
         })}
       </nav>
 
-      <div className="workspace-sidebar__secondary">
-        <div className="workspace-sidebar__label">{t("nav.systemLog")}</div>
-        <div className="workspace-sidebar__language">
-          <button
-            type="button"
-            className={`workspace-sidebar__language-chip ${lang === "vi" ? "is-active" : ""}`.trim()}
-            onClick={() => setLang("vi")}
-          >
-            VI
-          </button>
-          <button
-            type="button"
-            className={`workspace-sidebar__language-chip ${lang === "ja" ? "is-active" : ""}`.trim()}
-            onClick={() => setLang("ja")}
-          >
-            {"\u65e5\u672c\u8a9e"}
-          </button>
-        </div>
-      </div>
-
       <div className="workspace-sidebar__footer workspace-sidebar__footer--v2">
         <div className="workspace-user-card">
-          <div className="workspace-user-card__avatar">N</div>
           <div className="workspace-user-card__meta">
-            <strong>{"Nguy\u1ec5n Minh"}</strong>
+            <strong>PMO/QC</strong>
             <span>Admin</span>
           </div>
         </div>
