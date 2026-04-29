@@ -1,0 +1,48 @@
+# Environment variables
+.env
+backend/.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+venv/
+.venv/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/node_modules/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Runtime data and uploads
+backend/data/*.json
+backend/uploads/*
+!backend/data/.gitkeep
+!backend/uploads/.gitkeep
+
+# Sample artifacts should live outside runtime directories
+backend/samples/
+
+# Temporary files
+~$*.pptx
+*.tmp
+
+# Test files
+test_*.py
+TEST_*.md

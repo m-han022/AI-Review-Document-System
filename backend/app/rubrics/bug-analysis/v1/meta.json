@@ -1,0 +1,20 @@
+{
+  "version": "v1",
+  "document_type": "bug-analysis",
+  "status": "active",
+  "languages": ["vi", "ja"],
+  "schema_version": "bug-analysis-criteria-v1",
+  "criteria_keys": [
+    "kha_nang_tai_hien_bug",
+    "phan_tich_nguyen_nhan",
+    "danh_gia_anh_huong",
+    "giai_phap_phong_ngua"
+  ],
+  "max_scores": {
+    "kha_nang_tai_hien_bug": 25,
+    "phan_tich_nguyen_nhan": 25,
+    "danh_gia_anh_huong": 25,
+    "giai_phap_phong_ngua": 25
+  },
+  "notes": "Bug-analysis rubric bundle using the dedicated 4-criteria grading schema."
+}

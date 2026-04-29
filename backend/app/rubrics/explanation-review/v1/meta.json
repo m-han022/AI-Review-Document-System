@@ -1,0 +1,20 @@
+{
+  "version": "v1",
+  "document_type": "explanation-review",
+  "status": "active",
+  "languages": ["vi", "ja"],
+  "schema_version": "explanation-review-criteria-v1",
+  "criteria_keys": [
+    "do_ro_rang_de_hieu",
+    "tinh_day_du_dung_trong_tam",
+    "tinh_chinh_xac",
+    "tinh_ung_dung"
+  ],
+  "max_scores": {
+    "do_ro_rang_de_hieu": 25,
+    "tinh_day_du_dung_trong_tam": 25,
+    "tinh_chinh_xac": 25,
+    "tinh_ung_dung": 25
+  },
+  "notes": "Explanation-review rubric bundle using the dedicated 4-criteria grading schema."
+}

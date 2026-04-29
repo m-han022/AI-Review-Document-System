@@ -1,0 +1,20 @@
+{
+  "version": "v1",
+  "document_type": "qa-review",
+  "status": "active",
+  "languages": ["vi", "ja"],
+  "schema_version": "qa-review-criteria-v1",
+  "criteria_keys": [
+    "do_ro_rang",
+    "do_bao_phu",
+    "kha_nang_truy_vet",
+    "tinh_thuc_thi"
+  ],
+  "max_scores": {
+    "do_ro_rang": 25,
+    "do_bao_phu": 25,
+    "kha_nang_truy_vet": 25,
+    "tinh_thuc_thi": 25
+  },
+  "notes": "QA-review rubric bundle using the dedicated 4-criteria grading schema."
+}

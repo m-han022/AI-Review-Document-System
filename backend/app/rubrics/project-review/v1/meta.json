@@ -1,0 +1,20 @@
+{
+  "version": "v1",
+  "document_type": "project-review",
+  "status": "active",
+  "languages": ["vi", "ja"],
+  "schema_version": "project-review-afd-v1",
+  "criteria_keys": [
+    "review_tong_the",
+    "diem_tot",
+    "diem_xau",
+    "chinh_sach"
+  ],
+  "max_scores": {
+    "review_tong_the": 25,
+    "diem_tot": 25,
+    "diem_xau": 30,
+    "chinh_sach": 20
+  },
+  "notes": "Project-review rubric updated to the new project-management scoring model with A/B/C/D sections and chinh_sach output."
+}

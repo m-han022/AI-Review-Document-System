@@ -1,0 +1,9 @@
+http://localhost:8001/api : The term 'http://localhost:8001/api' is not recognized as the name of a cmdlet, function, 
+script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is 
+correct and try again.
+At line:1 char:24
++ $env:VITE_API_BASE_URL=http://localhost:8001/api; npm run dev -- --ho ...
++                        ~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (http://localhost:8001/api:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+ 

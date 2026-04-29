@@ -1,0 +1,189 @@
+:root {
+  --ds-font-family-base: Inter, "Noto Sans JP", "Yu Gothic", "Hiragino Sans", system-ui, sans-serif;
+  --ds-font-size-caption: 12px;
+  --ds-font-size-body: 14px;
+  --ds-font-size-section: 18px;
+  --ds-font-size-title: 24px;
+  --ds-font-size-metric: 28px;
+  --ds-font-weight-regular: 400;
+  --ds-font-weight-medium: 500;
+  --ds-font-weight-semibold: 600;
+  --ds-font-weight-bold: 600;
+  --ds-line-height-tight: 1.2;
+  --ds-line-height-title: 1.4;
+  --ds-line-height-heading: 1.3;
+  --ds-line-height-body: 1.55;
+
+  --ds-space-1: 4px;
+  --ds-space-2: 8px;
+  --ds-space-3: 12px;
+  --ds-space-4: 16px;
+  --ds-space-5: 24px;
+  --ds-space-6: 32px;
+
+  --ds-icon-sm: 16px;
+  --ds-icon-md: 20px;
+  --ds-icon-lg: 24px;
+
+  --ds-color-primary: #2F5F9F;
+  --ds-color-primary-text: #244E83;
+  --ds-color-primary-soft: #F1F6FC;
+  --ds-color-success: #2F7D4F;
+  --ds-color-success-soft: #F4FAF6;
+  --ds-color-warning: #A66A00;
+  --ds-color-warning-soft: #FFFAF0;
+  --ds-color-danger: #B4232A;
+  --ds-color-danger-soft: #FFF5F5;
+  --ds-color-error: #B4232A;
+  --ds-color-error-soft: #FEF2F2;
+  --ds-color-text: #1F2933;
+  --ds-color-text-secondary: #667085;
+  --ds-color-text-muted: #667085;
+  --ds-color-text-on-dark: #FFFFFF;
+  --ds-color-bg-app: #F9FAFB;
+  --ds-color-white: #FFFFFF;
+  --ds-color-surface: #FFFFFF;
+  --ds-color-surface-muted: #F3F4F6;
+  --ds-color-border: #E5E7EB;
+  --ds-color-border-strong: #D1D5DB;
+  --ds-color-row-hover: #F9FAFB;
+  --ds-color-row-selected: #F8FBFF;
+  --ds-color-sidebar: #111827;
+  --ds-color-sidebar-active: #1F2937;
+  --ds-color-focus-ring: rgb(37 99 235 / 16%);
+  --ds-color-overlay: rgb(17 24 39 / 48%);
+  --ds-color-disabled: rgb(107 114 128 / 60%);
+
+  --ds-radius-sm: 4px;
+  --ds-radius-md: 8px;
+  --ds-radius-card: 10px;
+  --ds-radius-pill: 999px;
+  --ds-border-width: 1px;
+  --ds-selected-indicator-width: 2px;
+  --ds-dot-border-width: 2px;
+  --ds-selected-ring-width: 4px;
+  --ds-focus-ring-width: 4px;
+  --ds-metric-letter-spacing: 0.2px;
+  --ds-shadow-card: 0 1px 2px rgba(15, 23, 42, 0.03);
+  --ds-focus-ring-shadow: 0 0 0 var(--ds-focus-ring-width) var(--ds-color-focus-ring);
+  --ds-control-height: 36px;
+  --ds-control-height-sm: 32px;
+  --ds-icon-button-md: 36px;
+  --ds-icon-button-sm: 32px;
+  --ds-badge-min-height: 24px;
+  --ds-table-header-height: 44px;
+  --ds-table-row-height: 44px;
+  --ds-table-min-width: 960px;
+  --ds-table-checkbox-width: 48px;
+  --ds-layout-sidebar-width: 280px;
+  --ds-topbar-min-height: 72px;
+  --ds-brand-logo-width: 224px;
+  --ds-brand-logo-min-height: 72px;
+  --ds-language-select-min-width: 136px;
+  --ds-title-anchor-gap: var(--ds-space-5);
+  --ds-card-min-height: 120px;
+  --ds-panel-padding: var(--ds-space-5);
+  --ds-upload-card-min-height: 224px;
+  --ds-upload-dropzone-min-height: 128px;
+  --ds-upload-aside-width: 320px;
+  --ds-detail-score-aside-width: 288px;
+  --ds-rubric-sidebar-min-width: 224px;
+  --ds-rubric-sidebar-width: 240px;
+  --ds-rubric-index-column-width: 32px;
+  --ds-rubric-key-min-width: 160px;
+  --ds-rubric-score-min-width: 96px;
+  --ds-rubric-score-column-width: 120px;
+  --ds-prompt-textarea-min-height: 120px;
+  --ds-prompt-textarea-max-height: 240px;
+  --ds-progress-dot-size: 24px;
+  --ds-progress-line-width: 32px;
+  --ds-progress-line-height: 1px;
+  --ds-textarea-min-height: 160px;
+  --ds-modal-width: 720px;
+  --ds-dialog-width: 520px;
+  --ds-toast-width: 360px;
+
+  --bg-app: var(--ds-color-bg-app);
+  --bg-surface: var(--ds-color-surface);
+  --bg-elevated: var(--ds-color-surface-muted);
+  --bg-strong: var(--ds-color-sidebar);
+  --bg-strong-soft: var(--ds-color-sidebar-active);
+  --text-primary: var(--ds-color-text);
+  --text-secondary: var(--ds-color-text-secondary);
+  --text-muted: var(--ds-color-text-muted);
+  --text-on-dark: var(--ds-color-text-on-dark);
+  --border: var(--ds-color-border);
+  --border-soft: var(--ds-color-border);
+  --accent: var(--ds-color-primary);
+  --accent-soft: var(--ds-color-primary-soft);
+  --success: var(--ds-color-success);
+  --success-soft: var(--ds-color-success-soft);
+  --warning: var(--ds-color-warning);
+  --warning-soft: var(--ds-color-warning-soft);
+  --danger: var(--ds-color-danger);
+  --danger-soft: var(--ds-color-danger-soft);
+  --radius-sm: var(--ds-radius-sm);
+  --radius-md: var(--ds-radius-md);
+  --radius-lg: var(--ds-radius-card);
+  --radius-xl: var(--ds-radius-card);
+}
+
+:root[data-theme="dark"] {
+  --ds-color-primary: #7FA6D8;
+  --ds-color-primary-text: #BFD8F2;
+  --ds-color-primary-soft: #132A42;
+  --ds-color-success: #7DBA8D;
+  --ds-color-success-soft: #10281A;
+  --ds-color-warning: #D4A84D;
+  --ds-color-warning-soft: #2D2410;
+  --ds-color-danger: #E08A8E;
+  --ds-color-danger-soft: #321719;
+  --ds-color-error: #E08A8E;
+  --ds-color-error-soft: #321719;
+  --ds-color-text: #E6EAF0;
+  --ds-color-text-secondary: #A7B0BD;
+  --ds-color-text-muted: #8893A2;
+  --ds-color-bg-app: #0F141B;
+  --ds-color-white: #171D25;
+  --ds-color-surface: #171D25;
+  --ds-color-surface-muted: #202833;
+  --ds-color-border: #2D3745;
+  --ds-color-border-strong: #3B4654;
+  --ds-color-row-hover: #1C2430;
+  --ds-color-row-selected: #17283A;
+  --ds-color-sidebar: #0B1118;
+  --ds-color-sidebar-active: #1A2532;
+  --ds-color-focus-ring: rgb(127 166 216 / 22%);
+  --ds-color-overlay: rgb(0 0 0 / 60%);
+  --ds-color-disabled: rgb(167 176 189 / 48%);
+  --ds-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24);
+}
+
+.ds-title {
+  color: var(--ds-color-text);
+  font-size: var(--ds-font-size-title);
+  font-weight: var(--ds-font-weight-bold);
+  line-height: var(--ds-line-height-title);
+  letter-spacing: 0;
+}
+
+.ds-section {
+  color: var(--ds-color-text);
+  font-size: var(--ds-font-size-section);
+  font-weight: var(--ds-font-weight-medium);
+  line-height: var(--ds-line-height-heading);
+  letter-spacing: 0;
+}
+
+.ds-body {
+  color: var(--ds-color-text);
+  font-size: var(--ds-font-size-body);
+  font-weight: var(--ds-font-weight-regular);
+  line-height: var(--ds-line-height-body);
+}
+
+.ds-caption {
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-font-size-caption);
+  line-height: var(--ds-line-height-body);
+}
