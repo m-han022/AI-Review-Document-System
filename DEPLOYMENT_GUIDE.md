@@ -17,7 +17,7 @@ cd e:\11.PMO\AI\Project_PMO\AI-Review-Document-System
 git init
 git add .
 git commit -m "Initial commit"
-git remote add origin https://github.com/YOUR_USERNAME/AI-Assignment-Marking.git
+git remote add origin https://github.com/YOUR_USERNAME/AI-Review-Document-System.git
 git push -u origin main
 ```
 
@@ -25,7 +25,7 @@ git push -u origin main
 1. Vào Render Dashboard → New → Web Service
 2. Connect repository GitHub của bạn
 3. Cấu hình:
-   - **Name**: ai-grading-backend
+   - **Name**: ai-review-document-backend
    - **Root Directory**: backend
    - **Runtime**: Python 3
    - **Build Command**: `pip install -r requirements.txt`
@@ -40,7 +40,7 @@ GEMINI_API_KEY=your_gemini_api_key_here
 
 ### Bước 5: Deploy
 - Render sẽ tự động build và deploy
-- Bạn sẽ nhận được URL: `https://ai-grading-backend.onrender.com`
+- Bạn sẽ nhận được URL: `https://ai-review-document-backend.onrender.com`
 
 ---
 
@@ -63,7 +63,7 @@ GEMINI_API_KEY=your_gemini_api_key_here
 ### Bước 3: Cấu hình Environment Variables
 Trong Vercel Dashboard → Settings → Environment Variables:
 ```
-VITE_API_BASE_URL=https://ai-grading-backend.onrender.com/api
+VITE_API_BASE_URL=https://ai-review-document-backend.onrender.com/api
 ```
 
 ### Bước 4: Cập nhật frontend code
@@ -74,7 +74,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000
 
 ### Bước 5: Deploy
 - Vercel sẽ tự động build và deploy
-- Bạn sẽ nhận được URL: `https://ai-grading-frontend.vercel.app`
+- Bạn sẽ nhận được URL: `https://ai-review-document-system.vercel.app`
 
 ---
 
@@ -89,7 +89,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",  # Local dev
-        "https://ai-grading-frontend.vercel.app",  # Production
+        "https://ai-review-document-system.vercel.app",  # Production
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -103,11 +103,11 @@ app.add_middleware(
 
 ### 1. Test Backend API
 ```bash
-curl https://ai-grading-backend.onrender.com/api/submissions
+curl https://ai-review-document-backend.onrender.com/api/submissions
 ```
 
 ### 2. Test Frontend
-Mở trình duyệt: `https://ai-grading-frontend.vercel.app`
+Mở trình duyệt: `https://ai-review-document-system.vercel.app`
 
 ### 3. Test upload file
 - Upload file PDF/PPTX
