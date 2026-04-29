@@ -81,20 +81,22 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000
 ## 🔗 Phần 3: Kết nối Frontend và Backend
 
 ### Cập nhật CORS trong backend
-Sửa file `backend/app/main.py`:
-```python
-from fastapi.middleware.cors import CORSMiddleware
+Không cần sửa trực tiếp `backend/app/main.py`. Code hiện tại đã đọc danh sách origin được phép từ `backend/app/config.py` thông qua biến môi trường.
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",  # Local dev
-        "https://ai-review-document-system.vercel.app",  # Production
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+Trong Render Dashboard → Backend → Environment, cấu hình:
+
+```env
+FRONTEND_URL=https://ai-review-document-system.vercel.app
+CORS_ALLOWED_ORIGINS=https://ai-review-document-system.vercel.app
+```
+
+Sau khi cập nhật biến môi trường, redeploy backend.
+
+Local dev đã được backend cho phép sẵn với các origin như:
+
+```text
+http://localhost:5173
+http://127.0.0.1:5173
 ```
 
 ---

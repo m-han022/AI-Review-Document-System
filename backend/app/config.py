@@ -27,7 +27,7 @@ class Settings:
             self.gemini_api_keys = [self.gemini_api_key]
 
         self.gemini_model = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview").strip()
-        self.api_title = os.getenv("API_TITLE", "AI Assignment Marking API").strip()
+        self.api_title = os.getenv("API_TITLE", "AI Review Document API").strip()
         self.api_version = os.getenv("API_VERSION", "1.0.0").strip()
         self.allowed_origins = self._build_allowed_origins()
 
