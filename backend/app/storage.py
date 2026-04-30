@@ -21,6 +21,7 @@ from app.models import (
     Submission,
     SubmissionContent,
 )
+from app.services.issue_analytics import issue_breakdown, issue_count
 
 
 @dataclass
@@ -148,7 +149,7 @@ class SubmissionStore:
                 )
                 for item in slide_reviews
             ],
-            issue_breakdown=self._issue_breakdown(slide_reviews),
+            issue_breakdown=issue_breakdown(slide_reviews),
             draft_feedback=run.draft_feedback,
             status=run.status,
             error_message=run.error_message,
@@ -190,11 +191,7 @@ class SubmissionStore:
                 select(GradingSlideReview).where(GradingSlideReview.grading_run_id == run.id)
             ).all()
             ng_slide_count = sum(1 for item in slide_rows if item.status == "NG")
-            issue_count = sum(
-                sum(len(value) for value in item.issues.values() if isinstance(value, list))
-                for item in slide_rows
-                if isinstance(item.issues, dict)
-            )
+            issue_count_value = issue_count(slide_rows)
             history.append(
                 GradingRunHistoryOut(
                     id=run.id or 0,
@@ -210,7 +207,7 @@ class SubmissionStore:
                     criteria_result_count=int(criteria_count),
                     slide_review_count=len(slide_rows),
                     ng_slide_count=ng_slide_count,
-                    issue_count=issue_count,
+                    issue_count=issue_count_value,
                 )
             )
         return history

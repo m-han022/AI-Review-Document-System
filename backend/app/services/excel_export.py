@@ -7,6 +7,9 @@ from xml.sax.saxutils import escape
 
 from typing import Any
 
+from app.services.issue_analytics import issue_count as count_issues
+from app.services.issue_analytics import localized_issue_list
+
 
 SUMMARY_COLUMNS = [
     "project_id",
@@ -251,13 +254,7 @@ def _localized_text(value: Any, lang: str) -> str | None:
 
 
 def _localized_list(value: Any, lang: str) -> list[str]:
-    if isinstance(value, dict):
-        localized = value.get(lang)
-        if isinstance(localized, list):
-            return [str(item) for item in localized if item is not None]
-    if isinstance(value, list):
-        return [str(item) for item in value if item is not None]
-    return []
+    return localized_issue_list(value, lang)
 
 
 def _build_summary_rows(submissions: list[Any]) -> list[list[object]]:
@@ -397,7 +394,7 @@ def _build_issue_summary_rows(submissions: list[Any]) -> list[list[object]]:
         slide_reviews = _latest_slide_reviews(submission)
         ok_slide_count = sum(1 for item in slide_reviews if getattr(item, "status", None) == "OK")
         ng_slide_count = sum(1 for item in slide_reviews if getattr(item, "status", None) == "NG")
-        issue_count = sum(len(_localized_list(getattr(item, "issues", None), submission.language)) for item in slide_reviews)
+        issue_count = count_issues(slide_reviews, submission.language)
         latest_run = getattr(submission, "latest_run", None)
         criteria_results = list(getattr(latest_run, "criteria_results", []) or [])
         suggestion_count = sum(1 for item in criteria_results if getattr(item, "suggestion", None) is not None)
