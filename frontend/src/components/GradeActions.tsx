@@ -5,17 +5,20 @@ import { getGradeJob, gradeAll } from "../api/client";
 import { submissionsQueryKey } from "../query";
 import type { GradeJobResponse } from "../types";
 import Badge from "./ui/Badge";
+import ConfirmDialog from "./ui/ConfirmDialog";
 import { RefreshIcon } from "./ui/Icon";
 import { useTranslation } from "./LanguageSelector";
 
 interface GradeActionsProps {
   ungradedCount: number;
+  totalCount: number;
 }
 
-export default function GradeActions({ ungradedCount }: GradeActionsProps) {
+export default function GradeActions({ ungradedCount, totalCount }: GradeActionsProps) {
   const [grading, setGrading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [confirmRegradeAll, setConfirmRegradeAll] = useState(false);
   const queryClient = useQueryClient();
   const { t } = useTranslation();
 
@@ -59,13 +62,13 @@ export default function GradeActions({ ungradedCount }: GradeActionsProps) {
     return () => window.clearInterval(timer);
   }, [activeJobId, queryClient, t]);
 
-  const handleGradeAll = async () => {
+  const handleGradeAll = async (force: boolean) => {
     setGrading(true);
     setResult(null);
     try {
-      const res = await gradeAll();
+      const res = await gradeAll({ force });
       setActiveJobId(res.job_id);
-      setResult(`${t("submissions.grading")} 0/${res.total_count}`);
+      setResult(`${force ? t("submissions.regrade") : t("submissions.grading")} 0/${res.total_count}`);
     } catch (err) {
       setResult(err instanceof Error ? err.message : t("submissions.gradingFailed"));
       setGrading(false);
@@ -74,17 +77,63 @@ export default function GradeActions({ ungradedCount }: GradeActionsProps) {
 
   return (
     <div className="grade-actions">
-      <div className="grade-actions__top">
-        <button className="btn-primary" onClick={handleGradeAll} disabled={grading || ungradedCount === 0}>
-          <RefreshIcon size="sm" />
-          {grading ? t("submissions.grading") : `${t("submissions.gradeAll")} (${ungradedCount})`}
-        </button>
-        <Badge tone={ungradedCount > 0 ? "warning" : "success"}>
-          {ungradedCount > 0 ? `${ungradedCount} ${t("project.pending")}` : t("common.ready")}
-        </Badge>
+      <div className="grade-actions__panel">
+        <div className="grade-actions__summary">
+          <div className="grade-actions__summary-main">
+            <strong>{t("submissions.title")}</strong>
+            <span>
+              {grading
+                ? t("submissions.grading")
+                : ungradedCount > 0
+                  ? `${ungradedCount}/${totalCount} ${t("project.pending")}`
+                  : `${totalCount} ${t("submissions.graded")}`}
+            </span>
+          </div>
+          <Badge tone={ungradedCount > 0 ? "warning" : "success"}>
+            {ungradedCount > 0 ? `${ungradedCount} ${t("project.pending")}` : t("common.ready")}
+          </Badge>
+        </div>
+        <div className="grade-actions__buttons">
+          <button
+            className="btn-primary"
+            onClick={() => void handleGradeAll(false)}
+            disabled={grading || ungradedCount === 0}
+          >
+            <RefreshIcon size="sm" />
+            {grading ? t("submissions.grading") : `${t("submissions.gradeAll")} (${ungradedCount})`}
+          </button>
+          <button
+            className="btn-secondary"
+            onClick={() => setConfirmRegradeAll(true)}
+            disabled={grading || totalCount === 0}
+          >
+            <RefreshIcon size="sm" />
+            {t("submissions.regradeAll")}
+          </button>
+        </div>
       </div>
-      <p className="grade-actions__hint">{t("submissions.batchHint")}</p>
+      <p className="grade-actions__hint">
+        {ungradedCount > 0 ? t("submissions.batchHint") : t("submissions.batchRegradeHint")}
+      </p>
       {result ? <div className="grade-actions__status">{result}</div> : null}
+
+      <ConfirmDialog
+        open={confirmRegradeAll}
+        title={t("submissions.regradeAll")}
+        description={t("submissions.regradeAllConfirm").replace("{count}", String(totalCount))}
+        confirmLabel={t("submissions.regradeAll")}
+        cancelLabel={t("common.cancel")}
+        pending={grading}
+        onConfirm={() => {
+          setConfirmRegradeAll(false);
+          void handleGradeAll(true);
+        }}
+        onCancel={() => {
+          if (!grading) {
+            setConfirmRegradeAll(false);
+          }
+        }}
+      />
     </div>
   );
 }

@@ -32,12 +32,18 @@ Thumbs.db
 
 # Runtime data and uploads
 backend/data/*.json
+backend/data/*.db
 backend/uploads/*
 !backend/data/.gitkeep
 !backend/uploads/.gitkeep
 
-# Sample artifacts should live outside runtime directories
-backend/samples/
+# Generated artifacts and logs
+artifacts/
+backend/artifacts/
+*.log
+
+# Keep curated sample inputs for demo/test
+# backend/samples/ is intentionally tracked
 
 # Temporary files
 ~$*.pptx

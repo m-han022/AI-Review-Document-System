@@ -73,6 +73,8 @@ async def grade_single(
             document_language,
             getattr(submission, "document_type", None),
             rubric_version=rubric_version,
+            use_cache=not force,
+            refresh_cache=force,
         )
     except Exception as e:
         raise HTTPException(
@@ -108,10 +110,12 @@ async def grade_single(
 @router.post("/grade-all", response_model=GradeJobResponse)
 async def grade_all(
     background_tasks: BackgroundTasks,
-    ui_language: LanguageCode = Query(default="ja", alias="language", description="UI language (not used for grading)")
+    ui_language: LanguageCode = Query(default="ja", alias="language", description="UI language (not used for grading)"),
+    force: bool = Query(default=False, description="Force regrading for all submissions, including already graded ones"),
+    rubric_version: str | None = Query(default=None, description="Rubric version to use for all grading runs"),
 ):
-    ungraded_ids = store.get_ungraded_project_ids()
-    job = grade_job_store.create_job(ungraded_ids)
+    project_ids = store.get_all_project_ids() if force else store.get_ungraded_project_ids()
+    job = grade_job_store.create_job(project_ids, force=force, rubric_version=rubric_version)
     background_tasks.add_task(grade_job_store.run_grade_all_job, job.job_id)
     return job
 

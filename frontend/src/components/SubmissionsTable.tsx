@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { bulkDeleteSubmissions, deleteSubmission, exportSubmissionsExcel, gradeSubmission } from "../api/client";
+import type { DocumentType } from "../constants/documentTypes";
 import { submissionsQueryKey } from "../query";
 import type { Submission } from "../types";
 import { useTranslation } from "./LanguageSelector";
@@ -49,6 +50,9 @@ export default function SubmissionsTable({
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [documentTypeFilter, setDocumentTypeFilter] = useState<DocumentType | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "completed" | "pending">("all");
+  const [languageFilter, setLanguageFilter] = useState<"all" | "vi" | "ja">("all");
   const queryClient = useQueryClient();
   const { t } = useTranslation();
 
@@ -106,12 +110,36 @@ export default function SubmissionsTable({
     },
   });
 
+  const filteredSubmissions = useMemo(() => {
+    return submissions.filter((submission) => {
+      if (documentTypeFilter !== "all" && submission.document_type !== documentTypeFilter) {
+        return false;
+      }
+
+      if (statusFilter !== "all") {
+        const isCompleted = submission.latest_run?.score !== null && submission.latest_run?.score !== undefined;
+        if (statusFilter === "completed" && !isCompleted) {
+          return false;
+        }
+        if (statusFilter === "pending" && isCompleted) {
+          return false;
+        }
+      }
+
+      if (languageFilter !== "all" && submission.language !== languageFilter) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [documentTypeFilter, languageFilter, statusFilter, submissions]);
+
   const pageSize = PAGE_SIZE[variant];
-  const totalPages = Math.max(1, Math.ceil(submissions.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(filteredSubmissions.length / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const pageStart = (safeCurrentPage - 1) * pageSize;
-  const pageEnd = Math.min(pageStart + pageSize, submissions.length);
-  const pagedSubmissions = submissions.slice(pageStart, pageEnd);
+  const pageEnd = Math.min(pageStart + pageSize, filteredSubmissions.length);
+  const pagedSubmissions = filteredSubmissions.slice(pageStart, pageEnd);
   const currentPageProjectIds = useMemo(
     () => pagedSubmissions.map((item) => item.project_id),
     [pagedSubmissions],
@@ -125,13 +153,17 @@ export default function SubmissionsTable({
     return t("submissions.displayResults", {
       start: pageEnd === 0 ? 0 : pageStart + 1,
       end: pageEnd,
-      total: submissions.length,
+      total: filteredSubmissions.length,
     });
-  }, [t, pageEnd, pageStart, submissions.length]);
+  }, [filteredSubmissions.length, t, pageEnd, pageStart]);
 
   useEffect(() => {
     setCurrentPage((page) => Math.min(page, totalPages));
   }, [totalPages]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [documentTypeFilter, languageFilter, statusFilter]);
 
   const handleSelectProject = (projectId: string) => {
     if (!controlledActiveProjectId) {
@@ -280,11 +312,17 @@ export default function SubmissionsTable({
               {!isDashboardVariant && (
                 <TableToolbar
                   selectedCount={selectedIds.size}
-                  totalCount={submissions.length}
+                  totalCount={filteredSubmissions.length}
                   onExport={() => void handleExportExcel()}
                   onDeleteSelected={() => openDeleteDialog(Array.from(selectedIds), "selected")}
                   exporting={exporting}
                   isActionPending={isActionPending}
+                  documentTypeFilter={documentTypeFilter}
+                  statusFilter={statusFilter}
+                  languageFilter={languageFilter}
+                  onDocumentTypeFilterChange={setDocumentTypeFilter}
+                  onStatusFilterChange={setStatusFilter}
+                  onLanguageFilterChange={setLanguageFilter}
                 />
               )}
 
@@ -320,7 +358,7 @@ export default function SubmissionsTable({
           </SectionBlock>
 
           <TableFooter
-            totalCount={submissions.length}
+            totalCount={filteredSubmissions.length}
             resultSummary={resultSummary}
             currentPage={safeCurrentPage}
             totalPages={totalPages}

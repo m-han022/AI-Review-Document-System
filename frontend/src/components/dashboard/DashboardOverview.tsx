@@ -2,7 +2,7 @@ import { useMemo } from "react";
 
 import type { Submission } from "../../types";
 import { useTranslation } from "../LanguageSelector";
-import { ChevronDownIcon, RefreshIcon } from "../ui/Icon";
+import GradeActions from "../GradeActions";
 
 interface DashboardOverviewProps {
   submissions: Submission[];
@@ -66,34 +66,13 @@ export default function DashboardOverview({ submissions }: DashboardOverviewProp
     ] as const;
   }, [submissions, t]);
 
-  const filters = [
-    t("dashboard.filterAllDocumentTypes"),
-    t("dashboard.filterAllStatuses"),
-    t("dashboard.filterAllLanguages"),
-    t("dashboard.filterDateRange"),
-  ];
+  const ungradedCount = submissions.filter(
+    (item) => item.latest_run?.score === null || item.latest_run?.score === undefined,
+  ).length;
 
   return (
     <section className="dashboard-overview dashboard-overview--plain">
       <div className="dashboard-overview__body">
-        <div className="dashboard-filters">
-          <div className="dashboard-filters__group">
-            <span className="dashboard-filters__label">{t("dashboard.filtersLabel")}</span>
-          </div>
-          <div className="dashboard-filters__controls dashboard-filters__controls--wide">
-            {filters.map((filter) => (
-              <button key={filter} type="button" className="dashboard-filter-chip">
-                <span>{filter}</span>
-                <ChevronDownIcon size="sm" />
-              </button>
-            ))}
-          </div>
-          <button type="button" className="dashboard-refresh-button">
-            <RefreshIcon size="sm" />
-            <span>{t("common.refresh")}</span>
-          </button>
-        </div>
-
         <div className="dashboard-stat-grid">
           {stats.map((stat) => (
             <article key={stat.key} className={`dashboard-stat-card dashboard-stat-card--${stat.tone}`.trim()}>
@@ -106,6 +85,8 @@ export default function DashboardOverview({ submissions }: DashboardOverviewProp
             </article>
           ))}
         </div>
+
+        <GradeActions ungradedCount={ungradedCount} totalCount={submissions.length} />
       </div>
     </section>
   );

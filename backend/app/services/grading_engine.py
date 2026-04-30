@@ -248,6 +248,7 @@ def grade_submission(
     document_type: str | None = None,
     rubric_version: str | None = None,
     use_cache: bool = True,
+    refresh_cache: bool = False,
 ) -> dict[str, Any]:
     if not settings.gemini_api_keys:
         raise RuntimeError("GEMINI_API_KEY is not configured in .env")
@@ -259,10 +260,10 @@ def grade_submission(
         rubric_version=rubric_version,
     )
 
-    if use_cache:
-        cache_key = _build_cache_key(signature)
-        if cache_key in _grading_cache:
-            return _grading_cache[cache_key]
+    cache_key = _build_cache_key(signature)
+
+    if use_cache and not refresh_cache and cache_key in _grading_cache:
+        return _grading_cache[cache_key]
 
     rubric = get_rubric(document_type=document_type, version=signature["rubric_version"])
     
@@ -361,8 +362,7 @@ def grade_submission(
         "slide_reviews": slide_reviews,
     }
 
-    if use_cache:
-        cache_key = _build_cache_key(signature)
+    if use_cache or refresh_cache:
         _grading_cache[cache_key] = result_data
 
     return result_data

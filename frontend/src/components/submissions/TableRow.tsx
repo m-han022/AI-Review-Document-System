@@ -119,7 +119,7 @@ export default function TableRow({
           ) : (
             <>
               <button
-                className="review-icon-button"
+                className="btn-secondary btn-secondary--compact review-table__row-action"
                 onClick={(event) => {
                   event.stopPropagation();
                   onGrade(submission.project_id);
@@ -129,9 +129,10 @@ export default function TableRow({
                 title={gradeActionLabel}
               >
                 <RefreshIcon size="sm" />
+                <span>{gradeActionLabel}</span>
               </button>
               <button
-                className="review-icon-button review-icon-button--danger"
+                className="btn-danger-soft btn-danger-soft--compact review-table__row-action"
                 onClick={(event) => {
                   event.stopPropagation();
                   onDelete(submission.project_id);
@@ -141,6 +142,7 @@ export default function TableRow({
                 title={deleteActionLabel}
               >
                 <TrashIcon size="sm" />
+                <span>{deleteActionLabel}</span>
               </button>
             </>
           )}

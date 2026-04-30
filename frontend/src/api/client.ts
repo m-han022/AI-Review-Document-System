@@ -122,6 +122,11 @@ interface GradeSubmissionParams {
   rubricVersion?: string | null;
 }
 
+interface GradeAllParams {
+  force?: boolean;
+  rubricVersion?: string | null;
+}
+
 export async function gradeSubmission({ projectId, force = false, rubricVersion = null }: GradeSubmissionParams) {
   const params = new URLSearchParams({
     language: currentLanguage,
@@ -143,8 +148,18 @@ export async function gradeSubmission({ projectId, force = false, rubricVersion 
   return res.json();
 }
 
-export async function gradeAll() {
-  const res = await fetch(`${API_BASE_URL}/grade-all?language=${currentLanguage}`, {
+export async function gradeAll({ force = false, rubricVersion = null }: GradeAllParams = {}) {
+  const params = new URLSearchParams({
+    language: currentLanguage,
+  });
+  if (force) {
+    params.set("force", "true");
+  }
+  if (rubricVersion) {
+    params.set("rubric_version", rubricVersion);
+  }
+
+  const res = await fetch(`${API_BASE_URL}/grade-all?${params.toString()}`, {
     method: 'POST',
   });
   if (!res.ok) {

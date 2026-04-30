@@ -52,7 +52,13 @@ class GradeJobStore:
             for job_id, _ in completed_jobs[:overflow]:
                 self._jobs.pop(job_id, None)
 
-    def create_job(self, project_ids: list[str]) -> GradeJobResponse:
+    def create_job(
+        self,
+        project_ids: list[str],
+        *,
+        force: bool = False,
+        rubric_version: str | None = None,
+    ) -> GradeJobResponse:
         now = datetime.now(timezone.utc).isoformat()
         job_id = uuid4().hex
         job_data = {
@@ -67,6 +73,8 @@ class GradeJobStore:
             "finished_at": None,
             "error": None,
             "project_ids": project_ids,
+            "force": force,
+            "rubric_version": rubric_version,
         }
         with self._lock:
             self._prune_jobs_locked()
@@ -135,6 +143,8 @@ class GradeJobStore:
         try:
             with self._lock:
                 project_ids = list(self._jobs[job_id]["project_ids"])
+                force = bool(self._jobs[job_id].get("force", False))
+                rubric_version = self._jobs[job_id].get("rubric_version")
 
             for project_id in project_ids:
                 submission = store.get(project_id)
@@ -159,6 +169,9 @@ class GradeJobStore:
                         submission.extracted_text,
                         document_language,
                         getattr(submission, "document_type", None),
+                        rubric_version=rubric_version,
+                        use_cache=not force,
+                        refresh_cache=force,
                     )
                     graded_at = datetime.now(timezone.utc).isoformat()
                     submission = store.save_grading_result(

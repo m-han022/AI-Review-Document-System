@@ -57,7 +57,7 @@ $env:VITE_API_BASE_URL="http://localhost:8001/api"
 npm run dev -- --host localhost --port 5173 --strictPort
 ```
 
-Lưu ý: frontend source có fallback API là `http://localhost:8000/api`. Nếu backend chạy port `8001` như cấu hình local hiện tại, bắt buộc set `VITE_API_BASE_URL=http://localhost:8001/api` khi chạy frontend.
+Lưu ý: frontend source hiện fallback về `http://localhost:8001/api`. Vẫn nên set `VITE_API_BASE_URL=http://localhost:8001/api` để tránh lệch cấu hình giữa local, preview và production.
 
 Có thể cấu hình cố định cho frontend bằng file `frontend/.env.local`:
 
@@ -105,6 +105,27 @@ http://127.0.0.1:3000
 - `bug-analysis`: Review tài liệu phân tích bug
 - `qa-review`: Review tài liệu QA
 - `explanation-review`: Review tài liệu giải thích
+
+## Phát hiện ngôn ngữ
+
+Hệ thống tự phát hiện ngôn ngữ tài liệu từ nội dung extract bằng cơ chế weighted scoring, thay vì chỉ đếm vài ký tự Nhật hay Việt.
+
+Các tín hiệu chính:
+
+- số lượng ký tự đặc trưng `vi/ja`
+- pattern từ khóa đặc trưng
+- tỷ lệ xuất hiện của từng ngôn ngữ trong toàn văn bản
+
+Nguyên tắc này giúp giảm false positive với tài liệu hỗn hợp, ví dụ:
+
+- tài liệu tiếng Việt có tên công ty hoặc thuật ngữ tiếng Nhật
+- tài liệu tiếng Nhật có lẫn cụm tiếng Việt trong phần ghi chú hoặc handover
+
+Logic hiện nằm ở:
+
+```text
+backend/app/services/pdf_parser.py
+```
 
 ## Schema chấm điểm
 
@@ -448,6 +469,5 @@ Lưu ý:
 
 ## Tài liệu liên quan
 
-- [QUICK_DEPLOY.md](QUICK_DEPLOY.md)
-- [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
-- [LANGUAGE_DETECTION_GUIDE.md](LANGUAGE_DETECTION_GUIDE.md)
+- [DEPLOYMENT.md](DEPLOYMENT.md)
+- [REQUIREMENTS.md](REQUIREMENTS.md)

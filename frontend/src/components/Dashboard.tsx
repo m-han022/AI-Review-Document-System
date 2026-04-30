@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { getSubmissions } from "../api/client";
+import { API_BASE_URL } from "../config";
 import { submissionsQueryKey } from "../query";
 import type { Submission } from "../types";
 import DashboardOverview from "./dashboard/DashboardOverview";
@@ -14,8 +15,9 @@ import ProjectCard from "./project/ProjectCard";
 import RubricManagement from "./rubrics/RubricManagement";
 import SubmissionsTable from "./SubmissionsTable";
 import Badge from "./ui/Badge";
-import { ArrowLeftIcon, DownloadIcon } from "./ui/Icon";
+import { ArrowLeftIcon, ChevronRightIcon, DownloadIcon, FileReviewIcon } from "./ui/Icon";
 import SectionBlock from "./ui/SectionBlock";
+import { formatUploadedAt, getLanguageLabel } from "./submissions/utils";
 
 function PlaceholderPanel({
   title,
@@ -44,7 +46,7 @@ function PlaceholderPanel({
 }
 
 export default function Dashboard() {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const [activeView, setActiveView] = useState<WorkspaceView>("dashboard");
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const { data, isLoading, error } = useQuery({
@@ -57,6 +59,7 @@ export default function Dashboard() {
     () => submissions.find((item) => item.project_id === selectedProjectId) ?? submissions[0] ?? null,
     [selectedProjectId, submissions],
   );
+  const recentSubmissions = useMemo(() => submissions.slice(0, 5), [submissions]);
 
   const topbarContent = useMemo(() => {
     switch (activeView) {
@@ -173,7 +176,7 @@ export default function Dashboard() {
               </button>
               {selectedSubmission ? (
                 <a
-                  href={`${import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api"}/submissions/${selectedSubmission.project_id}/file?disposition=attachment`}
+                  href={`${API_BASE_URL}/submissions/${selectedSubmission.project_id}/file?disposition=attachment`}
                   className="btn-secondary btn-secondary--compact"
                   download
                   target="_blank"
@@ -214,15 +217,74 @@ export default function Dashboard() {
         return (
           <div className="workspace-stack">
             <DashboardOverview submissions={submissions} />
-            <SubmissionsTable
-              submissions={submissions}
-              variant="dashboard"
-              activeProjectId={selectedSubmission?.project_id ?? null}
-              onSelectProject={(projectId) => {
-                setSelectedProjectId(projectId);
-                setActiveView("detail");
-              }}
-            />
+            <SectionBlock className="dashboard-recent-shell">
+              <SectionBlock.Header
+                title={t("submissions.title")}
+                subtitle={t("submissions.subtitle")}
+                aside={
+                  <button
+                    type="button"
+                    className="btn-secondary btn-secondary--compact"
+                    onClick={() => setActiveView("reviews")}
+                  >
+                    {t("nav.allReviews")}
+                    <ChevronRightIcon size="sm" />
+                  </button>
+                }
+              />
+              <SectionBlock.Body>
+                {recentSubmissions.length ? (
+                  <div className="dashboard-recent-list">
+                    {recentSubmissions.map((submission) => {
+                      const latestScore = submission.latest_run?.score ?? null;
+                      const statusLabel = latestScore !== null ? t("project.completed") : t("project.pending");
+                      const statusTone = latestScore !== null ? "success" : "warning";
+
+                      return (
+                        <button
+                          key={submission.project_id}
+                          type="button"
+                          className="dashboard-recent-item"
+                          onClick={() => {
+                            setSelectedProjectId(submission.project_id);
+                            setActiveView("detail");
+                          }}
+                        >
+                          <div className="dashboard-recent-item__main">
+                            <span className="dashboard-recent-item__icon" aria-hidden="true">
+                              <FileReviewIcon size="sm" />
+                            </span>
+                            <div className="dashboard-recent-item__meta">
+                              <strong>{submission.filename}</strong>
+                              <span>
+                                {submission.project_id} · {submission.project_name} · {getLanguageLabel(submission, lang)}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="dashboard-recent-item__aside">
+                            <Badge tone={statusTone}>{statusLabel}</Badge>
+                            <span className="dashboard-recent-item__score">
+                              {latestScore !== null ? `${latestScore}/100` : t("common.noValue")}
+                            </span>
+                            <span className="dashboard-recent-item__time">
+                              {formatUploadedAt(submission.uploaded_at, lang)}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="empty-projects-panel">
+                    <span className="empty-projects-panel__icon" aria-hidden="true">
+                      <FileReviewIcon size="lg" />
+                    </span>
+                    <h3>{t("submissions.emptyStateTitle")}</h3>
+                    <p>{t("submissions.noSubmissions")}</p>
+                  </div>
+                )}
+              </SectionBlock.Body>
+            </SectionBlock>
           </div>
         );
     }

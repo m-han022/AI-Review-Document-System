@@ -1,0 +1,140 @@
+{
+  "P001": {
+    "project_id": "P001",
+    "project_name": "プロジェクトのサンプルA",
+    "filename": "P001_プロジェクトのサンプルA.pdf",
+    "extracted_text": "プロジェクト振り返りレポート\n※本資料は高品質サンプルとして作成した例示用ドキュメントです。提出用フォーマットおよびレビュー観点の\n参考として利用できます。\nB2B受発注管理システム刷新プロジェ\n案件名 期間 2025年7月 - 2025年12月\nクト\nPM 1名 / PMO 1名 / FE 2名 / BE 3名 / PMO（進捗管理・課題管理・品\n体制 担当\nQA 2名 質レビュー支援）\n旧システムを刷新し、受発注処理時間 本番リリース完了、主要KPIを概\n目的 結果\n短縮と運用負荷低減を実現する。 ね達成\n1. プロジェクト総括\n本プロジェクトでは、旧受発注管理システムのUI刷新、承認フローの簡素化、帳票出力性能の改善を中心\nに対応した。結果として主要機能は計画どおり本番リリースに到達し、受注登録から承認完了までの平均\n処理時間を短縮できた。一方で、業務部門との要件調整が一部後ろ倒しとなり、結合テスト直前に仕様補\n正が発生した。\n観点 結果 補足\n納期 達成 計画どおりリリース実施\n品質 良好 重大障害 0件、軽微不具合 5件\n生産性 改善 帳票処理・画面再利用により工数を約12%削減\n運用性 改善 運用問い合わせ件数を初月で約25%削減\n2. 良かった点（実績として良かった点）\n① 良かった点\n承認フローと帳票出力処理について、共通ロジック化と画面部品の標準化を初期段階で進めた。その結果\n、複数機能で同一仕様を再利用でき、実装・レビューの両面でばらつきを抑制できた。\n② どういう理由で良かったのか\n帳票関連画面および承認画面の開発工数を当初見積比で約12%削減できた。また、レビュー観点が統一さ\nれたことで、結合テスト前の手戻り件数も前案件比で約18%減少した。加えて、運用部門向けマニュアル\nを画面設計と連動して更新したため、本番後1か月の問い合わせ件数が約25%減少した。\n③ 再現するためにはどうするか\n次回以降も、主要機能を対象に『共通化候補一覧』を基本設計の段階で作成し、部品化対象・非対象の判\n断基準を残す。初期に1人日前後の追加整理は必要だが、後続工程での再利用効果が大きく、費用対効果\n1\nは高い。ただし、全機能を一律に共通化対象とすると過剰設計のリスクがあるため、変更頻度・利用頻度\nの高い領域に限定して適用するのが現実的である。\n3. 悪かった点（実績として悪かった点）\n① 悪かった点\n一部業務ルールの確定が遅れ、結合テスト直前に承認条件と例外パターンの仕様補正が3件発生した。特\nに代理承認条件の解釈差異が、テストケース修正と画面メッセージ再調整を招いた。\n② どういう理由で悪かったのか\n根本原因は、要件定義時に『確定済みルール』と『運用確認中のルール』が明確に区別されていなかった\nことにある。そのため、設計資料上は確定事項のように見えていた内容が、後から変更対象となった。結\n果として再作業工数は約14%増加し、結合テスト着手が2営業日遅延した。最終納期への影響は吸収でき\nたが、後半での品質確認密度が高まり、レビュー負荷が上昇した。\n③ 再発防止策\n要件レビュー時に『未確定事項管理表』を必須化し、項目ごとに担当者・期限・判定基準を設定する。さ\nらに、設計着手前レビューで未確定項目の件数と影響範囲を確認し、一定閾値を超える場合は着手可否を\n再判断する。この運用は既存の定例会で実施可能であり、追加コストは小さい。一方で、更新責任が曖昧\nになると形骸化するため、PMOが週次で更新状況を確認する前提で回す必要がある。\n2\n4. 今後より良くするための施策\n① 施策内容\n次案件では、以下の3施策を標準運用として導入する。\nNo. 施策内容 想定効果 現実性・留意点\n未確定事項管理表のテンプレ 仕様変更起因の再作業を1 既存会議で運用可能。更新責\n1\nート化 0〜15%削減 任者を明確化する必要あり。\n共通部品・共通ロジック候補 開発工数削減、レビュー 初期整理コストは小さいが、\n2\nの初期整理 観点の標準化 対象範囲の絞り込みが必要。\n遅延予兆の早期検知、品 会議15分追加で実施可能。過\n3 週次リスクレビューの定例化\n質低下リスクの抑制 剰管理を避ける設計が必要。\n② 想定される施策の効果\n上記施策により、次案件では仕様変更による再作業抑制、レビュー品質の安定化、および遅延予兆の早期\n把握が期待できる。全体として、開発生産性は約10〜15%改善する可能性がある。ただし、テンプレート\n整備だけでは定着しないため、運用責任者とレビュータイミングを明確化することが前提となる。\n5. PMO観点での所見\n本案件は、納期・品質・運用性の観点で一定以上の成果を残した。特に、共通化の早期実施とレビュー観\n点の統一は、再利用可能な成功事例として評価できる。一方で、要件確定の曖昧さが後半負荷を高める構\n造は依然として残っている。したがって、次回は個人の調整力に依存せず、未確定事項管理と週次リスク\nレビューを仕組みとして定着させることが重要である。\n補足: 本資料は、添付PDFの構成・トーンを参考にしつつ、新しい案件内容で作成した高品質サンプルです。\n3",
+    "score": 98,
+    "criteria_scores": {
+      "review_tong_the": 23.0,
+      "diem_tot": 33.0,
+      "diem_xau": 23.0,
+      "chat_luong_viet": 19.0
+    },
+    "criteria_suggestions": {
+      "review_tong_the": "• 非常に完成度が高く、プロジェクト管理の要点を全て押さえています。\n• プロジェクトの技術スタックや予算規模などの背景情報を補足すると、他部署へのナレッジ共有がより円滑になります。",
+      "diem_tot": "• 定量的な指標（12%削減、25%減少等）が豊富で、説得力が非常に高いです。\n• 共通化による効果が、どの開発工程（実装、単体テスト、結合テスト）に最も寄与したかの内訳があると、今後の見積精度向上に役立ちます。",
+      "diem_xau": "• 根本原因分析（5 Whysに近いアプローチ）が的確に行われています。\n• 再発防止策の「一定閾値」について、具体的な数値（例：未確定事項が10件以上など）を定義することで、運用の客観性がさらに高まります。",
+      "chat_luong_viet": "• 簡潔かつ論理的で、非常にプロフェッショナルなビジネス文体です。\n• 表形式と箇条書きのバランスが良く、情報の優先順位が明確に伝わります。"
+    },
+    "draft_feedback": "① 良い点：\n• 定量的なデータ（工数12%削減、問い合わせ25%減少など）に基づいた客観的な分析が極めて優秀です。\n• 「良かった点」の再現方法として、単なる精神論ではなく「共通化候補一覧」の作成という具体的な仕組みを提示しています。\n• 「悪かった点」において、事象の記述に留まらず「確定済み」と「未確定」の区別不足という根本原因を鋭く特定できています。\n\n② 改善点：\n• 再発防止策で言及されている「一定閾値」について、具体的な数値基準を設けることで、現場での判断迷いを防ぐことができます。\n• 共通化による「過剰設計のリスク」を回避するための具体的な判断基準（コスト対効果の算出方法など）を深掘りすると、さらに実効性が増します。\n\n③ 結論：\n• プロジェクト管理の振り返りとして模範となる、非常に質の高いレポートです。\n• 分析の深さと具体性は、他のプロジェクトマネージャーが参照すべき標準テンプレートとして活用できるレベルにあります。",
+    "uploaded_at": "2026-04-17T09:55:59.153324+00:00",
+    "graded_at": "2026-04-17T09:56:30.779797+00:00",
+    "language": "ja"
+  },
+  "P008": {
+    "project_id": "P008",
+    "project_name": "bao cao submit final(Ví dụ)",
+    "filename": "P008_bao_cao_submit_final(Ví dụ).pdf",
+    "extracted_text": "BÁO CÁO TỔNG KẾT DỰ ÁN\n※ Tài liệu này là nội dung mẫu giả định cho dự án thực tế, phục vụ luyện tập review và\nxác nhận format.\nTên dự án\nDự án nâng cấp website EC đa ngôn ngữ\nThời gian 2025\u000010\u0000 - 2026\u00001\u0000\nCơ cấu\nPM 1 / PMO 1 / FE 2 / BE 2 / QA 1\nPhụ trách\nPMO\u0000quản lý tiến độ\u0000issue\u0000review\u0000\nMục tiêu\nNâng cấp hệ thống EC, cải thiện tốc độ hiển thị và hiệu quả vận hành\nRelease Thực hiện đúng kế hoạch\n1. Tổng kết dự án\nĐã cải tiến UI, đa ngôn ngữ và hiệu năng hiển thị. Các chức năng chính được release\nđúng hạn. Tuy nhiên, do chậm xác định requirement, phát sinh thay đổi spec và tăng\ntải giai đoạn cuối.\nHạng mục Kết quả Ghi chú\nTiến độ Đạt Release đúng kế hoạch\nChất lượng Khá tốt 0 lỗi nghiêm trọng, 6 lỗi nhẹ\nNăng suất Cải thiện Giảm ~15% công\nQuản lý issue Cần cải thiện 4 thay đổi spec\n2. Điểm tốt\n① Thiết kế component chung sớm giúp chuẩn hóa UI\n② Giảm ~15% công dev và ~20% rework\n③ Tạo danh sách component sau wireframe để tái sử dụng\n3. Điểm chưa tốt\n① Chậm xác định requirement, phát sinh 4 thay đổi spec\n② Nguyên nhân: không phân biệt rõ các hạng mục cần quyết định và cần xem xét\n③ Hậu quả: tăng 18% rework, delay 3 ngày\n4. Biện pháp\n- Tạo danh sách requirement chưa xác định\n- Gán owner, deadline, decision maker\n- Thiết lập điều kiện bắt đầu design\n5. Cải thiện\nNo Nội dung Hiệu quả\n1 Tracking requirement Giảm 10–15% rework\n2 Chuẩn hóa component Tăng chất lượng\n3 Review rủi ro Giảm delay\n6. Nhận xét PMO\nDự án đạt tiến độ và chất lượng nhưng workload dồn về cuối. Cần chuẩn hóa quy trình\nvà quản lý requirement tốt hơn.",
+    "score": 93,
+    "criteria_scores": {
+      "review_tong_the": 22,
+      "diem_tot": 32,
+      "diem_xau": 21,
+      "chat_luong_viet": 18
+    },
+    "criteria_suggestions": {
+      "review_tong_the": "• Bổ sung thêm thông tin về ngân sách (budget) để đánh giá hiệu quả tài chính.\n• Cần làm rõ phạm vi (scope) ban đầu để so sánh với các thay đổi spec phát sinh.",
+      "diem_tot": "• Các chỉ số định lượng (15%, 20%) rất tốt, cần duy trì cách viết này.\n• Có thể bổ sung thêm phản hồi từ phía khách hàng về việc cải tiến UI.",
+      "diem_xau": "• Cần phân tích sâu hơn tại sao không phân biệt được hạng mục cần quyết định (dùng 5 Whys).\n• Làm rõ chi phí phát sinh do việc tăng 18% rework (ví dụ: số giờ công trội thêm).",
+      "chat_luong_viet": "• Văn phong chuyên nghiệp, súc tích.\n• Phần 'Nhận xét PMO' nên cụ thể hóa bằng các hành động giám sát cho dự án tiếp theo."
+    },
+    "draft_feedback": "① Điểm mạnh:\n• Tài liệu có cấu trúc rất rõ ràng, đầy đủ các phần cốt lõi của một báo cáo Retrospective.\n• Sử dụng số liệu định lượng cụ thể (giảm 15% công, tăng 18% rework) giúp việc đánh giá khách quan và có sức thuyết phục cao.\n• Các biện pháp khắc phục (Action Plan) rất thực tế, có phân công người phụ trách (owner) và điều kiện bắt đầu rõ ràng.\n\n② Điểm cần cải thiện:\n• Phần phân tích nguyên nhân gốc rễ (Root Cause) cho việc chậm xác định requirement còn hơi sơ sài. Cần làm rõ do quy trình giao tiếp với khách hàng hay do năng lực phân tích của team.\n• Cần bổ sung đánh giá về mặt rủi ro cho các biện pháp mới đề xuất để đảm bảo tính khả thi khi vận hành thực tế.\n\n③ Kết luận:\nĐây là một báo cáo chất lượng tốt, thể hiện tư duy quản trị dự án dựa trên dữ liệu. Nếu bổ sung thêm phân tích sâu về nguyên nhân chủ quan, tài liệu sẽ hoàn thiện hơn.",
+    "uploaded_at": "2026-04-20T02:45:52.437996+00:00",
+    "graded_at": "2026-04-20T02:49:52.788189+00:00",
+    "language": "vi"
+  },
+  "P002": {
+    "project_id": "P002",
+    "project_name": "プロジェクトのサンプルB",
+    "filename": "P002_プロジェクトのサンプルB.pdf",
+    "extracted_text": "プロジェクト振り返りレポート\n※本資料は実案件を想定したサンプル内容であり、レビュー練習および提出形式の確認を目的として\n作成したものです。\nECサイト多言語リニューアルプロジ\n案件名 期間 2025年10月 - 2026年1月\nェクト\nPM 1名 / PMO 1名 / FE 2名 / BE 2名 / PMO（進捗・課題・レビュー支\n体制 担当\nQA 1名 援）\n既存ECサイトを刷新し、表示速度改\n目的 リリース 予定通り実施\n善と運用効率向上を実現する。\n1. プロジェクト総括\n本プロジェクトでは、既存ECサイトのUI刷新、多言語対応の整理、主要画面の表示速度改善を中心に実\n施した。最終的には主要機能を納期内にリリースし、運用部門からの初期問い合わせ件数も想定範囲内\nに収まった。一方で、要件確定の遅れに起因する仕様変更が複数回発生し、後半工程での負荷が高まっ\nた。\n観点 結果 補足\n納期 達成 当初計画どおりに本番反映\n品質 概ね良好 重大障害 0件、軽微不具合 6件\n生産性 改善 共通部品化により画面開発工数を約15%削減\n課題管理 要改善 仕様変更4件により再作業が発生\n2. 良かった点（実績として良かった点）\n① 良かった点\n共通コンポーネント設計を早期に実施したことで、商品一覧、商品詳細、カート画面のUI実装を標準化\nできた。その結果、画面ごとの差異が減り、レビュー観点も統一しやすくなった。\n② どういう理由で良かったのか\n部品再利用率が高まり、同種画面の開発工数を当初見積比で約15%削減できた。また、レビュー時の指\n摘内容が共通化され、手戻り件数も前案件比で約20%減少した。プロジェクト全体として、設計品質の\n均一化とレビュー効率向上に寄与した点が大きい。\n③ 再現するためにはどうするか\n1\n次回以降も、基本画面のワイヤー確定後すぐに共通部品一覧を作成し、命名規則・利用条件を簡易ガイ\nドとして残す。追加コストは初期に0.5〜1人日程度発生するが、後半の実装とレビュー負荷を抑えられ\nるため、現実的かつ再現性が高い。ただし、要件が固まらない段階で部品化を進め過ぎると再設計コス\nトが発生するため、対象範囲を主要画面に限定して始めるのが妥当である。\n3. 悪かった点（実績として悪かった点）\n① 悪かった点\n要件確定のタイミングが遅れ、開発後半で仕様変更が4件発生した。特に多言語表示ルールと会員向けク\nーポン適用条件の整理不足が、実装とテストの双方に影響した。\n② どういう理由で悪かったのか\n根本原因は、要件定義フェーズで『決めるべき事項』と『持ち帰り検討事項』の切り分けが曖昧だった\nことにある。そのため、関係者間で認識差が残ったまま設計・開発に進み、後工程で確認・再調整が必\n要となった。結果として再作業工数は約18%増加し、結合テスト開始が3営業日遅延した。影響は最終納\n期内に吸収できたが、チーム後半負荷の上昇とレビュー品質低下リスクを招いた。\n③ 再発防止策\n再発防止のため、要件定義レビュー時に『未確定事項一覧』を必ず作成し、担当者・期限・意思決定者\nを明記する。また、設計着手条件として、業務ルールに関する未確定項目が一定件数以下であることを\n簡易ゲートとして設定する。この運用は会議体を大きく増やさず実施可能であり、コストは小さい。一\n方で、関係者の協力が得られない場合は形骸化するリスクがあるため、PMOが一覧更新を定例会で確認\nする仕組みを併用する。\n2\n4. 今後より良くするための施策\n① 施策内容\n以下の3施策を次案件で標準運用とする。\nNo. 施策内容 想定効果 現実性・留意点\n既存会議体で運用可能。更新\n要件未確定事項トラッキング 仕様変更起因の再作業を1\n1 責任者を明確にする必要あり\n表の標準化 0〜15%削減\n。\n共通コンポーネント一覧とレ レビュー品質の均一化、 初期作成コストは小さいが、\n2\nビュー観点表の整備 指摘の再発抑制 保守ルールが必要。\n定例会15分延長で実施可能。\n週次リスクレビューで遅延予 問題の早期検知により、\n3 過剰管理にならない運用設計\n兆を可視化 納期遅延リスクを低減\nが必要。\n② 想定される施策の効果\n上記施策を組み合わせることで、次案件では仕様変更起因の再作業削減、レビュー品質の安定化、およ\nびリスク顕在化前の対処が期待できる。全体として、開発生産性は約10〜20%改善の可能性がある。た\nだし、テンプレートを増やすだけでは効果は限定的であり、運用責任者と更新タイミングを明確にする\nことが前提となる。\n5. PMO観点での所見\n本案件は、納期達成と品質確保の面では一定の成果があった。一方で、後工程にしわ寄せが出る典型的\nな構造も見られた。したがって、次回は個人の頑張りに依存した吸収ではなく、未確定事項管理・レビ\nュー観点標準化・早期リスク共有の3点を『運用として回る仕組み』に落とし込むことが重要である。\n補足: 本資料は提出・レビュー練習用のサンプルであり、数値は現実的な範囲で仮定したものです。\n3",
+    "score": 98,
+    "criteria_scores": {
+      "review_tong_the": 23.0,
+      "diem_tot": 33.0,
+      "diem_xau": 23.0,
+      "chat_luong_viet": 19.0
+    },
+    "criteria_suggestions": {
+      "review_tong_the": "• プロジェクトの全体規模（予算規模や総予定工数）を冒頭に追記してください。\n• 15%削減などの比率が、全体に対してどの程度のインパクト（金額や人月）だったかを補足するとより価値が高まります。",
+      "diem_tot": "• 共通コンポーネント化に使用した具体的な技術スタックやツール名を記載してください。\n• 他のプロジェクトがこの成功を模倣する際の具体的な「ガイドラインの保管場所」などの運用ルールを追記してください。",
+      "diem_xau": "• 再発防止策として提示された「未確定事項一覧」の更新に要する想定工数を定量化してください。\n• 関係者の協力が得られないリスクに対し、エスカレーションパスを明確に定義することを推奨します。",
+      "chat_luong_viet": "• 文書は非常に簡潔でプロフェッショナルです。現状を維持してください。\n• 表形式と箇条書きの使い分けが適切で、視認性が高いです。"
+    },
+    "draft_feedback": "① 良かった点：\n• 定量的な指標（工数15%削減、手戻り20%減）が極めて具体的に示されており、成果が客観的に証明されています。\n• 単なる感想に留まらず、再現性のための追加コスト（0.5〜1人日）まで言及している点は、実務上の判断材料として非常に優秀です。\n\n② 改善点：\n• 悪かった点の分析において、再作業工数18%増というインパクトの記述は良いですが、これを防ぐための「ゲート設定」の具体的な基準（例：未確定事項が5件以下など）をより詳細に詰めると、運用の実効性が高まります。\n• 施策の「現実性・留意点」において、PMOが具体的にどのようなアクションをとるべきか、役割分担をさらに明確にすることを推奨します。\n\n③ 結論：\nPMOの視点から見て、非の打ち所がないほど完成度の高いレポートです。論理構成、数値による裏付け、具体的なアクションプランのすべてが揃っており、組織の資産として活用できるレベルにあります。",
+    "uploaded_at": "2026-04-20T01:29:05.799591+00:00",
+    "graded_at": "2026-04-20T01:29:08.104380+00:00",
+    "language": "ja"
+  },
+  "P004": {
+    "project_id": "P004",
+    "project_name": "CRM",
+    "filename": "P004_CRM.pptx",
+    "extracted_text": "[Slide 1]\n振り返りご報告\n2026年3月31日\nCRM案件\n\n[Slide 2]\n体制イメージ\n案件の体制\n\n[Slide 3]\n役割定義\n\n[Slide 4]\n工数分析/Phân tích giờ công\nGiai đoạn 1: 顧客販促(New khuyến mãi dành cho khách hàng ).\nGiai đoạn 2: 基幹船 (Customsize tàu chính).\n--------------------------------------------------------------\nSố giờ dự kiến cho phần phát triển giai đoạn 1 基幹船: 1929 giờ\nSố giờ thực tế đã thực hiện đến thời điểm hiện tại: 984 giờ\nTrong đó đã phát triển xong 7 chức năng.\nĐang thực hiện phát triển, chỉnh sửa 10 chức năng.\nChưa thực hiện 3 chức năng liên quan đến xuất excel và pdf.\nTiến độ tại thời điểm hiện tại team vẫn có thể control được, tuy nhiên nếu phía JP và khách hàng chưa thống nhất một số hạn mục sớm, sẻ có một vài chức năng bị ảnh hưởng và không kịp giao như dự định. \u000bDo các chức năng vẫn đang trong quá trình phát triển nên effort thực tế chưa phải là số liệu cuối cùng và dự kiến sẽ tiếp tục tăng theo tiến độ thực hiện.\n\n[Slide 5]\nPhân tích chức năng (Khuyễn mãi)\nChất lượng thiết kế cơ bản bên JP không tốt lắm nên có rất nhiều điều cần kiểm tra xác nhận.\nTrong quá trình thực hiện BD phía JP thay đổi khá nhiều, tương ứng 1 chức năng thay đổi không dưới 3~4 phiên bản, đồng thời phía VN mất tầm 135h để thực hiện QA đề xuất thêm phương án với JP. \nDự kiến tiến độ có khả năng bị ảnh hưởng nến việc thay đổi thiết kế và định nghĩa table update liên tục và quá trình thay đổi diển ra vào cuối giai đoạn phát triển.\nTôi mong muốn chất lượng của các tài liệu thiết kế cơ bản bên phía JP được cải thiện.\n\n[Slide 6]\n課題分析/Phân tích vấn đề\n課題/Vấn đề:\n\n1.Tài liệu phía Nhật cung cấp bị chậm. Chất lượng thiết kế cơ bản từ phía Nhật vẫn chưa đạt được mức tối thiểu nên đã phát sinh nhiều hạng mục cần xác nhận.\n\n2. Nhiều vấn đề QA về nghiệp vụ và phát sinh thay đổi thiết kế BD trong giai đoạn phát triển, dẫn đến việc phải làm lại nhiều hơn.\n\n3. Thời gian dành cho việc điều chỉnh thay đổi thường xuyên làm tăng số giờ làm việc của phần phát triển và xem xét.\n\n4. Không tổ chức được các cuộc họp với JP để nắm bắt và giải quyết sớm các vấn đề phát sinh của dự án.\n\n5. Giai đoạn đầu chưa nắm bắt được nghiệp vụ dự án nên cần nỗ lực nhiều hơn. (cả pl lẫn member)\n\n6. Team VN đang ngồi riêng lẻ nên sự phối hợp trong team còn hạn chế.\n\n[Slide 7]\n課題分析/Phân tích vấn đề\n出来ること/Những việc đã làm được.\n\n1. Nhận thức trước được các rủi ro về thời hạn bàn giao (deadline).\n\n2. Thông báo trước về các rủi ro cho cấp trên và phía Nhật Bản. \n\n3. Không phát sinh vấn đề nào nằm ngoài tầm kiểm soát.\n\n4. Các thành viên tích cực hỗ trợ lẫn nhau và thể hiện tinh thần làm việc nhóm bằng cách chia sẻ kiến ​​thức và kinh nghiệm.\n\n5. Tiến hành rà soát chéo giữa các thành viên.\n\n6. Áp dụng AI vào các giai đoạn tạo thiết kế chi tiết, thực hiện sinh code tự động trong phần phát triển và sinh test case của dự án để nâng cao chất lượng.\n\n[Slide 8]\n改善策/ Cải tiến\n今後の改善/Những cải tiến trong tương lai.\n\n1. Làm rõ hơn các thông số kỹ thuật trong giai đoạn thiết kế và giải quyết sớm mọi vấn đề chưa rõ ràng.\n\n2. Đối với các tính năng gặp nhiều vấn đề trong quá trình xem xét, hãy tiến hành phân tích nội bộ để xác định nguyên nhân và xem xét các giải pháp cho từng vấn đề.\n\n3. Tăng cường hơn nữa việc chia sẻ thông tin trong nhóm để phát hiện và giải quyết vấn đề sớm.\n\n4. Nếu có rủi ro ảnh hưởng đến thời hạn giao hàng,  phải báo cáo lên cho cấp trên.\n\n5. Áp dụng trí tuệ nhân tạo (AI) vào tất cả các giai đoạn của dự án để nâng cao chất lượng. ( thực hiện test...)\n\n[Slide 9]\nご清聴ありがとうございました.",
+    "score": 68,
+    "criteria_scores": {
+      "review_tong_the": 16.5,
+      "diem_tot": 15.5,
+      "diem_xau": 21.0,
+      "chat_luong_viet": 15.0
+    },
+    "criteria_suggestions": {
+      "review_tong_the": "• Bổ sung mục tiêu ban đầu của dự án để đối chiếu với kết quả hiện tại\n• Cần làm rõ hơn về bối cảnh dự án (quy mô, công nghệ) ở các slide đầu\n• Cấu trúc các slide nên có sự kết nối logic chặt chẽ hơn từ phân tích đến hành động",
+      "diem_tot": "• Cần định lượng hiệu quả của việc áp dụng AI (ví dụ: giảm bao nhiêu % thời gian code/test)\n• Các điểm như 'hỗ trợ lẫn nhau' cần có ví dụ cụ thể để tránh cảm tính\n• Làm rõ kết quả của việc 'rà soát chéo' đã giúp phát hiện bao nhiêu lỗi sớm",
+      "diem_xau": "• Phân tích sâu hơn tại sao không tổ chức được cuộc họp với JP (Root cause)\n• Biện pháp cải tiến (Slide 8) còn mang tính khẩu hiệu, cần cụ thể hóa 'Làm rõ hơn' bằng quy trình hoặc checklist\n• Cần số liệu về thiệt hại do việc chậm trễ tài liệu gây ra (ví dụ: số giờ chờ đợi/idle time)",
+      "chat_luong_viet": "• Sửa lỗi chính tả: 'sẻ' thành 'sẽ', 'diển' thành 'diễn', 'Khuyễn mãi' thành 'Khuyến mãi'\n• Thay đổi cụm từ 'không tốt lắm' bằng văn phong chuyên nghiệp hơn như 'chưa đạt tiêu chuẩn chất lượng'\n• Ngắt các câu dài ở Slide 4 để người đọc dễ nắm bắt thông tin quan trọng"
+    },
+    "draft_feedback": "① Điểm mạnh:\n• Báo cáo trung thực về tình hình thực tế, đặc biệt là các vấn đề từ phía khách hàng/JP\n• Có số liệu định lượng bước đầu về giờ công (135h QA) và tiến độ chức năng\n• Nhận thức rủi ro tốt và đã có bước tiến trong việc áp dụng công nghệ mới (AI)\n\n② Điểm cần cải thiện:\n• Các giải pháp cải tiến còn chung chung, chưa có kế hoạch hành động (Action Plan) cụ thể\n• Thiếu sự phân tích sâu về nguyên nhân gốc rễ (Root Cause Analysis) cho các vấn đề giao tiếp với JP\n• Cần bổ sung các chỉ số KPI để đo lường hiệu quả của các biện pháp cải tiến trong giai đoạn tới\n\n③ Kết luận:\nBáo cáo phản ánh khá đầy đủ các vấn đề vận hành. Tuy nhiên, cần tập trung vào việc cụ thể hóa các giải pháp để đảm bảo dự án không bị trễ tiến độ trong giai đoạn tiếp theo.",
+    "uploaded_at": "2026-04-20T04:01:42.800506+00:00",
+    "graded_at": "2026-04-20T04:02:05.515793+00:00",
+    "language": "vi"
+  },
+  "P011": {
+    "project_id": "P011",
+    "project_name": "ANAC(基幹)",
+    "filename": "P011_ANAC(基幹).pptx",
+    "extracted_text": "[Slide 1]\n振り返りご報告\n2026年01月16日\nANAC(基幹）案件\n\n[Slide 2]\n2\nMục đích\nMục đích\t\nBáo cáo này nhằm nhìn nhận tổng thể tình hình thực hiện dự án, tập trung vào công số và chất lượng ở các giai đoạn Coding và Unit Test.\n\u000bThông qua việc phân tích chênh lệch công số, số NG và nguyên nhân phát sinh, báo cáo đánh giá hiệu quả các đối sách đã triển khai và rút ra bài học cho các dự án tương lai.\n\n[Slide 3]\n3\nTổng quan\nTổng quan dự án\t\nDự án đảm nhận các công việc Coding và Unit Test (thiết kế và thực thi),\u000bđược thực hiện dựa trên tài liệu thiết kế cơ bản do phía JP cung cấp.\n\nPhía dự án không đảm nhận thiết kế cơ bản, mà tập trung vào việc\u000btriển khai chức năng, kiểm tra chất lượng và xác nhận đúng theo thiết kế đã được phê duyệt.\n\nSố chức năng đối tượng phân tích\n※ Số lượng chức năng đối tượng phân tích ghi dưới là số lượng đã hoàn thành đến Unit Test tính đến thời điểm 15/01/2026\n※ Những NG được chỉ ra chính là NG review nội bộ。 Phía JP không review ở giai đoạn này, mà họ sẽ thực hiện ở IT test\n\n[Slide 4]\n4\nCoding\n\n[Slide 5]\n5\nCoding\n①　Nhận định:\n・Rất nhiều chức năng  chênh lệch công số lớn (Over):　\n（単位：時間）\t\n工場マスタ：20\n調達品マスタ：16\n調達品単位換算マスタ：36\n名称マスタ：24\n祝日マスタ：50\n税マスタ：26\n発注承認：21\n\n・指摘数 rất cao:\n分類マスタ\t:26\n調達品マスタ:25\n名称マスタ\t:18\n発注承認\t:15\n仕入先マスタ:12\n\n[Slide 6]\n6\nCoding\n②　Nguyên nhân\nCác nguyên nhân chính được xác định như sau:\t\n(1) Đặc thù giai đoạn đầu dự án\t\t\nCác chức năng có 工数 over lớn được triển khai ở phase đầu.\nTại thời điểm này:\t\t\nDev chưa quen rule code, base source, kiến trúc hệ thống.\t\t\nNhận thức về điểm chú ý nghiệp vụ và pattern implement còn hạn chế.\n\n(2) Phát sinh chỉnh sửa do thiết kế & QA\t\t\nTrong quá trình thực hiện:\nCó cập nhật / chỉnh sửa thiết kế (thiết kế chi tiết, luồng xử lý).\t\t\nQA phát hiện thêm các điểm chưa phù hợp về nghiệp vụ / xử lý edge case.\t\nCác cập nhật này dẫn đến:\t\t\nRework ở công đoạn coding\t\t\nPhát sinh 工数 ngoài kế hoạch ban đầu.\n\n[Slide 7]\n7\nCoding\n③　Đối sách & hiệu quả\t\t\nDự án đã triển khai các đối sách sau:\t\t\n・Chuẩn hóa rule code\t\t\n・Áp dụng coding checklist\t\t\n・Thống nhất luồng implement \n\n※Kết quả:\t\t\nGiảm rõ rệt số NG và công số dần ổn định, \nsai lệch giảm ở các chức năng triển khai về sau（Ví dụ các chức năng API, Batch,…)\n\n[Slide 8]\n8\nUT testcase\n\n[Slide 9]\n9\nUT testcae\nChất lượng thiết kế test tương đối ổn định\n\t\nCông số của tạo UT testcase\n・Dao động nhỏ\n・Không có trường hợp over bất thường\n・Không xảy ra sai sót(số NG) lớn ở giai đoạn thiết kế test\n\n[Slide 10]\n10\nUT thực thi\n\n[Slide 11]\n11\nUT thực thi\n①　Nhận định: \nMột số chức năng over :\n（単位：時間）\n調達品マスタ：32\n分類マスタ：8\nセクション別在庫マスタ連携_API：10\n生産指示連携_API：10.9\n\n[Slide 12]\n12\nUT thực thi\n②　Nguyên nhân\n・　Ở giai đoạn khởi đầu dự án, Base API chưa có\ndo đó dự án cần triển khai xây dựng Base API\n\nVì vậy, tại giai đoạn thực hiện Unit Test cho API,\nngoài việc kiểm tra các chức năng nghiệp vụ, còn cần thực hiện thêm\nkiểm tra các xử lý dùng chung và xử lý nền của Base API.\nĐặc biệt, đối với các chức năng API được test đầu tiên,\nviệc vừa xác nhận nghiệp vụ vừa xác nhận Base API đã dẫn đến\nphát sinh thêm công số so với kế hoạch ban đầu.\n\n・　Đối với 2 chức năng dưới thì khi test đã phát hiện ra bug nên đã thực hiện fix và test lại nên bị over công số hơn dự định\n調達品マスタ：4 bugs\n分類マスタ：5 bugs\n\n[Slide 13]\n13\nTổng kết\n・Dự án gặp nhiều vượt công và NG ở giai đoạn đầu do đội ngũ chưa quen hệ thống, Base API chưa hoàn thiện và có nhiều cập nhật từ thiết kế và QA.\n\u000b・Sau khi chuẩn hóa rule code, thống nhất cách implement và ổn định Base API, chất lượng được cải thiện rõ rệt, số NG giảm và công số các chức năng triển khai sau dần ổn định.\n\n・Nhìn chung, dự án đã xây dựng được nền tảng phát triển và kiểm soát chất lượng tốt hơn ở giai đoạn sau, là bài học quan trọng cho các dự án tương tự trong tương lai.\n\n[Slide 14]\n14",
+    "score": 79,
+    "criteria_scores": {
+      "review_tong_the": 18.5,
+      "diem_tot": 21.0,
+      "diem_xau": 21.5,
+      "chat_luong_viet": 18.0
+    },
+    "criteria_suggestions": {
+      "review_tong_the": "• Cần tách riêng phần 'Chính sách/Bài học cho tương lai' thành một mục lớn thay vì gộp chung vào Tổng kết.\n• Bổ sung thông tin về tổng ngân sách/công số dự kiến để so sánh với mức độ Over hiện tại.",
+      "diem_tot": "• Cần bổ sung số liệu định lượng để chứng minh sự cải thiện (ví dụ: Tỷ lệ NG giảm từ X% xuống Y%).\n• Làm rõ hơn về 'Chất lượng thiết kế test ổn định' bằng cách đưa ra tỷ lệ phát hiện bug qua testcase.",
+      "diem_xau": "• Phân tích sâu hơn nguyên nhân tại sao Base API lại thiếu ở giai đoạn đầu (lỗi lập kế hoạch hay do phía đối tác).\n• Đề xuất biện pháp cụ thể để kiểm soát việc thay đổi thiết kế/QA giữa chừng nhằm giảm thiểu Rework.",
+      "chat_luong_viet": "• Các slide nên sử dụng biểu đồ hoặc bảng so sánh để trực quan hóa phần công số Over.\n• Duy trì văn phong chuyên nghiệp hiện có, hạn chế dùng từ 'rất nhiều' mà nên thay bằng tỷ lệ phần trăm."
+    },
+    "draft_feedback": "① Điểm mạnh:\n• Tài liệu có tính trung thực cao, không né tránh các con số tiêu cực.\n• Số liệu định lượng về công số (Over hours) và số lỗi (NG) được chi tiết hóa đến từng module/chức năng.\n• Phân tích được nguyên nhân kỹ thuật cụ thể (Base API, kiến trúc hệ thống).\n\n② Điểm cần cải thiện:\n• Phần 'Điểm tốt' còn mang tính cảm tính, thiếu số liệu đối chứng để khẳng định hiệu quả của đối sách.\n• Biện pháp phòng ngừa tái phát (Action Plan) còn chung chung, chưa nêu rõ quy trình áp dụng cho các dự án sau.\n• Cần làm rõ ảnh hưởng của việc Over công số đến tiến độ tổng thể (Schedule) và chi phí (Cost).\n\n③ Kết luận:\nBáo cáo có giá trị quản trị tốt, phản ánh sát thực tế dự án. Nếu bổ sung thêm các chỉ số so sánh trước/sau khi áp dụng đối sách, tài liệu sẽ có tính thuyết phục cao hơn.",
+    "uploaded_at": "2026-04-20T06:54:26.467044+00:00",
+    "graded_at": "2026-04-20T06:54:28.408480+00:00",
+    "language": "vi"
+  },
+  "P012": {
+    "project_id": "P012",
+    "project_name": "ANAC(基幹)】JP",
+    "filename": "P012_ANAC(基幹)】JP.pptx",
+    "extracted_text": "[Slide 1]\n振り返りご報告\n2026年01月16日\nANAC(基幹）案件\n\n[Slide 2]\n2\n目的\n目的\n本報告書は、実装および 単体テスト工程における工数と品質に着目し、\u000bプロジェクトの実施状況を総合的に振り返ることを目的とします。\n\n工数差分、指摘件数およびその発生要因を分析することで、\u000b実施した対策の有効性を評価し、今後のプロジェクトに向けた教訓・改善点を整理すること。\n\n[Slide 3]\n3\n概要\nプロジェクト概要\n本プロジェクトでは、実装および 単体テスト（設計・実施）を担当しており、\u000bJP 側より提供された基本設計書をインプットとして作業を実施しております。\n基本設計につきましては本プロジェクトの担当範囲外としており、\u000b設計内容に基づいた機能実装、品質確認および検証に注力しております。\n\n分析対象機能\n※ 下記に記載している分析対象機能数は、2026年01月15日時点で単体テストまで完了している機能数です。\n※　本報告書に記載している指摘はすべて内部レビューでの指摘です。\u000bJP 側によるレビューは本工程では実施されておらず、JP 側の確認は結合テスト工程にて実施されます。\n\n[Slide 4]\n4\n製造分析\n\n[Slide 5]\n5\n製造分析\n①　認識\n１．工数差分が大きい（Over）機能が多数発生しております。　\n（単位：時間）\t\n工場マスタ：20\n調達品マスタ：16\n調達品単位換算マスタ：36\n名称マスタ：24\n祝日マスタ：50\n税マスタ：26\n発注承認：21\n２．指摘件数（レビュー指摘）が非常に多い状況でした。\n（単位：件）\n分類マスタ\t:26\n調達品マスタ:25\n名称マスタ\t:18\n発注承認\t:15\n仕入先マスタ:12\n\n[Slide 6]\n6\n製造分析\n② 原因\n\n主な原因は以下のとおりです。\n\n１．プロジェクト初期の特性\u000b工数差分が大きい機能は、主にプロジェクトの初期で実装されております。\u000b当該時点では、\u000b・開発メンバーがコーディングルール、ベースソース、システムアーキテクチャに十分習熟していなかったこと\u000b・業務上の注意点や実装に対する理解が不十分であったこと\u000bが要因となっております。\n\n\n２．設計および QA による修正対応の発生\u000b実装の過程において、\u000b・基本設計や処理フローの更新・修正が発生したこと\u000b・QA により、業務観点に関する追加指摘が発生したこと\u000bにより、\u000bコーディング工程での手戻りが発生し、当初計画外の工数が発生しております。\n\n[Slide 7]\n7\n製造分析\n③ 対策・効果\n\n【対策】\n本プロジェクトでは、以下の対策を実施しております。\n・コーディングルールの標準化\u000b・コーディングチェックリストの適用\u000b・実装フローの統一\n\n\n【効果】\u000bこれらの対策により、指摘件数は大きく減少し、工数も徐々に安定しております。\u000bまた、後続で実装した機能（API、Batch 等）においては、工数差分の縮小が確認されております。\n\n[Slide 8]\n8\n単体テスト仕様書分析\n\n[Slide 9]\n9\n単体テスト仕様書分析\n単体テスト仕様書作成の品質は安定しております。\n\n\n単体テスト仕様書作成における工数につきましては、\n\u000b・工数のばらつきは小さい状況です。\u000b・異常な工数超過は発生しておりません。\u000b・テスト設計工程において、大きな不備（レビュー指摘）はあまり発生しておりません。\n\n[Slide 10]\n10\n単体テスト実施結果分析\n\n[Slide 11]\n11\n単体テスト実施結果分析\n① 認識\n\n一部の機能において、工数オーバーしている状況が見受けられました。\n（単位：時間）\n調達品マスタ：32\n分類マスタ：8\nセクション別在庫マスタ連携_API：10\n生産指示連携_API：10.9\n\n[Slide 12]\n12\n単体テスト実施結果分析\n② 原因\n\n１．プロジェクト立ち上げ初期において API基盤 が未整備であったため、\u000b本プロジェクトにて API基盤の構築を新規実施しております。\nその結果、API の 単体テスト実施時には、\n業務機能の確認に加え、\nAPI基盤における共通処理および基盤処理の確認も必要となりました。\n\u000b特に、初期に 単体テストを実施した API 機能につきましては、\u000b業務確認と API基盤の影響確認を行ったため、\u000b当初計画よりも工数が増加しております。\n\n\n２．下記 2 機能につきましては、\u000b　単体テスト実施時に不具合を検知し、修正および再テストを実施したことにより、\u000b　想定以上の工数が発生しております。\n\n　調達品マスタ：4 バグ件\u000b　分類マスタ：5バグ件\n\n[Slide 13]\n13\nまとめ\n①　プロジェクト初期においては、\u000b開発メンバーのシステム理解不足、 API基盤 の未整備、\u000b設計および QA からの度重なる更新対応により、\u000b工数超過および 指摘が多く発生しております。\n\n②　その後、\u000bコーディングルールの標準化、実装方針の統一、API基盤 の安定化を進めた結果、\u000b品質は大きく改善し、指摘件数の減少および後続機能の工数安定化が確認できております。\n\n③　総合的に見ると、本プロジェクトは、\u000b後半フェーズにおいて開発基盤および品質管理体制を確立することができ、\u000b今後のプロジェクトに向けた重要な知見を得られたと評価しております。\n\n[Slide 14]\n14",
+    "score": 88,
+    "criteria_scores": {
+      "review_tong_the": 22,
+      "diem_tot": 26,
+      "diem_xau": 21,
+      "chat_luong_viet": 19
+    },
+    "criteria_suggestions": {
+      "review_tong_the": "• プロジェクトの全体期間や総予算（工数）に対する実績の比率を冒頭に明記してください。\n• 振り返りの対象範囲（実装・単体テスト）は明確ですが、前工程（基本設計）との境界条件をより具体的に記述すると、責任分界点が明確になります。",
+      "diem_tot": "• 「指摘件数が大きく減少」という記述に対し、対策前後の具体的な数値比較（例：1機能あたりの平均指摘数が10件から2件に減少など）を追加してください。\n• 対策（標準化等）が、具体的にどの程度の工数削減に寄与したかを定量化してください。",
+      "diem_xau": "• API基盤が未整備だったことの根本原因（計画段階の見落としなのか、外部要因なのか）を深掘りしてください。\n• 再発防止策として、次回のプロジェクト開始前に実施すべき「準備チェックリスト」への反映など、組織的な改善案を提示してください。",
+      "chat_luong_viet": "• スライド形式の構成として非常に読みやすいですが、重要な数値（超過時間など）を強調する工夫（太字や色分けの指示）があるとより良くなります。\n• 「〜状況が見受けられました」といった受動的な表現を、「〜を特定した」などの能動的な表現にすると、よりプロフェッショナルな印象になります。"
+    },
+    "draft_feedback": "① 良い点：\n• 実装工程における工数超過や指摘件数が、具体的な機能名と数値（時間・件数）で示されており、客観性が非常に高いです。\n• 課題に対する対策（標準化、チェックリスト適用）と、その結果としての改善効果が論理的に結びついています。\n\n② 改善点：\n• 「悪かった点」における根本原因の分析をもう一段深める必要があります。特にAPI基盤の未整備については、なぜプロジェクト開始前に検知できなかったのかという視点が欠けています。\n• 改善効果の記述において、定量的な比較（Before/After）を導入することで、PMOとしての評価がより確実なものになります。\n\n③ 結論：\n非常に誠実かつデータに基づいた優れた報告書です。特定された教訓を、個別のプロジェクト内に留めず、組織全体の標準プロセスへフィードバックすることを推奨します。",
+    "uploaded_at": "2026-04-20T06:57:55.303177+00:00",
+    "graded_at": "2026-04-20T06:59:53.159905+00:00",
+    "language": "ja"
+  }
+}

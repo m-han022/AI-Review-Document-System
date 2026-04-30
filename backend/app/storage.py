@@ -140,6 +140,11 @@ class SubmissionStore:
             statement = select(Submission.project_id).where(Submission.latest_grading_run_id == None)
             return list(session.exec(statement).all())
 
+    def get_all_project_ids(self) -> list[str]:
+        with Session(engine) as session:
+            statement = select(Submission.project_id).order_by(Submission.uploaded_at.desc())
+            return list(session.exec(statement).all())
+
     def save_upload(
         self,
         *,
