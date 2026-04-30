@@ -36,7 +36,7 @@ export default function TableRow({
 }: TableRowProps) {
   const { t, lang } = useTranslation();
   const latestScore = submission.latest_run?.score ?? null;
-  
+
   const statusTone = latestScore !== null ? "success" : "warning";
   const statusLabel = latestScore !== null ? t("project.completed") : t("project.pending");
   const gradeActionLabel =
@@ -48,10 +48,7 @@ export default function TableRow({
   const deleteActionLabel = deletingId === submission.project_id ? t("common.deleting") : t("common.delete");
 
   return (
-    <tr
-      className={isActive ? "is-active" : ""}
-      onClick={() => onSelect(submission.project_id)}
-    >
+    <tr className={isActive ? "is-active" : ""} onClick={() => onSelect(submission.project_id)}>
       {showCheckbox ? (
         <td className="review-table__checkbox">
           <span className="review-table__checkbox-inner">
@@ -70,13 +67,14 @@ export default function TableRow({
       <td>
         <div className="review-table__file">
           <strong>{submission.filename}</strong>
-          <span>
-            {submission.project_id} · {submission.project_name} · {getLanguageLabel(submission, lang)}
-          </span>
+          <span>{submission.project_id} · {submission.project_name}</span>
         </div>
       </td>
       <td>
         <Badge>{t(getDocumentTypeKey(submission.document_type))}</Badge>
+      </td>
+      <td>
+        <span className="review-table__language">{getLanguageLabel(submission, lang)}</span>
       </td>
       <td>
         <Badge tone={statusTone}>{statusLabel}</Badge>
@@ -119,7 +117,7 @@ export default function TableRow({
           ) : (
             <>
               <button
-                className="btn-secondary btn-secondary--compact review-table__row-action"
+                className="btn-secondary btn-secondary--compact review-table__row-action review-table__row-action--primary"
                 onClick={(event) => {
                   event.stopPropagation();
                   onGrade(submission.project_id);

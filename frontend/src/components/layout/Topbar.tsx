@@ -54,20 +54,22 @@ export default function Topbar({ title, subtitle, breadcrumb, rightBadge, hideAc
       {!hideActions ? (
         <div className="workspace-topbar__actions workspace-topbar__actions--v2">
           {rightBadge ? <Badge tone="primary">{rightBadge}</Badge> : null}
-          <button
-            type="button"
-            className="workspace-icon-button"
-            aria-label={t("common.theme")}
-            title={t("common.theme")}
-            onClick={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
-          >
-            {theme === "dark" ? <SunIcon size="md" /> : <MoonIcon size="md" />}
-          </button>
-          <button type="button" className="workspace-icon-button" aria-label={t("common.notifications")}>
-            <BellIcon size="md" />
-            <span className="workspace-icon-button__dot" />
-          </button>
-          <LanguageSelector />
+          <div className="workspace-topbar__tools">
+            <button
+              type="button"
+              className="workspace-icon-button"
+              aria-label={t("common.theme")}
+              title={t("common.theme")}
+              onClick={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
+            >
+              {theme === "dark" ? <SunIcon size="md" /> : <MoonIcon size="md" />}
+            </button>
+            <button type="button" className="workspace-icon-button" aria-label={t("common.notifications")}>
+              <BellIcon size="md" />
+              <span className="workspace-icon-button__dot" />
+            </button>
+            <LanguageSelector />
+          </div>
         </div>
       ) : null}
     </header>

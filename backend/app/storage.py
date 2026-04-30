@@ -12,6 +12,7 @@ from app.models import (
     CriteriaResultOut,
     GradingCriteriaResult,
     GradingRun,
+    GradingRunHistoryOut,
     GradingRunOut,
     GradingSlideReview,
     Rubric,
@@ -36,9 +37,71 @@ class SubmissionRecord:
     extracted_text: str
     content_hash: str
     latest_run: GradingRunOut | None = None
+    run_history: list[GradingRunHistoryOut] | None = None
 
 
 class SubmissionStore:
+    def _issue_bucket_key(self, issue: str) -> str:
+        normalized = issue.lower()
+        if (
+            "kpi" in normalized
+            or "số liệu" in normalized
+            or "định lượng" in normalized
+            or "定量" in normalized
+            or "数値" in normalized
+        ):
+            return "quantitative"
+        if (
+            "root cause" in normalized
+            or "nguyên nhân" in normalized
+            or "原因" in normalized
+            or "論理" in normalized
+        ):
+            return "logic"
+        if (
+            "ảnh hưởng" in normalized
+            or "impact" in normalized
+            or "影響" in normalized
+            or "scope" in normalized
+        ):
+            return "impact"
+        if (
+            "owner" in normalized
+            or "sla" in normalized
+            or "deadline" in normalized
+            or "tracking" in normalized
+            or "管理" in normalized
+        ):
+            return "governance"
+        if (
+            "diễn đạt" in normalized
+            or "表現" in normalized
+            or "viết" in normalized
+            or "文章" in normalized
+        ):
+            return "expression"
+        return "other"
+
+    def _primary_issue_list(self, issues: Any) -> list[str]:
+        if not isinstance(issues, dict):
+            return []
+        for key in ("vi", "ja"):
+            values = issues.get(key)
+            if isinstance(values, list) and values:
+                return [str(item) for item in values if item is not None]
+        for values in issues.values():
+            if isinstance(values, list) and values:
+                return [str(item) for item in values if item is not None]
+        return []
+
+    def _issue_breakdown(self, slide_reviews: list[GradingSlideReview]) -> dict[str, int]:
+        buckets: dict[str, int] = {}
+        for item in slide_reviews:
+            for issue in self._primary_issue_list(item.issues):
+                key = self._issue_bucket_key(issue)
+                buckets[key] = buckets.get(key, 0) + 1
+        return buckets
+
     def _run_out(self, session: Session, run: GradingRun | None) -> GradingRunOut | None:
         if run is None or run.id is None:
             return None
@@ -85,6 +148,7 @@ class SubmissionStore:
                 )
                 for item in slide_reviews
             ],
+            issue_breakdown=self._issue_breakdown(slide_reviews),
             draft_feedback=run.draft_feedback,
             status=run.status,
             error_message=run.error_message,
@@ -109,11 +173,57 @@ class SubmissionStore:
             latest_run=self._run_out(session, latest_run),
         )
 
+    def _run_history(self, session: Session, submission_id: int, limit: int = 5) -> list[GradingRunHistoryOut]:
+        statement = (
+            select(GradingRun)
+            .where(GradingRun.submission_id == submission_id)
+            .order_by(col(GradingRun.graded_at).desc(), col(GradingRun.id).desc())
+            .limit(limit)
+        )
+        runs = session.exec(statement).all()
+        history: list[GradingRunHistoryOut] = []
+        for run in runs:
+            criteria_count = session.exec(
+                select(func.count()).select_from(GradingCriteriaResult).where(GradingCriteriaResult.grading_run_id == run.id)
+            ).one()
+            slide_rows = session.exec(
+                select(GradingSlideReview).where(GradingSlideReview.grading_run_id == run.id)
+            ).all()
+            ng_slide_count = sum(1 for item in slide_rows if item.status == "NG")
+            issue_count = sum(
+                sum(len(value) for value in item.issues.values() if isinstance(value, list))
+                for item in slide_rows
+                if isinstance(item.issues, dict)
+            )
+            history.append(
+                GradingRunHistoryOut(
+                    id=run.id or 0,
+                    score=run.score,
+                    rubric_version=run.rubric_version,
+                    gemini_model=run.gemini_model,
+                    prompt_hash=run.prompt_hash,
+                    criteria_hash=run.criteria_hash,
+                    grading_schema_version=run.grading_schema_version,
+                    status=run.status,
+                    error_message=run.error_message,
+                    graded_at=run.graded_at,
+                    criteria_result_count=int(criteria_count),
+                    slide_review_count=len(slide_rows),
+                    ng_slide_count=ng_slide_count,
+                    issue_count=issue_count,
+                )
+            )
+        return history
+
     def get(self, project_id: str) -> Optional[SubmissionRecord]:
         with Session(engine) as session:
             statement = select(Submission).where(Submission.project_id == project_id)
             submission = session.exec(statement).first()
-            return self._to_record(session, submission) if submission else None
+            if not submission:
+                return None
+            record = self._to_record(session, submission)
+            record.run_history = self._run_history(session, record.id)
+            return record
 
     def list(self, limit: int = 100, offset: int = 0) -> tuple[list[SubmissionRecord], int, int]:
         with Session(engine) as session:

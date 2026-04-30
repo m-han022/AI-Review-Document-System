@@ -1,11 +1,13 @@
-import { type CSSProperties, useMemo, useState } from "react";
+import { Suspense, lazy, type CSSProperties, useMemo, useState } from "react";
 
 import { getDocumentTypeKey } from "../../constants/documentTypes";
 import { useActiveRubricConfig } from "../../hooks/useRubrics";
 import { getLocalizedText } from "../../locales/utils";
 import type { CriteriaResult, LanguageCode, SlideReview, Submission } from "../../types";
 import ScoreBar from "../score/ScoreBar";
+import ScoreSummary from "../score/ScoreSummary";
 import { useTranslation } from "../LanguageSelector";
+import Badge from "../ui/Badge";
 import SectionBlock from "../ui/SectionBlock";
 import {
   AlertTriangleIcon,
@@ -15,6 +17,9 @@ import {
   TargetIcon,
   WorkflowIcon,
 } from "../ui/Icon";
+import { formatUploadedAt } from "../submissions/utils";
+const CriteriaScoreChart = lazy(() => import("./charts/CriteriaScoreChart"));
+const SlideStatusChart = lazy(() => import("./charts/SlideStatusChart"));
 
 interface ProjectCardProps {
   submission: Submission;
@@ -28,7 +33,7 @@ type SuggestionDetail = {
   text: string;
 } | null;
 
-type SlideReviewFilter = "all" | "OK" | "NG";
+type SlideReviewFilter = "all" | "OK" | "NG" | "withSuggestions";
 
 type SlideReviewDetail = {
   title: string;
@@ -43,6 +48,24 @@ interface TextSection {
   lines: string[];
 }
 
+interface MetricCard {
+  label: string;
+  value: string;
+  tone?: "default" | "primary" | "success" | "warning" | "danger";
+}
+
+interface HighlightItem {
+  title: string;
+  detail: string;
+  tone: "success" | "warning" | "danger" | "primary";
+}
+
+interface RunCompareItem {
+  label: string;
+  current: string;
+  previous: string;
+  tone: "default" | "success" | "warning" | "danger";
+}
 
 function getLanguageLabel(language: Submission["language"], uiLanguage: LanguageCode) {
   if (uiLanguage === "ja") {
@@ -82,6 +105,50 @@ function getCriterionIcon(criterionKey: string) {
   }
 }
 
+function getStatusTone(status: string): "primary" | "success" | "warning" | "danger" {
+  switch (status) {
+    case "graded":
+    case "completed":
+      return "success";
+    case "uploaded":
+    case "pending":
+      return "warning";
+    case "failed":
+    case "error":
+      return "danger";
+    default:
+      return "primary";
+  }
+}
+
+function getStatusLabel(
+  submissionStatus: string,
+  latestScore: number | null,
+  t: (key: string) => string,
+) {
+  if (latestScore !== null) {
+    return t("project.completed");
+  }
+
+  if (submissionStatus === "failed" || submissionStatus === "error") {
+    return t("project.failed");
+  }
+
+  if (submissionStatus === "uploaded" || submissionStatus === "pending") {
+    return t("project.pending");
+  }
+
+  return t("project.inReview");
+}
+
+function formatDateTime(value: string | null | undefined, lang: LanguageCode) {
+  if (!value) {
+    return "—";
+  }
+
+  return formatUploadedAt(value, lang);
+}
+
 function ScoreGauge({ score, t }: { score: number; t: (key: string) => string }) {
   const ratio = Math.max(0, Math.min(1, score / 100));
   const degrees = 180 * ratio;
@@ -100,7 +167,7 @@ function ScoreGauge({ score, t }: { score: number; t: (key: string) => string })
       </div>
       <div className="detail-gauge__meta">
         <span>{t("project.totalScore")}:</span>
-        <strong>{t("common.status")}</strong>
+        <strong>{score >= 80 ? t("project.scoreExcellent") : score >= 60 ? t("project.scoreGood") : t("project.scoreNeedsWork")}</strong>
       </div>
     </div>
   );
@@ -297,6 +364,13 @@ function buildSlideReviewItems(slideReviews: SlideReview[], lang: LanguageCode, 
     });
 }
 
+function fillTemplate(template: string, replacements: Record<string, string | number>) {
+  return Object.entries(replacements).reduce(
+    (result, [key, value]) => result.replaceAll(`{${key}}`, String(value)),
+    template,
+  );
+}
+
 export default function ProjectCard({ submission }: ProjectCardProps) {
   const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
   const [suggestionDetail, setSuggestionDetail] = useState<SuggestionDetail>(null);
@@ -310,18 +384,63 @@ export default function ProjectCard({ submission }: ProjectCardProps) {
     () => buildSlideReviewItems(latestRun?.slide_reviews ?? [], lang, t),
     [latestRun, lang, t],
   );
-  const filteredSlideReviewItems = useMemo(
+  const prioritySlideReviewItems = useMemo(
     () =>
-      slideReviewFilter === "all"
-        ? slideReviewItems
-        : slideReviewItems.filter((item) => item.status === slideReviewFilter),
+      slideReviewItems.filter(
+        (item) => item.status === "NG" || item.issues.length > 0 || Boolean(item.suggestions),
+      ),
+    [slideReviewItems],
+  );
+  const filteredSlideReviewItems = useMemo(
+    () => {
+      if (slideReviewFilter === "all") {
+        return slideReviewItems;
+      }
+
+      if (slideReviewFilter === "withSuggestions") {
+        return slideReviewItems.filter((item) => Boolean(item.suggestions));
+      }
+
+      return slideReviewItems.filter((item) => item.status === slideReviewFilter);
+    },
     [slideReviewFilter, slideReviewItems],
+  );
+  const remainingSlideReviewItems = useMemo(
+    () =>
+      filteredSlideReviewItems.filter(
+        (item) => !prioritySlideReviewItems.some((priorityItem) => priorityItem.id === item.id),
+      ),
+    [filteredSlideReviewItems, prioritySlideReviewItems],
+  );
+  const filteredPrioritySlideReviewItems = useMemo(
+    () =>
+      prioritySlideReviewItems.filter((item) =>
+        filteredSlideReviewItems.some((filtered) => filtered.id === item.id),
+      ),
+    [filteredSlideReviewItems, prioritySlideReviewItems],
   );
   const criteriaScoreMap = useMemo(
     () => Object.fromEntries(criteriaResults.map((item) => [item.key, item.score])),
     [criteriaResults],
   );
   const latestScore = latestRun?.score ?? null;
+  const statusLabel = getStatusLabel(submission.status, latestScore, t);
+  const statusTone = getStatusTone(submission.status);
+  const gradedAt = formatDateTime(latestRun?.graded_at ?? null, lang);
+  const uploadedAt = formatDateTime(submission.uploaded_at, lang);
+  const slideCount = slideReviewItems.length;
+  const ngSlideCount = slideReviewItems.filter((item) => item.status === "NG").length;
+  const issueCount = slideReviewItems.reduce((sum, item) => sum + item.issues.length, 0);
+  const documentMeta = [
+    { label: t("project.projectCode"), value: submission.project_id },
+    { label: t("project.documentType"), value: t(getDocumentTypeKey(submission.document_type)) },
+    { label: t("project.detectedLanguage"), value: getLanguageLabel(submission.language, lang) },
+    { label: t("project.rubricVersion"), value: latestRun?.rubric_version ?? "v1" },
+    { label: t("project.uploadLabel"), value: uploadedAt },
+    { label: t("project.reviewedAt"), value: gradedAt },
+    { label: t("project.appliedModel"), value: latestRun?.gemini_model ?? "—" },
+    { label: t("project.fileType"), value: submission.filename.split(".").pop()?.toUpperCase() ?? t("common.noValue") },
+  ];
 
   const orderedScores = useMemo(
     () =>
@@ -334,6 +453,40 @@ export default function ProjectCard({ submission }: ProjectCardProps) {
       })),
     [criteriaConfig, criteriaResults, criteriaScoreMap, t],
   );
+  const criteriaHealth = useMemo(
+    () =>
+      orderedScores
+        .map((item) => ({
+          ...item,
+          ratio: item.max > 0 ? item.value / item.max : 0,
+        }))
+        .sort((a, b) => a.ratio - b.ratio),
+    [orderedScores],
+  );
+  const weakestCriteria = criteriaHealth.slice(0, 3);
+  const strongestCriterion = criteriaHealth.at(-1) ?? null;
+  const metricCards: MetricCard[] = [
+    {
+      label: t("project.pageCount"),
+      value: slideCount ? String(slideCount) : "—",
+      tone: "primary",
+    },
+    {
+      label: t("project.ngSlideCount"),
+      value: String(ngSlideCount),
+      tone: ngSlideCount > 0 ? "danger" : "success",
+    },
+    {
+      label: t("project.issueCount"),
+      value: String(issueCount),
+      tone: issueCount > 0 ? "warning" : "success",
+    },
+    {
+      label: t("project.criteriaCount"),
+      value: String(orderedScores.length),
+      tone: "default",
+    },
+  ];
 
   const feedbackLines = useMemo(() => splitFeedbackLines(latestRun?.draft_feedback ?? null, lang), [latestRun, lang]);
   const feedbackSections = useMemo(() => splitFeedbackSections(feedbackLines), [feedbackLines]);
@@ -343,24 +496,163 @@ export default function ProjectCard({ submission }: ProjectCardProps) {
     () => buildCriteriaSuggestionItems(criteriaResults, orderedScores, lang),
     [criteriaResults, orderedScores, lang],
   );
+  const runHistory = useMemo(() => submission.run_history ?? [], [submission.run_history]);
+  const runCompare = useMemo<RunCompareItem[]>(() => {
+    const latest = runHistory[0] ?? null;
+    const previous = runHistory[1] ?? null;
+    if (!latest || !previous) {
+      return [];
+    }
 
-  const overviewItems = [
-    { label: t("project.documentType"), value: t(getDocumentTypeKey(submission.document_type)) },
-    { label: t("project.detectedLanguage"), value: getLanguageLabel(submission.language, lang) },
-    { label: t("project.rubricVersion"), value: latestRun?.rubric_version ?? "v1" },
-    { label: t("project.fileType"), value: submission.filename.split(".").pop()?.toUpperCase() ?? t("common.noValue") },
-    { label: t("project.uploadLabel"), value: submission.uploaded_at },
-    { label: t("common.status"), value: latestScore !== null ? t("project.completed") : t("project.pending") },
-  ];
+    const scoreDelta = (latest.score ?? 0) - (previous.score ?? 0);
+    return [
+      {
+        label: t("project.compareScore"),
+        current: latest.score !== null ? `${latest.score}/100` : t("common.noValue"),
+        previous: previous.score !== null ? `${previous.score}/100` : t("common.noValue"),
+        tone: scoreDelta > 0 ? "success" : scoreDelta < 0 ? "danger" : "default",
+      },
+      {
+        label: t("project.compareNgSlides"),
+        current: String(latest.ng_slide_count),
+        previous: String(previous.ng_slide_count),
+        tone:
+          latest.ng_slide_count < previous.ng_slide_count
+            ? "success"
+            : latest.ng_slide_count > previous.ng_slide_count
+              ? "danger"
+              : "default",
+      },
+      {
+        label: t("project.compareIssues"),
+        current: String(latest.issue_count),
+        previous: String(previous.issue_count),
+        tone:
+          latest.issue_count < previous.issue_count
+            ? "success"
+            : latest.issue_count > previous.issue_count
+              ? "danger"
+              : "default",
+      },
+      {
+        label: t("project.compareVersion"),
+        current: latest.rubric_version ?? "—",
+        previous: previous.rubric_version ?? "—",
+        tone: latest.rubric_version === previous.rubric_version ? "default" : "warning",
+      },
+    ];
+  }, [runHistory, t]);
+  const executiveSummary = useMemo(() => {
+    if (latestScore === null) {
+      return [t("project.notGradedText")];
+    }
+
+    const scoreLineKey =
+      latestScore >= 80
+        ? "project.summaryScoreHealthy"
+        : latestScore >= 60
+          ? "project.summaryScoreWatch"
+          : "project.summaryScoreCritical";
+    const scoreLine = fillTemplate(t(scoreLineKey), { score: latestScore });
+    const weakestLine = weakestCriteria[0]
+      ? fillTemplate(t("project.summaryWeakCriteria"), {
+          criterion: weakestCriteria[0].label,
+          score: weakestCriteria[0].value,
+          max: weakestCriteria[0].max,
+        })
+      : "";
+    const actionLine =
+      ngSlideCount > 0
+        ? fillTemplate(t("project.summaryNgSlides"), {
+            count: ngSlideCount,
+            issues: issueCount,
+          })
+        : strongestCriterion
+          ? fillTemplate(t("project.summaryStrongCriteria"), {
+              criterion: strongestCriterion.label,
+              score: strongestCriterion.value,
+              max: strongestCriterion.max,
+            })
+          : t("project.summaryNoNgSlides");
+
+    return [scoreLine, weakestLine, actionLine].filter(Boolean);
+  }, [issueCount, latestScore, ngSlideCount, strongestCriterion, t, weakestCriteria]);
+  const issueHighlights = useMemo<HighlightItem[]>(() => {
+    const items: HighlightItem[] = [];
+
+    if (ngSlideCount > 0) {
+      const firstNg = slideReviewItems.find((item) => item.status === "NG");
+      items.push({
+        title: t("project.highlightNgSlides"),
+        detail: firstNg
+          ? fillTemplate(t("project.highlightNgSlidesDetail"), {
+              count: ngSlideCount,
+              slide: firstNg.slide_number,
+            })
+          : fillTemplate(t("project.highlightNgSlidesDetailOnly"), { count: ngSlideCount }),
+        tone: "danger",
+      });
+    }
+
+    if (weakestCriteria[0]) {
+      items.push({
+        title: t("project.highlightWeakCriteria"),
+        detail: fillTemplate(t("project.highlightWeakCriteriaDetail"), {
+          criterion: weakestCriteria[0].label,
+          score: weakestCriteria[0].value,
+          max: weakestCriteria[0].max,
+        }),
+        tone: weakestCriteria[0].ratio < 0.6 ? "danger" : "warning",
+      });
+    }
+
+    if (criteriaSuggestionItems[0]) {
+      items.push({
+        title: t("project.highlightSuggestions"),
+        detail: fillTemplate(t("project.highlightSuggestionsDetail"), {
+          count: criteriaSuggestionItems.length,
+        }),
+        tone: "primary",
+      });
+    }
+
+    if (strongestCriterion) {
+      items.push({
+        title: t("project.highlightStrength"),
+        detail: fillTemplate(t("project.highlightStrengthDetail"), {
+          criterion: strongestCriterion.label,
+          score: strongestCriterion.value,
+          max: strongestCriterion.max,
+        }),
+        tone: "success",
+      });
+    }
+
+    return items.slice(0, 4);
+  }, [criteriaSuggestionItems, ngSlideCount, slideReviewItems, strongestCriterion, t, weakestCriteria]);
+  const chartFallback = <div className="chart-card chart-card--loading" aria-hidden="true" />;
 
   return (
     <>
       <aside className="project-dashboard-sidebar">
+        <SectionBlock className="project-detail-hero project-detail-hero--sidebar">
+          <SectionBlock.Body>
+            <div className="project-detail-hero__summary">
+              <ScoreSummary score={latestScore ?? 0} statusLabel={statusLabel} label={t("project.totalScore")} />
+              <ScoreGauge score={latestScore ?? 0} t={t} />
+            </div>
+          </SectionBlock.Body>
+        </SectionBlock>
+
         <SectionBlock>
           <SectionBlock.Body>
-            <div className="dashboard-sidebar-score">
-              <h3>{t("project.totalScore")}</h3>
-              <ScoreGauge score={latestScore ?? 0} t={t} />
+            <div className="project-detail-metrics">
+              {metricCards.map((item) => (
+                <article className="project-detail-metric-card" key={item.label}>
+                  <span>{item.label}</span>
+                  <Badge tone={item.tone ?? "default"}>{item.value}</Badge>
+                </article>
+              ))}
             </div>
           </SectionBlock.Body>
         </SectionBlock>
@@ -398,7 +690,7 @@ export default function ProjectCard({ submission }: ProjectCardProps) {
           <SectionBlock.Header title={t("project.overview")} />
           <SectionBlock.Body>
             <div className="detail-overview-strip detail-overview-strip--sidebar">
-              {overviewItems.map((item) => (
+              {documentMeta.map((item) => (
                 <div className="detail-overview-strip__item" key={item.label}>
                   <span>{item.label}</span>
                   <strong>{item.value}</strong>
@@ -410,21 +702,182 @@ export default function ProjectCard({ submission }: ProjectCardProps) {
       </aside>
 
       <main className="project-dashboard-main">
-        <SectionBlock>
-          <SectionBlock.Header title={t("project.scoreByCriteria")} />
+        <SectionBlock className="project-detail-hero">
           <SectionBlock.Body>
-            <div className="detail-score-board__list detail-score-board__list--grid">
-              {orderedScores.map((item) => (
-                <div className="detail-score-board__item" key={item.key}>
-                  <div className="detail-score-board__item-head">
-                    <span>{item.label}</span>
-                    <strong>
-                      {item.value} / {item.max}
-                    </strong>
-                  </div>
-                  <ScoreBar value={item.value} max={item.max} showHeader={false} />
+            <div className="project-detail-hero__header">
+              <div className="project-detail-hero__copy">
+                <div className="project-detail-hero__eyebrow">
+                  <Badge tone={statusTone}>{statusLabel}</Badge>
+                  <span>{submission.project_name}</span>
                 </div>
-              ))}
+                <h2>{submission.filename}</h2>
+                <div className="project-detail-hero__meta">
+                  {documentMeta.map((item) => (
+                    <span key={`hero-${item.label}`}>
+                      <strong>{item.label}:</strong> {item.value}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </SectionBlock.Body>
+        </SectionBlock>
+
+        <div className="project-detail-insight-grid">
+          <SectionBlock>
+            <SectionBlock.Header
+              title={t("project.executiveSummary")}
+              subtitle={t("project.executiveSummarySubtitle")}
+            />
+            <SectionBlock.Body>
+              <div className="detail-summary-list">
+                {executiveSummary.map((line, index) => (
+                  <article className="detail-summary-list__item" key={`summary-line-${index}`}>
+                    <span>{index + 1}</span>
+                    <p>{line}</p>
+                  </article>
+                ))}
+              </div>
+            </SectionBlock.Body>
+          </SectionBlock>
+
+          <SectionBlock>
+            <SectionBlock.Header
+              title={t("project.issueHighlights")}
+              subtitle={t("project.issueHighlightsSubtitle")}
+            />
+            <SectionBlock.Body>
+              <div className="detail-highlight-list">
+                {issueHighlights.map((item) => (
+                  <article
+                    className={`detail-highlight-card detail-highlight-card--${item.tone}`.trim()}
+                    key={`${item.title}-${item.detail}`}
+                  >
+                    <strong>{item.title}</strong>
+                    <p>{item.detail}</p>
+                  </article>
+                ))}
+              </div>
+            </SectionBlock.Body>
+          </SectionBlock>
+        </div>
+
+        {runHistory.length ? (
+          <div className="project-detail-insight-grid">
+            <SectionBlock>
+              <SectionBlock.Header
+                title={t("project.runHistoryTitle")}
+                subtitle={t("project.runHistorySubtitle")}
+              />
+              <SectionBlock.Body>
+                <div className="run-history-list">
+                  {runHistory.slice(0, 5).map((run, index) => (
+                    <article className="run-history-card" key={run.id}>
+                      <div className="run-history-card__head">
+                        <div>
+                          <strong>{fillTemplate(t("project.runLabel"), { index: index + 1, runId: run.id })}</strong>
+                          <span>{formatDateTime(run.graded_at, lang)}</span>
+                        </div>
+                        <Badge tone={index === 0 ? "primary" : "default"}>
+                          {index === 0 ? t("project.currentRun") : t("project.previousRun")}
+                        </Badge>
+                      </div>
+                      <div className="run-history-card__meta">
+                        <span>{t("project.totalScore")}: <strong>{run.score ?? "—"}</strong></span>
+                        <span>{t("project.ngSlideCount")}: <strong>{run.ng_slide_count}</strong></span>
+                        <span>{t("project.issueCount")}: <strong>{run.issue_count}</strong></span>
+                        <span>{t("project.rubricVersion")}: <strong>{run.rubric_version ?? "—"}</strong></span>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </SectionBlock.Body>
+            </SectionBlock>
+
+            {runCompare.length ? (
+              <SectionBlock>
+                <SectionBlock.Header
+                  title={t("project.runCompareTitle")}
+                  subtitle={t("project.runCompareSubtitle")}
+                />
+                <SectionBlock.Body>
+                  <div className="run-compare-grid">
+                    {runCompare.map((item) => (
+                      <article className="run-compare-card" key={item.label}>
+                        <span>{item.label}</span>
+                        <div className="run-compare-card__values">
+                          <Badge tone={item.tone}>{item.current}</Badge>
+                          <small>{item.previous}</small>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </SectionBlock.Body>
+              </SectionBlock>
+            ) : null}
+          </div>
+        ) : null}
+
+        <SectionBlock>
+          <SectionBlock.Header
+            title={t("project.scoreByCriteria")}
+            subtitle={t("project.scoreByCriteriaHint")}
+          />
+          <SectionBlock.Body>
+            <div className="project-detail-chart-grid">
+              <Suspense fallback={chartFallback}>
+                <CriteriaScoreChart data={orderedScores} />
+              </Suspense>
+              <div className="detail-score-board__list detail-score-board__list--grid">
+                {orderedScores.map((item) => (
+                  <div className="detail-score-board__item" key={item.key}>
+                    <div className="detail-score-board__item-head">
+                      <span>{item.label}</span>
+                      <strong>
+                        {item.value} / {item.max}
+                      </strong>
+                    </div>
+                    <ScoreBar value={item.value} max={item.max} showHeader={false} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </SectionBlock.Body>
+        </SectionBlock>
+
+        <SectionBlock>
+          <SectionBlock.Header
+            title={t("project.slideQualityTitle")}
+            subtitle={t("project.slideQualitySubtitle")}
+          />
+          <SectionBlock.Body>
+            <div className="project-detail-chart-grid project-detail-chart-grid--compact">
+              <Suspense fallback={chartFallback}>
+                <SlideStatusChart
+                  okCount={slideReviewItems.filter((item) => item.status === "OK").length}
+                  ngCount={ngSlideCount}
+                  okLabel={t("dashboard.okSlides")}
+                  ngLabel={t("dashboard.ngSlides")}
+                />
+              </Suspense>
+              <div className="dashboard-overview-card__list">
+                <div className="dashboard-overview-card__list-row">
+                  <span>{t("dashboard.okSlides")}</span>
+                  <strong>{slideReviewItems.filter((item) => item.status === "OK").length}</strong>
+                </div>
+                <div className="dashboard-overview-card__list-row">
+                  <span>{t("dashboard.ngSlides")}</span>
+                  <strong>{ngSlideCount}</strong>
+                </div>
+                <div className="dashboard-overview-card__list-row">
+                  <span>{t("project.issueCount")}</span>
+                  <strong>{issueCount}</strong>
+                </div>
+                <div className="dashboard-overview-card__list-row">
+                  <span>{t("project.rubricVersion")}</span>
+                  <strong>{latestRun?.rubric_version ?? "—"}</strong>
+                </div>
+              </div>
             </div>
           </SectionBlock.Body>
         </SectionBlock>
@@ -435,14 +888,18 @@ export default function ProjectCard({ submission }: ProjectCardProps) {
             aside={
               slideReviewItems.length ? (
                 <div className="slide-review-filters" role="group" aria-label={t("project.slideReviews")}>
-                  {(["all", "OK", "NG"] as const).map((filter) => (
+                  {(["all", "NG", "withSuggestions", "OK"] as const).map((filter) => (
                     <button
                       type="button"
                       key={filter}
                       className={`slide-review-filter ${slideReviewFilter === filter ? "is-active" : ""}`.trim()}
                       onClick={() => setSlideReviewFilter(filter)}
                     >
-                      {filter === "all" ? t("project.filterAll") : filter}
+                      {filter === "all"
+                        ? t("project.filterAll")
+                        : filter === "withSuggestions"
+                          ? t("project.filterWithSuggestions")
+                          : filter}
                     </button>
                   ))}
                 </div>
@@ -451,43 +908,120 @@ export default function ProjectCard({ submission }: ProjectCardProps) {
           />
           <SectionBlock.Body>
             {filteredSlideReviewItems.length ? (
-              <div className="slide-review-list">
-                {filteredSlideReviewItems.map((item) => (
-                  <article className={`slide-review-card slide-review-card--${item.status.toLowerCase()}`} key={item.id}>
-                    <div className="slide-review-card__head">
+              <div className="slide-review-groups">
+                {filteredPrioritySlideReviewItems.length ? (
+                  <div className="slide-review-group">
+                    <div className="slide-review-group__header">
                       <div>
-                        <span>{t("project.slideNumber").replace("{number}", String(item.slide_number))}</span>
-                        <strong>{item.displayTitle}</strong>
+                        <h4>{t("project.prioritySlides")}</h4>
+                        <p>{t("project.prioritySlidesSubtitle")}</p>
                       </div>
-                      <span className={`slide-review-status slide-review-status--${item.status.toLowerCase()}`}>
-                        {item.status}
-                      </span>
+                      <Badge tone="danger">{filteredPrioritySlideReviewItems.length}</Badge>
                     </div>
-                    <p className="slide-review-card__summary">{item.summary || t("common.noValue")}</p>
-                    {item.issues.length ? (
-                      <ul className="slide-review-card__issues">
-                        {item.issues.slice(0, 2).map((issue, index) => (
-                          <li key={`${item.id}-issue-${index}`}>{issue}</li>
-                        ))}
-                      </ul>
-                    ) : null}
-                    <button
-                      type="button"
-                      className="text-button slide-review-card__detail"
-                      onClick={() =>
-                        setSlideReviewDetail({
-                          title: item.displayTitle,
-                          status: item.status,
-                          summary: item.summary,
-                          issues: item.issues,
-                          suggestions: item.suggestions,
-                        })
-                      }
-                    >
-                      {t("project.detailLink")}
-                    </button>
-                  </article>
-                ))}
+                    <div className="slide-review-list">
+                      {filteredPrioritySlideReviewItems.map((item) => (
+                          <article className={`slide-review-card slide-review-card--${item.status.toLowerCase()}`} key={item.id}>
+                            <div className="slide-review-card__head">
+                              <div>
+                                <span>{t("project.slideNumber").replace("{number}", String(item.slide_number))}</span>
+                                <strong>{item.displayTitle}</strong>
+                              </div>
+                              <span className={`slide-review-status slide-review-status--${item.status.toLowerCase()}`}>
+                                {item.status}
+                              </span>
+                            </div>
+                            <p className="slide-review-card__summary">{item.summary || t("common.noValue")}</p>
+                            {item.issues.length ? (
+                              <ul className="slide-review-card__issues">
+                                {item.issues.slice(0, 2).map((issue, index) => (
+                                  <li key={`${item.id}-issue-${index}`}>{issue}</li>
+                                ))}
+                              </ul>
+                            ) : null}
+                            <div className="slide-review-card__footer">
+                              <span className="slide-review-card__issue-count">
+                                {item.issues.length
+                                  ? `${item.issues.length} ${t("project.issueCount").toLowerCase()}`
+                                  : t("project.noIssueCount")}
+                              </span>
+                              <button
+                                type="button"
+                                className="text-button slide-review-card__detail"
+                                onClick={() =>
+                                  setSlideReviewDetail({
+                                    title: item.displayTitle,
+                                    status: item.status,
+                                    summary: item.summary,
+                                    issues: item.issues,
+                                    suggestions: item.suggestions,
+                                  })
+                                }
+                              >
+                                {t("project.detailLink")}
+                              </button>
+                            </div>
+                          </article>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {remainingSlideReviewItems.length ? (
+                  <div className="slide-review-group">
+                    <div className="slide-review-group__header">
+                      <div>
+                        <h4>{t("project.remainingSlides")}</h4>
+                        <p>{t("project.remainingSlidesSubtitle")}</p>
+                      </div>
+                      <Badge tone="default">{remainingSlideReviewItems.length}</Badge>
+                    </div>
+                    <div className="slide-review-list">
+                      {remainingSlideReviewItems.map((item) => (
+                        <article className={`slide-review-card slide-review-card--${item.status.toLowerCase()}`} key={item.id}>
+                          <div className="slide-review-card__head">
+                            <div>
+                              <span>{t("project.slideNumber").replace("{number}", String(item.slide_number))}</span>
+                              <strong>{item.displayTitle}</strong>
+                            </div>
+                            <span className={`slide-review-status slide-review-status--${item.status.toLowerCase()}`}>
+                              {item.status}
+                            </span>
+                          </div>
+                          <p className="slide-review-card__summary">{item.summary || t("common.noValue")}</p>
+                          {item.issues.length ? (
+                            <ul className="slide-review-card__issues">
+                              {item.issues.slice(0, 2).map((issue, index) => (
+                                <li key={`${item.id}-issue-${index}`}>{issue}</li>
+                              ))}
+                            </ul>
+                          ) : null}
+                          <div className="slide-review-card__footer">
+                            <span className="slide-review-card__issue-count">
+                              {item.issues.length
+                                ? `${item.issues.length} ${t("project.issueCount").toLowerCase()}`
+                                : t("project.noIssueCount")}
+                            </span>
+                            <button
+                              type="button"
+                              className="text-button slide-review-card__detail"
+                              onClick={() =>
+                                setSlideReviewDetail({
+                                  title: item.displayTitle,
+                                  status: item.status,
+                                  summary: item.summary,
+                                  issues: item.issues,
+                                  suggestions: item.suggestions,
+                                })
+                              }
+                            >
+                              {t("project.detailLink")}
+                            </button>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ) : (
               <div className="empty-state-inline">

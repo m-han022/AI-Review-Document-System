@@ -48,6 +48,7 @@ export default function Sidebar({ activeView, onChangeView }: SidebarProps) {
           <img src="/brycen-logo.png" alt="Brycen Vietnam" />
         </div>
         <div className="workspace-brand__text">
+          <span className="workspace-brand__eyebrow">Brycen Vietnam</span>
           <strong>{t("nav.brandTitle")}</strong>
         </div>
       </div>
@@ -69,7 +70,7 @@ export default function Sidebar({ activeView, onChangeView }: SidebarProps) {
               <span className="workspace-nav__icon">
                 <Icon size="md" />
               </span>
-              <span>{translatedLabel}</span>
+              <span className="workspace-nav__label">{translatedLabel}</span>
               {item.disabled ? <small>{t("common.comingSoon")}</small> : null}
             </button>
           );
@@ -82,6 +83,7 @@ export default function Sidebar({ activeView, onChangeView }: SidebarProps) {
             <strong>PMO/QC</strong>
             <span>Admin</span>
           </div>
+          <span className="workspace-user-card__status">{t("common.ready")}</span>
         </div>
       </div>
     </div>

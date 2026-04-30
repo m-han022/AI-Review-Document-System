@@ -37,6 +37,25 @@ async def list_projects(limit: int = 100, offset: int = 0):
     )
 
 
+@router.get("/submissions/{project_id}", response_model=SubmissionOut)
+async def get_submission(project_id: str):
+    submission = store.get(project_id)
+    if not submission:
+        raise HTTPException(status_code=404, detail=f"Project {project_id} not found")
+
+    return SubmissionOut(
+        project_id=submission.project_id,
+        project_name=submission.project_name,
+        filename=submission.filename,
+        document_type=submission.document_type,
+        uploaded_at=submission.uploaded_at,
+        language=submission.language,
+        status=submission.status,
+        latest_run=submission.latest_run,
+        run_history=submission.run_history or [],
+    )
+
+
 class DeleteProjectsRequest(BaseModel):
     project_ids: list[str]
 

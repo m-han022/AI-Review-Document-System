@@ -30,7 +30,7 @@ export default function TableFooter({
   if (totalCount === 0) return null;
 
   return (
-    <div className="review-table__footer review-table__footer--dashboard">
+    <div className="review-table__footer">
       <span>{resultSummary}</span>
       <div className="review-table__pagination">
         <button

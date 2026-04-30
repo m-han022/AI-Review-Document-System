@@ -28,10 +28,28 @@ export interface GradingRun {
   grading_schema_version?: string | null;
   criteria_results: CriteriaResult[];
   slide_reviews?: SlideReview[];
+  issue_breakdown?: Record<string, number>;
   draft_feedback: Record<string, string> | null;
   status: string;
   error_message?: string | null;
   graded_at?: string | null;
+}
+
+export interface GradingRunHistory {
+  id: number;
+  score: number | null;
+  rubric_version?: string | null;
+  gemini_model?: string | null;
+  prompt_hash?: string | null;
+  criteria_hash?: string | null;
+  grading_schema_version?: string | null;
+  status: string;
+  error_message?: string | null;
+  graded_at?: string | null;
+  criteria_result_count: number;
+  slide_review_count: number;
+  ng_slide_count: number;
+  issue_count: number;
 }
 
 export interface Submission {
@@ -43,6 +61,7 @@ export interface Submission {
   language: LanguageCode;
   status: string;
   latest_run?: GradingRun | null;
+  run_history?: GradingRunHistory[];
 }
 
 export interface UploadResponse {

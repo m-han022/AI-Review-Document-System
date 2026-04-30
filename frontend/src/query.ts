@@ -11,4 +11,5 @@ export const queryClient = new QueryClient({
 });
 
 export const submissionsQueryKey = ["submissions"];
+export const submissionDetailQueryKey = (projectId: string) => ["submission", projectId];
 export const rubricsQueryKey = ["rubrics"];

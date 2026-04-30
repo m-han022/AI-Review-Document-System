@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import { getSubmissions } from "../api/client";
+import { getSubmission, getSubmissions } from "../api/client";
 import { API_BASE_URL } from "../config";
-import { submissionsQueryKey } from "../query";
+import { getDocumentTypeKey } from "../constants/documentTypes";
+import { submissionDetailQueryKey, submissionsQueryKey } from "../query";
 import type { Submission } from "../types";
 import DashboardOverview from "./dashboard/DashboardOverview";
 import FileUpload from "./FileUpload";
@@ -14,10 +15,10 @@ import Topbar from "./layout/Topbar";
 import ProjectCard from "./project/ProjectCard";
 import RubricManagement from "./rubrics/RubricManagement";
 import SubmissionsTable from "./SubmissionsTable";
+import { formatUploadedAt, getLanguageLabel } from "./submissions/utils";
 import Badge from "./ui/Badge";
 import { ArrowLeftIcon, ChevronRightIcon, DownloadIcon, FileReviewIcon } from "./ui/Icon";
 import SectionBlock from "./ui/SectionBlock";
-import { formatUploadedAt, getLanguageLabel } from "./submissions/utils";
 
 function PlaceholderPanel({
   title,
@@ -53,12 +54,18 @@ export default function Dashboard() {
     queryKey: submissionsQueryKey,
     queryFn: () => getSubmissions(),
   });
+  const { data: detailedSubmission } = useQuery({
+    queryKey: selectedProjectId ? submissionDetailQueryKey(selectedProjectId) : ["submission", "empty"],
+    queryFn: () => getSubmission(selectedProjectId as string),
+    enabled: activeView === "detail" && Boolean(selectedProjectId),
+  });
 
   const submissions: Submission[] = useMemo(() => data?.submissions ?? [], [data?.submissions]);
   const selectedSubmission = useMemo(
     () => submissions.find((item) => item.project_id === selectedProjectId) ?? submissions[0] ?? null,
     [selectedProjectId, submissions],
   );
+  const detailSubmission = detailedSubmission ?? selectedSubmission;
   const recentSubmissions = useMemo(() => submissions.slice(0, 5), [submissions]);
 
   const topbarContent = useMemo(() => {
@@ -81,7 +88,7 @@ export default function Dashboard() {
         };
       case "detail":
         return {
-          title: selectedSubmission?.filename ?? t("project.reviewResult"),
+          title: detailSubmission?.filename ?? t("project.reviewResult"),
           subtitle: t("project.reviewDetailSubtitle"),
           breadcrumb: undefined,
           rightBadge: null,
@@ -113,7 +120,7 @@ export default function Dashboard() {
           hideMain: false,
         };
     }
-  }, [activeView, selectedSubmission, submissions.length, t]);
+  }, [activeView, detailSubmission, submissions.length, t]);
 
   const content = (() => {
     if (error) {
@@ -187,9 +194,9 @@ export default function Dashboard() {
                 </a>
               ) : null}
             </div>
-            {selectedSubmission ? (
+            {detailSubmission ? (
               <div className="project-dashboard-layout">
-                <ProjectCard submission={selectedSubmission} />
+                <ProjectCard submission={detailSubmission} />
               </div>
             ) : (
               <SectionBlock>
@@ -219,8 +226,8 @@ export default function Dashboard() {
             <DashboardOverview submissions={submissions} />
             <SectionBlock className="dashboard-recent-shell">
               <SectionBlock.Header
-                title={t("submissions.title")}
-                subtitle={t("submissions.subtitle")}
+                title={t("dashboard.recentTitle")}
+                subtitle={t("dashboard.recentSubtitle")}
                 aside={
                   <button
                     type="button"
@@ -256,12 +263,14 @@ export default function Dashboard() {
                             </span>
                             <div className="dashboard-recent-item__meta">
                               <strong>{submission.filename}</strong>
-                              <span>
-                                {submission.project_id} · {submission.project_name} · {getLanguageLabel(submission, lang)}
-                              </span>
+                              <span>{submission.project_id} · {submission.project_name}</span>
                             </div>
                           </div>
                           <div className="dashboard-recent-item__aside">
+                            <span className="document-type-pill">
+                              {t(getDocumentTypeKey(submission.document_type ?? "project_review"))}
+                            </span>
+                            <span className="dashboard-recent-item__language">{getLanguageLabel(submission, lang)}</span>
                             <Badge tone={statusTone}>{statusLabel}</Badge>
                             <span className="dashboard-recent-item__score">
                               {latestScore !== null ? `${latestScore}/100` : t("common.noValue")}

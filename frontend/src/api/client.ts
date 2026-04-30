@@ -1,6 +1,6 @@
 import { API_BASE_URL, DEFAULT_UI_LANGUAGE, UI_LANGUAGE_STORAGE_KEY } from "../config";
 import { normalizeLanguage } from "../locales/utils";
-import type { RubricListResponse, RubricVersion, RubricVersionPayload, SubmissionListResponse } from "../types";
+import type { RubricListResponse, RubricVersion, RubricVersionPayload, Submission, SubmissionListResponse } from "../types";
 
 // Language setting
 let currentLanguage = normalizeLanguage(localStorage.getItem(UI_LANGUAGE_STORAGE_KEY) || DEFAULT_UI_LANGUAGE);
@@ -78,6 +78,12 @@ export async function getSubmissions(limit: number = 100, offset: number = 0): P
     offset: String(offset),
   });
   const res = await fetch(`${API_BASE_URL}/submissions?${params.toString()}`);
+  if (!res.ok) throw new Error(`${apiMessage("fetchSubmissionsFailed")} ${res.statusText}`);
+  return res.json();
+}
+
+export async function getSubmission(projectId: string): Promise<Submission> {
+  const res = await fetch(`${API_BASE_URL}/submissions/${encodeURIComponent(projectId)}`);
   if (!res.ok) throw new Error(`${apiMessage("fetchSubmissionsFailed")} ${res.statusText}`);
   return res.json();
 }

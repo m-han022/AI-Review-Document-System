@@ -25,6 +25,7 @@ export default function TableHeader({
         ) : null}
         <th>{t("submissions.filename")}</th>
         <th>{t("upload.documentType")}</th>
+        <th>{t("common.language")}</th>
         <th>{t("common.status")}</th>
         <th>{t("submissions.score")}</th>
         <th>{t("common.uploadedAt")}</th>

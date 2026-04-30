@@ -70,6 +70,8 @@ export default function FileUpload() {
   const selectedActiveRubric = documentRubrics.find((rubric) => rubric.active);
   const resolvedRubricVersion =
     selectedRubricVersion === "active" ? selectedActiveRubric?.version ?? null : selectedRubricVersion;
+  const selectedDocumentOption =
+    DOCUMENT_TYPE_OPTIONS.find((option) => option.id === documentType) ?? DOCUMENT_TYPE_OPTIONS[0];
 
   useEffect(() => {
     if (
@@ -299,6 +301,21 @@ export default function FileUpload() {
 
         <div className="upload-file-layout">
           <div className="upload-file-layout__main">
+            <div className="upload-file-layout__summary">
+              <div className="upload-file-layout__summary-item">
+                <span>{t("upload.documentType")}</span>
+                <strong>{t(selectedDocumentOption.labelKey)}</strong>
+              </div>
+              <div className="upload-file-layout__summary-item">
+                <span>{t("upload.rubricVersionLabel")}</span>
+                <strong>{resolvedRubricVersion ?? "—"}</strong>
+              </div>
+              <div className="upload-file-layout__summary-item">
+                <span>{t("common.language")}</span>
+                <strong>{lang.toUpperCase()}</strong>
+              </div>
+            </div>
+
             <input
               ref={inputRef}
               type="file"
@@ -335,7 +352,10 @@ export default function FileUpload() {
               <div className="upload-file-row">
                 <div className="upload-file-row__meta">
                   <strong>{selectedFileName}</strong>
-                  <span>{formatFileSize(selectedFileSize) ?? t(getDocumentTypeKey(documentType))}</span>
+                  <span>
+                    {formatFileSize(selectedFileSize) ?? t(getDocumentTypeKey(documentType))}
+                    {uploadedProjectId ? ` · ${uploadedProjectId}` : ""}
+                  </span>
                 </div>
                 <button
                   type="button"
@@ -407,6 +427,20 @@ export default function FileUpload() {
                   ))}
                 </select>
               </label>
+            </div>
+            <div className="upload-options-card__summary">
+              <div>
+                <span>{t("upload.documentType")}</span>
+                <strong>{t(selectedDocumentOption.labelKey)}</strong>
+              </div>
+              <div>
+                <span>{t("upload.rubricVersionLabel")}</span>
+                <strong>{resolvedRubricVersion ?? "—"}</strong>
+              </div>
+              <div>
+                <span>{t("common.language")}</span>
+                <strong>{lang.toUpperCase()}</strong>
+              </div>
             </div>
           </aside>
         </div>

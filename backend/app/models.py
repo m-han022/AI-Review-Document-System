@@ -186,10 +186,28 @@ class GradingRunOut(BaseModel):
     grading_schema_version: Optional[str] = None
     criteria_results: list[CriteriaResultOut] = []
     slide_reviews: list[SlideReviewOut] = []
+    issue_breakdown: Dict[str, int] = {}
     draft_feedback: Optional[Dict[str, Any]] = None
     status: str
     error_message: Optional[str] = None
     graded_at: Optional[str] = None
+
+
+class GradingRunHistoryOut(BaseModel):
+    id: int
+    score: Optional[int] = None
+    rubric_version: Optional[str] = None
+    gemini_model: Optional[str] = None
+    prompt_hash: Optional[str] = None
+    criteria_hash: Optional[str] = None
+    grading_schema_version: Optional[str] = None
+    status: str
+    error_message: Optional[str] = None
+    graded_at: Optional[str] = None
+    criteria_result_count: int = 0
+    slide_review_count: int = 0
+    ng_slide_count: int = 0
+    issue_count: int = 0
 
 
 class SubmissionOut(BaseModel):
@@ -201,6 +219,7 @@ class SubmissionOut(BaseModel):
     language: LanguageCode = "ja"
     status: str = "uploaded"
     latest_run: Optional[GradingRunOut] = None
+    run_history: list[GradingRunHistoryOut] = []
 
 
 class SubmissionListResponse(BaseModel):
