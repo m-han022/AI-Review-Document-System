@@ -32,24 +32,26 @@ function getScoreTone(score: number) {
 
 export default function ScoreGaugeChart({ score, label, statusLabel }: ScoreGaugeChartProps) {
   const normalized = Math.max(0, Math.min(100, score));
-  const data = [{ name: label, value: normalized, fill: getScoreTone(normalized) }];
+  const toneColor = getScoreTone(normalized);
+  const data = [{ name: label, value: normalized, fill: toneColor }];
+  const toneClass = normalized >= 80 ? "is-success" : normalized >= 60 ? "is-warning" : "is-danger";
 
   return (
     <div className="chart-card chart-card--gauge">
       <div className="chart-card__canvas">
-        <ResponsiveContainer width="100%" height={220}>
+        <ResponsiveContainer width="100%" height={240}>
           <RadialBarChart
             cx="50%"
             cy="50%"
-            innerRadius="68%"
+            innerRadius="72%"
             outerRadius="92%"
-            barSize={14}
+            barSize={12}
             data={data}
             startAngle={90}
             endAngle={-270}
           >
             <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
-            <RadialBar background={{ fill: SCORE_COLORS.track }} dataKey="value" cornerRadius={14} />
+            <RadialBar background={{ fill: SCORE_COLORS.track }} dataKey="value" cornerRadius={999} />
           </RadialBarChart>
         </ResponsiveContainer>
         <div className="chart-card__center">
@@ -57,8 +59,9 @@ export default function ScoreGaugeChart({ score, label, statusLabel }: ScoreGaug
           <span>/100</span>
         </div>
       </div>
-      <div className="chart-card__footer">
-        <span>{statusLabel}</span>
+      <div className="chart-card__footer chart-card__footer--stacked">
+        <span className={`chart-pill ${toneClass}`} style={{ color: toneColor }}>{statusLabel}</span>
+        <small>{label}</small>
       </div>
     </div>
   );

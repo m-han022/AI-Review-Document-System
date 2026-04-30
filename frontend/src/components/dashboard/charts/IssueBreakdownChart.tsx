@@ -11,7 +11,7 @@ interface IssueBreakdownChartProps {
   totalLabel: string;
 }
 
-const ISSUE_COLORS = ["#ef4444", "#f59e0b", "#fbbf24", "#3b82f6", "#94a3b8", "#64748b"];
+const ISSUE_COLORS = ["#ea4e57", "#f29d38", "#f3be4b", "#4b8ef7", "#9aadc4", "#c7d1dc"];
 
 export default function IssueBreakdownChart({ data, totalLabel }: IssueBreakdownChartProps) {
   const total = data.reduce((sum, item) => sum + item.count, 0);
@@ -20,16 +20,17 @@ export default function IssueBreakdownChart({ data, totalLabel }: IssueBreakdown
     <div className="chart-card chart-card--donut">
       <div className="chart-card__split">
         <div className="chart-card__canvas">
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="100%" height={214}>
             <PieChart>
               <Pie
                 data={data}
                 dataKey="count"
                 nameKey="label"
                 innerRadius={54}
-                outerRadius={84}
-                paddingAngle={2}
-                stroke="none"
+                outerRadius={78}
+                paddingAngle={1}
+                stroke="#ffffff"
+                strokeWidth={2}
               >
                 {data.map((item, index) => (
                   <Cell key={item.key} fill={ISSUE_COLORS[index % ISSUE_COLORS.length]} />
@@ -39,8 +40,8 @@ export default function IssueBreakdownChart({ data, totalLabel }: IssueBreakdown
             </PieChart>
           </ResponsiveContainer>
           <div className="chart-card__center">
-            <strong>{total}</strong>
             <span>{totalLabel}</span>
+            <strong>{total}</strong>
           </div>
         </div>
 
