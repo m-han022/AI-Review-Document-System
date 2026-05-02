@@ -59,7 +59,7 @@ interface RecentHistoryItem {
   statusCode: "completed" | "failed" | "pending";
 }
 
-type FilterValue = "all" | (typeof DOCUMENT_TYPE_OPTIONS)[number]["id"];
+
 
 const CLEAN_DASHBOARD_COPY = {
   vi: {
@@ -86,7 +86,6 @@ const CLEAN_DASHBOARD_COPY = {
     scoreSuffix: "/100",
     noData: "Chưa có dữ liệu",
     filterLabel: "Lọc theo loại tài liệu",
-    dateRangeLabel: "Khoảng thời gian thống kê",
     recommendationText: "Ưu tiên cải thiện tiêu chí “{criterion}” trước để tác động nhanh nhất tới chất lượng chung.",
     historyHeaders: {
       fileName: "Tên tài liệu",
@@ -125,7 +124,6 @@ const CLEAN_DASHBOARD_COPY = {
     scoreSuffix: "/100",
     noData: "データがありません",
     filterLabel: "資料タイプで絞り込み",
-    dateRangeLabel: "集計期間",
     recommendationText: "最も効果が高いのは「{criterion}」の改善です。まずこの基準から見直してください。",
     historyHeaders: {
       fileName: "文書名",
@@ -185,9 +183,7 @@ function getDocumentTypeLabel(documentType: string | null | undefined, t: (key: 
   return t(getDocumentTypeKey(documentType));
 }
 
-function filterByDocumentType(items: Submission[], documentType: FilterValue) {
-  return documentType === "all" ? items : items.filter((item) => item.document_type === documentType);
-}
+
 
 function getStatusLabel(status: string, score: number | null, copy: (typeof CLEAN_DASHBOARD_COPY)[LanguageCode]) {
   if (typeof score === "number") return copy.statusCompleted;
@@ -247,7 +243,6 @@ function extractPositiveFeedback(
 export default function DashboardOverview({ submissions }: DashboardOverviewProps) {
   const { lang, t } = useTranslation();
   const copy = getCopy(lang);
-  const [globalFilter, setGlobalFilter] = useState<FilterValue>("all");
   const [activeTab, setActiveTab] = useState<"references" | "comments" | "criteria">("references");
 
   const graded = useMemo(
@@ -280,18 +275,11 @@ export default function DashboardOverview({ submissions }: DashboardOverviewProp
     [graded, submissions, t],
   );
 
-  const filterOptions = useMemo(
-    () =>
-      DOCUMENT_TYPE_OPTIONS.map((option) => ({
-        value: option.id as FilterValue,
-        label: getDocumentTypeLabel(option.id, t),
-      })),
-    [t],
-  );
+
 
   const topReferences = useMemo<ReferenceItem[]>(
     () =>
-      filterByDocumentType(graded, globalFilter)
+      graded
         .map((item) => {
           const slideReviews = item.latest_run?.slide_reviews ?? [];
           const okCount = slideReviews.filter((slide) => slide.status === "OK").length;
@@ -311,23 +299,23 @@ export default function DashboardOverview({ submissions }: DashboardOverviewProp
           return a.ngCount - b.ngCount;
         })
         .slice(0, 5),
-    [graded, globalFilter, t],
+    [graded, t],
   );
 
   const topComments = useMemo<PositiveItem[]>(
     () =>
-      filterByDocumentType(graded, globalFilter)
+      graded
         .flatMap((item) => extractPositiveFeedback(item, t))
         .filter((item, index, array) => array.findIndex((candidate) => candidate.text === item.text) === index)
         .sort((a, b) => b.score - a.score)
         .slice(0, 5),
-    [globalFilter, graded, t],
+    [graded, t],
   );
 
   const weakCriteria = useMemo<WeakCriterionItem[]>(() => {
     const criteriaMap = new Map<string, { total: number; max: number; count: number }>();
 
-    filterByDocumentType(graded, globalFilter).forEach((submission) => {
+    graded.forEach((submission) => {
       (submission.latest_run?.criteria_results ?? []).forEach((criterion) => {
         const current = criteriaMap.get(criterion.key) ?? { total: 0, max: 0, count: 0 };
         current.total += criterion.score;
@@ -348,7 +336,7 @@ export default function DashboardOverview({ submissions }: DashboardOverviewProp
       }))
       .sort((a, b) => a.ratio - b.ratio)
       .slice(0, 5);
-  }, [globalFilter, graded, t]);
+  }, [graded, t]);
 
   const slideSummary = useMemo(() => {
     const slides = graded.flatMap((item) => item.latest_run?.slide_reviews ?? []);
@@ -396,28 +384,12 @@ export default function DashboardOverview({ submissions }: DashboardOverviewProp
     <section className="dashboard-reference" aria-label={t("nav.dashboard")}>
       <PageHeader title={copy.heroTitle} subtitle={copy.heroSubtitle} />
 
-      <section className="dashboard-reference-recommendation">
+      <section className="dashboard-reference-recommendation" style={{ marginBottom: '24px' }}>
         <strong>{recommendationText}</strong>
       </section>
 
-      <div className="dashboard-reference__global-filter" style={{ marginBottom: '16px', display: 'flex', justifyContent: 'flex-end' }}>
-        <select
-          value={globalFilter}
-          aria-label={copy.filterLabel}
-          onChange={(event) => setGlobalFilter(event.target.value as FilterValue)}
-          style={{ width: 'auto', minWidth: '200px' }}
-        >
-          <option value="all">{copy.allDocuments}</option>
-          {filterOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="dashboard-reference-summary-grid dashboard-reference-summary-grid--v3">
-        {summaryCards.filter((card) => globalFilter === "all" || card.id === globalFilter).map((card) => {
+      <div className="dashboard-reference-summary-grid dashboard-reference-summary-grid--v3" style={{ marginBottom: '32px' }}>
+        {summaryCards.map((card) => {
           const total = card.highScoreCount + card.lowScoreCount;
           const highRate = total > 0 ? Math.round((card.highScoreCount / total) * 1000) / 10 : 0;
           const lowRate = total > 0 ? Math.round((card.lowScoreCount / total) * 1000) / 10 : 0;
@@ -481,7 +453,7 @@ export default function DashboardOverview({ submissions }: DashboardOverviewProp
         </button>
       </div>
 
-      <div className="dashboard-reference-main-grid dashboard-reference-main-grid--v3">
+      <div className="dashboard-reference-main-grid dashboard-reference-main-grid--v3" style={{ marginBottom: '32px' }}>
         <DashboardListPanel
           index="2"
           title={copy.topReferencesTitle}

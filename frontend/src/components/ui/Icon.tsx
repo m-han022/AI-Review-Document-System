@@ -33,6 +33,7 @@ import {
   Trash2,
   Upload,
   Plus,
+  Search,
   Workflow,
   X,
   type LucideIcon,
@@ -71,6 +72,7 @@ const icons = {
   settings: Settings,
   shieldCheck: ShieldCheck,
   spark: CircleCheck,
+  search: Search,
   sun: Sun,
   target: Target,
   template: LayoutTemplate,
@@ -211,6 +213,10 @@ export function RefreshIcon(props: NamedIconProps) {
 
 export function SettingsIcon(props: NamedIconProps) {
   return <Icon name="settings" {...props} />;
+}
+
+export function SearchIcon(props: NamedIconProps) {
+  return <Icon name="search" {...props} />;
 }
 
 export function ShieldCheckIcon(props: NamedIconProps) {

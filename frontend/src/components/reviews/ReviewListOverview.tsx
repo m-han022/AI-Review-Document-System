@@ -1,7 +1,9 @@
+import { useMemo } from "react";
 import type { Submission } from "../../types";
 import { useTranslation } from "../LanguageSelector";
 import SubmissionsTable from "../SubmissionsTable";
 import { PageHeader } from "../ui/PageHeader";
+import { FileReviewIcon, ShieldCheckIcon, TargetIcon } from "../ui/Icon";
 
 interface ReviewListOverviewProps {
   submissions: Submission[];
@@ -17,6 +19,17 @@ export default function ReviewListOverview({
   const { lang } = useTranslation();
   const isJa = lang === "ja";
 
+  const stats = useMemo(() => {
+    const total = submissions.length;
+    const completed = submissions.filter(s => s.latest_run?.score !== null && s.latest_run?.score !== undefined).length;
+    const pending = total - completed;
+    const avgScore = completed > 0 
+      ? Math.round(submissions.reduce((acc, s) => acc + (s.latest_run?.score ?? 0), 0) / completed)
+      : 0;
+
+    return { total, completed, pending, avgScore };
+  }, [submissions]);
+
   return (
     <section className="dashboard-reference" aria-label={isJa ? "レビュー一覧" : "Danh sách review"}>
       <PageHeader 
@@ -28,14 +41,48 @@ export default function ReviewListOverview({
           : "AI phân tích toàn bộ tài liệu, tổng hợp điểm mạnh và gợi ý các điểm cần cải thiện."}
       />
 
-      <section className="dashboard-reference-panel">
-        <header className="dashboard-reference-panel__head">
+      <div className="review-stats-grid-v3">
+        <div className="review-stat-card-v3">
+          <div className="review-stat-icon-v3" style={{ background: '#eff6ff', color: '#3b82f6' }}>
+            <FileReviewIcon size="md" />
+          </div>
+          <div className="review-stat-info-v3">
+            <span className="review-stat-value-v3">{stats.total}</span>
+            <span className="review-stat-label-v3">{isJa ? "総ドキュメント" : "Tổng tài liệu"}</span>
+          </div>
+        </div>
+        
+        <div className="review-stat-card-v3">
+          <div className="review-stat-icon-v3" style={{ background: '#f0fdf4', color: '#16a34a' }}>
+            <ShieldCheckIcon size="md" />
+          </div>
+          <div className="review-stat-info-v3">
+            <span className="review-stat-value-v3">{stats.completed}</span>
+            <span className="review-stat-label-v3">{isJa ? "レビュー完了" : "Đã hoàn thành"}</span>
+          </div>
+        </div>
+
+        <div className="review-stat-card-v3">
+          <div className="review-stat-icon-v3" style={{ background: '#fff7ed', color: '#ea580c' }}>
+            <TargetIcon size="md" />
+          </div>
+          <div className="review-stat-info-v3">
+            <span className="review-stat-value-v3">{stats.avgScore}</span>
+            <span className="review-stat-label-v3">{isJa ? "平均スコア" : "Điểm trung bình"}</span>
+          </div>
+        </div>
+      </div>
+
+      <section className="review-reference-panel">
+        <header className="review-reference-panel__head" style={{ marginBottom: '16px' }}>
           <div>
-            <h2>{isJa ? "ドキュメント一覧" : "Danh sách tài liệu"}</h2>
-            <p>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1e293b' }}>
+              {isJa ? "ドキュメント一覧" : "Danh sách tài liệu"}
+            </h2>
+            <p style={{ color: '#64748b', marginTop: '4px' }}>
               {isJa
-                ? "アップロードされたドキュメントの一覧 và レビュー kết quả"
-                : "Danh sách tài liệu đã tải lên và kết quả review"}
+                ? "アップロードされたドキュメントの一覧とレビュー結果"
+                : "Danh sách tài liệu đã tải lên và kết quả review chi tiết"}
             </p>
           </div>
         </header>

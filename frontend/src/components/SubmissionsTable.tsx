@@ -8,7 +8,6 @@ import type { Submission } from "../types";
 import { useTranslation } from "./LanguageSelector";
 import ConfirmDialog from "./ui/ConfirmDialog";
 import { FileReviewIcon } from "./ui/Icon";
-import SectionBlock from "./ui/SectionBlock";
 import ToastStack, { type ToastItem } from "./ui/ToastStack";
 
 import TableHeader from "./submissions/TableHeader";
@@ -21,7 +20,6 @@ interface SubmissionsTableProps {
   activeProjectId?: string | null;
   onSelectProject?: (projectId: string) => void;
   variant?: "full" | "dashboard" | "reference";
-  selectionSummary?: string;
 }
 
 type DeleteMode = "single" | "selected";
@@ -43,7 +41,6 @@ export default function SubmissionsTable({
   activeProjectId: controlledActiveProjectId,
   onSelectProject,
   variant = "full",
-  selectionSummary,
 }: SubmissionsTableProps) {
   const [gradingId, setGradingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -310,83 +307,75 @@ export default function SubmissionsTable({
   return (
     <>
       <div className="review-workspace">
-        <div className={isDashboardVariant ? "dashboard-table-layout" : isReferenceVariant ? "review-reference-table-layout" : ""}>
-          <SectionBlock
-            className={`review-table-shell ${
-              isDashboardVariant ? "review-table-shell--dashboard" : isReferenceVariant ? "review-table-shell--reference" : ""
+        <div className={isDashboardVariant ? "dashboard-table-layout" : "review-reference-table-layout-v3"}>
+          <div
+            className={`review-table-shell-v3 ${
+              isDashboardVariant ? "review-table-shell--dashboard" : ""
             }`.trim()}
           >
-            <SectionBlock.Body>
-              {!isDashboardVariant && (
-                <TableToolbar
-                  selectedCount={selectedIds.size}
-                  totalCount={filteredSubmissions.length}
-                  onExport={() => void handleExportExcel()}
-                  onDeleteSelected={() => openDeleteDialog(Array.from(selectedIds), "selected")}
-                  exporting={exporting}
-                  isActionPending={isActionPending}
-                  documentTypeFilter={documentTypeFilter}
-                  statusFilter={statusFilter}
-                  languageFilter={languageFilter}
-                  onDocumentTypeFilterChange={setDocumentTypeFilter}
-                  onStatusFilterChange={setStatusFilter}
-                  onLanguageFilterChange={setLanguageFilter}
-                  variant={isReferenceVariant ? "reference" : "full"}
-                  selectionSummary={selectionSummary}
+            {!isDashboardVariant && (
+              <TableToolbar
+                selectedCount={selectedIds.size}
+                totalCount={filteredSubmissions.length}
+                onExport={() => void handleExportExcel()}
+                onDeleteSelected={() => openDeleteDialog(Array.from(selectedIds), "selected")}
+                exporting={exporting}
+                isActionPending={isActionPending}
+                documentTypeFilter={documentTypeFilter}
+                statusFilter={statusFilter}
+                languageFilter={languageFilter}
+                onDocumentTypeFilterChange={setDocumentTypeFilter}
+                onStatusFilterChange={setStatusFilter}
+                onLanguageFilterChange={setLanguageFilter}
+                variant={isReferenceVariant ? "reference" : "full"}
+              />
+            )}
+
+            <div className="review-table-wrap">
+              <table
+                className={isDashboardVariant ? "review-table--dashboard" : "review-table--v3"}
+              >
+                <TableHeader
+                  showCheckbox={!isDashboardVariant}
+                  allSelected={allSelected}
+                  onToggleSelectAll={toggleSelectAll}
+                  variant={isReferenceVariant ? "reference" : isDashboardVariant ? "dashboard" : "full"}
                 />
-              )}
+                <tbody>
+                  {pagedSubmissions.map((submission) => (
+                    <TableRow
+                      key={submission.project_id}
+                      submission={submission}
+                      isActive={submission.project_id === activeProjectId}
+                      isSelected={selectedIds.has(submission.project_id)}
+                      showCheckbox={!isDashboardVariant}
+                      isReferenceVariant={isReferenceVariant}
+                      gradingId={gradingId}
+                      deletingId={deletingId}
+                      isActionPending={isActionPending}
+                      onSelect={handleSelectProject}
+                      onToggleSelect={toggleSelect}
+                      onGrade={handleGrade}
+                      onDelete={(id) => openDeleteDialog([id], "single")}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-              <div className="review-table-wrap">
-                <table
-                  className={`review-table ${
-                    isDashboardVariant ? "review-table--dashboard" : isReferenceVariant ? "review-table--reference" : ""
-                  }`.trim()}
-                >
-                  <TableHeader
-                    showCheckbox={!isDashboardVariant}
-                    allSelected={allSelected}
-                    onToggleSelectAll={toggleSelectAll}
-                    variant={isReferenceVariant ? "reference" : isDashboardVariant ? "dashboard" : "full"}
-                  />
-                  <tbody>
-                    {pagedSubmissions.map((submission) => (
-                      <TableRow
-                        key={submission.project_id}
-                        submission={submission}
-                        isActive={submission.project_id === activeProjectId}
-                        isSelected={selectedIds.has(submission.project_id)}
-                        showCheckbox={!isDashboardVariant}
-                        isDashboardVariant={isDashboardVariant}
-                        isReferenceVariant={isReferenceVariant}
-                        gradingId={gradingId}
-                        deletingId={deletingId}
-                        isActionPending={isActionPending}
-                        onSelect={handleSelectProject}
-                        onToggleSelect={toggleSelect}
-                        onGrade={handleGrade}
-                        onDelete={(id) => openDeleteDialog([id], "single")}
-                      />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </SectionBlock.Body>
-          </SectionBlock>
-
-          <TableFooter
-            totalCount={filteredSubmissions.length}
-            resultSummary={resultSummary}
-            currentPage={safeCurrentPage}
-            totalPages={totalPages}
-            canGoPrevious={safeCurrentPage > 1}
-            canGoNext={safeCurrentPage < totalPages}
-            previousLabel={t("submissions.previousPage")}
-            nextLabel={t("submissions.nextPage")}
-            pageLabel={t("submissions.pageStatus")}
-            onPrevious={() => setCurrentPage((page) => Math.max(1, page - 1))}
-            onNext={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-            variant={isReferenceVariant ? "reference" : "default"}
-          />
+            <TableFooter
+              totalCount={filteredSubmissions.length}
+              resultSummary={resultSummary}
+              currentPage={safeCurrentPage}
+              canGoPrevious={safeCurrentPage > 1}
+              canGoNext={safeCurrentPage < totalPages}
+              previousLabel={t("submissions.previousPage")}
+              nextLabel={t("submissions.nextPage")}
+              onPrevious={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              onNext={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+              variant={isReferenceVariant ? "reference" : "default"}
+            />
+          </div>
         </div>
       </div>
 

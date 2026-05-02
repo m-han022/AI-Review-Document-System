@@ -13,26 +13,34 @@ export default function TableHeader({
   onToggleSelectAll,
   variant = "full",
 }: TableHeaderProps) {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
+  const isJa = lang === "ja";
   const isReferenceVariant = variant === "reference";
+
+  if (!isReferenceVariant) {
+    // Standard header remains for other variants
+  }
 
   return (
     <thead>
       <tr>
         {showCheckbox ? (
-          <th className="review-table__checkbox">
-            <span className="review-table__checkbox-inner">
-              <input type="checkbox" checked={allSelected} onChange={onToggleSelectAll} />
-            </span>
+          <th style={{ width: '40px' }}>
+            <input 
+              type="checkbox" 
+              checked={allSelected} 
+              onChange={onToggleSelectAll} 
+              style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+            />
           </th>
         ) : null}
         <th>{t("submissions.filename")}</th>
-        <th>{isReferenceVariant ? "ファイルタイプ" : t("upload.documentType")}</th>
-        <th>{isReferenceVariant ? "言語" : t("common.language")}</th>
-        <th>{isReferenceVariant ? "ステータス" : t("common.status")}</th>
-        <th>{isReferenceVariant ? "総合スコア" : t("submissions.score")}</th>
-        <th>{isReferenceVariant ? "アップロード日時" : t("common.uploadedAt")}</th>
-        <th>{t("common.actions")}</th>
+        <th>{isJa ? "資料種別" : "Loại tài liệu"}</th>
+        <th>{isJa ? "言語" : "Ngôn ngữ"}</th>
+        <th>{isJa ? "状態" : "Trạng thái"}</th>
+        <th>{isJa ? "スコア" : "Điểm số"}</th>
+        <th>{isJa ? "アップロード日時" : "Ngày tải lên"}</th>
+        <th style={{ textAlign: 'center' }}>{t("common.actions")}</th>
       </tr>
     </thead>
   );
