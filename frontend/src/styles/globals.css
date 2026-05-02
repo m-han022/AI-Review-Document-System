@@ -1357,6 +1357,7 @@
   line-height: 1.35;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .dashboard-reference-summary-card__spark {
@@ -1403,6 +1404,7 @@
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .dashboard-reference-panel__head select {
@@ -4327,7 +4329,7 @@ input[type="checkbox"] {
 }
 
 .ui-icon {
-  display: block;
+  display: inline-block;
   flex: 0 0 auto;
   width: var(--ds-icon-lg);
   height: var(--ds-icon-lg);
@@ -6427,6 +6429,7 @@ input[type="checkbox"] {
   line-height: var(--ds-line-height-body);
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   word-break: break-word;
 }
 
@@ -6570,6 +6573,7 @@ input[type="checkbox"] {
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   word-break: break-word;
 }
 
@@ -7727,6 +7731,7 @@ html[data-ui-language="ja"] .slide-review-detail__list {
   white-space: normal;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .dashboard-reference-main-grid.dashboard-reference-main-grid--v3
@@ -7764,13 +7769,14 @@ html[data-ui-language="ja"] .slide-review-detail__list {
   gap: 6px;
 }
 
-.dashboard-reference-panel--comments .dashboard-reference-ranked-row strong {
+.dashboard-reference-panel--comment.dashboard-reference-ranked-row strong {
   display: -webkit-box;
   overflow: hidden;
-  line-height: 1.42;
+  text-overflow: ellipsis;
   white-space: normal;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 /* Final dashboard hero image override: use one visual asset only, no stacked AI layers. */

@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { getSubmission, getSubmissions } from "../api/client";
-import { API_BASE_URL } from "../config";
 import { submissionDetailQueryKey, submissionsQueryKey } from "../query";
 import type { Submission } from "../types";
 import DashboardOverview from "./dashboard/DashboardOverview";
@@ -15,7 +14,6 @@ import ProjectCard from "./project/ProjectCard";
 import ReviewListOverview from "./reviews/ReviewListOverview";
 import RubricManagement from "./rubrics/RubricManagement";
 import Badge from "./ui/Badge";
-import { ArrowLeftIcon, DownloadIcon } from "./ui/Icon";
 import SectionBlock from "./ui/SectionBlock";
 
 function PlaceholderPanel({

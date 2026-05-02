@@ -1,12 +1,10 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
-
-import { aiReviewAssets } from "../../assets/aiReviewAssets";
 import slideWatermarkImage from "../../assets/dashboard-reference/cropped/slide-watermark-v3.png";
 import { DOCUMENT_TYPE_OPTIONS, getDocumentTypeKey } from "../../constants/documentTypes";
 import type { CriteriaResult, LanguageCode, Submission } from "../../types";
 import { useTranslation } from "../LanguageSelector";
 import { formatUploadedAt } from "../submissions/utils";
-import { CalendarIcon, FileReviewIcon, ShieldCheckIcon, SparkIcon, TargetIcon } from "../ui/Icon";
+import { FileReviewIcon, ShieldCheckIcon, SparkIcon, TargetIcon } from "../ui/Icon";
 import { PageHeader } from "../ui/PageHeader";
 
 interface DashboardOverviewProps {
@@ -257,24 +255,6 @@ export default function DashboardOverview({ submissions }: DashboardOverviewProp
     [submissions],
   );
 
-  const dateRangeText = useMemo(() => {
-    if (!submissions.length) {
-      return "—";
-    }
-
-    const timestamps = submissions
-      .map((item) => new Date(item.latest_run?.graded_at ?? item.uploaded_at).getTime())
-      .filter((value) => Number.isFinite(value))
-      .sort((a, b) => a - b);
-
-    if (!timestamps.length) {
-      return "—";
-    }
-
-    const start = formatUploadedAt(new Date(timestamps[0]).toISOString(), lang);
-    const end = formatUploadedAt(new Date(timestamps[timestamps.length - 1]).toISOString(), lang);
-    return `${start} - ${end}`;
-  }, [lang, submissions]);
 
   const summaryCards = useMemo<SummaryCardItem[]>(
     () =>

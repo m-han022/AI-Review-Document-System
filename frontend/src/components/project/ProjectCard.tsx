@@ -1,11 +1,10 @@
-import { Suspense, lazy, type CSSProperties, useMemo, useState } from "react";
+import { Suspense, lazy, useMemo, useState } from "react";
 
 import { getDocumentTypeKey } from "../../constants/documentTypes";
 import { useActiveRubricConfig } from "../../hooks/useRubrics";
 import { getLocalizedText } from "../../locales/utils";
 import type { CriteriaResult, LanguageCode, SlideReview, Submission } from "../../types";
 import { useTranslation } from "../LanguageSelector";
-import ScoreBar from "../score/ScoreBar";
 import Badge from "../ui/Badge";
 import SectionBlock from "../ui/SectionBlock";
 import {
@@ -25,7 +24,6 @@ import ProjectReviewDialog from "./ProjectReviewDialog";
 import {
   ExecutiveSummaryPanel,
   FeedbackPreviewPanel,
-  IssueBreakdownPanel,
   IssueHighlightsPanel,
   MetadataPanel,
   type FeedbackSectionView,
@@ -34,7 +32,17 @@ import {
 } from "./ProjectReviewPanels";
 
 const CriteriaScoreChart = lazy(() => import("./charts/CriteriaScoreChart"));
-const SlideStatusChart = lazy(() => import("./charts/SlideStatusChart"));
+
+const chartFallback = (
+  <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', borderRadius: '12px', color: '#64748b' }}>
+    <span>Loading...</span>
+  </div>
+);
+
+interface TextSection {
+  title: string;
+  lines: string[];
+}
 
 interface ProjectCardProps {
   submission: Submission;
@@ -44,7 +52,6 @@ interface ProjectCardProps {
 }
 
 type SuggestionTone = "success" | "warning" | "danger";
-type SlideReviewFilter = "all" | "OK" | "NG" | "withSuggestions";
 
 type SuggestionDetail = {
   title: string;
@@ -52,31 +59,9 @@ type SuggestionDetail = {
   text: string;
 } | null;
 
-type SlideReviewDetail = {
-  title: string;
-  status: "OK" | "NG";
-  summary: string;
-  issues: string[];
-  suggestions: string;
-} | null;
 
-interface TextSection {
-  title: string;
-  lines: string[];
-}
 
-interface MetricCard {
-  label: string;
-  value: string;
-  tone?: "default" | "primary" | "success" | "warning" | "danger";
-}
 
-interface RunCompareItem {
-  label: string;
-  current: string;
-  previous: string;
-  tone: "default" | "success" | "warning" | "danger";
-}
 
 interface OrderedScoreItem {
   key: string;
@@ -162,30 +147,6 @@ function formatDateTime(value: string | null | undefined, lang: LanguageCode) {
   }
 
   return formatUploadedAt(value, lang);
-}
-
-function ScoreGauge({ score, t }: { score: number; t: (key: string) => string }) {
-  const ratio = Math.max(0, Math.min(1, score / 100));
-  const degrees = 180 * ratio;
-  const arcStyle = { "--score-gauge-degrees": `${degrees}deg` } as CSSProperties;
-
-  return (
-    <div className="detail-gauge detail-gauge--semicircle">
-      <div className="detail-gauge__half">
-        <div className="detail-gauge__arc" style={arcStyle}>
-          <div className="detail-gauge__arc-inner" />
-        </div>
-      </div>
-      <div className="detail-gauge__readout">
-        <strong>{score.toFixed(1).replace(/\.0$/, "")}</strong>
-        <span>/100</span>
-      </div>
-      <div className="detail-gauge__meta">
-        <span>{t("project.totalScore")}:</span>
-        <strong>{score >= 80 ? t("project.scoreExcellent") : score >= 60 ? t("project.scoreGood") : t("project.scoreNeedsWork")}</strong>
-      </div>
-    </div>
-  );
 }
 
 function splitFeedbackLines(feedback: Record<string, string> | null, lang: LanguageCode): string[] {
@@ -307,13 +268,6 @@ function splitSuggestionBlocks(text: string, t?: (key: string) => string): TextS
   ].filter((block) => block.lines.length > 0);
 }
 
-function suggestionPreviewBlocks(text: string, t?: (key: string) => string): TextSection[] {
-  return splitSuggestionBlocks(text, t)
-    .slice(0, 2)
-    .map((block) => ({ ...block, lines: block.lines.slice(0, 1) }))
-    .filter((block) => block.title || block.lines.length);
-}
-
 function getLocalizedList(value: Record<string, string[]> | null | undefined, lang: LanguageCode): string[] {
   if (!value) {
     return [];
@@ -388,11 +342,9 @@ export default function ProjectCard({
   onBack 
 }: ProjectCardProps) {
   const [activeTab, setActiveTab] = useState<"overview" | "slides">("overview");
-  const [selectedSlideId, setSelectedSlideId] = useState<string | null>(null);
+  const [selectedSlideId, setSelectedSlideId] = useState<number | null>(null);
   const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
   const [suggestionDetail, setSuggestionDetail] = useState<SuggestionDetail>(null);
-  const [slideReviewFilter, setSlideReviewFilter] = useState<SlideReviewFilter>("all");
-  const [slideReviewDetail, setSlideReviewDetail] = useState<SlideReviewDetail>(null);
 
   const { lang, t } = useTranslation();
 
@@ -421,10 +373,6 @@ export default function ProjectCard({
     () => buildSlideReviewItems(latestRun?.slide_reviews ?? [], lang, t),
     [latestRun, lang, t],
   );
-  const okSlideCount = useMemo(
-    () => slideReviewItems.filter((item) => item.status === "OK").length,
-    [slideReviewItems],
-  );
   const ngSlideCount = useMemo(
     () => slideReviewItems.filter((item) => item.status === "NG").length,
     [slideReviewItems],
@@ -432,45 +380,6 @@ export default function ProjectCard({
   const issueCount = useMemo(
     () => slideReviewItems.reduce((sum, item) => sum + item.issues.length, 0),
     [slideReviewItems],
-  );
-
-  const prioritySlideReviewItems = useMemo(
-    () =>
-      slideReviewItems.filter(
-        (item) => item.status === "NG" || item.issues.length > 0 || Boolean(item.suggestions),
-      ),
-    [slideReviewItems],
-  );
-  const prioritySlideIds = useMemo(
-    () => new Set(prioritySlideReviewItems.map((item) => item.id)),
-    [prioritySlideReviewItems],
-  );
-
-  const filteredSlideReviewItems = useMemo(() => {
-    if (slideReviewFilter === "all") {
-      return slideReviewItems;
-    }
-
-    if (slideReviewFilter === "withSuggestions") {
-      return slideReviewItems.filter((item) => Boolean(item.suggestions));
-    }
-
-    return slideReviewItems.filter((item) => item.status === slideReviewFilter);
-  }, [slideReviewFilter, slideReviewItems]);
-
-  const filteredSlideIds = useMemo(
-    () => new Set(filteredSlideReviewItems.map((item) => item.id)),
-    [filteredSlideReviewItems],
-  );
-
-  const filteredPrioritySlideReviewItems = useMemo(
-    () => prioritySlideReviewItems.filter((item) => filteredSlideIds.has(item.id)),
-    [filteredSlideIds, prioritySlideReviewItems],
-  );
-
-  const remainingSlideReviewItems = useMemo(
-    () => filteredSlideReviewItems.filter((item) => !prioritySlideIds.has(item.id)),
-    [filteredSlideReviewItems, prioritySlideIds],
   );
 
   const statusLabel = getStatusLabel(submission.status, latestScore, t);
@@ -517,31 +426,7 @@ export default function ProjectCard({
   const weakestCriteria = criteriaHealth.slice(0, 3);
   const strongestCriterion = criteriaHealth.at(-1) ?? null;
 
-  const metricCards = useMemo<MetricCard[]>(
-    () => [
-      {
-        label: t("project.pageCount"),
-        value: slideReviewItems.length ? String(slideReviewItems.length) : "—",
-        tone: "primary",
-      },
-      {
-        label: t("project.ngSlideCount"),
-        value: String(ngSlideCount),
-        tone: ngSlideCount > 0 ? "danger" : "success",
-      },
-      {
-        label: t("project.issueCount"),
-        value: String(issueCount),
-        tone: issueCount > 0 ? "warning" : "success",
-      },
-      {
-        label: t("project.criteriaCount"),
-        value: String(orderedScores.length),
-        tone: "default",
-      },
-    ],
-    [issueCount, ngSlideCount, orderedScores.length, slideReviewItems.length, t],
-  );
+
 
   const feedbackLines = useMemo(
     () => splitFeedbackLines(latestRun?.draft_feedback ?? null, lang),
@@ -558,52 +443,6 @@ export default function ProjectCard({
     [criteriaResults, orderedScores, lang],
   );
 
-  const runHistory = useMemo(() => submission.run_history ?? [], [submission.run_history]);
-  const runCompare = useMemo<RunCompareItem[]>(() => {
-    const latest = runHistory[0] ?? null;
-    const previous = runHistory[1] ?? null;
-    if (!latest || !previous) {
-      return [];
-    }
-
-    const scoreDelta = (latest.score ?? 0) - (previous.score ?? 0);
-    return [
-      {
-        label: t("project.compareScore"),
-        current: latest.score !== null ? `${latest.score}/100` : t("common.noValue"),
-        previous: previous.score !== null ? `${previous.score}/100` : t("common.noValue"),
-        tone: scoreDelta > 0 ? "success" : scoreDelta < 0 ? "danger" : "default",
-      },
-      {
-        label: t("project.compareNgSlides"),
-        current: String(latest.ng_slide_count),
-        previous: String(previous.ng_slide_count),
-        tone:
-          latest.ng_slide_count < previous.ng_slide_count
-            ? "success"
-            : latest.ng_slide_count > previous.ng_slide_count
-              ? "danger"
-              : "default",
-      },
-      {
-        label: t("project.compareIssues"),
-        current: String(latest.issue_count),
-        previous: String(previous.issue_count),
-        tone:
-          latest.issue_count < previous.issue_count
-            ? "success"
-            : latest.issue_count > previous.issue_count
-              ? "danger"
-              : "default",
-      },
-      {
-        label: t("project.compareVersion"),
-        current: latest.rubric_version ?? "—",
-        previous: previous.rubric_version ?? "—",
-        tone: latest.rubric_version === previous.rubric_version ? "default" : "warning",
-      },
-    ];
-  }, [runHistory, t]);
 
   const executiveSummary = useMemo<SummaryLine[]>(() => {
     if (latestScore === null) {
@@ -697,27 +536,14 @@ export default function ProjectCard({
     return items.slice(0, 4);
   }, [criteriaSuggestionItems, ngSlideCount, slideReviewItems, strongestCriterion, t, weakestCriteria]);
 
-  const issueBreakdownItems = useMemo(
-    () =>
-      Object.entries(latestRun?.issue_breakdown ?? {})
-        .map(([label, value]) => ({ label, value }))
-        .filter((item) => item.value > 0)
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 6),
-    [latestRun?.issue_breakdown],
-  );
+  const API_BASE_URL = (import.meta as unknown as { env: Record<string, string> }).env.VITE_API_BASE_URL || "";
 
-  const chartFallback = <div className="chart-card chart-card--loading" aria-hidden="true" />;
-
-  const API_BASE_URL = (import.meta as any).env.VITE_API_BASE_URL || "";
-
-  // Set initial selected slide
-  useMemo(() => {
-    if (!selectedSlideId && slideReviewItems.length > 0) {
-      const firstNg = slideReviewItems.find(s => s.status === "NG");
-      setSelectedSlideId(firstNg ? firstNg.id : slideReviewItems[0].id);
-    }
-  }, [slideReviewItems, selectedSlideId]);
+  // Derived active slide ID
+  const activeSlideId = useMemo(() => {
+    if (selectedSlideId !== null) return selectedSlideId;
+    const firstNg = slideReviewItems.find(s => s.status === "NG");
+    return firstNg ? firstNg.id : slideReviewItems[0]?.id ?? null;
+  }, [selectedSlideId, slideReviewItems]);
 
   return (
     <div className="project-workspace-container">
@@ -799,28 +625,30 @@ export default function ProjectCard({
                   subtitle={t("project.executiveSummarySubtitle")}
                   items={executiveSummary}
                 />
-                <SectionBlock style={{ marginTop: '24px' }}>
-                  <SectionBlock.Header 
+                <div style={{ marginTop: '24px' }}>
+                  <SectionBlock>
+                    <SectionBlock.Header 
                     title={t("project.scoreByCriteria")} 
                     subtitle={t("project.scoreByCriteriaHint")}
                   />
                   <SectionBlock.Body>
-                    <div className="project-detail-chart-grid" style={{ gridTemplateColumns: '1fr' }}>
+                    <div className="project-detail-chart-grid" style={{ gridTemplateColumns: '1fr' } as React.CSSProperties}>
                       <Suspense fallback={chartFallback}>
                         <CriteriaScoreChart data={orderedScores} />
                       </Suspense>
                     </div>
                   </SectionBlock.Body>
                 </SectionBlock>
-                <div style={{ marginTop: '24px' }}>
-                  <FeedbackPreviewPanel
-                    title={t("project.summaryTitle")}
-                    sections={compactFeedbackSections as FeedbackSectionView[]}
-                    emptyText={t("common.noValue")}
-                    detailLabel={t("project.detailLink")}
-                    onOpenDetail={() => setSummaryDialogOpen(true)}
-                  />
-                </div>
+              </div>
+              <div style={{ marginTop: '24px' }}>
+                <FeedbackPreviewPanel
+                  title={t("project.summaryTitle")}
+                  sections={compactFeedbackSections as FeedbackSectionView[]}
+                  emptyText={t("common.noValue")}
+                  detailLabel={t("project.detailLink")}
+                  onOpenDetail={() => setSummaryDialogOpen(true)}
+                />
+              </div>
              </div>
              {/* Right Column */}
              <div className="overview-side-col">
@@ -845,7 +673,7 @@ export default function ProjectCard({
               {slideReviewItems.map((item) => (
                 <div 
                   key={item.id}
-                  className={`slide-nav-item ${selectedSlideId === item.id ? "is-active" : ""}`}
+                  className={`slide-nav-item ${activeSlideId === item.id ? "is-active" : ""}`}
                   onClick={() => setSelectedSlideId(item.id)}
                 >
                   <div className="slide-nav-num">{item.slide_number}</div>
@@ -860,9 +688,9 @@ export default function ProjectCard({
               ))}
             </aside>
             <main className="split-pane-main">
-              {selectedSlideId ? (
+              {activeSlideId ? (
                 (() => {
-                  const item = slideReviewItems.find(s => s.id === selectedSlideId);
+                  const item = slideReviewItems.find(s => s.id === activeSlideId);
                   if (!item) return null;
                   return (
                     <div className="slide-detail-container">
@@ -926,7 +754,7 @@ export default function ProjectCard({
               feedbackSections.map((section, index) => (
                 <section className="detail-feedback-section-block detail-feedback-section-block--dialog" key={`${section.title}-${index}`}>
                   {section.title ? <h4>{section.title}</h4> : null}
-                  {section.lines.map((line, lineIndex) => (
+                  {section.lines.map((line: string, lineIndex: number) => (
                     <p key={`${section.title}-${lineIndex}`}>{line}</p>
                   ))}
                 </section>
@@ -950,7 +778,7 @@ export default function ProjectCard({
             {splitSuggestionBlocks(suggestionDetail.text, t).map((block, index) => (
               <section className="detail-suggestion-detail__block" key={`${block.title}-${index}`}>
                 {block.title ? <h4>{block.title}</h4> : null}
-                {block.lines.map((line, lineIndex) => (
+                {block.lines.map((line: string, lineIndex: number) => (
                   <p key={`${block.title}-${lineIndex}`}>{line}</p>
                 ))}
               </section>
