@@ -42,7 +42,7 @@ async def grade_single(
         and submission.latest_run.prompt_hash == current_signature["prompt_hash"]
         and submission.latest_run.criteria_hash == current_signature["criteria_hash"]
         and submission.latest_run.grading_schema_version == current_signature["grading_schema_version"]
-        and submission.latest_run.slide_reviews
+        and submission.latest_run.slide_reviews is not None  # [FIX LOGIC-01] [] is valid, use identity check
     ):
         print(f"[Grade] Project {project_id} already graded with matching signature, skipping API call")
         latest_run = submission.latest_run

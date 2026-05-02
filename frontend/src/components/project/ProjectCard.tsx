@@ -4,36 +4,53 @@ import { getDocumentTypeKey } from "../../constants/documentTypes";
 import { useActiveRubricConfig } from "../../hooks/useRubrics";
 import { getLocalizedText } from "../../locales/utils";
 import type { CriteriaResult, LanguageCode, SlideReview, Submission } from "../../types";
-import ScoreBar from "../score/ScoreBar";
-import ScoreSummary from "../score/ScoreSummary";
 import { useTranslation } from "../LanguageSelector";
+import ScoreBar from "../score/ScoreBar";
 import Badge from "../ui/Badge";
 import SectionBlock from "../ui/SectionBlock";
 import {
   AlertTriangleIcon,
+  ArrowLeftIcon,
   BookOpenIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  DownloadIcon,
   ShieldCheckIcon,
   SparkIcon,
   TargetIcon,
   WorkflowIcon,
 } from "../ui/Icon";
 import { formatUploadedAt } from "../submissions/utils";
+import ProjectReviewDialog from "./ProjectReviewDialog";
+import {
+  ExecutiveSummaryPanel,
+  FeedbackPreviewPanel,
+  IssueBreakdownPanel,
+  IssueHighlightsPanel,
+  MetadataPanel,
+  type FeedbackSectionView,
+  type HighlightItemView,
+  type SummaryLine,
+} from "./ProjectReviewPanels";
+
 const CriteriaScoreChart = lazy(() => import("./charts/CriteriaScoreChart"));
 const SlideStatusChart = lazy(() => import("./charts/SlideStatusChart"));
 
 interface ProjectCardProps {
   submission: Submission;
+  allSubmissions: Submission[];
+  onNavigate: (projectId: string) => void;
+  onBack: () => void;
 }
 
 type SuggestionTone = "success" | "warning" | "danger";
+type SlideReviewFilter = "all" | "OK" | "NG" | "withSuggestions";
 
 type SuggestionDetail = {
   title: string;
   count: string;
   text: string;
 } | null;
-
-type SlideReviewFilter = "all" | "OK" | "NG" | "withSuggestions";
 
 type SlideReviewDetail = {
   title: string;
@@ -54,17 +71,19 @@ interface MetricCard {
   tone?: "default" | "primary" | "success" | "warning" | "danger";
 }
 
-interface HighlightItem {
-  title: string;
-  detail: string;
-  tone: "success" | "warning" | "danger" | "primary";
-}
-
 interface RunCompareItem {
   label: string;
   current: string;
   previous: string;
   tone: "default" | "success" | "warning" | "danger";
+}
+
+interface OrderedScoreItem {
+  key: string;
+  label: string;
+  value: number;
+  max: number;
+  Icon: ReturnType<typeof getCriterionIcon>;
 }
 
 function getLanguageLabel(language: Submission["language"], uiLanguage: LanguageCode) {
@@ -121,11 +140,7 @@ function getStatusTone(status: string): "primary" | "success" | "warning" | "dan
   }
 }
 
-function getStatusLabel(
-  submissionStatus: string,
-  latestScore: number | null,
-  t: (key: string) => string,
-) {
+function getStatusLabel(submissionStatus: string, latestScore: number | null, t: (key: string) => string) {
   if (latestScore !== null) {
     return t("project.completed");
   }
@@ -212,10 +227,10 @@ function normalizeCriteriaSuggestion(value: unknown): string {
   }
 
   if (Array.isArray(value)) {
-      return value
-        .map((item) => normalizeCriteriaSuggestion(item))
-        .filter(Boolean)
-        .join("\n");
+    return value
+      .map((item) => normalizeCriteriaSuggestion(item))
+      .filter(Boolean)
+      .join("\n");
   }
 
   if (value && typeof value === "object") {
@@ -299,44 +314,6 @@ function suggestionPreviewBlocks(text: string, t?: (key: string) => string): Tex
     .filter((block) => block.title || block.lines.length);
 }
 
-function buildCriteriaSuggestionItems(
-  criteriaResults: CriteriaResult[],
-  orderedScores: Array<{
-    key: string;
-    label: string;
-    value: number;
-    max: number;
-  }>,
-  lang: LanguageCode
-) {
-  const suggestions = Object.fromEntries(
-    criteriaResults
-      .map((item) => [item.key, getLocalizedText(item.suggestion, lang)])
-      .filter(([, value]) => Boolean(value)),
-  ) as Record<string, string>;
-  
-  const orderedKeys = orderedScores
-    .map((item) => item.key)
-    .filter((key) => Boolean(normalizeCriteriaSuggestion(suggestions[key])));
-  const extraKeys = Object.keys(suggestions).filter(
-    (key) => !orderedKeys.includes(key) && Boolean(normalizeCriteriaSuggestion(suggestions[key])),
-  );
-  const displayKeys = [...orderedKeys, ...extraKeys];
-
-  return displayKeys.map((key, index) => {
-    const scoreItem = orderedScores.find((item) => item.key === key);
-
-    return {
-      key,
-      title: scoreItem?.label ?? key,
-      count: scoreItem ? `${scoreItem.value} / ${scoreItem.max}` : "",
-      text: normalizeCriteriaSuggestion(suggestions[key]),
-      tone: getSuggestionTone(key, index),
-      Icon: getCriterionIcon(key),
-    };
-  });
-}
-
 function getLocalizedList(value: Record<string, string[]> | null | undefined, lang: LanguageCode): string[] {
   if (!value) {
     return [];
@@ -371,19 +348,92 @@ function fillTemplate(template: string, replacements: Record<string, string | nu
   );
 }
 
-export default function ProjectCard({ submission }: ProjectCardProps) {
+function buildCriteriaSuggestionItems(
+  criteriaResults: CriteriaResult[],
+  orderedScores: OrderedScoreItem[],
+  lang: LanguageCode,
+) {
+  const suggestions = Object.fromEntries(
+    criteriaResults
+      .map((item) => [item.key, getLocalizedText(item.suggestion as Record<string, string> | null, lang)])
+      .filter(([, value]) => Boolean(value)),
+  ) as Record<string, string>;
+
+  const orderedKeys = orderedScores
+    .map((item) => item.key)
+    .filter((key) => Boolean(normalizeCriteriaSuggestion(suggestions[key])));
+  const extraKeys = Object.keys(suggestions).filter(
+    (key) => !orderedKeys.includes(key) && Boolean(normalizeCriteriaSuggestion(suggestions[key])),
+  );
+  const displayKeys = [...orderedKeys, ...extraKeys];
+
+  return displayKeys.map((key, index) => {
+    const scoreItem = orderedScores.find((item) => item.key === key);
+
+    return {
+      key,
+      title: scoreItem?.label ?? key,
+      count: scoreItem ? `${scoreItem.value} / ${scoreItem.max}` : "",
+      text: normalizeCriteriaSuggestion(suggestions[key]),
+      tone: getSuggestionTone(key, index),
+      Icon: getCriterionIcon(key),
+    };
+  });
+}
+
+export default function ProjectCard({ 
+  submission, 
+  allSubmissions, 
+  onNavigate, 
+  onBack 
+}: ProjectCardProps) {
+  const [activeTab, setActiveTab] = useState<"overview" | "slides">("overview");
+  const [selectedSlideId, setSelectedSlideId] = useState<string | null>(null);
   const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
   const [suggestionDetail, setSuggestionDetail] = useState<SuggestionDetail>(null);
   const [slideReviewFilter, setSlideReviewFilter] = useState<SlideReviewFilter>("all");
   const [slideReviewDetail, setSlideReviewDetail] = useState<SlideReviewDetail>(null);
+
   const { lang, t } = useTranslation();
+
+  // Navigation Logic
+  const currentIndex = allSubmissions.findIndex(s => s.project_id === submission.project_id);
+  const prevSubmission = currentIndex > 0 ? allSubmissions[currentIndex - 1] : null;
+  const nextSubmission = currentIndex < allSubmissions.length - 1 ? allSubmissions[currentIndex + 1] : null;
+
+  const handlePrev = () => prevSubmission && onNavigate(prevSubmission.project_id);
+  const handleNext = () => nextSubmission && onNavigate(nextSubmission.project_id);
   const criteriaConfig = useActiveRubricConfig(submission.document_type, lang);
   const latestRun = submission.latest_run ?? null;
+  const latestScore = latestRun?.score ?? null;
+
   const criteriaResults = useMemo(() => latestRun?.criteria_results ?? [], [latestRun]);
+  const criteriaResultMap = useMemo(
+    () => Object.fromEntries(criteriaResults.map((item) => [item.key, item])),
+    [criteriaResults],
+  );
+  const criteriaScoreMap = useMemo(
+    () => Object.fromEntries(criteriaResults.map((item) => [item.key, item.score])),
+    [criteriaResults],
+  );
+
   const slideReviewItems = useMemo(
     () => buildSlideReviewItems(latestRun?.slide_reviews ?? [], lang, t),
     [latestRun, lang, t],
   );
+  const okSlideCount = useMemo(
+    () => slideReviewItems.filter((item) => item.status === "OK").length,
+    [slideReviewItems],
+  );
+  const ngSlideCount = useMemo(
+    () => slideReviewItems.filter((item) => item.status === "NG").length,
+    [slideReviewItems],
+  );
+  const issueCount = useMemo(
+    () => slideReviewItems.reduce((sum, item) => sum + item.issues.length, 0),
+    [slideReviewItems],
+  );
+
   const prioritySlideReviewItems = useMemo(
     () =>
       slideReviewItems.filter(
@@ -391,68 +441,69 @@ export default function ProjectCard({ submission }: ProjectCardProps) {
       ),
     [slideReviewItems],
   );
-  const filteredSlideReviewItems = useMemo(
-    () => {
-      if (slideReviewFilter === "all") {
-        return slideReviewItems;
-      }
-
-      if (slideReviewFilter === "withSuggestions") {
-        return slideReviewItems.filter((item) => Boolean(item.suggestions));
-      }
-
-      return slideReviewItems.filter((item) => item.status === slideReviewFilter);
-    },
-    [slideReviewFilter, slideReviewItems],
+  const prioritySlideIds = useMemo(
+    () => new Set(prioritySlideReviewItems.map((item) => item.id)),
+    [prioritySlideReviewItems],
   );
-  const remainingSlideReviewItems = useMemo(
-    () =>
-      filteredSlideReviewItems.filter(
-        (item) => !prioritySlideReviewItems.some((priorityItem) => priorityItem.id === item.id),
-      ),
-    [filteredSlideReviewItems, prioritySlideReviewItems],
+
+  const filteredSlideReviewItems = useMemo(() => {
+    if (slideReviewFilter === "all") {
+      return slideReviewItems;
+    }
+
+    if (slideReviewFilter === "withSuggestions") {
+      return slideReviewItems.filter((item) => Boolean(item.suggestions));
+    }
+
+    return slideReviewItems.filter((item) => item.status === slideReviewFilter);
+  }, [slideReviewFilter, slideReviewItems]);
+
+  const filteredSlideIds = useMemo(
+    () => new Set(filteredSlideReviewItems.map((item) => item.id)),
+    [filteredSlideReviewItems],
   );
+
   const filteredPrioritySlideReviewItems = useMemo(
-    () =>
-      prioritySlideReviewItems.filter((item) =>
-        filteredSlideReviewItems.some((filtered) => filtered.id === item.id),
-      ),
-    [filteredSlideReviewItems, prioritySlideReviewItems],
+    () => prioritySlideReviewItems.filter((item) => filteredSlideIds.has(item.id)),
+    [filteredSlideIds, prioritySlideReviewItems],
   );
-  const criteriaScoreMap = useMemo(
-    () => Object.fromEntries(criteriaResults.map((item) => [item.key, item.score])),
-    [criteriaResults],
+
+  const remainingSlideReviewItems = useMemo(
+    () => filteredSlideReviewItems.filter((item) => !prioritySlideIds.has(item.id)),
+    [filteredSlideReviewItems, prioritySlideIds],
   );
-  const latestScore = latestRun?.score ?? null;
+
   const statusLabel = getStatusLabel(submission.status, latestScore, t);
   const statusTone = getStatusTone(submission.status);
   const gradedAt = formatDateTime(latestRun?.graded_at ?? null, lang);
   const uploadedAt = formatDateTime(submission.uploaded_at, lang);
-  const slideCount = slideReviewItems.length;
-  const ngSlideCount = slideReviewItems.filter((item) => item.status === "NG").length;
-  const issueCount = slideReviewItems.reduce((sum, item) => sum + item.issues.length, 0);
-  const documentMeta = [
-    { label: t("project.projectCode"), value: submission.project_id },
-    { label: t("project.documentType"), value: t(getDocumentTypeKey(submission.document_type)) },
-    { label: t("project.detectedLanguage"), value: getLanguageLabel(submission.language, lang) },
-    { label: t("project.rubricVersion"), value: latestRun?.rubric_version ?? "v1" },
-    { label: t("project.uploadLabel"), value: uploadedAt },
-    { label: t("project.reviewedAt"), value: gradedAt },
-    { label: t("project.appliedModel"), value: latestRun?.gemini_model ?? "—" },
-    { label: t("project.fileType"), value: submission.filename.split(".").pop()?.toUpperCase() ?? t("common.noValue") },
-  ];
 
-  const orderedScores = useMemo(
+  const documentMeta = useMemo(
+    () => [
+      { label: t("project.projectCode"), value: submission.project_id },
+      { label: t("project.documentType"), value: t(getDocumentTypeKey(submission.document_type)) },
+      { label: t("project.detectedLanguage"), value: getLanguageLabel(submission.language, lang) },
+      { label: t("project.rubricVersion"), value: latestRun?.rubric_version ?? "v1" },
+      { label: t("project.uploadLabel"), value: uploadedAt },
+      { label: t("project.reviewedAt"), value: gradedAt },
+      { label: t("project.appliedModel"), value: latestRun?.gemini_model ?? "—" },
+      { label: t("project.fileType"), value: submission.filename.split(".").pop()?.toUpperCase() ?? t("common.noValue") },
+    ],
+    [gradedAt, lang, latestRun?.gemini_model, latestRun?.rubric_version, submission.document_type, submission.filename, submission.language, submission.project_id, t, uploadedAt],
+  );
+
+  const orderedScores = useMemo<OrderedScoreItem[]>(
     () =>
       criteriaConfig.order.map((key) => ({
         key,
         value: criteriaScoreMap[key] ?? 0,
-        max: criteriaResults.find((item) => item.key === key)?.max_score ?? criteriaConfig.maxScores[key] ?? 100,
+        max: criteriaResultMap[key]?.max_score ?? criteriaConfig.maxScores[key] ?? 100,
         label: t(`upload.criteria.${key}`),
         Icon: getCriterionIcon(key),
       })),
-    [criteriaConfig, criteriaResults, criteriaScoreMap, t],
+    [criteriaConfig, criteriaResultMap, criteriaScoreMap, t],
   );
+
   const criteriaHealth = useMemo(
     () =>
       orderedScores
@@ -465,37 +516,48 @@ export default function ProjectCard({ submission }: ProjectCardProps) {
   );
   const weakestCriteria = criteriaHealth.slice(0, 3);
   const strongestCriterion = criteriaHealth.at(-1) ?? null;
-  const metricCards: MetricCard[] = [
-    {
-      label: t("project.pageCount"),
-      value: slideCount ? String(slideCount) : "—",
-      tone: "primary",
-    },
-    {
-      label: t("project.ngSlideCount"),
-      value: String(ngSlideCount),
-      tone: ngSlideCount > 0 ? "danger" : "success",
-    },
-    {
-      label: t("project.issueCount"),
-      value: String(issueCount),
-      tone: issueCount > 0 ? "warning" : "success",
-    },
-    {
-      label: t("project.criteriaCount"),
-      value: String(orderedScores.length),
-      tone: "default",
-    },
-  ];
 
-  const feedbackLines = useMemo(() => splitFeedbackLines(latestRun?.draft_feedback ?? null, lang), [latestRun, lang]);
+  const metricCards = useMemo<MetricCard[]>(
+    () => [
+      {
+        label: t("project.pageCount"),
+        value: slideReviewItems.length ? String(slideReviewItems.length) : "—",
+        tone: "primary",
+      },
+      {
+        label: t("project.ngSlideCount"),
+        value: String(ngSlideCount),
+        tone: ngSlideCount > 0 ? "danger" : "success",
+      },
+      {
+        label: t("project.issueCount"),
+        value: String(issueCount),
+        tone: issueCount > 0 ? "warning" : "success",
+      },
+      {
+        label: t("project.criteriaCount"),
+        value: String(orderedScores.length),
+        tone: "default",
+      },
+    ],
+    [issueCount, ngSlideCount, orderedScores.length, slideReviewItems.length, t],
+  );
+
+  const feedbackLines = useMemo(
+    () => splitFeedbackLines(latestRun?.draft_feedback ?? null, lang),
+    [latestRun, lang],
+  );
   const feedbackSections = useMemo(() => splitFeedbackSections(feedbackLines), [feedbackLines]);
-  const compactFeedbackSections = useMemo(() => previewFeedbackSections(feedbackSections), [feedbackSections]);
+  const compactFeedbackSections = useMemo(
+    () => previewFeedbackSections(feedbackSections),
+    [feedbackSections],
+  );
 
   const criteriaSuggestionItems = useMemo(
     () => buildCriteriaSuggestionItems(criteriaResults, orderedScores, lang),
     [criteriaResults, orderedScores, lang],
   );
+
   const runHistory = useMemo(() => submission.run_history ?? [], [submission.run_history]);
   const runCompare = useMemo<RunCompareItem[]>(() => {
     const latest = runHistory[0] ?? null;
@@ -542,9 +604,10 @@ export default function ProjectCard({ submission }: ProjectCardProps) {
       },
     ];
   }, [runHistory, t]);
-  const executiveSummary = useMemo(() => {
+
+  const executiveSummary = useMemo<SummaryLine[]>(() => {
     if (latestScore === null) {
-      return [t("project.notGradedText")];
+      return [{ id: "not-graded", text: t("project.notGradedText") }];
     }
 
     const scoreLineKey =
@@ -553,15 +616,16 @@ export default function ProjectCard({ submission }: ProjectCardProps) {
         : latestScore >= 60
           ? "project.summaryScoreWatch"
           : "project.summaryScoreCritical";
-    const scoreLine = fillTemplate(t(scoreLineKey), { score: latestScore });
-    const weakestLine = weakestCriteria[0]
-      ? fillTemplate(t("project.summaryWeakCriteria"), {
-          criterion: weakestCriteria[0].label,
-          score: weakestCriteria[0].value,
-          max: weakestCriteria[0].max,
-        })
-      : "";
-    const actionLine =
+
+    const items = [
+      fillTemplate(t(scoreLineKey), { score: latestScore }),
+      weakestCriteria[0]
+        ? fillTemplate(t("project.summaryWeakCriteria"), {
+            criterion: weakestCriteria[0].label,
+            score: weakestCriteria[0].value,
+            max: weakestCriteria[0].max,
+          })
+        : "",
       ngSlideCount > 0
         ? fillTemplate(t("project.summaryNgSlides"), {
             count: ngSlideCount,
@@ -573,12 +637,14 @@ export default function ProjectCard({ submission }: ProjectCardProps) {
               score: strongestCriterion.value,
               max: strongestCriterion.max,
             })
-          : t("project.summaryNoNgSlides");
+          : t("project.summaryNoNgSlides"),
+    ].filter(Boolean);
 
-    return [scoreLine, weakestLine, actionLine].filter(Boolean);
+    return items.map((text, index) => ({ id: `summary-${index}`, text }));
   }, [issueCount, latestScore, ngSlideCount, strongestCriterion, t, weakestCriteria]);
-  const issueHighlights = useMemo<HighlightItem[]>(() => {
-    const items: HighlightItem[] = [];
+
+  const issueHighlights = useMemo<HighlightItemView[]>(() => {
+    const items: HighlightItemView[] = [];
 
     if (ngSlideCount > 0) {
       const firstNg = slideReviewItems.find((item) => item.status === "NG");
@@ -630,573 +696,268 @@ export default function ProjectCard({ submission }: ProjectCardProps) {
 
     return items.slice(0, 4);
   }, [criteriaSuggestionItems, ngSlideCount, slideReviewItems, strongestCriterion, t, weakestCriteria]);
+
+  const issueBreakdownItems = useMemo(
+    () =>
+      Object.entries(latestRun?.issue_breakdown ?? {})
+        .map(([label, value]) => ({ label, value }))
+        .filter((item) => item.value > 0)
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 6),
+    [latestRun?.issue_breakdown],
+  );
+
   const chartFallback = <div className="chart-card chart-card--loading" aria-hidden="true" />;
 
+  const API_BASE_URL = (import.meta as any).env.VITE_API_BASE_URL || "";
+
+  // Set initial selected slide
+  useMemo(() => {
+    if (!selectedSlideId && slideReviewItems.length > 0) {
+      const firstNg = slideReviewItems.find(s => s.status === "NG");
+      setSelectedSlideId(firstNg ? firstNg.id : slideReviewItems[0].id);
+    }
+  }, [slideReviewItems, selectedSlideId]);
+
   return (
-    <>
-      <aside className="project-dashboard-sidebar">
-        <SectionBlock className="project-detail-hero project-detail-hero--sidebar">
-          <SectionBlock.Body>
-            <div className="project-detail-hero__summary">
-              <ScoreSummary score={latestScore ?? 0} statusLabel={statusLabel} label={t("project.totalScore")} />
-              <ScoreGauge score={latestScore ?? 0} t={t} />
-            </div>
-          </SectionBlock.Body>
-        </SectionBlock>
-
-        <SectionBlock>
-          <SectionBlock.Body>
-            <div className="project-detail-metrics">
-              {metricCards.map((item) => (
-                <article className="project-detail-metric-card" key={item.label}>
-                  <span>{item.label}</span>
-                  <Badge tone={item.tone ?? "default"}>{item.value}</Badge>
-                </article>
-              ))}
-            </div>
-          </SectionBlock.Body>
-        </SectionBlock>
-
-        <SectionBlock className="detail-feedback-section">
-          <SectionBlock.Header
-            title={t("project.summaryTitle")}
-            aside={
-              feedbackLines.length ? (
-                <button className="text-button" type="button" onClick={() => setSummaryDialogOpen(true)}>
-                  {t("project.detailLink")}
-                </button>
-              ) : null
-            }
-          />
-          <SectionBlock.Body>
-            <div className="detail-score-board__summary detail-feedback-preview">
-              {compactFeedbackSections.length && feedbackLines.length ? (
-                compactFeedbackSections.map((section, index) => (
-                  <section className="detail-feedback-section-block" key={`${section.title}-${index}`}>
-                    {section.title ? <h4>{section.title}</h4> : null}
-                    {section.lines.map((line, lineIndex) => (
-                      <p key={`${section.title}-${lineIndex}`}>{line}</p>
-                    ))}
-                  </section>
-                ))
-              ) : (
-                <p>{t("common.noValue")}</p>
-              )}
-            </div>
-          </SectionBlock.Body>
-        </SectionBlock>
-
-        <SectionBlock>
-          <SectionBlock.Header title={t("project.overview")} />
-          <SectionBlock.Body>
-            <div className="detail-overview-strip detail-overview-strip--sidebar">
-              {documentMeta.map((item) => (
-                <div className="detail-overview-strip__item" key={item.label}>
-                  <span>{item.label}</span>
-                  <strong>{item.value}</strong>
-                </div>
-              ))}
-            </div>
-          </SectionBlock.Body>
-        </SectionBlock>
-      </aside>
-
-      <main className="project-dashboard-main">
-        <SectionBlock className="project-detail-hero">
-          <SectionBlock.Body>
-            <div className="project-detail-hero__header">
-              <div className="project-detail-hero__copy">
-                <div className="project-detail-hero__eyebrow">
-                  <Badge tone={statusTone}>{statusLabel}</Badge>
-                  <span>{submission.project_name}</span>
-                </div>
-                <h2>{submission.filename}</h2>
-                <div className="project-detail-hero__meta">
-                  {documentMeta.map((item) => (
-                    <span key={`hero-${item.label}`}>
-                      <strong>{item.label}:</strong> {item.value}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </SectionBlock.Body>
-        </SectionBlock>
-
-        <div className="project-detail-insight-grid">
-          <SectionBlock>
-            <SectionBlock.Header
-              title={t("project.executiveSummary")}
-              subtitle={t("project.executiveSummarySubtitle")}
-            />
-            <SectionBlock.Body>
-              <div className="detail-summary-list">
-                {executiveSummary.map((line, index) => (
-                  <article className="detail-summary-list__item" key={`summary-line-${index}`}>
-                    <span>{index + 1}</span>
-                    <p>{line}</p>
-                  </article>
-                ))}
-              </div>
-            </SectionBlock.Body>
-          </SectionBlock>
-
-          <SectionBlock>
-            <SectionBlock.Header
-              title={t("project.issueHighlights")}
-              subtitle={t("project.issueHighlightsSubtitle")}
-            />
-            <SectionBlock.Body>
-              <div className="detail-highlight-list">
-                {issueHighlights.map((item) => (
-                  <article
-                    className={`detail-highlight-card detail-highlight-card--${item.tone}`.trim()}
-                    key={`${item.title}-${item.detail}`}
-                  >
-                    <strong>{item.title}</strong>
-                    <p>{item.detail}</p>
-                  </article>
-                ))}
-              </div>
-            </SectionBlock.Body>
-          </SectionBlock>
+    <div className="project-workspace-container">
+      {/* 1. Full-width Header */}
+      <header className="project-workspace-header">
+        <div className="project-header-info">
+          <div className="project-detail-hero__eyebrow">
+            <button className="text-button" onClick={onBack} style={{ marginRight: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <ArrowLeftIcon size="sm" />
+              {t("nav.allReviews")}
+            </button>
+            <Badge tone={statusTone}>{statusLabel}</Badge>
+            <span style={{ marginLeft: '8px', color: '#64748b' }}>{submission.project_name}</span>
+          </div>
+          <h2>{submission.filename}</h2>
+          <div className="project-header-meta">
+            <span><strong>{t("project.totalScore")}:</strong> {latestScore?.toFixed(1) ?? 0}/100</span>
+            <span><strong>{t("project.reviewedAt")}:</strong> {gradedAt}</span>
+          </div>
         </div>
 
-        {runHistory.length ? (
-          <div className="project-detail-insight-grid">
-            <SectionBlock>
-              <SectionBlock.Header
-                title={t("project.runHistoryTitle")}
-                subtitle={t("project.runHistorySubtitle")}
-              />
-              <SectionBlock.Body>
-                <div className="run-history-list">
-                  {runHistory.slice(0, 5).map((run, index) => (
-                    <article className="run-history-card" key={run.id}>
-                      <div className="run-history-card__head">
-                        <div>
-                          <strong>{fillTemplate(t("project.runLabel"), { index: index + 1, runId: run.id })}</strong>
-                          <span>{formatDateTime(run.graded_at, lang)}</span>
-                        </div>
-                        <Badge tone={index === 0 ? "primary" : "default"}>
-                          {index === 0 ? t("project.currentRun") : t("project.previousRun")}
-                        </Badge>
-                      </div>
-                      <div className="run-history-card__meta">
-                        <span>{t("project.totalScore")}: <strong>{run.score ?? "—"}</strong></span>
-                        <span>{t("project.ngSlideCount")}: <strong>{run.ng_slide_count}</strong></span>
-                        <span>{t("project.issueCount")}: <strong>{run.issue_count}</strong></span>
-                        <span>{t("project.rubricVersion")}: <strong>{run.rubric_version ?? "—"}</strong></span>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </SectionBlock.Body>
-            </SectionBlock>
+        <div className="project-header-navigation">
+          <button 
+            className="btn-secondary btn-secondary--compact" 
+            onClick={handlePrev} 
+            disabled={!prevSubmission}
+            title={prevSubmission?.filename}
+          >
+            <ChevronLeftIcon size="sm" />
+            {t("common.previous") || "Trước"}
+          </button>
+          <button 
+            className="btn-secondary btn-secondary--compact" 
+            onClick={handleNext} 
+            disabled={!nextSubmission}
+            title={nextSubmission?.filename}
+          >
+            {t("common.next") || "Sau"}
+            <ChevronRightIcon size="sm" />
+          </button>
+          <div style={{ width: '1px', height: '24px', background: '#e2e8f0', margin: '0 8px' }} />
+          <a
+            href={`${API_BASE_URL}/submissions/${submission.project_id}/file?disposition=attachment`}
+            className="btn-primary btn-primary--compact"
+            download
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <DownloadIcon size="sm" />
+            {t("project.downloadResult")}
+          </a>
+        </div>
+      </header>
 
-            {runCompare.length ? (
-              <SectionBlock>
-                <SectionBlock.Header
-                  title={t("project.runCompareTitle")}
-                  subtitle={t("project.runCompareSubtitle")}
+      {/* 2. Tab Switcher */}
+      <nav className="project-workspace-tabs">
+        <div 
+          className={`workspace-tab ${activeTab === "overview" ? "is-active" : ""}`}
+          onClick={() => setActiveTab("overview")}
+        >
+          {t("project.overview") || "Tổng quan báo cáo"}
+        </div>
+        <div 
+          className={`workspace-tab ${activeTab === "slides" ? "is-active" : ""}`}
+          onClick={() => setActiveTab("slides")}
+        >
+          {t("project.slideReviews") || "Chi tiết từng Slide"}
+        </div>
+      </nav>
+
+      {/* 3. Main Content Area */}
+      <div className="project-workspace-content">
+        {activeTab === "overview" ? (
+          <div className="overview-tab-grid">
+             {/* Left Column */}
+             <div className="overview-main-col">
+                <ExecutiveSummaryPanel
+                  title={t("project.executiveSummary")}
+                  subtitle={t("project.executiveSummarySubtitle")}
+                  items={executiveSummary}
                 />
-                <SectionBlock.Body>
-                  <div className="run-compare-grid">
-                    {runCompare.map((item) => (
-                      <article className="run-compare-card" key={item.label}>
-                        <span>{item.label}</span>
-                        <div className="run-compare-card__values">
-                          <Badge tone={item.tone}>{item.current}</Badge>
-                          <small>{item.previous}</small>
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                </SectionBlock.Body>
-              </SectionBlock>
-            ) : null}
+                <SectionBlock style={{ marginTop: '24px' }}>
+                  <SectionBlock.Header 
+                    title={t("project.scoreByCriteria")} 
+                    subtitle={t("project.scoreByCriteriaHint")}
+                  />
+                  <SectionBlock.Body>
+                    <div className="project-detail-chart-grid" style={{ gridTemplateColumns: '1fr' }}>
+                      <Suspense fallback={chartFallback}>
+                        <CriteriaScoreChart data={orderedScores} />
+                      </Suspense>
+                    </div>
+                  </SectionBlock.Body>
+                </SectionBlock>
+                <div style={{ marginTop: '24px' }}>
+                  <FeedbackPreviewPanel
+                    title={t("project.summaryTitle")}
+                    sections={compactFeedbackSections as FeedbackSectionView[]}
+                    emptyText={t("common.noValue")}
+                    detailLabel={t("project.detailLink")}
+                    onOpenDetail={() => setSummaryDialogOpen(true)}
+                  />
+                </div>
+             </div>
+             {/* Right Column */}
+             <div className="overview-side-col">
+                <IssueHighlightsPanel
+                  title={t("project.issueHighlights")}
+                  subtitle={t("project.issueHighlightsSubtitle")}
+                  items={issueHighlights}
+                />
+                <div style={{ marginTop: '24px' }}>
+                  <MetadataPanel title={t("project.documentOverview") || "Thông tin tài liệu"} items={documentMeta} />
+                </div>
+             </div>
           </div>
-        ) : null}
-
-        <SectionBlock>
-          <SectionBlock.Header
-            title={t("project.scoreByCriteria")}
-            subtitle={t("project.scoreByCriteriaHint")}
-          />
-          <SectionBlock.Body>
-            <div className="project-detail-chart-grid">
-              <Suspense fallback={chartFallback}>
-                <CriteriaScoreChart data={orderedScores} />
-              </Suspense>
-              <div className="detail-score-board__list detail-score-board__list--grid">
-                {orderedScores.map((item) => (
-                  <div className="detail-score-board__item" key={item.key}>
-                    <div className="detail-score-board__item-head">
-                      <span>{item.label}</span>
-                      <strong>
-                        {item.value} / {item.max}
-                      </strong>
+        ) : (
+          <div className="split-pane-layout">
+            <aside className="split-pane-sidebar">
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                  Danh sách Slide ({slideReviewItems.length})
+                </span>
+              </div>
+              {slideReviewItems.map((item) => (
+                <div 
+                  key={item.id}
+                  className={`slide-nav-item ${selectedSlideId === item.id ? "is-active" : ""}`}
+                  onClick={() => setSelectedSlideId(item.id)}
+                >
+                  <div className="slide-nav-num">{item.slide_number}</div>
+                  <div className="slide-nav-info">
+                    <div className="slide-nav-title">{item.displayTitle}</div>
+                    <div className="slide-nav-meta">
+                      <span style={{ color: item.status === "OK" ? "#10b981" : "#ef4444" }}>● {item.status}</span>
+                      {item.issues.length > 0 && ` · ${item.issues.length} lỗi`}
                     </div>
-                    <ScoreBar value={item.value} max={item.max} showHeader={false} />
                   </div>
-                ))}
-              </div>
-            </div>
-          </SectionBlock.Body>
-        </SectionBlock>
-
-        <SectionBlock>
-          <SectionBlock.Header
-            title={t("project.slideQualityTitle")}
-            subtitle={t("project.slideQualitySubtitle")}
-          />
-          <SectionBlock.Body>
-            <div className="project-detail-chart-grid project-detail-chart-grid--compact">
-              <Suspense fallback={chartFallback}>
-                <SlideStatusChart
-                  okCount={slideReviewItems.filter((item) => item.status === "OK").length}
-                  ngCount={ngSlideCount}
-                  okLabel={t("dashboard.okSlides")}
-                  ngLabel={t("dashboard.ngSlides")}
-                />
-              </Suspense>
-              <div className="dashboard-overview-card__list">
-                <div className="dashboard-overview-card__list-row">
-                  <span>{t("dashboard.okSlides")}</span>
-                  <strong>{slideReviewItems.filter((item) => item.status === "OK").length}</strong>
                 </div>
-                <div className="dashboard-overview-card__list-row">
-                  <span>{t("dashboard.ngSlides")}</span>
-                  <strong>{ngSlideCount}</strong>
-                </div>
-                <div className="dashboard-overview-card__list-row">
-                  <span>{t("project.issueCount")}</span>
-                  <strong>{issueCount}</strong>
-                </div>
-                <div className="dashboard-overview-card__list-row">
-                  <span>{t("project.rubricVersion")}</span>
-                  <strong>{latestRun?.rubric_version ?? "—"}</strong>
-                </div>
-              </div>
-            </div>
-          </SectionBlock.Body>
-        </SectionBlock>
-
-        <SectionBlock>
-          <SectionBlock.Header
-            title={`${t("project.slideReviews")} (${slideReviewItems.length})`}
-            aside={
-              slideReviewItems.length ? (
-                <div className="slide-review-filters" role="group" aria-label={t("project.slideReviews")}>
-                  {(["all", "NG", "withSuggestions", "OK"] as const).map((filter) => (
-                    <button
-                      type="button"
-                      key={filter}
-                      className={`slide-review-filter ${slideReviewFilter === filter ? "is-active" : ""}`.trim()}
-                      onClick={() => setSlideReviewFilter(filter)}
-                    >
-                      {filter === "all"
-                        ? t("project.filterAll")
-                        : filter === "withSuggestions"
-                          ? t("project.filterWithSuggestions")
-                          : filter}
-                    </button>
-                  ))}
-                </div>
-              ) : null
-            }
-          />
-          <SectionBlock.Body>
-            {filteredSlideReviewItems.length ? (
-              <div className="slide-review-groups">
-                {filteredPrioritySlideReviewItems.length ? (
-                  <div className="slide-review-group">
-                    <div className="slide-review-group__header">
-                      <div>
-                        <h4>{t("project.prioritySlides")}</h4>
-                        <p>{t("project.prioritySlidesSubtitle")}</p>
-                      </div>
-                      <Badge tone="danger">{filteredPrioritySlideReviewItems.length}</Badge>
-                    </div>
-                    <div className="slide-review-list">
-                      {filteredPrioritySlideReviewItems.map((item) => (
-                          <article className={`slide-review-card slide-review-card--${item.status.toLowerCase()}`} key={item.id}>
-                            <div className="slide-review-card__head">
-                              <div>
-                                <span>{t("project.slideNumber").replace("{number}", String(item.slide_number))}</span>
-                                <strong>{item.displayTitle}</strong>
-                              </div>
-                              <span className={`slide-review-status slide-review-status--${item.status.toLowerCase()}`}>
-                                {item.status}
-                              </span>
-                            </div>
-                            <p className="slide-review-card__summary">{item.summary || t("common.noValue")}</p>
+              ))}
+            </aside>
+            <main className="split-pane-main">
+              {selectedSlideId ? (
+                (() => {
+                  const item = slideReviewItems.find(s => s.id === selectedSlideId);
+                  if (!item) return null;
+                  return (
+                    <div className="slide-detail-container">
+                      <div className="slide-detail-card">
+                        <div className="slide-detail-head">
+                          <div className="slide-detail-title">
+                            <h3>{t("project.slideNumber").replace("{number}", String(item.slide_number))}: {item.displayTitle}</h3>
+                          </div>
+                          <Badge tone={item.status === "OK" ? "success" : "danger"}>{item.status}</Badge>
+                        </div>
+                        
+                        <div className="detail-suggestion-detail">
+                          <section className="detail-suggestion-detail__block">
+                            <h4>{t("project.slideSummary")}</h4>
+                            <p>{item.summary || t("common.noValue")}</p>
+                          </section>
+                          
+                          <section className="detail-suggestion-detail__block">
+                            <h4>{t("project.slideIssues")}</h4>
                             {item.issues.length ? (
-                              <ul className="slide-review-card__issues">
-                                {item.issues.slice(0, 2).map((issue, index) => (
-                                  <li key={`${item.id}-issue-${index}`}>{issue}</li>
+                              <ul className="slide-review-detail__list">
+                                {item.issues.map((issue, index) => (
+                                  <li key={`slide-issue-${index}`}>{issue}</li>
                                 ))}
                               </ul>
-                            ) : null}
-                            <div className="slide-review-card__footer">
-                              <span className="slide-review-card__issue-count">
-                                {item.issues.length
-                                  ? `${item.issues.length} ${t("project.issueCount").toLowerCase()}`
-                                  : t("project.noIssueCount")}
-                              </span>
-                              <button
-                                type="button"
-                                className="text-button slide-review-card__detail"
-                                onClick={() =>
-                                  setSlideReviewDetail({
-                                    title: item.displayTitle,
-                                    status: item.status,
-                                    summary: item.summary,
-                                    issues: item.issues,
-                                    suggestions: item.suggestions,
-                                  })
-                                }
-                              >
-                                {t("project.detailLink")}
-                              </button>
+                            ) : <p>{t("common.noValue")}</p>}
+                          </section>
+                          
+                          <section className="detail-suggestion-detail__block">
+                            <h4>{t("project.slideSuggestions")}</h4>
+                            <div className="detail-suggestion-card__preview">
+                              {item.suggestions ? (
+                                <p style={{ whiteSpace: 'pre-wrap' }}>{item.suggestions}</p>
+                              ) : <p>{t("common.noValue")}</p>}
                             </div>
-                          </article>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
-                {remainingSlideReviewItems.length ? (
-                  <div className="slide-review-group">
-                    <div className="slide-review-group__header">
-                      <div>
-                        <h4>{t("project.remainingSlides")}</h4>
-                        <p>{t("project.remainingSlidesSubtitle")}</p>
-                      </div>
-                      <Badge tone="default">{remainingSlideReviewItems.length}</Badge>
-                    </div>
-                    <div className="slide-review-list">
-                      {remainingSlideReviewItems.map((item) => (
-                        <article className={`slide-review-card slide-review-card--${item.status.toLowerCase()}`} key={item.id}>
-                          <div className="slide-review-card__head">
-                            <div>
-                              <span>{t("project.slideNumber").replace("{number}", String(item.slide_number))}</span>
-                              <strong>{item.displayTitle}</strong>
-                            </div>
-                            <span className={`slide-review-status slide-review-status--${item.status.toLowerCase()}`}>
-                              {item.status}
-                            </span>
-                          </div>
-                          <p className="slide-review-card__summary">{item.summary || t("common.noValue")}</p>
-                          {item.issues.length ? (
-                            <ul className="slide-review-card__issues">
-                              {item.issues.slice(0, 2).map((issue, index) => (
-                                <li key={`${item.id}-issue-${index}`}>{issue}</li>
-                              ))}
-                            </ul>
-                          ) : null}
-                          <div className="slide-review-card__footer">
-                            <span className="slide-review-card__issue-count">
-                              {item.issues.length
-                                ? `${item.issues.length} ${t("project.issueCount").toLowerCase()}`
-                                : t("project.noIssueCount")}
-                            </span>
-                            <button
-                              type="button"
-                              className="text-button slide-review-card__detail"
-                              onClick={() =>
-                                setSlideReviewDetail({
-                                  title: item.displayTitle,
-                                  status: item.status,
-                                  summary: item.summary,
-                                  issues: item.issues,
-                                  suggestions: item.suggestions,
-                                })
-                              }
-                            >
-                              {t("project.detailLink")}
-                            </button>
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            ) : (
-              <div className="empty-state-inline">
-                <p className="empty-state-inline__title">{t("project.noSlideReviewsTitle")}</p>
-                <p className="empty-state-inline__text">{t("project.noSlideReviewsText")}</p>
-              </div>
-            )}
-          </SectionBlock.Body>
-        </SectionBlock>
-
-        <SectionBlock>
-          <SectionBlock.Header
-            title={`${t("project.suggestions")} (${criteriaSuggestionItems.length})`}
-            aside={
-              criteriaSuggestionItems.length ? (
-                <div className="detail-suggestion-chips">
-                  {criteriaSuggestionItems.map((item) => (
-                  <span
-                    key={`${item.key}-chip`}
-                    className={`detail-suggestion-chip detail-suggestion-chip--${item.tone}`.trim()}
-                  >
-                    {item.title} {item.count ? <strong>{item.count}</strong> : null}
-                  </span>
-                  ))}
-                </div>
-              ) : null
-            }
-          />
-          <SectionBlock.Body>
-            {criteriaSuggestionItems.length ? (
-              <div className="detail-suggestion-grid detail-suggestion-grid--detail-match">
-                {criteriaSuggestionItems.map((item) => (
-                  <article
-                    key={item.key}
-                    className={`detail-suggestion-card detail-suggestion-card--${item.tone}`.trim()}
-                  >
-                    <div className="detail-suggestion-card__head">
-                      <div
-                        className={`detail-score-row__icon detail-score-row__icon--outline detail-score-row__icon--${item.tone}`}
-                      >
-                        <item.Icon size="md" />
-                      </div>
-                      <strong>{item.title}</strong>
-                    </div>
-                    <div className="detail-suggestion-card__preview">
-                      {suggestionPreviewBlocks(item.text, t).map((block, index) => (
-                        <div className="detail-suggestion-card__preview-block" key={`${item.key}-preview-${index}`}>
-                          {block.title ? <strong>{block.title}</strong> : null}
-                          {block.lines.map((line, lineIndex) => (
-                            <p key={`${item.key}-preview-${index}-${lineIndex}`}>{line}</p>
-                          ))}
+                          </section>
                         </div>
-                      ))}
+                      </div>
                     </div>
-                    <button
-                      type="button"
-                      className="text-button detail-suggestion-card__detail"
-                      onClick={() =>
-                        setSuggestionDetail({
-                          title: item.title,
-                          count: item.count,
-                          text: item.text,
-                        })
-                      }
-                    >
-                      {t("project.detailLink")}
-                    </button>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <div className="empty-state-inline">
-                <p className="empty-state-inline__title">{t("project.noCriteriaSuggestionsTitle")}</p>
-                <p className="empty-state-inline__text">{t("project.noCriteriaSuggestionsText")}</p>
-              </div>
-            )}
-          </SectionBlock.Body>
-        </SectionBlock>
-      </main>
-
-      {summaryDialogOpen ? (
-        <div className="detail-summary-dialog" role="dialog" aria-modal="true">
-          <div className="detail-summary-dialog__backdrop" onClick={() => setSummaryDialogOpen(false)} />
-          <div className="detail-summary-dialog__card">
-            <div className="detail-summary-dialog__header">
-              <h3>{t("project.detailDialogTitle")}</h3>
-              <button className="btn-secondary btn-secondary--compact" type="button" onClick={() => setSummaryDialogOpen(false)}>
-                {t("common.close")}
-              </button>
-            </div>
-            <div className="detail-summary-dialog__body">
-              {feedbackLines.length ? (
-                feedbackSections.map((section, index) => (
-                  <section className="detail-feedback-section-block detail-feedback-section-block--dialog" key={`${section.title}-${index}`}>
-                    {section.title ? <h4>{section.title}</h4> : null}
-                    {section.lines.map((line, lineIndex) => (
-                      <p key={`${section.title}-${lineIndex}`}>{line}</p>
-                    ))}
-                  </section>
-                ))
+                  );
+                })()
               ) : (
-                <p>{t("common.noValue")}</p>
+                <div className="empty-state-inline" style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <p>{t("project.selectSlideToViewDetails") || "Vui lòng chọn slide từ danh sách bên trái để xem chi tiết đánh giá."}</p>
+                </div>
               )}
-            </div>
+            </main>
           </div>
-        </div>
+        )}
+      </div>
+
+      {/* Dialogs for Summary Detail */}
+      {summaryDialogOpen ? (
+        <ProjectReviewDialog
+          title={t("project.detailDialogTitle")}
+          onClose={() => setSummaryDialogOpen(false)}
+          closeLabel={t("common.close")}
+        >
+          <div className="detail-summary-dialog__body">
+            {feedbackLines.length ? (
+              feedbackSections.map((section, index) => (
+                <section className="detail-feedback-section-block detail-feedback-section-block--dialog" key={`${section.title}-${index}`}>
+                  {section.title ? <h4>{section.title}</h4> : null}
+                  {section.lines.map((line, lineIndex) => (
+                    <p key={`${section.title}-${lineIndex}`}>{line}</p>
+                  ))}
+                </section>
+              ))
+            ) : (
+              <p>{t("common.noValue")}</p>
+            )}
+          </div>
+        </ProjectReviewDialog>
       ) : null}
 
       {suggestionDetail ? (
-        <div className="detail-summary-dialog" role="dialog" aria-modal="true">
-          <div className="detail-summary-dialog__backdrop" onClick={() => setSuggestionDetail(null)} />
-          <div className="detail-summary-dialog__card detail-summary-dialog__card--wide">
-            <div className="detail-summary-dialog__header">
-              <div>
-                <h3>{suggestionDetail.title}</h3>
-                {suggestionDetail.count ? <span className="detail-summary-dialog__score">{suggestionDetail.count}</span> : null}
-              </div>
-              <button className="btn-secondary btn-secondary--compact" type="button" onClick={() => setSuggestionDetail(null)}>
-                {t("common.close")}
-              </button>
-            </div>
-            <div className="detail-summary-dialog__body detail-suggestion-detail">
-              {splitSuggestionBlocks(suggestionDetail.text, t).map((block, index) => (
-                <section className="detail-suggestion-detail__block" key={`${block.title}-${index}`}>
-                  {block.title ? <h4>{block.title}</h4> : null}
-                  {block.lines.map((line, lineIndex) => (
-                    <p key={`${block.title}-${lineIndex}`}>{line}</p>
-                  ))}
-                </section>
-              ))}
-            </div>
+        <ProjectReviewDialog
+          title={suggestionDetail.title}
+          score={suggestionDetail.count || undefined}
+          wide
+          onClose={() => setSuggestionDetail(null)}
+          closeLabel={t("common.close")}
+        >
+          <div className="detail-summary-dialog__body detail-suggestion-detail">
+            {splitSuggestionBlocks(suggestionDetail.text, t).map((block, index) => (
+              <section className="detail-suggestion-detail__block" key={`${block.title}-${index}`}>
+                {block.title ? <h4>{block.title}</h4> : null}
+                {block.lines.map((line, lineIndex) => (
+                  <p key={`${block.title}-${lineIndex}`}>{line}</p>
+                ))}
+              </section>
+            ))}
           </div>
-        </div>
+        </ProjectReviewDialog>
       ) : null}
-
-      {slideReviewDetail ? (
-        <div className="detail-summary-dialog" role="dialog" aria-modal="true">
-          <div className="detail-summary-dialog__backdrop" onClick={() => setSlideReviewDetail(null)} />
-          <div className="detail-summary-dialog__card detail-summary-dialog__card--wide">
-            <div className="detail-summary-dialog__header">
-              <div>
-                <h3>{slideReviewDetail.title}</h3>
-                <span className={`slide-review-status slide-review-status--${slideReviewDetail.status.toLowerCase()}`}>
-                  {slideReviewDetail.status}
-                </span>
-              </div>
-              <button className="btn-secondary btn-secondary--compact" type="button" onClick={() => setSlideReviewDetail(null)}>
-                {t("common.close")}
-              </button>
-            </div>
-            <div className="detail-summary-dialog__body slide-review-detail">
-              <section className="detail-suggestion-detail__block">
-                <h4>{t("project.slideSummary")}</h4>
-                <p>{slideReviewDetail.summary || t("common.noValue")}</p>
-              </section>
-              <section className="detail-suggestion-detail__block">
-                <h4>{t("project.slideIssues")}</h4>
-                {slideReviewDetail.issues.length ? (
-                  <ul className="slide-review-detail__list">
-                    {slideReviewDetail.issues.map((issue, index) => (
-                      <li key={`slide-detail-issue-${index}`}>{issue}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p>{t("common.noValue")}</p>
-                )}
-              </section>
-              <section className="detail-suggestion-detail__block">
-                <h4>{t("project.slideSuggestions")}</h4>
-                <p>{slideReviewDetail.suggestions || t("common.noValue")}</p>
-              </section>
-            </div>
-          </div>
-        </div>
-      ) : null}
-    </>
+    </div>
   );
 }

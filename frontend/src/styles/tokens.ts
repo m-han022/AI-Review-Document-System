@@ -9,7 +9,7 @@ export const spacing = {
 
 export const typography = {
   fontFamily: {
-    base: 'Inter, "Noto Sans JP", system-ui, sans-serif',
+    base: 'Inter, "Noto Sans JP", "Yu Gothic", "Hiragino Sans", system-ui, sans-serif',
   },
   fontSize: {
     caption: 12,

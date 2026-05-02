@@ -2,18 +2,15 @@ from sqlmodel import create_engine, SQLModel, Session
 from sqlalchemy import inspect, text
 from pathlib import Path
 
-# Use SQLite database in backend/data/
 DB_DIR = Path(__file__).resolve().parent.parent / "data"
 DB_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH = DB_DIR / "review_system.db"
 
 sqlite_url = f"sqlite:///{DB_PATH}"
 
-# connect_args={"check_same_thread": False} is needed for SQLite with FastAPI
 engine = create_engine(
     sqlite_url, 
     connect_args={"check_same_thread": False},
-    # poolclass=StaticPool is useful for in-memory DB or simple SQLite to avoid locking issues in some cases
 )
 
 def _ensure_sqlite_column(table_name: str, column_name: str, column_type: str) -> None:

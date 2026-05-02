@@ -14,8 +14,8 @@ export default function SlideStatusChart({
   ngLabel,
 }: SlideStatusChartProps) {
   const data = [
-    { key: "OK", label: okLabel, value: okCount, color: "#61b986" },
-    { key: "NG", label: ngLabel, value: ngCount, color: "#ea4e57" },
+    { key: "OK", label: okLabel, value: okCount, color: "var(--ds-chart-slide-ok)" },
+    { key: "NG", label: ngLabel, value: ngCount, color: "var(--ds-chart-slide-ng)" },
   ].filter((item) => item.value > 0);
   const total = okCount + ngCount;
 

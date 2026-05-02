@@ -4,14 +4,17 @@ interface TableHeaderProps {
   showCheckbox: boolean;
   allSelected: boolean;
   onToggleSelectAll: () => void;
+  variant?: "full" | "dashboard" | "reference";
 }
 
 export default function TableHeader({
   showCheckbox,
   allSelected,
   onToggleSelectAll,
+  variant = "full",
 }: TableHeaderProps) {
   const { t } = useTranslation();
+  const isReferenceVariant = variant === "reference";
 
   return (
     <thead>
@@ -24,11 +27,11 @@ export default function TableHeader({
           </th>
         ) : null}
         <th>{t("submissions.filename")}</th>
-        <th>{t("upload.documentType")}</th>
-        <th>{t("common.language")}</th>
-        <th>{t("common.status")}</th>
-        <th>{t("submissions.score")}</th>
-        <th>{t("common.uploadedAt")}</th>
+        <th>{isReferenceVariant ? "ファイルタイプ" : t("upload.documentType")}</th>
+        <th>{isReferenceVariant ? "言語" : t("common.language")}</th>
+        <th>{isReferenceVariant ? "ステータス" : t("common.status")}</th>
+        <th>{isReferenceVariant ? "総合スコア" : t("submissions.score")}</th>
+        <th>{isReferenceVariant ? "アップロード日時" : t("common.uploadedAt")}</th>
         <th>{t("common.actions")}</th>
       </tr>
     </thead>

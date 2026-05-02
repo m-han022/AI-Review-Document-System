@@ -122,14 +122,30 @@ class SubmissionStore:
             .limit(limit)
         )
         runs = session.exec(statement).all()
+        if not runs:
+            return []
+
+        run_ids = [run.id for run in runs if run.id is not None]
+
+        # [FIX PERF-01] Batch: 2 queries total instead of 2×N
+        criteria_count_rows = session.exec(
+            select(GradingCriteriaResult.grading_run_id, func.count().label("cnt"))
+            .where(col(GradingCriteriaResult.grading_run_id).in_(run_ids))
+            .group_by(GradingCriteriaResult.grading_run_id)
+        ).all()
+        criteria_counts_map: dict[int, int] = {row[0]: row[1] for row in criteria_count_rows}
+
+        all_slides = session.exec(
+            select(GradingSlideReview)
+            .where(col(GradingSlideReview.grading_run_id).in_(run_ids))
+        ).all()
+        slides_by_run: dict[int, list] = {}
+        for slide in all_slides:
+            slides_by_run.setdefault(slide.grading_run_id, []).append(slide)
+
         history: list[GradingRunHistoryOut] = []
         for run in runs:
-            criteria_count = session.exec(
-                select(func.count()).select_from(GradingCriteriaResult).where(GradingCriteriaResult.grading_run_id == run.id)
-            ).one()
-            slide_rows = session.exec(
-                select(GradingSlideReview).where(GradingSlideReview.grading_run_id == run.id)
-            ).all()
+            slide_rows = slides_by_run.get(run.id or 0, [])
             ng_slide_count = sum(1 for item in slide_rows if item.status == "NG")
             issue_count_value = issue_count(slide_rows)
             history.append(
@@ -144,7 +160,7 @@ class SubmissionStore:
                     status=run.status,
                     error_message=run.error_message,
                     graded_at=run.graded_at,
-                    criteria_result_count=int(criteria_count),
+                    criteria_result_count=criteria_counts_map.get(run.id or 0, 0),
                     slide_review_count=len(slide_rows),
                     ng_slide_count=ng_slide_count,
                     issue_count=issue_count_value,
@@ -189,7 +205,8 @@ class SubmissionStore:
 
     def get_all_project_ids(self) -> list[str]:
         with Session(engine) as session:
-            statement = select(Submission.project_id).order_by(Submission.uploaded_at.desc())
+            # [FIX BUG-02] Must use col() wrapper — calling .desc() directly on a str attr is invalid
+            statement = select(Submission.project_id).order_by(col(Submission.uploaded_at).desc())
             return list(session.exec(statement).all())
 
     def save_upload(

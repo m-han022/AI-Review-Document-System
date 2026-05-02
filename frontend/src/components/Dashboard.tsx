@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 
 import { getSubmission, getSubmissions } from "../api/client";
 import { API_BASE_URL } from "../config";
-import { getDocumentTypeKey } from "../constants/documentTypes";
 import { submissionDetailQueryKey, submissionsQueryKey } from "../query";
 import type { Submission } from "../types";
 import DashboardOverview from "./dashboard/DashboardOverview";
@@ -13,11 +12,10 @@ import AppShell from "./layout/AppShell";
 import Sidebar, { type WorkspaceView } from "./layout/Sidebar";
 import Topbar from "./layout/Topbar";
 import ProjectCard from "./project/ProjectCard";
+import ReviewListOverview from "./reviews/ReviewListOverview";
 import RubricManagement from "./rubrics/RubricManagement";
-import SubmissionsTable from "./SubmissionsTable";
-import { formatUploadedAt, getLanguageLabel } from "./submissions/utils";
 import Badge from "./ui/Badge";
-import { ArrowLeftIcon, ChevronRightIcon, DownloadIcon, FileReviewIcon } from "./ui/Icon";
+import { ArrowLeftIcon, DownloadIcon } from "./ui/Icon";
 import SectionBlock from "./ui/SectionBlock";
 
 function PlaceholderPanel({
@@ -47,7 +45,7 @@ function PlaceholderPanel({
 }
 
 export default function Dashboard() {
-  const { t, lang } = useTranslation();
+  const { t } = useTranslation();
   const [activeView, setActiveView] = useState<WorkspaceView>("dashboard");
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const { data, isLoading, error } = useQuery({
@@ -66,7 +64,6 @@ export default function Dashboard() {
     [selectedProjectId, submissions],
   );
   const detailSubmission = detailedSubmission ?? selectedSubmission;
-  const recentSubmissions = useMemo(() => submissions.slice(0, 5), [submissions]);
 
   const topbarContent = useMemo(() => {
     switch (activeView) {
@@ -149,17 +146,13 @@ export default function Dashboard() {
       case "upload":
         return (
           <div className="workspace-stack">
-            <SectionBlock className="upload-shell upload-shell--full">
-              <SectionBlock.Body className="upload-shell__body upload-shell__body--workspace">
-                <FileUpload />
-              </SectionBlock.Body>
-            </SectionBlock>
+            <FileUpload />
           </div>
         );
       case "reviews":
         return (
           <div className="workspace-stack">
-            <SubmissionsTable
+            <ReviewListOverview
               submissions={submissions}
               activeProjectId={selectedSubmission?.project_id ?? null}
               onSelectProject={(projectId) => {
@@ -170,40 +163,22 @@ export default function Dashboard() {
           </div>
         );
       case "detail":
-        return (
-          <div className="workspace-stack">
-            <div className="detail-page-actions">
-              <button
-                type="button"
-                className="btn-secondary btn-secondary--compact"
-                onClick={() => setActiveView("reviews")}
-              >
-                <ArrowLeftIcon size="sm" />
-                {t("nav.allReviews")}
-              </button>
-              {selectedSubmission ? (
-                <a
-                  href={`${API_BASE_URL}/submissions/${selectedSubmission.project_id}/file?disposition=attachment`}
-                  className="btn-secondary btn-secondary--compact"
-                  download
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <DownloadIcon size="sm" />
-                  {t("project.downloadResult")}
-                </a>
-              ) : null}
-            </div>
-            {detailSubmission ? (
-              <div className="project-dashboard-layout">
-                <ProjectCard submission={detailSubmission} />
-              </div>
-            ) : (
+        if (!detailSubmission) {
+          return (
+            <div className="workspace-stack">
               <SectionBlock>
                 <SectionBlock.Header title={t("project.reviewResult")} subtitle={t("submissions.noSubmissions")} />
               </SectionBlock>
-            )}
-          </div>
+            </div>
+          );
+        }
+        return (
+          <ProjectCard 
+            submission={detailSubmission} 
+            allSubmissions={submissions}
+            onNavigate={(projectId) => setSelectedProjectId(projectId)}
+            onBack={() => setActiveView("reviews")}
+          />
         );
       case "rubrics":
         return (
@@ -222,78 +197,8 @@ export default function Dashboard() {
       case "dashboard":
       default:
         return (
-          <div className="workspace-stack">
+          <div className="workspace-stack workspace-stack--dashboard-reference">
             <DashboardOverview submissions={submissions} />
-            <SectionBlock className="dashboard-recent-shell">
-              <SectionBlock.Header
-                title={t("dashboard.recentTitle")}
-                subtitle={t("dashboard.recentSubtitle")}
-                aside={
-                  <button
-                    type="button"
-                    className="btn-secondary btn-secondary--compact"
-                    onClick={() => setActiveView("reviews")}
-                  >
-                    {t("nav.allReviews")}
-                    <ChevronRightIcon size="sm" />
-                  </button>
-                }
-              />
-              <SectionBlock.Body>
-                {recentSubmissions.length ? (
-                  <div className="dashboard-recent-list">
-                    {recentSubmissions.map((submission) => {
-                      const latestScore = submission.latest_run?.score ?? null;
-                      const statusLabel = latestScore !== null ? t("project.completed") : t("project.pending");
-                      const statusTone = latestScore !== null ? "success" : "warning";
-
-                      return (
-                        <button
-                          key={submission.project_id}
-                          type="button"
-                          className="dashboard-recent-item"
-                          onClick={() => {
-                            setSelectedProjectId(submission.project_id);
-                            setActiveView("detail");
-                          }}
-                        >
-                          <div className="dashboard-recent-item__main">
-                            <span className="dashboard-recent-item__icon" aria-hidden="true">
-                              <FileReviewIcon size="sm" />
-                            </span>
-                            <div className="dashboard-recent-item__meta">
-                              <strong>{submission.filename}</strong>
-                              <span>{submission.project_id} · {submission.project_name}</span>
-                            </div>
-                          </div>
-                          <div className="dashboard-recent-item__aside">
-                            <span className="document-type-pill">
-                              {t(getDocumentTypeKey(submission.document_type ?? "project_review"))}
-                            </span>
-                            <span className="dashboard-recent-item__language">{getLanguageLabel(submission, lang)}</span>
-                            <Badge tone={statusTone}>{statusLabel}</Badge>
-                            <span className="dashboard-recent-item__score">
-                              {latestScore !== null ? `${latestScore}/100` : t("common.noValue")}
-                            </span>
-                            <span className="dashboard-recent-item__time">
-                              {formatUploadedAt(submission.uploaded_at, lang)}
-                            </span>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="empty-projects-panel">
-                    <span className="empty-projects-panel__icon" aria-hidden="true">
-                      <FileReviewIcon size="lg" />
-                    </span>
-                    <h3>{t("submissions.emptyStateTitle")}</h3>
-                    <p>{t("submissions.noSubmissions")}</p>
-                  </div>
-                )}
-              </SectionBlock.Body>
-            </SectionBlock>
           </div>
         );
     }
@@ -309,6 +214,7 @@ export default function Dashboard() {
           breadcrumb={topbarContent.breadcrumb}
           rightBadge={topbarContent.rightBadge}
           hideMain={topbarContent.hideMain}
+          dashboardChrome={activeView === "dashboard" || activeView === "reviews" || activeView === "upload"}
         />
       }
     >

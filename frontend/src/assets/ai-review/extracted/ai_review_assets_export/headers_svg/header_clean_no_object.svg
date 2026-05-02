@@ -1,0 +1,23 @@
+<svg width="1920" height="520" viewBox="0 0 1920 520" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1920" y2="520"><stop stop-color="#F9FBFF"/><stop offset=".55" stop-color="#F1F3FF"/><stop offset="1" stop-color="#EEF2FF"/></linearGradient>
+<linearGradient id="ai" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#38BDF8"/><stop offset=".48" stop-color="#5B6CFF"/><stop offset="1" stop-color="#8B5CF6"/></linearGradient>
+<filter id="glow"><feGaussianBlur stdDeviation="12" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<rect width="1920" height="520" rx="28" fill="url(#bg)"/>
+<path d="M0 210C160 120 270 280 430 205C610 120 700 200 830 190C980 178 1060 110 1190 135C1350 166 1450 265 1620 180C1740 120 1840 140 1920 170" stroke="white" stroke-width="2" opacity=".72"/>
+<path d="M0 248C180 150 315 320 510 230C690 148 760 250 910 228C1090 202 1158 98 1320 154C1485 210 1545 300 1725 208C1835 152 1885 156 1920 170" stroke="#B9C2FF" stroke-width="1.4" opacity=".42"/>
+<g opacity=".45">
+<path d="M980 218H1322M1045 178H1260M1095 258H1270" stroke="#B7C1FF" stroke-width="2"/>
+<circle cx="980" cy="218" r="5" fill="white"/><circle cx="1045" cy="178" r="5" fill="white"/><circle cx="1095" cy="258" r="5" fill="white"/>
+</g>
+<g transform="translate(1358 98)" filter="url(#glow)" opacity="0">
+<rect x="0" y="0" width="112" height="112" rx="26" fill="url(#ai)"/>
+<rect x="13" y="13" width="86" height="86" rx="20" stroke="white" stroke-opacity=".38" stroke-width="2"/>
+<path d="M28 78L47 32H65L84 78H69L66 69H46L43 78H28ZM50 57H62L56 41L50 57ZM90 78V32H104V78H90Z" fill="white"/>
+</g>
+<g opacity=".7">
+<circle cx="260" cy="78" r="5" fill="white"/><circle cx="520" cy="155" r="4" fill="white"/><circle cx="1180" cy="90" r="6" fill="white"/>
+<circle cx="1505" cy="65" r="4" fill="#9EB0FF"/><circle cx="1710" cy="125" r="5" fill="white"/>
+</g>
+</svg>

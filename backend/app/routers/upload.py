@@ -15,14 +15,6 @@ router = APIRouter()
 PROJECT_PATTERN = re.compile(r"^(P\d+)[_\-](.+?)\.(pdf|pptx)$", re.IGNORECASE)
 
 MESSAGES = {
-    "en": {
-        "pdf_only": "Only PDF and PowerPoint (.pptx) files are accepted.",
-        "invalid_filename": "Invalid filename format. Expected: P<project_id>_<project_name>.pdf or .pptx (e.g., P001_WebsiteDesign.pdf)",
-        "empty_file": "The uploaded file is empty.",
-        "empty_pdf": "Could not extract any text from the file. The file may be image-based or empty.",
-        "upload_failed": "Upload failed while processing the file.",
-        "upload_success": "Project uploaded successfully",
-    },
     "vi": {
         "pdf_only": "Chỉ chấp nhận file PDF và PowerPoint (.pptx).",
         "invalid_filename": "Tên file không đúng định dạng. Yêu cầu: P<mã_dự_án>_<tên_dự_án>.pdf hoặc .pptx (ví dụ: P001_ThietKeWeb.pptx)",

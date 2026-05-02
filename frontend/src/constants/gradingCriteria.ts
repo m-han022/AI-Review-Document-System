@@ -16,16 +16,16 @@ const DEFAULT_CRITERIA_CONFIG = {
   },
   labels: {
     vi: {
-      review_tong_the: "Review t\u1ed5ng th\u1ec3",
-      diem_tot: "\u0110i\u1ec3m t\u1ed1t",
-      diem_xau: "\u0110i\u1ec3m c\u1ea7n c\u1ea3i thi\u1ec7n",
-      chat_luong_viet: "Ch\u1ea5t l\u01b0\u1ee3ng vi\u1ebft",
+      review_tong_the: "Review tổng thể",
+      diem_tot: "Điểm tốt",
+      diem_xau: "Điểm cần cải thiện",
+      chat_luong_viet: "Chất lượng viết",
     },
     ja: {
-      review_tong_the: "\u30ec\u30d3\u30e5\u30fc\u7dcf\u5408",
-      diem_tot: "\u826f\u3044\u70b9",
-      diem_xau: "\u6539\u5584\u70b9",
-      chat_luong_viet: "\u6587\u7ae0\u54c1\u8cea",
+      review_tong_the: "レビュー総合",
+      diem_tot: "良い点",
+      diem_xau: "改善点",
+      chat_luong_viet: "文章品質",
     },
   },
 } as const;
@@ -40,16 +40,16 @@ const PROJECT_REVIEW_CRITERIA_CONFIG = {
   },
   labels: {
     vi: {
-      review_tong_the: "\u0110\u00e1nh gi\u00e1 t\u1ed5ng th\u1ec3",
-      diem_tot: "\u0110i\u1ec3m t\u1ed1t",
-      diem_xau: "\u0110i\u1ec3m x\u1ea5u",
-      chinh_sach: "Ch\u00ednh s\u00e1ch c\u1ea3i thi\u1ec7n",
+      review_tong_the: "Đánh giá tổng thể",
+      diem_tot: "Điểm tốt",
+      diem_xau: "Điểm xấu",
+      chinh_sach: "Chính sách cải thiện",
     },
     ja: {
-      review_tong_the: "\u7dcf\u5408\u8a55\u4fa1",
-      diem_tot: "\u826f\u3044\u70b9",
-      diem_xau: "\u60aa\u3044\u70b9",
-      chinh_sach: "\u6539\u5584\u65b9\u91dd",
+      review_tong_the: "総合評価",
+      diem_tot: "良い点",
+      diem_xau: "悪い点",
+      chinh_sach: "改善方針",
     },
   },
 } as const;
@@ -64,16 +64,16 @@ const BUG_ANALYSIS_CRITERIA_CONFIG = {
   },
   labels: {
     vi: {
-      kha_nang_tai_hien_bug: "Kh\u1ea3 n\u0103ng t\u00e1i hi\u1ec7n bug",
-      phan_tich_nguyen_nhan: "Ph\u00e2n t\u00edch nguy\u00ean nh\u00e2n",
-      danh_gia_anh_huong: "\u0110\u00e1nh gi\u00e1 \u1ea3nh h\u01b0\u1edfng",
-      giai_phap_phong_ngua: "Gi\u1ea3i ph\u00e1p & ph\u00f2ng ng\u1eeba",
+      kha_nang_tai_hien_bug: "Khả năng tái hiện bug",
+      phan_tich_nguyen_nhan: "Phân tích nguyên nhân",
+      danh_gia_anh_huong: "Đánh giá ảnh hưởng",
+      giai_phap_phong_ngua: "Giải pháp & phòng ngừa",
     },
     ja: {
-      kha_nang_tai_hien_bug: "\u30d0\u30b0\u518d\u73fe\u6027",
-      phan_tich_nguyen_nhan: "\u539f\u56e0\u5206\u6790",
-      danh_gia_anh_huong: "\u5f71\u97ff\u8a55\u4fa1",
-      giai_phap_phong_ngua: "\u89e3\u6c7a\u7b56\u30fb\u518d\u767a\u9632\u6b62",
+      kha_nang_tai_hien_bug: "バグ再現性",
+      phan_tich_nguyen_nhan: "原因分析",
+      danh_gia_anh_huong: "影響評価",
+      giai_phap_phong_ngua: "解決策・再発防止",
     },
   },
 } as const;
@@ -88,16 +88,16 @@ const QA_REVIEW_CRITERIA_CONFIG = {
   },
   labels: {
     vi: {
-      do_ro_rang: "\u0110\u1ed9 r\u00f5 r\u00e0ng",
-      do_bao_phu: "\u0110\u1ed9 bao ph\u1ee7",
-      kha_nang_truy_vet: "Kh\u1ea3 n\u0103ng truy v\u1ebft",
-      tinh_thuc_thi: "T\u00ednh th\u1ef1c thi",
+      do_ro_rang: "Độ rõ ràng",
+      do_bao_phu: "Độ bao phủ",
+      kha_nang_truy_vet: "Khả năng truy vết",
+      tinh_thuc_thi: "Tính thực thi",
     },
     ja: {
-      do_ro_rang: "\u660e\u78ba\u6027",
-      do_bao_phu: "\u30ab\u30d0\u30ec\u30c3\u30b8",
-      kha_nang_truy_vet: "\u30c8\u30ec\u30fc\u30b5\u30d3\u30ea\u30c6\u30a3",
-      tinh_thuc_thi: "\u5b9f\u884c\u53ef\u80fd\u6027",
+      do_ro_rang: "明確性",
+      do_bao_phu: "カバレッジ",
+      kha_nang_truy_vet: "トレーサビリティ",
+      tinh_thuc_thi: "実行可能性",
     },
   },
 } as const;
@@ -112,16 +112,16 @@ const EXPLANATION_REVIEW_CRITERIA_CONFIG = {
   },
   labels: {
     vi: {
-      do_ro_rang_de_hieu: "\u0110\u1ed9 r\u00f5 r\u00e0ng & d\u1ec5 hi\u1ec3u",
-      tinh_day_du_dung_trong_tam: "T\u00ednh \u0111\u1ea7y \u0111\u1ee7 & \u0111\u00fang tr\u1ecdng t\u00e2m",
-      tinh_chinh_xac: "T\u00ednh ch\u00ednh x\u00e1c",
-      tinh_ung_dung: "T\u00ednh \u1ee9ng d\u1ee5ng",
+      do_ro_rang_de_hieu: "Độ rõ ràng & dễ hiểu",
+      tinh_day_du_dung_trong_tam: "Tính đầy đủ & đúng trọng tâm",
+      tinh_chinh_xac: "Tính chính xác",
+      tinh_ung_dung: "Tính ứng dụng",
     },
     ja: {
-      do_ro_rang_de_hieu: "\u660e\u78ba\u6027\u30fb\u5206\u304b\u308a\u3084\u3059\u3055",
-      tinh_day_du_dung_trong_tam: "\u5341\u5206\u6027\u30fb\u7126\u70b9",
-      tinh_chinh_xac: "\u6b63\u78ba\u6027",
-      tinh_ung_dung: "\u5b9f\u7528\u6027",
+      do_ro_rang_de_hieu: "明確性・分かりやすさ",
+      tinh_day_du_dung_trong_tam: "十分性・焦点",
+      tinh_chinh_xac: "正確性",
+      tinh_ung_dung: "実用性",
     },
   },
 } as const;

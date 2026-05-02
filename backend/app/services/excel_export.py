@@ -198,49 +198,14 @@ def _criteria_suggestions(submission: Any) -> dict[str, object]:
     return {item.key: item.suggestion for item in latest_run.criteria_results if item.suggestion is not None}
 
 
-def _latest_score(submission: Any) -> int | None:
-    latest_run = getattr(submission, "latest_run", None)
-    return latest_run.score if latest_run else None
-
-
-def _latest_graded_at(submission: Any) -> str | None:
-    latest_run = getattr(submission, "latest_run", None)
-    return latest_run.graded_at if latest_run else None
-
-
-def _latest_rubric_version(submission: Any) -> str | None:
-    latest_run = getattr(submission, "latest_run", None)
-    return latest_run.rubric_version if latest_run else None
-
-
-def _latest_gemini_model(submission: Any) -> str | None:
-    latest_run = getattr(submission, "latest_run", None)
-    return latest_run.gemini_model if latest_run else None
-
-
-def _latest_prompt_hash(submission: Any) -> str | None:
-    latest_run = getattr(submission, "latest_run", None)
-    return latest_run.prompt_hash if latest_run else None
-
-
-def _latest_criteria_hash(submission: Any) -> str | None:
-    latest_run = getattr(submission, "latest_run", None)
-    return latest_run.criteria_hash if latest_run else None
-
-
-def _latest_grading_schema_version(submission: Any) -> str | None:
-    latest_run = getattr(submission, "latest_run", None)
-    return latest_run.grading_schema_version if latest_run else None
-
-
-def _latest_feedback(submission: Any) -> object:
-    latest_run = getattr(submission, "latest_run", None)
-    return latest_run.draft_feedback if latest_run else None
+def _latest_run_attr(submission: Any, attr: str, default: Any = None) -> Any:
+    run = getattr(submission, "latest_run", None)
+    return getattr(run, attr, default) if run else default
 
 
 def _latest_slide_reviews(submission: Any) -> list[Any]:
-    latest_run = getattr(submission, "latest_run", None)
-    return list(latest_run.slide_reviews) if latest_run else []
+    run = getattr(submission, "latest_run", None)
+    return list(run.slide_reviews) if run else []
 
 
 def _localized_text(value: Any, lang: str) -> str | None:
@@ -268,14 +233,14 @@ def _build_summary_rows(submissions: list[Any]) -> list[list[object]]:
                 submission.filename,
                 submission.document_type,
                 submission.language,
-                _latest_score(submission),
+                _latest_run_attr(submission, "score"),
                 submission.uploaded_at,
-                _latest_graded_at(submission),
-                _latest_rubric_version(submission),
-                _latest_gemini_model(submission),
-                _latest_prompt_hash(submission),
-                _latest_criteria_hash(submission),
-                _latest_grading_schema_version(submission),
+                _latest_run_attr(submission, "graded_at"),
+                _latest_run_attr(submission, "rubric_version"),
+                _latest_run_attr(submission, "gemini_model"),
+                _latest_run_attr(submission, "prompt_hash"),
+                _latest_run_attr(submission, "criteria_hash"),
+                _latest_run_attr(submission, "grading_schema_version"),
                 scores.get("review_tong_the"),
                 scores.get("diem_tot"),
                 scores.get("diem_xau"),
@@ -342,8 +307,8 @@ def _build_feedback_rows(submissions: list[Any]) -> list[list[object]]:
                 submission.project_name,
                 submission.document_type,
                 submission.language,
-                _latest_score(submission),
-                _latest_feedback(submission),
+                _latest_run_attr(submission, "score"),
+                _latest_run_attr(submission, "draft_feedback"),
             ]
         )
     return rows
@@ -415,7 +380,7 @@ def _build_issue_summary_rows(submissions: list[Any]) -> list[list[object]]:
                 submission.project_name,
                 submission.document_type,
                 submission.language,
-                _latest_score(submission),
+                _latest_run_attr(submission, "score"),
                 ok_slide_count,
                 ng_slide_count,
                 issue_count,
@@ -424,7 +389,7 @@ def _build_issue_summary_rows(submissions: list[Any]) -> list[list[object]]:
                 getattr(weakest, "score", None),
                 getattr(weakest, "max_score", None),
                 weakest_ratio,
-                _latest_graded_at(submission),
+                _latest_run_attr(submission, "graded_at"),
             ]
         )
     return rows
@@ -441,7 +406,7 @@ def _build_ng_slide_rows(submissions: list[Any]) -> list[list[object]]:
                     submission.project_name,
                     submission.document_type,
                     submission.language,
-                    _latest_rubric_version(submission),
+                    _latest_run_attr(submission, "rubric_version"),
                     "",
                     "",
                     "",
@@ -463,7 +428,7 @@ def _build_ng_slide_rows(submissions: list[Any]) -> list[list[object]]:
                     submission.project_name,
                     submission.document_type,
                     submission.language,
-                    _latest_rubric_version(submission),
+                    _latest_run_attr(submission, "rubric_version"),
                     item.slide_number,
                     item.status,
                     _localized_text(getattr(item, "title", None), "vi"),
@@ -490,13 +455,13 @@ def _build_version_context_rows(submissions: list[Any]) -> list[list[object]]:
                 submission.project_name,
                 submission.document_type,
                 submission.language,
-                _latest_score(submission),
-                _latest_rubric_version(submission),
-                _latest_gemini_model(submission),
-                _latest_prompt_hash(submission),
-                _latest_criteria_hash(submission),
-                _latest_grading_schema_version(submission),
-                _latest_graded_at(submission),
+                _latest_run_attr(submission, "score"),
+                _latest_run_attr(submission, "rubric_version"),
+                _latest_run_attr(submission, "gemini_model"),
+                _latest_run_attr(submission, "prompt_hash"),
+                _latest_run_attr(submission, "criteria_hash"),
+                _latest_run_attr(submission, "grading_schema_version"),
+                _latest_run_attr(submission, "graded_at"),
                 len(list(getattr(latest_run, "criteria_results", []) or [])),
                 len(slide_reviews),
                 sum(1 for item in slide_reviews if getattr(item, "status", None) == "NG"),

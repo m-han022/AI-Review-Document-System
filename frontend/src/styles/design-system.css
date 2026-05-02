@@ -8,7 +8,7 @@
   --ds-font-weight-regular: 400;
   --ds-font-weight-medium: 500;
   --ds-font-weight-semibold: 600;
-  --ds-font-weight-bold: 600;
+  --ds-font-weight-bold: 700;
   --ds-line-height-tight: 1.2;
   --ds-line-height-title: 1.4;
   --ds-line-height-heading: 1.3;
@@ -53,6 +53,21 @@
   --ds-color-focus-ring: rgb(37 99 235 / 16%);
   --ds-color-overlay: rgb(17 24 39 / 48%);
   --ds-color-disabled: rgb(107 114 128 / 60%);
+
+  --ds-chart-gauge-primary: #2f6be8;
+  --ds-chart-gauge-warning: #d89a3d;
+  --ds-chart-gauge-danger: #d95b63;
+  --ds-chart-gauge-track: #e8eef8;
+  --ds-chart-issue-1: #ea4e57;
+  --ds-chart-issue-2: #f29d38;
+  --ds-chart-issue-3: #f3be4b;
+  --ds-chart-issue-4: #4b8ef7;
+  --ds-chart-issue-5: #9aadc4;
+  --ds-chart-issue-6: #c7d1dc;
+  --ds-chart-slide-ok: #61b986;
+  --ds-chart-slide-ng: #ea4e57;
+  --ds-chart-criteria-track: color-mix(in srgb, var(--ds-color-primary) 10%, white);
+  --ds-chart-criteria-fill: linear-gradient(90deg, #2b6df3 0%, #2563eb 100%);
 
   --ds-radius-sm: 4px;
   --ds-radius-md: 8px;
@@ -157,6 +172,21 @@
   --ds-color-overlay: rgb(0 0 0 / 60%);
   --ds-color-disabled: rgb(167 176 189 / 48%);
   --ds-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24);
+
+  --ds-chart-gauge-primary: #8cb4ea;
+  --ds-chart-gauge-warning: #e1b667;
+  --ds-chart-gauge-danger: #e2989d;
+  --ds-chart-gauge-track: #2b3643;
+  --ds-chart-issue-1: #e2989d;
+  --ds-chart-issue-2: #e1b667;
+  --ds-chart-issue-3: #d6c679;
+  --ds-chart-issue-4: #7fa6d8;
+  --ds-chart-issue-5: #708396;
+  --ds-chart-issue-6: #566574;
+  --ds-chart-slide-ok: #7dba8d;
+  --ds-chart-slide-ng: #e2989d;
+  --ds-chart-criteria-track: color-mix(in srgb, var(--ds-color-primary) 18%, var(--ds-color-surface));
+  --ds-chart-criteria-fill: linear-gradient(90deg, #8cb4ea 0%, #7fa6d8 100%);
 }
 
 .ds-title {

@@ -1,7 +1,4 @@
-"""
-Multi-key Gemini API manager for rotating between multiple API keys.
-This helps bypass the 20 requests/minute limit per key.
-"""
+"""Multi-key Gemini API manager with round-robin key rotation."""
 import time
 from typing import Optional
 from google import genai
@@ -54,53 +51,40 @@ def _key_label(key: Optional[str]) -> str:
 
 
 def get_available_key() -> Optional[str]:
-    """Get the next available API key using round-robin.
-    
-    Returns:
-        API key or None if no keys available
-    """
     global _current_key_index
-    
+
     if not GEMINI_API_KEYS:
         return None
-    
-    # Try each key
+
     for _ in range(len(GEMINI_API_KEYS)):
         key = GEMINI_API_KEYS[_current_key_index]
         _current_key_index = (_current_key_index + 1) % len(GEMINI_API_KEYS)
-        
-        # Check if key had too many errors
         if _key_usage[key]["error_count"] < 3:
             return key
-    
-    # All keys have errors, reset and try again
+
     for key in GEMINI_API_KEYS:
         _key_usage[key]["error_count"] = 0
-    
+
     return GEMINI_API_KEYS[0] if GEMINI_API_KEYS else None
 
 
 def mark_key_error(key: str):
-    """Mark a key as having an error."""
     if key in _key_usage:
         _key_usage[key]["error_count"] += 1
 
 
 def mark_key_auth_failed(key: str):
-    """Mark a key as unusable due to authentication failure."""
     if key in _key_usage:
         _key_usage[key]["error_count"] = AUTH_FAILURE_ERROR_COUNT
 
 
 def mark_key_success(key: str):
-    """Mark a key as successful."""
     if key in _key_usage:
         _key_usage[key]["last_used"] = time.time()
         _key_usage[key]["error_count"] = max(0, _key_usage[key]["error_count"] - 1)
 
 
 def get_key_stats():
-    """Get statistics for all keys."""
     return {
         "total_keys": len(GEMINI_API_KEYS),
         "key_status": {
@@ -123,14 +107,12 @@ class GeminiMultiKeyClient:
         self._init_client()
     
     def _init_client(self):
-        """Initialize with the next available key."""
         self.current_key = get_available_key()
         if self.current_key:
             print(f"[Gemini] Initializing client with {_key_label(self.current_key)}")
             self.client = genai.Client(api_key=self.current_key)
     
     def generate_content(self, model: str, contents: str, config: types.GenerateContentConfig):
-        """Generate content with automatic key rotation on rate limit."""
         key_count = len(GEMINI_API_KEYS) if GEMINI_API_KEYS else 1
         max_retries = max(key_count, 3)
         auth_failed_keys: list[str] = []
@@ -210,7 +192,6 @@ _multi_key_client = None
 
 
 def get_gemini_client():
-    """Get or create the multi-key Gemini client."""
     global _multi_key_client
     if _multi_key_client is None:
         _multi_key_client = GeminiMultiKeyClient()
@@ -218,6 +199,5 @@ def get_gemini_client():
 
 
 def reset_gemini_client():
-    """Reset the client (useful for testing)."""
     global _multi_key_client
     _multi_key_client = None

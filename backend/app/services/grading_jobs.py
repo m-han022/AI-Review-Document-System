@@ -162,6 +162,10 @@ class GradeJobStore:
                     continue
 
                 document_language = submission.language
+                # [FIX BUG-01] Capture project_name before try block — submission may be
+                # reassigned by store.save_grading_result() inside the try, making
+                # submission.project_name unreliable in the except handler.
+                project_name = submission.project_name
 
                 try:
                     started_at = datetime.now(timezone.utc).isoformat()
@@ -205,7 +209,7 @@ class GradeJobStore:
                         job_id,
                         GradeAllResult(
                             project_id=project_id,
-                            project_name=submission.project_name,
+                            project_name=project_name,  # use pre-captured value
                             success=False,
                             error=str(exc),
                         ),

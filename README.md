@@ -5,277 +5,147 @@ Hệ thống full-stack dùng để upload tài liệu `PDF` hoặc `PPTX`, trí
 ## Tổng quan
 
 - Frontend: `React 19` + `TypeScript` + `Vite`
-- Backend: `FastAPI`
+- Backend: `FastAPI` + `uvicorn`
 - Database runtime: `SQLite` tại `backend/data/review_system.db`
-- Model grading: Google Gemini
+- Model grading: Google Gemini (multi-key round-robin với auto-retry)
 - File upload runtime: `backend/uploads/`
 - Ngôn ngữ UI: `Tiếng Việt`, `日本語`
 - Giao diện: hỗ trợ chế độ sáng/tối
 - Kết quả review: song ngữ `vi/ja`, gồm tổng điểm, điểm theo tiêu chí, góp ý chi tiết và review từng slide/page
 
-## Cách chạy local hiện tại
+## Chạy local
 
-Backend chạy ở:
-
-```text
-http://localhost:8001
-```
-
-Frontend chạy tại:
-
-```text
-http://localhost:5173
-```
-
-Chạy backend:
+### Backend
 
 ```bash
 cd backend
 pip install -r requirements.txt
-python -m uvicorn app.main:app --reload --port 8001
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-API base sau khi backend chạy:
+Backend chạy tại: `http://localhost:8000`
+API base: `http://localhost:8000/api`
+Swagger docs: `http://localhost:8000/docs`
 
-```text
-http://localhost:8001/api
-```
-
-Chạy frontend:
+### Frontend
 
 ```bash
 cd frontend
 npm install
-set VITE_API_BASE_URL=http://localhost:8001/api&& npm run dev -- --host localhost --port 5173 --strictPort
+npm run dev
 ```
 
-Nếu dùng PowerShell:
+Frontend chạy tại: `http://localhost:5173`
 
-```powershell
-cd frontend
-$env:VITE_API_BASE_URL="http://localhost:8001/api"
-npm run dev -- --host localhost --port 5173 --strictPort
-```
+### Cấu hình API URL
 
-Lưu ý: frontend source hiện fallback về `http://localhost:8001/api`. Vẫn nên set `VITE_API_BASE_URL=http://localhost:8001/api` để tránh lệch cấu hình giữa local, preview và production.
-
-Có thể cấu hình cố định cho frontend bằng file `frontend/.env.local`:
+Tạo file `frontend/.env.local` để cố định API URL:
 
 ```env
-VITE_API_BASE_URL=http://localhost:8001/api
+VITE_API_BASE_URL=http://localhost:8000/api
 ```
 
-## Cấu hình môi trường
+> Nếu không có file `.env.local`, frontend tự động fallback về `http://localhost:8000/api`.
+
+## Cấu hình môi trường backend
 
 Tạo file `backend/.env`:
 
 ```env
+# Dùng một key
 GEMINI_API_KEY=your_gemini_api_key_here
-```
 
-Hoặc dùng nhiều key:
-
-```env
+# Hoặc nhiều key (round-robin tự động)
 GEMINI_API_KEYS=key1,key2,key3
-GEMINI_MODEL=gemini-3-flash-preview
+
+GEMINI_MODEL=gemini-2.5-flash
 FRONTEND_URL=http://localhost:5173
-CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000
 API_TITLE=AI Review Document API
 API_VERSION=1.0.0
 ```
 
-Backend hiện có CORS mặc định cho từng origin dev sau:
-
-```text
-http://localhost:5173
-http://localhost:5174
-http://localhost:5175
-http://localhost:5176
-http://127.0.0.1:5173
-http://127.0.0.1:5174
-http://127.0.0.1:5175
-http://127.0.0.1:5176
-http://localhost:3000
-http://127.0.0.1:3000
-```
+CORS mặc định cho phép: `localhost:5173`, `localhost:3000`, `127.0.0.1:5173`, `127.0.0.1:3000`.
 
 ## Các loại tài liệu hỗ trợ
 
-- `project-review`: Review tài liệu retrospective / tổng kết dự án
-- `bug-analysis`: Review tài liệu phân tích bug
-- `qa-review`: Review tài liệu QA
-- `explanation-review`: Review tài liệu giải thích
-
-## Phát hiện ngôn ngữ
-
-Hệ thống tự phát hiện ngôn ngữ tài liệu từ nội dung extract bằng cơ chế weighted scoring, thay vì chỉ đếm vài ký tự Nhật hay Việt.
-
-Các tín hiệu chính:
-
-- số lượng ký tự đặc trưng `vi/ja`
-- pattern từ khóa đặc trưng
-- tỷ lệ xuất hiện của từng ngôn ngữ trong toàn văn bản
-
-Nguyên tắc này giúp giảm false positive với tài liệu hỗn hợp, ví dụ:
-
-- tài liệu tiếng Việt có tên công ty hoặc thuật ngữ tiếng Nhật
-- tài liệu tiếng Nhật có lẫn cụm tiếng Việt trong phần ghi chú hoặc handover
-
-Logic hiện nằm ở:
-
-```text
-backend/app/services/pdf_parser.py
-```
+| document_type | Mô tả |
+|---|---|
+| `project-review` | Review retrospective / tổng kết dự án |
+| `bug-analysis` | Review phân tích bug |
+| `qa-review` | Review tài liệu QA |
+| `explanation-review` | Review tài liệu giải thích |
 
 ## Schema chấm điểm
 
 ### `project-review`
-
-- `review_tong_the` `/25`
-- `diem_tot` `/25`
-- `diem_xau` `/30`
-- `chinh_sach` `/20`
+- `review_tong_the` `/25` · `diem_tot` `/25` · `diem_xau` `/30` · `chinh_sach` `/20`
 
 ### `bug-analysis`
-
-- `kha_nang_tai_hien_bug` `/25`
-- `phan_tich_nguyen_nhan` `/25`
-- `danh_gia_anh_huong` `/25`
-- `giai_phap_phong_ngua` `/25`
+- `kha_nang_tai_hien_bug` `/25` · `phan_tich_nguyen_nhan` `/25` · `danh_gia_anh_huong` `/25` · `giai_phap_phong_ngua` `/25`
 
 ### `qa-review`
-
-- `do_ro_rang` `/25`
-- `do_bao_phu` `/25`
-- `kha_nang_truy_vet` `/25`
-- `tinh_thuc_thi` `/25`
+- `do_ro_rang` `/25` · `do_bao_phu` `/25` · `kha_nang_truy_vet` `/25` · `tinh_thuc_thi` `/25`
 
 ### `explanation-review`
+- `do_ro_rang_de_hieu` `/25` · `tinh_day_du_dung_trong_tam` `/25` · `tinh_chinh_xac` `/25` · `tinh_ung_dung` `/25`
 
-- `do_ro_rang_de_hieu` `/25`
-- `tinh_day_du_dung_trong_tam` `/25`
-- `tinh_chinh_xac` `/25`
-- `tinh_ung_dung` `/25`
+## Phát hiện ngôn ngữ
+
+Hệ thống tự phát hiện ngôn ngữ tài liệu (`vi`/`ja`) từ nội dung extract bằng weighted scoring kết hợp:
+- Số lượng ký tự đặc trưng từng ngôn ngữ
+- Pattern từ khóa đặc trưng
+- Tỷ lệ xuất hiện trong toàn văn bản
+
+Logic tại: `backend/app/services/pdf_parser.py`
 
 ## Rubric và prompt
 
-Rubric được quản lý theo:
+Rubric được quản lý theo `document_type + version`. Cấu trúc file seed:
 
 ```text
-document_type + version
+backend/app/rubrics/
+  project-review/v1/
+    vi.md         ← prompt tiếng Việt
+    ja.md         ← prompt tiếng Nhật
+    meta.json     ← criteria keys, max_scores, labels
+  active_versions.json
 ```
 
-Ví dụ:
+- `active_versions.json` chỉ dùng khi seed DB lần đầu.
+- Sau khi DB tồn tại, active version được quản lý trong bảng `rubric`.
+- Thay đổi prompt/criteria nên tạo version mới (`v2`, `v3`...) thay vì sửa trực tiếp.
+
+## Database
 
 ```text
-backend/app/rubrics/project-review/v1/
-  vi.md
-  ja.md
-  meta.json
+backend/data/review_system.db   ← SQLite runtime
 ```
 
-File seed active version:
+Các bảng chính:
 
-```text
-backend/app/rubrics/active_versions.json
-```
+| Bảng | Mô tả |
+|---|---|
+| `submission` | Metadata bài upload |
+| `submissioncontent` | Nội dung trích xuất + `content_hash` |
+| `rubric` | Version rubric, prompt `vi/ja`, trạng thái active |
+| `rubriccriterionrecord` | Tiêu chí và điểm tối đa |
+| `gradingrun` | Một lần chấm điểm |
+| `gradingcriteriaresult` | Điểm và góp ý theo tiêu chí |
+| `gradingslidereview` | Review từng slide/page |
 
-File này chỉ được dùng khi seed DB lần đầu. Sau khi `backend/data/review_system.db` đã tồn tại, active version runtime được lưu trong bảng `rubric`. Khi đổi active version từ giao diện, hệ thống cập nhật DB, không tự ghi ngược lại `active_versions.json`.
-
-Hiện tại toàn bộ hệ thống đang dùng `v1`. Với `project-review`, `v1` đã bao gồm yêu cầu trả về `slide_reviews`.
-
-Lưu ý vận hành:
-
-- Trong giai đoạn reset DB và làm lại dữ liệu, có thể giữ thay đổi hiện tại là `v1`.
-- Sau khi hệ thống đi vào sử dụng thật, nếu thay đổi tiêu chuẩn/prompt thì nên tạo version mới, ví dụ `v2`, thay vì sửa trực tiếp `v1`.
-
-## Database hiện tại
-
-Runtime data được lưu trong SQLite:
-
-```text
-backend/data/review_system.db
-```
-
-Các nhóm bảng chính:
-
-- `submission`: thông tin bài upload
-- `submissioncontent`: nội dung đã trích xuất và `content_hash`
-- `rubric`: version rubric, prompt `vi/ja`, trạng thái active
-- `rubriccriterionrecord`: danh sách tiêu chí và điểm tối đa
-- `gradingrun`: một lần chấm điểm
-- `gradingcriteriaresult`: điểm và góp ý theo từng tiêu chí
-- `gradingslidereview`: review từng slide/page
-
-`gradingrun` lưu thêm các trường kiểm soát tính đúng đắn:
-
-- `content_hash`
-- `rubric_version`
-- `gemini_model`
-- `prompt_hash`
-- `criteria_hash`
-- `grading_schema_version`
-
-Schema hiện tại:
-
-```text
-grading_schema_version = v1_slide_reviews
-```
-
-## Review theo từng slide/page
-
-Kết quả chấm hiện yêu cầu AI trả thêm:
-
-```json
-{
-  "slide_reviews": [
-    {
-      "slide_number": 1,
-      "status": "OK",
-      "title": {
-        "vi": "...",
-        "ja": "..."
-      },
-      "summary": {
-        "vi": "...",
-        "ja": "..."
-      },
-      "issues": {
-        "vi": [],
-        "ja": []
-      },
-      "suggestions": {
-        "vi": "...",
-        "ja": "..."
-      }
-    }
-  ]
-}
-```
-
-Quy tắc:
-
-- Mỗi slide/page phải có `OK` hoặc `NG`.
-- Nếu `NG`, bắt buộc có lý do và tư vấn sửa.
-- PPTX được extract theo marker `[Slide n]`.
-- PDF được extract theo marker `[Page n]`.
-- UI hiển thị khu vực `Review theo từng slide`, có filter `Tất cả / OK / NG` và nút `Xem chi tiết`.
+Schema version hiện tại: `grading_schema_version = v1_slide_reviews`
 
 ## Cơ chế cache và regrade
 
-Hệ thống chỉ dùng lại kết quả chấm cũ nếu tất cả thông tin sau khớp:
+Kết quả cũ chỉ được tái dùng khi **toàn bộ** grading signature khớp:
 
 ```text
-content_hash
-rubric_version
-gemini_model
-prompt_hash
-criteria_hash
-grading_schema_version
-slide_reviews tồn tại
+content_hash + rubric_version + gemini_model +
+prompt_hash + criteria_hash + grading_schema_version + slide_reviews is not None
 ```
 
-Nếu prompt hoặc criteria thay đổi, hoặc kết quả cũ chưa có `slide_reviews`, hệ thống sẽ không coi run cũ là hợp lệ và cần chấm lại.
+- In-memory cache có giới hạn tối đa **200 entries** (LRU eviction).
+- Cache chỉ ghi khi `use_cache=True`; `force=True` sẽ không ghi vào cache.
 
 Chấm lại một bài:
 
@@ -283,191 +153,115 @@ Chấm lại một bài:
 POST /api/grade/{project_id}?force=true&rubric_version=v1
 ```
 
-Ví dụ:
-
-```http
-POST /api/grade/P050?force=true&rubric_version=v1
-```
-
 ## Tính năng chính
 
-- Upload file `PDF`, `PPTX`
-- Tự phát hiện ngôn ngữ tài liệu `vi` hoặc `ja`
-- Chọn loại tài liệu trước khi upload
-- Chọn rubric version khi upload/chấm
-- Chấm từng bài hoặc chấm hàng loạt
-- Hiển thị tổng điểm, điểm theo tiêu chí và thanh điểm
-- Hiển thị góp ý theo tiêu chí với `Giải thích` và `Để tăng điểm`
-- Hiển thị review từng slide/page với trạng thái `OK/NG`
-- Có modal `Xem chi tiết` cho nội dung dài
-- Dashboard và danh sách bài chấm có phân trang
-- Quản lý rubric/version từ giao diện
-- Kích hoạt version đang áp dụng
-- Xuất Excel, gồm sheet `SlideReviews`
-- Xóa một bài, xóa nhiều bài, hoặc xóa theo lựa chọn
-- UI đa ngôn ngữ và chế độ sáng/tối
+- Upload `PDF`, `PPTX` — tự phát hiện ngôn ngữ `vi`/`ja`
+- Chọn loại tài liệu và rubric version khi upload/chấm
+- Chấm đơn hoặc chấm hàng loạt (background job)
+- Hiển thị tổng điểm, điểm tiêu chí, thanh điểm, góp ý chi tiết
+- Review từng slide/page với filter `OK / NG` và modal xem chi tiết
+- Dashboard + danh sách bài chấm với phân trang
+- Quản lý rubric/version từ giao diện, kích hoạt version active
+- Xuất Excel gồm 4 sheet: `Summary`, `CriteriaDetails`, `Feedback`, `SlideReviews`
+- Xóa đơn / xóa hàng loạt
+- UI đa ngôn ngữ `vi`/`ja` và chế độ sáng/tối
 
-## Luồng xử lý chính
+## Luồng xử lý
 
-1. Người dùng upload file từ frontend.
-2. Backend lưu file vào `backend/uploads/`.
-3. Backend trích xuất nội dung:
-   - PPTX: theo `[Slide n]`
-   - PDF: theo `[Page n]`
-4. Backend phát hiện ngôn ngữ tài liệu.
-5. Backend chọn rubric theo `document_type` và `rubric_version`.
-6. Backend tạo grading signature gồm `content_hash`, `prompt_hash`, `criteria_hash`, `grading_schema_version`.
-7. Gemini trả JSON kết quả.
-8. Backend normalize kết quả và lưu vào SQLite.
-9. Frontend hiển thị kết quả tổng quan, tiêu chí và từng slide/page.
+1. Upload file → backend lưu tại `backend/uploads/`
+2. Extract text (PPTX: `[Slide n]` / PDF: `[Page n]`)
+3. Phát hiện ngôn ngữ tài liệu
+4. Chọn rubric theo `document_type` + `rubric_version`
+5. Tạo grading signature
+6. Gọi Gemini API → nhận JSON kết quả
+7. Normalize + lưu vào SQLite
+8. Frontend hiển thị kết quả
 
-## API chính
+## API
 
 ### System
+- `GET /` · `GET /health` · `GET /docs`
 
-- `GET /`
-- `GET /health`
-- `GET /docs`
-
-### Upload và submissions
-
+### Upload & Submissions
 - `POST /api/upload`
-- `GET /api/submissions`
+- `GET /api/submissions` · `GET /api/submissions/{project_id}`
 - `GET /api/submissions/{project_id}/file`
 - `DELETE /api/submissions/{project_id}`
 - `POST /api/submissions/bulk-delete`
+- `GET /api/submissions/export.xlsx`
 
 ### Grading
-
 - `POST /api/grade/{project_id}`
 - `POST /api/grade-all`
 - `GET /api/grade-jobs/{job_id}`
 
 ### Rubrics
-
-- `GET /api/rubrics`
-- `GET /api/rubrics/{document_type}`
+- `GET /api/rubrics` · `GET /api/rubrics/{document_type}`
 - `GET /api/rubrics/{document_type}/{version}`
 - `PUT /api/rubrics/{document_type}/{version}`
 - `POST /api/rubrics/{document_type}/{version}/activate`
 
 ### Export
-
 - `GET /api/exports/submissions.xlsx`
 
-## Cấu trúc thư mục chính
+## Cấu trúc thư mục
 
 ```text
 backend/
   app/
-    main.py
-    models.py
-    database.py
-    rubric.py
-    storage.py
-    routers/
-    services/
-    rubrics/
-  data/
-    review_system.db
+    main.py · models.py · database.py · rubric.py · storage.py · config.py
+    routers/    ← grading, submissions, upload, rubrics, exports
+    services/   ← grading_engine, gemini_manager, grading_jobs, pdf_parser, excel_export
+    rubrics/    ← seed files theo document_type/version
+  data/review_system.db
   uploads/
-  tests/
   requirements.txt
 
 frontend/
   src/
-    api/
-    components/
-    constants/
-    hooks/
-    locales/
-    styles/
-    types/
-    App.tsx
-    config.ts
-    query.ts
+    api/        ← client.ts
+    components/ ← Dashboard, FileUpload, SubmissionsTable, ...
+    locales/    ← vi, ja
+    config.ts   ← API_BASE_URL
   package.json
 ```
 
-## Build và kiểm tra
-
-Backend tests:
+## Build & kiểm tra
 
 ```bash
-cd backend
-python -m unittest discover -s tests
+# Backend syntax check
+cd backend && python -m py_compile app/main.py
+
+# Frontend build
+cd frontend && npm run build
+
+# Frontend lint
+cd frontend && npm run lint
 ```
-
-Frontend build:
-
-```bash
-cd frontend
-npm run build
-```
-
-Frontend lint:
-
-```bash
-cd frontend
-npm run lint
-```
-
-Các lệnh trên là lệnh kiểm tra thủ công. Kết quả có thể thay đổi theo trạng thái code, dependency và cấu hình môi trường tại thời điểm chạy.
 
 ## Reset database
 
-Nếu muốn áp dụng toàn bộ schema mới như dữ liệu sạch:
+1. Dừng backend
+2. Xóa `backend/data/review_system.db`
+3. Khởi động lại backend → DB tự tạo và seed rubric từ `backend/app/rubrics/`
 
-1. Dừng backend.
-2. Xóa file:
-
-```text
-backend/data/review_system.db
-```
-
-3. Khởi động lại backend.
-4. Backend sẽ tạo bảng mới và seed rubric từ `backend/app/rubrics/`.
-
-Lưu ý:
-
-- Thao tác này xóa toàn bộ submission và kết quả chấm cũ trong DB.
-- File đã upload trong `backend/uploads/` không tự bị xóa khi xóa DB.
-- Nếu chỉ sửa file rubric sau khi DB đã tồn tại, DB không tự cập nhật theo file. Khi đó cần chỉnh từ màn hình `Quản lý tiêu chuẩn đánh giá`, gọi API lưu rubric, hoặc reset DB để seed lại từ file.
+> File upload tại `backend/uploads/` **không** tự bị xóa khi reset DB.
 
 ## Lưu ý vận hành
 
-- Nếu frontend báo `Failed to fetch`, kiểm tra:
-  - Backend có chạy không.
-  - `VITE_API_BASE_URL` có trỏ đúng API không.
-  - Origin frontend có nằm trong CORS allowed origins không.
-- Khi đổi prompt hoặc criteria, kết quả cũ cần được chấm lại.
-- Batch grading là background job in-memory; nếu restart backend giữa chừng, job đang chạy sẽ mất.
-- Các log runtime ở root như `backend-8001.*.log`, `frontend-5173.*.log` chỉ phục vụ local dev.
+- **`Failed to fetch`**: kiểm tra backend đang chạy, `VITE_API_BASE_URL` đúng port, CORS origin hợp lệ.
+- Đổi prompt/criteria → kết quả cũ cần chấm lại (grading signature thay đổi).
+- Batch grading là background job in-memory → mất trạng thái nếu restart backend.
+- Gemini multi-key: lỗi rate-limit tự chuyển sang key tiếp theo, lỗi auth vĩnh viễn disable key đó.
 
 ## Dependency chính
 
 ### Backend
-
-- `fastapi`
-- `uvicorn`
-- `sqlmodel`
-- `google-genai`
-- `pdfplumber`
-- `PyPDF2`
-- `python-pptx`
-- `python-dotenv`
-- `python-multipart`
+`fastapi` · `uvicorn` · `sqlmodel` · `google-genai` · `pdfplumber` · `PyPDF2` · `python-pptx` · `python-dotenv` · `python-multipart` · `openpyxl`
 
 ### Frontend
+`react` · `react-dom` · `@tanstack/react-query` · `lucide-react` · `vite` · `typescript`
 
-- `react`
-- `react-dom`
-- `@tanstack/react-query`
-- `lucide-react`
-- `vite`
-- `typescript`
+---
 
-## Tài liệu liên quan
-
-- [DEPLOYMENT.md](DEPLOYMENT.md)
-- [REQUIREMENTS.md](REQUIREMENTS.md)
+[REQUIREMENTS.md](REQUIREMENTS.md) · [DEPLOYMENT.md](DEPLOYMENT.md)

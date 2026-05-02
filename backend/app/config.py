@@ -11,7 +11,6 @@ class Settings:
         self.base_dir = Path(__file__).resolve().parent.parent
         self.data_dir = self.base_dir / "data"
         self.uploads_dir = self.base_dir / "uploads"
-        self.submissions_file = self.data_dir / "submissions.json"
 
         self.data_dir.mkdir(exist_ok=True)
         self.uploads_dir.mkdir(exist_ok=True)
@@ -34,13 +33,7 @@ class Settings:
     def _build_allowed_origins(self) -> List[str]:
         default_origins = [
             "http://localhost:5173",
-            "http://localhost:5174",
-            "http://localhost:5175",
-            "http://localhost:5176",
             "http://127.0.0.1:5173",
-            "http://127.0.0.1:5174",
-            "http://127.0.0.1:5175",
-            "http://127.0.0.1:5176",
             "http://localhost:3000",
             "http://127.0.0.1:3000",
         ]
@@ -74,4 +67,4 @@ settings = Settings()
 BASE_DIR = settings.base_dir
 DATA_DIR = settings.data_dir
 UPLOADS_DIR = settings.uploads_dir
-SUBMISSIONS_FILE = settings.submissions_file
+SUBMISSIONS_FILE = DATA_DIR / "submissions.json"

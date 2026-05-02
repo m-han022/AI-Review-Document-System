@@ -12,12 +12,10 @@ interface ScoreGaugeChartProps {
 }
 
 const SCORE_COLORS = {
-  success: "#2563eb",
-  warning: "#f59e0b",
-  danger: "#ef4444",
-  track: "#e5edf8",
-  text: "#0f172a",
-  muted: "#64748b",
+  success: "var(--ds-chart-gauge-primary)",
+  warning: "var(--ds-chart-gauge-warning)",
+  danger: "var(--ds-chart-gauge-danger)",
+  track: "var(--ds-chart-gauge-track)",
 };
 
 function getScoreTone(score: number) {

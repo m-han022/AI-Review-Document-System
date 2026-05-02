@@ -1,0 +1,26 @@
+<svg width="640" height="640" viewBox="0 0 640 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<linearGradient id="g" x1="160" y1="80" x2="470" y2="550"><stop stop-color="#EAF1FF"/><stop offset=".5" stop-color="#A9B8FF"/><stop offset="1" stop-color="#6C63FF"/></linearGradient>
+<linearGradient id="screen" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07143A"/><stop offset="1" stop-color="#17215C"/></linearGradient>
+<filter id="s"><feDropShadow dx="0" dy="24" stdDeviation="28" flood-color="#6C63FF" flood-opacity=".25"/></filter>
+</defs>
+<rect width="640" height="640" rx="40" fill="#F4F6FF"/>
+<ellipse cx="320" cy="500" rx="170" ry="35" fill="#C7D2FE" opacity=".35"/>
+<g filter="url(#s)">
+<circle cx="320" cy="260" r="115" fill="url(#g)"/>
+<rect x="220" y="210" width="200" height="105" rx="48" fill="url(#screen)"/>
+<circle cx="278" cy="262" r="12" fill="#67E8F9"/><circle cx="362" cy="262" r="12" fill="#67E8F9"/>
+<path d="M286 295C308 312 334 312 356 295" stroke="#67E8F9" stroke-width="8" stroke-linecap="round"/>
+<rect x="240" y="368" width="160" height="120" rx="55" fill="white"/>
+<circle cx="320" cy="430" r="17" fill="#A5B4FC"/>
+<path d="M214 388C165 380 140 330 160 292" stroke="#B7C3FF" stroke-width="28" stroke-linecap="round"/>
+<path d="M426 388C475 380 500 330 480 292" stroke="#B7C3FF" stroke-width="28" stroke-linecap="round"/>
+<circle cx="152" cy="284" r="24" fill="white"/><circle cx="488" cy="284" r="24" fill="white"/>
+</g>
+<g opacity=".7">
+<rect x="438" y="120" width="82" height="64" rx="18" fill="white"/>
+<path d="M458 165V145M480 165V132M502 165V154" stroke="#6C63FF" stroke-width="8" stroke-linecap="round"/>
+<rect x="455" y="390" width="90" height="58" rx="16" fill="white"/>
+<path d="M475 420H525M475 402H510" stroke="#8DA2FF" stroke-width="7" stroke-linecap="round"/>
+</g>
+</svg>

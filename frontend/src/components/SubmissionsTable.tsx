@@ -20,13 +20,15 @@ interface SubmissionsTableProps {
   submissions: Submission[];
   activeProjectId?: string | null;
   onSelectProject?: (projectId: string) => void;
-  variant?: "full" | "dashboard";
+  variant?: "full" | "dashboard" | "reference";
+  selectionSummary?: string;
 }
 
 type DeleteMode = "single" | "selected";
 const PAGE_SIZE = {
   dashboard: 5,
   full: 10,
+  reference: 20,
 } as const;
 
 interface PendingDelete {
@@ -41,6 +43,7 @@ export default function SubmissionsTable({
   activeProjectId: controlledActiveProjectId,
   onSelectProject,
   variant = "full",
+  selectionSummary,
 }: SubmissionsTableProps) {
   const [gradingId, setGradingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -58,6 +61,7 @@ export default function SubmissionsTable({
 
   const activeProjectId = controlledActiveProjectId ?? internalActiveProjectId;
   const isDashboardVariant = variant === "dashboard";
+  const isReferenceVariant = variant === "reference";
 
   useEffect(() => {
     if (!submissions.length) {
@@ -306,8 +310,12 @@ export default function SubmissionsTable({
   return (
     <>
       <div className="review-workspace">
-        <div className={isDashboardVariant ? "dashboard-table-layout" : ""}>
-          <SectionBlock className={`review-table-shell ${isDashboardVariant ? "review-table-shell--dashboard" : ""}`.trim()}>
+        <div className={isDashboardVariant ? "dashboard-table-layout" : isReferenceVariant ? "review-reference-table-layout" : ""}>
+          <SectionBlock
+            className={`review-table-shell ${
+              isDashboardVariant ? "review-table-shell--dashboard" : isReferenceVariant ? "review-table-shell--reference" : ""
+            }`.trim()}
+          >
             <SectionBlock.Body>
               {!isDashboardVariant && (
                 <TableToolbar
@@ -323,15 +331,22 @@ export default function SubmissionsTable({
                   onDocumentTypeFilterChange={setDocumentTypeFilter}
                   onStatusFilterChange={setStatusFilter}
                   onLanguageFilterChange={setLanguageFilter}
+                  variant={isReferenceVariant ? "reference" : "full"}
+                  selectionSummary={selectionSummary}
                 />
               )}
 
               <div className="review-table-wrap">
-                <table className={`review-table ${isDashboardVariant ? "review-table--dashboard" : ""}`.trim()}>
+                <table
+                  className={`review-table ${
+                    isDashboardVariant ? "review-table--dashboard" : isReferenceVariant ? "review-table--reference" : ""
+                  }`.trim()}
+                >
                   <TableHeader
                     showCheckbox={!isDashboardVariant}
                     allSelected={allSelected}
                     onToggleSelectAll={toggleSelectAll}
+                    variant={isReferenceVariant ? "reference" : isDashboardVariant ? "dashboard" : "full"}
                   />
                   <tbody>
                     {pagedSubmissions.map((submission) => (
@@ -342,6 +357,7 @@ export default function SubmissionsTable({
                         isSelected={selectedIds.has(submission.project_id)}
                         showCheckbox={!isDashboardVariant}
                         isDashboardVariant={isDashboardVariant}
+                        isReferenceVariant={isReferenceVariant}
                         gradingId={gradingId}
                         deletingId={deletingId}
                         isActionPending={isActionPending}
@@ -369,6 +385,7 @@ export default function SubmissionsTable({
             pageLabel={t("submissions.pageStatus")}
             onPrevious={() => setCurrentPage((page) => Math.max(1, page - 1))}
             onNext={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+            variant={isReferenceVariant ? "reference" : "default"}
           />
         </div>
       </div>

@@ -1,0 +1,16 @@
+<svg width="320" height="320" viewBox="0 0 320 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<linearGradient id="g" x1="65" y1="40" x2="260" y2="270"><stop stop-color="#38BDF8"/><stop offset=".48" stop-color="#5B6CFF"/><stop offset="1" stop-color="#8B5CF6"/></linearGradient>
+<filter id="s"><feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#5B6CFF" flood-opacity=".36"/></filter>
+</defs>
+<rect width="320" height="320" rx="36" fill="none"/>
+<ellipse cx="160" cy="250" rx="92" ry="18" fill="#A5B4FC" opacity=".32"/>
+<g filter="url(#s)">
+<rect x="88" y="84" width="144" height="144" rx="28" fill="url(#g)"/><path d="M88 112L160 68L232 112" fill="#93C5FD" opacity=".38"/>
+
+
+
+
+<text x="160" y="178" text-anchor="middle" font-size="58" font-weight="800" font-family="Arial, sans-serif" fill="white">AI</text>
+</g>
+</svg>

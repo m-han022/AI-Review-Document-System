@@ -1,5 +1,6 @@
 import hashlib
 import json
+from collections import OrderedDict
 from typing import Any
 
 from google.genai import types
@@ -8,11 +9,47 @@ from app.config import settings
 from app.rubric import get_active_rubric_version, get_rubric, get_rubric_criteria_config
 from app.services.gemini_manager import get_gemini_client
 
-# In-memory cache for grading results: {hash: {score, feedback, timestamp}}
-_grading_cache: dict[str, dict[str, Any]] = {}
+_GRADING_CACHE_MAX_SIZE = 200
+
+
+class _BoundedCache:
+    """[FIX PERF-02] LRU cache with a hard size cap to prevent unbounded memory growth."""
+
+    def __init__(self, maxsize: int = _GRADING_CACHE_MAX_SIZE) -> None:
+        self._maxsize = maxsize
+        self._data: OrderedDict[str, dict[str, Any]] = OrderedDict()
+
+    def __contains__(self, key: str) -> bool:
+        return key in self._data
+
+    def __getitem__(self, key: str) -> dict[str, Any]:
+        self._data.move_to_end(key)
+        return self._data[key]
+
+    def __setitem__(self, key: str, value: dict[str, Any]) -> None:
+        if key in self._data:
+            self._data.move_to_end(key)
+        self._data[key] = value
+        while len(self._data) > self._maxsize:
+            self._data.popitem(last=False)  # evict least recently used
+
+    def clear(self) -> None:
+        self._data.clear()
+
+
+_grading_cache: _BoundedCache = _BoundedCache()
 GRADING_SCHEMA_VERSION = "v1_slide_reviews"
 
-# Standard document types configuration
+BILINGUAL_SCHEMA = (
+    "\n\nReturn JSON: {score:int, criteria_scores:{key:number}, "
+    "criteria_suggestions:{vi:{key:str},ja:{key:str}}, "
+    "draft_feedback:{vi:str,ja:str}, "
+    "slide_reviews:[{slide_number:int,status:'OK'|'NG',"
+    "title:{vi:str,ja:str},summary:{vi:str,ja:str},"
+    "issues:{vi:[str],ja:[str]},suggestions:{vi:str,ja:str}}]}. "
+    "All text fields MUST have both vi and ja. NG slides MUST have issues and suggestions."
+)
+
 DOCUMENT_CONFIGS = {
     "project-review": {
         "keys": ["review_tong_the", "diem_tot", "diem_xau", "chinh_sach"],
@@ -114,12 +151,9 @@ def _build_cache_key(signature: dict[str, str]) -> str:
 
 
 def _get_criteria_config(document_type: str | None, rubric_version: str | None = None) -> tuple[list[str], dict[str, float]]:
-    # 1. Try to get from dynamic rubric metadata first
     metadata_config = get_rubric_criteria_config(document_type=document_type, version=rubric_version)
     if metadata_config is not None:
         return metadata_config
-        
-    # 2. Fallback to hardcoded configs
     config = DOCUMENT_CONFIGS.get(document_type, DOCUMENT_CONFIGS["default"])
     return config["keys"], config["max_scores"]
 
@@ -266,46 +300,13 @@ def grade_submission(
         return _grading_cache[cache_key]
 
     rubric = get_rubric(document_type=document_type, version=signature["rubric_version"])
-    
-    # Updated instruction for bilingual output
-    bilingual_instruction = (
-        "\n\nIMPORTANT: You MUST provide the evaluation results in BOTH Vietnamese and Japanese. "
-        "The 'criteria_suggestions' and 'draft_feedback' fields must be objects with 'vi' and 'ja' keys. "
-        "You MUST also review every slide/page and return 'slide_reviews' as an array. "
-        "Each slide review must include slide_number, status ('OK' or 'NG'), title, summary, issues, and suggestions. "
-        "If a slide/page is NG, issues and suggestions are mandatory. "
-        "Structure: "
-        "{"
-        "  'score': number, "
-        "  'criteria_scores': { 'key': number, ... }, "
-        "  'criteria_suggestions': { "
-        "    'vi': { 'key': 'suggestion in Vietnamese', ... }, "
-        "    'ja': { 'key': 'suggestion in Japanese', ... } "
-        "  }, "
-        "  'draft_feedback': { "
-        "    'vi': 'summary feedback in Vietnamese', "
-        "    'ja': 'summary feedback in Japanese' "
-        "  }, "
-        "  'slide_reviews': [ "
-        "    { "
-        "      'slide_number': number, "
-        "      'status': 'OK' | 'NG', "
-        "      'title': { 'vi': string, 'ja': string }, "
-        "      'summary': { 'vi': string, 'ja': string }, "
-        "      'issues': { 'vi': [string], 'ja': [string] }, "
-        "      'suggestions': { 'vi': string, 'ja': string } "
-        "    } "
-        "  ] "
-        "}"
-    )
-    
     prompt_prefix = PROMPT_PREFIXES.get(language, PROMPT_PREFIXES["ja"])
     required_keys, max_scores = _get_criteria_config(document_type, signature["rubric_version"])
 
     client = get_gemini_client()
     response = client.generate_content(
         model=settings.gemini_model,
-        contents=f"{prompt_prefix}\n\n{text}{bilingual_instruction}",
+        contents=f"{prompt_prefix}\n\n{text}{BILINGUAL_SCHEMA}",
         config=types.GenerateContentConfig(
             system_instruction=rubric,
             response_mime_type="application/json",
@@ -313,7 +314,15 @@ def grade_submission(
         ),
     )
 
-    result = json.loads(response.text)
+    # [FIX SECURITY-01] Guard against empty/null response before JSON parsing
+    if not response.text:
+        raise RuntimeError(
+            "Gemini returned an empty response. The content may have been filtered or blocked."
+        )
+    try:
+        result = json.loads(response.text)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("Gemini returned an invalid JSON response. Please retry.") from exc
 
     score = int(result.get("score", 0))
     score = max(0, min(100, score))
@@ -325,16 +334,12 @@ def grade_submission(
         max_scores=max_scores,
     )
 
-    # Extract bilingual suggestions and feedback
     criteria_suggestions = result.get("criteria_suggestions", {})
     draft_feedback = result.get("draft_feedback", {})
     slide_reviews = _normalize_slide_reviews(result.get("slide_reviews"), language)
 
-    # Robust handling: if it's not already bilingual, wrap the single language result
     if isinstance(draft_feedback, str):
         draft_feedback = {language: draft_feedback}
-    
-    # Ensure both keys exist at least as empty
     if not isinstance(draft_feedback, dict):
         draft_feedback = {"vi": "", "ja": ""}
     else:
@@ -344,7 +349,6 @@ def grade_submission(
     if not isinstance(criteria_suggestions, dict):
         criteria_suggestions = {"vi": {}, "ja": {}}
     elif "vi" not in criteria_suggestions and "ja" not in criteria_suggestions:
-        # It's probably the old format { "key": "suggestion" }
         criteria_suggestions = {language: criteria_suggestions}
         criteria_suggestions.setdefault("vi" if language == "ja" else "ja", {})
 
@@ -362,12 +366,13 @@ def grade_submission(
         "slide_reviews": slide_reviews,
     }
 
-    if use_cache or refresh_cache:
+    # [FIX BUG-04] Only write to cache when use_cache=True.
+    # refresh_cache=True means "force re-grade", not "cache the result for future use_cache=False calls".
+    if use_cache:
         _grading_cache[cache_key] = result_data
 
     return result_data
 
 
-def clear_grading_cache():
-    global _grading_cache
-    _grading_cache = {}
+def clear_grading_cache() -> None:
+    _grading_cache.clear()

@@ -4,6 +4,7 @@ import {
   Bell,
   BookOpen,
   Bug,
+  CalendarDays,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -15,6 +16,7 @@ import {
   Eye,
   FileText,
   Folder,
+  Globe2,
   HelpCircle,
   History,
   Home,
@@ -48,6 +50,7 @@ const icons = {
   bell: Bell,
   bookOpen: BookOpen,
   bug: Bug,
+  calendar: CalendarDays,
   chevronDown: ChevronDown,
   chevronLeft: ChevronLeft,
   chevronRight: ChevronRight,
@@ -56,6 +59,7 @@ const icons = {
   eye: Eye,
   fileReview: FileText,
   folder: Folder,
+  globe: Globe2,
   help: HelpCircle,
   history: History,
   home: Home,
@@ -133,6 +137,10 @@ export function BugIcon(props: NamedIconProps) {
   return <Icon name="bug" {...props} />;
 }
 
+export function CalendarIcon(props: NamedIconProps) {
+  return <Icon name="calendar" {...props} />;
+}
+
 export function ChevronDownIcon(props: NamedIconProps) {
   return <Icon name="chevronDown" {...props} />;
 }
@@ -163,6 +171,10 @@ export function FileReviewIcon(props: NamedIconProps) {
 
 export function FolderIcon(props: NamedIconProps) {
   return <Icon name="folder" {...props} />;
+}
+
+export function GlobeIcon(props: NamedIconProps) {
+  return <Icon name="globe" {...props} />;
 }
 
 export function HelpIcon(props: NamedIconProps) {

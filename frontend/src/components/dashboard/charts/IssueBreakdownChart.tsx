@@ -11,7 +11,14 @@ interface IssueBreakdownChartProps {
   totalLabel: string;
 }
 
-const ISSUE_COLORS = ["#ea4e57", "#f29d38", "#f3be4b", "#4b8ef7", "#9aadc4", "#c7d1dc"];
+const ISSUE_COLORS = [
+  "var(--ds-chart-issue-1)",
+  "var(--ds-chart-issue-2)",
+  "var(--ds-chart-issue-3)",
+  "var(--ds-chart-issue-4)",
+  "var(--ds-chart-issue-5)",
+  "var(--ds-chart-issue-6)",
+];
 
 export default function IssueBreakdownChart({ data, totalLabel }: IssueBreakdownChartProps) {
   const total = data.reduce((sum, item) => sum + item.count, 0);
