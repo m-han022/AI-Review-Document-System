@@ -4,7 +4,16 @@ import statusCardImage from "../../assets/dashboard-reference/cropped/status-car
 import { useTranslation } from "../LanguageSelector";
 import { SparkIcon } from "../ui/Icon";
 
-export type WorkspaceView = "dashboard" | "upload" | "reviews" | "rubrics" | "detail" | "settings";
+export type WorkspaceView =
+  | "dashboard"
+  | "upload"
+  | "reviews"
+  | "report"
+  | "rubrics"
+  | "workflow"
+  | "export"
+  | "detail"
+  | "settings";
 
 interface SidebarProps {
   activeView: WorkspaceView;
@@ -46,10 +55,10 @@ export default function Sidebar({ activeView, onChangeView }: SidebarProps) {
     { key: "navDashboard", view: "dashboard", iconSrc: aiReviewAssets.sidebarIcons.dashboard },
     { key: "navUpload", view: "upload", iconSrc: aiReviewAssets.sidebarIcons.document },
     { key: "navAllReviews", view: "reviews", iconSrc: aiReviewAssets.sidebarIcons.reviewHistory },
-    { key: "navReport", view: "reviews", iconSrc: aiReviewAssets.sidebarIcons.qualityReport },
+    { key: "navReport", view: "report", iconSrc: aiReviewAssets.sidebarIcons.qualityReport },
     { key: "navRubrics", view: "rubrics", iconSrc: aiReviewAssets.sidebarIcons.compare },
-    { key: "navWorkflow", view: "settings", iconSrc: aiReviewAssets.sidebarIcons.workflow },
-    { key: "navExport", view: "settings", iconSrc: aiReviewAssets.sidebarIcons.export },
+    { key: "navWorkflow", view: "workflow", iconSrc: aiReviewAssets.sidebarIcons.workflow },
+    { key: "navExport", view: "export", iconSrc: aiReviewAssets.sidebarIcons.export },
     { key: "navSettings", view: "settings", iconSrc: aiReviewAssets.sidebarIcons.settings },
   ];
 

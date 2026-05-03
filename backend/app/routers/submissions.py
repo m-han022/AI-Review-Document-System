@@ -5,30 +5,39 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 from app.config import UPLOADS_DIR
-from app.models import SubmissionListResponse, SubmissionOut
+from app.models import CompareRunOut, DocumentOut, DocumentVersionOut, GradingRunDetailOut, GradingRunHistoryOut, SubmissionListResponse, SubmissionOut
 from app.services.excel_export import build_submissions_excel
 from app.storage import store
 
 router = APIRouter()
 
 
-@router.get("/submissions", response_model=SubmissionListResponse)
+def _submission_out(sub) -> SubmissionOut:
+    return SubmissionOut(
+        project_id=sub.project_id,
+        project_name=sub.project_name,
+        filename=sub.filename,
+        document_type=sub.document_type,
+        uploaded_at=sub.uploaded_at,
+        language="vi" if sub.language == "vi" else "ja",
+        status=sub.status,
+        latest_document_version_id=sub.latest_document_version_id,
+        latest_document_version=sub.latest_document_version,
+        latest_document_id=sub.latest_document_id,
+        latest_document_name=sub.latest_document_name,
+        latest_score=sub.latest_run.score if sub.latest_run else None,
+        latest_prompt_level=sub.latest_run.prompt_level if sub.latest_run else None,
+        latest_graded_at=sub.latest_run.graded_at if sub.latest_run else None,
+        latest_run=sub.latest_run,
+        run_history=sub.run_history or [],
+    )
+
+
+@router.get("/submissions", response_model=SubmissionListResponse, tags=["Submissions"])
+@router.get("/projects", response_model=SubmissionListResponse, tags=["Projects"])
 async def list_projects(limit: int = 100, offset: int = 0):
     paged_subs, total, ungraded = store.list(limit=limit, offset=offset)
-    
-    submissions_out = [
-        SubmissionOut(
-            project_id=sub.project_id,
-            project_name=sub.project_name,
-            filename=sub.filename,
-            document_type=sub.document_type,
-            uploaded_at=sub.uploaded_at,
-            language=sub.language,
-            status=sub.status,
-            latest_run=sub.latest_run,
-        )
-        for sub in paged_subs
-    ]
+    submissions_out = [_submission_out(sub) for sub in paged_subs]
 
     return SubmissionListResponse(
         submissions=submissions_out,
@@ -37,22 +46,79 @@ async def list_projects(limit: int = 100, offset: int = 0):
     )
 
 
-@router.get("/submissions/{project_id}", response_model=SubmissionOut)
+@router.get("/submissions/{project_id}", response_model=SubmissionOut, tags=["Submissions"])
+@router.get("/projects/{project_id}", response_model=SubmissionOut, tags=["Projects"])
 async def get_submission(project_id: str):
     submission = store.get(project_id)
     if not submission:
         raise HTTPException(status_code=404, detail=f"Project {project_id} not found")
 
-    return SubmissionOut(
-        project_id=submission.project_id,
-        project_name=submission.project_name,
-        filename=submission.filename,
-        document_type=submission.document_type,
-        uploaded_at=submission.uploaded_at,
-        language=submission.language,
-        status=submission.status,
-        latest_run=submission.latest_run,
-        run_history=submission.run_history or [],
+    return _submission_out(submission)
+
+
+@router.get("/submissions/{project_id}/documents", response_model=list[DocumentOut], tags=["Submissions"])
+@router.get("/projects/{project_id}/documents", response_model=list[DocumentOut], tags=["Projects"])
+async def list_submission_documents(project_id: str):
+    documents = store.list_documents(project_id)
+    if not documents and not store.get(project_id):
+        raise HTTPException(status_code=404, detail=f"Project {project_id} not found")
+    return documents
+
+
+@router.get("/submissions/{project_id}/versions", response_model=list[DocumentVersionOut], tags=["Submissions"])
+@router.get("/projects/{project_id}/versions", response_model=list[DocumentVersionOut], tags=["Projects"])
+async def list_submission_versions(project_id: str):
+    versions = store.list_document_versions(project_id)
+    if not versions and not store.get(project_id):
+        raise HTTPException(status_code=404, detail=f"Project {project_id} not found")
+    return versions
+
+
+@router.get("/submissions/{project_id}/grading-runs", response_model=list[GradingRunHistoryOut], tags=["Submissions"])
+@router.get("/projects/{project_id}/grading-runs", response_model=list[GradingRunHistoryOut], tags=["Projects"])
+async def list_submission_grading_runs(project_id: str):
+    runs = store.list_grading_runs(project_id)
+    if not runs and not store.get(project_id):
+        raise HTTPException(status_code=404, detail=f"Project {project_id} not found")
+    return runs
+
+
+@router.get("/grading-runs/{grading_run_id}", response_model=GradingRunDetailOut)
+async def get_grading_run_detail(grading_run_id: int):
+    detail = store.get_grading_run_detail(grading_run_id)
+    if not detail:
+        raise HTTPException(status_code=404, detail=f"Grading run {grading_run_id} not found")
+    return detail
+
+
+@router.get("/submissions/{project_id}/compare", response_model=CompareRunOut)
+async def compare_grading_runs(project_id: str, run_a: int, run_b: int):
+    detail_a = store.get_grading_run_detail(run_a)
+    detail_b = store.get_grading_run_detail(run_b)
+    if not detail_a or not detail_b:
+        raise HTTPException(status_code=404, detail="One or both grading runs were not found")
+    if detail_a.submission.project_id != project_id or detail_b.submission.project_id != project_id:
+        raise HTTPException(status_code=400, detail="Both grading runs must belong to the requested project")
+
+    score_a = detail_a.grading_run.total_score if detail_a.grading_run.total_score is not None else detail_a.grading_run.score
+    score_b = detail_b.grading_run.total_score if detail_b.grading_run.total_score is not None else detail_b.grading_run.score
+    criteria_a = {item.key: item.score for item in detail_a.criteria_results}
+    criteria_b = {item.key: item.score for item in detail_b.criteria_results}
+    criteria_delta = {
+        key: round(criteria_b.get(key, 0) - criteria_a.get(key, 0), 1)
+        for key in sorted(set(criteria_a) | set(criteria_b))
+    }
+    ok_a = sum(1 for item in detail_a.slide_reviews if item.status == "OK")
+    ok_b = sum(1 for item in detail_b.slide_reviews if item.status == "OK")
+    ng_a = sum(1 for item in detail_a.slide_reviews if item.status == "NG")
+    ng_b = sum(1 for item in detail_b.slide_reviews if item.status == "NG")
+    return CompareRunOut(
+        run_a=detail_a.grading_run,
+        run_b=detail_b.grading_run,
+        score_delta=(score_b - score_a) if score_a is not None and score_b is not None else None,
+        criteria_delta=criteria_delta,
+        ok_slide_delta=ok_b - ok_a,
+        ng_slide_delta=ng_b - ng_a,
     )
 
 
@@ -60,14 +126,14 @@ class DeleteProjectsRequest(BaseModel):
     project_ids: list[str]
 
 
-def _resolve_submission_file(filename: str) -> Path:
+def _resolve_submission_file(filename: str, file_path: str | None = None) -> Path:
     uploads_root = UPLOADS_DIR.resolve()
-    file_path = (uploads_root / Path(filename).name).resolve()
+    file_path_obj = Path(file_path).resolve() if file_path else (uploads_root / Path(filename).name).resolve()
     try:
-        file_path.relative_to(uploads_root)
+        file_path_obj.relative_to(uploads_root)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="Invalid file path") from exc
-    return file_path
+    return file_path_obj
 
 
 def _media_type_for_file(filename: str) -> str:
@@ -85,7 +151,7 @@ async def get_submission_file(project_id: str, disposition: str = "inline"):
     if not submission:
         raise HTTPException(status_code=404, detail=f"Project {project_id} not found")
 
-    file_path = _resolve_submission_file(submission.filename)
+    file_path = _resolve_submission_file(submission.filename, submission.file_path)
     if not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=404, detail=f"File for project {project_id} not found")
 
@@ -135,3 +201,21 @@ async def bulk_delete_projects(request: DeleteProjectsRequest):
         "deleted": deleted,
         "failed": failed,
     }
+
+# New Hierarchical API Aliases (supporting Project -> Document -> Version flow)
+
+@router.get("/projects/{project_id}/documents-summary", response_model=list[dict], tags=["Projects"])
+async def list_project_documents_summary(project_id: str):
+    """Returns summary of documents for the new hierarchical UI."""
+    return store.list_documents_summary(project_id)
+
+@router.get("/documents/{document_id}/versions", response_model=list[dict], tags=["Projects"])
+async def list_document_versions_hierarchical(document_id: int):
+    """Returns list of versions for a document."""
+    return store.list_versions_by_document(document_id)
+
+@router.get("/versions/{document_version_id}/gradings", response_model=list[dict], tags=["Projects"])
+async def list_version_gradings_hierarchical(document_version_id: int):
+    """Returns list of grading runs for a version."""
+    return store.list_gradings_by_version(document_version_id)
+

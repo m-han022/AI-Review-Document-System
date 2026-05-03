@@ -1,663 +1,273 @@
-import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
-import slideWatermarkImage from "../../assets/dashboard-reference/cropped/slide-watermark-v3.png";
-import { DOCUMENT_TYPE_OPTIONS, getDocumentTypeKey } from "../../constants/documentTypes";
-import type { CriteriaResult, LanguageCode, Submission } from "../../types";
+import { useMemo } from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  LabelList,
+  ResponsiveContainer,
+  Tooltip as RechartsTooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+
+import type { LanguageCode, Project } from "../../types";
 import { useTranslation } from "../LanguageSelector";
 import { formatUploadedAt } from "../submissions/utils";
-import { FileReviewIcon, ShieldCheckIcon, SparkIcon, TargetIcon } from "../ui/Icon";
+import {
+  FileReviewIcon,
+  ShieldCheckIcon,
+  TargetIcon,
+} from "../ui/Icon";
 import { PageHeader } from "../ui/PageHeader";
+import { EmptyState, StatusBadge } from "../ui/States";
 
 interface DashboardOverviewProps {
-  submissions: Submission[];
+  projects: Project[];
+  onSelectProject?: (projectId: string) => void;
+  onOpenReviews?: () => void;
+  onOpenExport?: () => void;
 }
 
-interface SummaryCardItem {
-  id: string;
-  title: string;
-  averageScore: number;
-  totalCount: number;
-  highScoreCount: number;
-  lowScoreCount: number;
-  iconIndex: number;
-}
+type ScoreStatus = "NO DATA" | "GOOD" | "WARNING" | "CRITICAL";
 
-interface ReferenceItem {
-  id: string;
-  filename: string;
-  score: number;
-  okCount: number;
-  ngCount: number;
-  documentType: string;
-}
-
-interface PositiveItem {
-  id: string;
-  filename: string;
-  documentType: string;
-  language: LanguageCode;
-  text: string;
-  score: number;
-  criterionLabel?: string;
-}
-
-interface WeakCriterionItem {
-  key: string;
-  label: string;
-  average: number;
-  ratio: number;
-  sampleCount: number;
-  percent: number;
-}
-
-interface RecentHistoryItem {
-  id: string;
-  filename: string;
-  type: string;
-  reviewedAt: string;
-  score: number;
-  status: string;
-  statusCode: "completed" | "failed" | "pending";
-}
-
-
-
-const CLEAN_DASHBOARD_COPY = {
+const DASHBOARD_COPY = {
   vi: {
-    heroTitle: "Xin chào! AI hỗ trợ nâng cao chất lượng tài liệu của bạn",
-    heroSubtitle: "AI phân tích toàn bộ tài liệu, tổng hợp điểm mạnh và gợi ý các điểm cần cải thiện.",
-    allDocuments: "Tất cả tài liệu",
-    averageScore: "Điểm trung bình",
-    total: "Tổng số",
-    items: "bài",
-    highScore: "80+",
-    lowScore: "Dưới 80",
-    topReferencesTitle: "Top 5 tài liệu nên tham khảo",
-    topCommentsTitle: "Top 5 nội dung tốt nên học",
-    weakCriteriaTitle: "Top 5 tiêu chí cần cải thiện",
-    weakCriteriaSubtitle: "Điểm trung bình thấp nhất",
-    slideSummaryTitle: "Tổng hợp slide",
-    slideSummarySubtitle: "Toàn bộ dự án",
-    reviewHistoryTitle: "Lịch sử review gần nhất",
-    totalSlides: "Tổng slide",
-    okSlides: "Slide OK",
-    ngSlides: "Slide NG",
-    commentSource: "Nguồn",
-    criterion: "Tiêu chí",
-    scoreSuffix: "/100",
-    noData: "Chưa có dữ liệu",
-    filterLabel: "Lọc theo loại tài liệu",
-    recommendationText: "Ưu tiên cải thiện tiêu chí “{criterion}” trước để tác động nhanh nhất tới chất lượng chung.",
-    historyHeaders: {
-      fileName: "Tên tài liệu",
-      type: "Loại",
-      version: "Phiên bản",
-      reviewedAt: "Ngày review",
-      score: "Điểm",
-      model: "Mô hình AI",
-      status: "Trạng thái",
-    },
-    statusCompleted: "Hoàn tất",
-    statusPending: "Đang chờ",
-    statusFailed: "Lỗi",
+    title: "Dashboard chất lượng dự án",
+    subtitle: "Theo dõi điểm số, trạng thái và tiến độ review từ các dự án mới nhất.",
+    noData: "Chưa có dự án được phân tích",
+    noDataStatus: "NO DATA",
+    latestReviews: "Lịch sử dự án gần nhất",
+    scoreBars: "Điểm theo dự án",
+    score: "Điểm",
+    projectName: "Tên dự án",
+    reviewedAt: "Ngày cập nhật",
+    status: "Trạng thái",
+    action: "Hành động",
+    completed: "Hoàn tất",
+    pending: "Chờ review",
+    warningStatus: "WARNING",
+    goodStatus: "GOOD",
+    criticalStatus: "CRITICAL",
+    viewDetail: "Xem chi tiết",
   },
   ja: {
-    heroTitle: "こんにちは！AI があなたのドキュメント品質向上をサポートします",
-    heroSubtitle: "AI が全てのドキュメントを分析し、良い点と改善ポイントをまとめます。",
-    allDocuments: "すべてのドキュメント",
-    averageScore: "平均スコア",
-    total: "総数",
-    items: "件",
-    highScore: "80点以上",
-    lowScore: "80点未満",
-    topReferencesTitle: "Top 5 参考にすべき資料",
-    topCommentsTitle: "Top 5 学ぶべき良い内容",
-    weakCriteriaTitle: "Top 5 改善すべき基準",
-    weakCriteriaSubtitle: "平均スコアが低い順",
-    slideSummaryTitle: "スライド集計",
-    slideSummarySubtitle: "プロジェクト全体",
-    reviewHistoryTitle: "最新レビュー履歴",
-    totalSlides: "総スライド",
-    okSlides: "OKスライド",
-    ngSlides: "NGスライド",
-    commentSource: "参照元",
-    criterion: "基準",
-    scoreSuffix: "/100",
-    noData: "データがありません",
-    filterLabel: "資料タイプで絞り込み",
-    recommendationText: "最も効果が高いのは「{criterion}」の改善です。まずこの基準から見直してください。",
-    historyHeaders: {
-      fileName: "文書名",
-      type: "種別",
-      version: "バージョン",
-      reviewedAt: "レビュー日",
-      score: "スコア",
-      model: "AIモデル",
-      status: "ステータス",
-    },
-    statusCompleted: "完了",
-    statusPending: "処理中",
-    statusFailed: "失敗",
+    title: "プロジェクト品質ダッシュボード",
+    subtitle: "最新のプロジェクトからスコアとレビュー状態を確認します。",
+    noData: "分析済みプロジェクトがありません",
+    noDataStatus: "NO DATA",
+    latestReviews: "最新プロジェクト履歴",
+    scoreBars: "プロジェクト別スコア",
+    score: "スコア",
+    projectName: "プロジェクト名",
+    reviewedAt: "更新日",
+    status: "状態",
+    action: "操作",
+    completed: "完了",
+    pending: "未完了",
+    warningStatus: "WARNING",
+    goodStatus: "GOOD",
+    criticalStatus: "CRITICAL",
+    viewDetail: "詳細を見る",
   },
 } as const;
 
-function cleanLine(text: string) {
-  return text.replace(/^[-\s\u2022*.]+/u, "").replace(/^\d+[.)]\s*/u, "").trim();
-}
-
-function shorten(text: string, max = 96) {
-  const value = cleanLine(text).replace(/\s+/g, " ");
-  return value.length <= max ? value : `${value.slice(0, max).trim()}...`;
-}
-
 function getCopy(lang: LanguageCode) {
-  return CLEAN_DASHBOARD_COPY[lang] ?? CLEAN_DASHBOARD_COPY.vi;
+  return DASHBOARD_COPY[lang] ?? DASHBOARD_COPY.vi;
 }
 
-function getSuggestionText(suggestion: CriteriaResult["suggestion"], language: LanguageCode) {
-  if (!suggestion || typeof suggestion !== "object") {
-    return null;
-  }
-
-  const direct = suggestion[language];
-  if (typeof direct === "string" && direct.trim()) {
-    return direct.trim();
-  }
-
-  for (const item of Object.values(suggestion)) {
-    if (typeof item === "string" && item.trim()) {
-      return item.trim();
-    }
-  }
-
-  return null;
+function scoreStatus(score: number | null): ScoreStatus {
+  if (score === null) return "NO DATA";
+  if (score >= 80) return "GOOD";
+  if (score >= 60) return "WARNING";
+  return "CRITICAL";
 }
 
-function getSummaryIcon(index: number) {
-  if (index === 1) return <SparkIcon size="sm" />;
-  if (index === 2) return <ShieldCheckIcon size="sm" />;
-  if (index === 3) return <TargetIcon size="sm" />;
-  return <FileReviewIcon size="sm" />;
+function statusTone(status: ScoreStatus): "muted" | "success" | "warning" | "danger" {
+  if (status === "GOOD") return "success";
+  if (status === "WARNING") return "warning";
+  if (status === "CRITICAL") return "danger";
+  return "muted";
 }
 
-function getDocumentTypeLabel(documentType: string | null | undefined, t: (key: string) => string) {
-  return t(getDocumentTypeKey(documentType));
+function shortName(value: string, max = 24) {
+  return value.length > max ? `${value.slice(0, max - 3)}...` : value;
 }
 
-
-
-function getStatusLabel(status: string, score: number | null, copy: (typeof CLEAN_DASHBOARD_COPY)[LanguageCode]) {
-  if (typeof score === "number") return copy.statusCompleted;
-  if (status === "failed" || status === "error") return copy.statusFailed;
-  return copy.statusPending;
-}
-
-function extractPositiveFeedback(
-  submission: Submission,
-  t: (key: string) => string,
-): PositiveItem[] {
-  const latestRun = submission.latest_run;
-  if (!latestRun || typeof latestRun.score !== "number") {
-    return [];
-  }
-
-  const language = submission.language;
-  const sourceId = `${submission.project_id}-${submission.filename}`;
-  const documentType = getDocumentTypeLabel(submission.document_type, t);
-
-  const feedbackLines = (latestRun.draft_feedback?.[language] ?? "")
-    .split("\n")
-    .map(cleanLine)
-    .filter(Boolean)
-    .filter((line) => line.length > 14)
-    .slice(0, 2)
-    .map((line, index) => ({
-      id: `${sourceId}-feedback-${index}`,
-      filename: submission.filename,
-      documentType,
-      language,
-      text: shorten(line),
-      score: latestRun.score ?? 0,
-    }));
-
-  const criteriaLines = (latestRun.criteria_results ?? [])
-    .map((criterion, index) => ({
-      id: `${sourceId}-criterion-${criterion.key}-${index}`,
-      text: getSuggestionText(criterion.suggestion, language),
-      criterionLabel: t(`upload.criteria.${criterion.key}`),
-    }))
-    .filter((value): value is { id: string; text: string; criterionLabel: string } => Boolean(value.text))
-    .slice(0, 3)
-    .map((line) => ({
-      id: line.id,
-      filename: submission.filename,
-      documentType,
-      language,
-      text: shorten(line.text),
-      score: latestRun.score ?? 0,
-      criterionLabel: line.criterionLabel,
-    }));
-
-  return [...feedbackLines, ...criteriaLines];
-}
-
-export default function DashboardOverview({ submissions }: DashboardOverviewProps) {
+export default function DashboardOverview({
+  projects,
+  onSelectProject,
+}: DashboardOverviewProps) {
   const { lang, t } = useTranslation();
   const copy = getCopy(lang);
-  const [activeTab, setActiveTab] = useState<"references" | "comments" | "criteria">("references");
 
   const graded = useMemo(
-    () => submissions.filter((item) => item.latest_run && typeof item.latest_run.score === "number"),
-    [submissions],
+    () => projects.filter((item) => typeof item.latest_score === "number"),
+    [projects],
   );
 
-
-  const summaryCards = useMemo<SummaryCardItem[]>(
-    () =>
-      DOCUMENT_TYPE_OPTIONS.map((option, index) => {
-        const docs = graded.filter((item) => item.document_type === option.id);
-        const totalCount = submissions.filter((item) => item.document_type === option.id).length;
-        const averageScore = docs.length
-          ? Math.round(docs.reduce((sum, item) => sum + (item.latest_run?.score ?? 0), 0) / docs.length)
-          : 0;
-        const highScoreCount = docs.filter((item) => (item.latest_run?.score ?? 0) >= 80).length;
-        const lowScoreCount = docs.filter((item) => (item.latest_run?.score ?? 0) < 80).length;
-
-        return {
-          id: option.id,
-          title: getDocumentTypeLabel(option.id, t),
-          averageScore,
-          totalCount,
-          highScoreCount,
-          lowScoreCount,
-          iconIndex: index,
-        };
-      }),
-    [graded, submissions, t],
-  );
-
-
-
-  const topReferences = useMemo<ReferenceItem[]>(
+  const documentScoreBars = useMemo(
     () =>
       graded
-        .map((item) => {
-          const slideReviews = item.latest_run?.slide_reviews ?? [];
-          const okCount = slideReviews.filter((slide) => slide.status === "OK").length;
-          const ngCount = slideReviews.filter((slide) => slide.status === "NG").length;
-          return {
-            id: `${item.project_id}-${item.filename}`,
-            filename: item.filename,
-            score: item.latest_run?.score ?? 0,
-            okCount,
-            ngCount,
-            documentType: getDocumentTypeLabel(item.document_type, t),
-          };
-        })
-        .sort((a, b) => {
-          if (b.score !== a.score) return b.score - a.score;
-          if (b.okCount !== a.okCount) return b.okCount - a.okCount;
-          return a.ngCount - b.ngCount;
-        })
-        .slice(0, 5),
-    [graded, t],
-  );
-
-  const topComments = useMemo<PositiveItem[]>(
-    () =>
-      graded
-        .flatMap((item) => extractPositiveFeedback(item, t))
-        .filter((item, index, array) => array.findIndex((candidate) => candidate.text === item.text) === index)
+        .map((p) => ({
+          id: p.project_id,
+          label: shortName(p.project_name, 18),
+          score: Math.round(p.latest_score ?? 0),
+          projectName: p.project_name,
+        }))
         .sort((a, b) => b.score - a.score)
-        .slice(0, 5),
-    [graded, t],
+        .slice(0, 10),
+    [graded],
   );
 
-  const weakCriteria = useMemo<WeakCriterionItem[]>(() => {
-    const criteriaMap = new Map<string, { total: number; max: number; count: number }>();
+  const stats = useMemo(() => {
+    const total = projects.length;
+    const completed = graded.length;
+    const avgScore = completed > 0 
+      ? Math.round(graded.reduce((acc, p) => acc + (p.latest_score ?? 0), 0) / completed)
+      : 0;
+    
+    return { total, completed, avgScore };
+  }, [projects, graded]);
 
-    graded.forEach((submission) => {
-      (submission.latest_run?.criteria_results ?? []).forEach((criterion) => {
-        const current = criteriaMap.get(criterion.key) ?? { total: 0, max: 0, count: 0 };
-        current.total += criterion.score;
-        current.max += criterion.max_score;
-        current.count += 1;
-        criteriaMap.set(criterion.key, current);
-      });
-    });
-
-    return [...criteriaMap.entries()]
-      .map(([key, value]) => ({
-        key,
-        label: t(`upload.criteria.${key}`),
-        average: value.count ? Math.round(value.total / value.count) : 0,
-        ratio: value.max > 0 ? value.total / value.max : 0,
-        sampleCount: value.count,
-        percent: value.max > 0 ? Math.round((value.total / value.max) * 1000) / 10 : 0,
-      }))
-      .sort((a, b) => a.ratio - b.ratio)
-      .slice(0, 5);
-  }, [graded, t]);
-
-  const slideSummary = useMemo(() => {
-    const slides = graded.flatMap((item) => item.latest_run?.slide_reviews ?? []);
-    const okSlideCount = slides.filter((slide) => slide.status === "OK").length;
-    const ngSlideCount = slides.filter((slide) => slide.status === "NG").length;
-    const totalSlides = okSlideCount + ngSlideCount;
-    const okRate = totalSlides > 0 ? Math.round((okSlideCount / totalSlides) * 1000) / 10 : 0;
-    const ngRate = totalSlides > 0 ? Math.round((ngSlideCount / totalSlides) * 1000) / 10 : 0;
-
-    return { okSlideCount, ngSlideCount, totalSlides, okRate, ngRate };
-  }, [graded]);
-
-  const recentHistory = useMemo<RecentHistoryItem[]>(
-    () =>
-      [...graded]
-        .sort((a, b) => {
-          const aDate = new Date(a.latest_run?.graded_at ?? a.uploaded_at).getTime();
-          const bDate = new Date(b.latest_run?.graded_at ?? b.uploaded_at).getTime();
-          return bDate - aDate;
-        })
-        .slice(0, 5)
-        .map((item) => ({
-          id: `${item.project_id}-${item.filename}`,
-          filename: item.filename,
-          type: getDocumentTypeLabel(item.document_type, t),
-          reviewedAt: formatUploadedAt(item.latest_run?.graded_at ?? item.uploaded_at, lang),
-          score: item.latest_run?.score ?? 0,
-          status: getStatusLabel(item.status, item.latest_run?.score ?? null, copy),
-          statusCode:
-            typeof item.latest_run?.score === "number"
-              ? "completed"
-              : item.status === "failed" || item.status === "error"
-              ? "failed"
-              : "pending",
-        })),
-    [copy, graded, lang, t],
-  );
-
-  const recommendationText = copy.recommendationText.replace(
-    "{criterion}",
-    weakCriteria[0]?.label ?? getDocumentTypeLabel("qa-review", t),
-  );
+  const latestProjects = useMemo(() => {
+    return [...projects]
+      .sort((a, b) => new Date(b.latest_updated_at).getTime() - new Date(a.latest_updated_at).getTime())
+      .slice(0, 8);
+  }, [projects]);
 
   return (
-    <section className="dashboard-reference" aria-label={t("nav.dashboard")}>
-      <PageHeader title={copy.heroTitle} subtitle={copy.heroSubtitle} />
+    <section className="prod-dashboard" aria-label={copy.title}>
+      <PageHeader title={copy.title} subtitle={copy.subtitle} />
 
-      <section className="dashboard-reference-recommendation" style={{ marginBottom: '24px' }}>
-        <strong>{recommendationText}</strong>
-      </section>
-
-      <div className="dashboard-reference-summary-grid dashboard-reference-summary-grid--v3" style={{ marginBottom: '32px' }}>
-        {summaryCards.map((card) => {
-          const total = card.highScoreCount + card.lowScoreCount;
-          const highRate = total > 0 ? Math.round((card.highScoreCount / total) * 1000) / 10 : 0;
-          const lowRate = total > 0 ? Math.round((card.lowScoreCount / total) * 1000) / 10 : 0;
-
-          return (
-            <section
-              className="dashboard-reference-panel dashboard-reference-summary-card dashboard-reference-summary-card--v3"
-              key={card.id}
-            >
-              <div className="dashboard-reference-summary-card__head">
-                <span
-                  className={`dashboard-reference-summary-card__icon dashboard-reference-summary-card__icon--${card.iconIndex}`}
-                >
-                  {getSummaryIcon(card.iconIndex)}
-                </span>
-                <strong>{card.title}</strong>
-              </div>
-
-              <div className="dashboard-reference-summary-card__score">
-                <strong>{card.averageScore}</strong>
-                <span>{copy.scoreSuffix}</span>
-              </div>
-              <span className="dashboard-reference-summary-card__caption">{copy.averageScore}</span>
-
-              <div className="dashboard-reference-summary-card__count">
-                <span>{copy.total}</span>
-                <strong>{card.totalCount}</strong>
-                <span>{copy.items}</span>
-              </div>
-
-              <div className="dashboard-reference-mini-chart">
-                <span
-                  className="dashboard-reference-mini-chart__donut"
-                  style={{ "--dashboard-chart-value": `${highRate}%` } as CSSProperties}
-                />
-                <div className="dashboard-reference-mini-chart__legend">
-                  <span>
-                    <i className="is-ok" />
-                    {copy.highScore} <strong>{card.highScoreCount}</strong> ({highRate}%)
-                  </span>
-                  <span>
-                    <i className="is-ng" />
-                    {copy.lowScore} <strong>{card.lowScoreCount}</strong> ({lowRate}%)
-                  </span>
-                </div>
-              </div>
-            </section>
-          );
-        })}
-      </div>
-
-      <div className="dashboard-reference-mobile-tabs">
-        <button className={activeTab === "references" ? "is-active" : ""} onClick={() => setActiveTab("references")}>
-          {copy.topReferencesTitle}
-        </button>
-        <button className={activeTab === "comments" ? "is-active" : ""} onClick={() => setActiveTab("comments")}>
-          {copy.topCommentsTitle}
-        </button>
-        <button className={activeTab === "criteria" ? "is-active" : ""} onClick={() => setActiveTab("criteria")}>
-          {copy.weakCriteriaTitle}
-        </button>
-      </div>
-
-      <div className="dashboard-reference-main-grid dashboard-reference-main-grid--v3" style={{ marginBottom: '32px' }}>
-        <DashboardListPanel
-          index="2"
-          title={copy.topReferencesTitle}
-          panelClassName={`dashboard-reference-panel--references ${activeTab !== "references" ? "is-hidden-on-mobile" : ""}`}
-        >
-          {topReferences.length ? (
-            topReferences.map((item, index) => (
-              <div className="dashboard-reference-ranked-row" key={item.id}>
-                <span className={`dashboard-reference-rank ${index === 0 ? "is-featured" : ""}`}>{index + 1}</span>
-                <div className="dashboard-reference-ranked-row__main">
-                  <strong title={item.filename}>{item.filename}</strong>
-                  <div className="dashboard-reference-ranked-row__meta">
-                    <span>{item.documentType}</span>
-                    <span>
-                      {copy.okSlides}: {item.okCount}
-                    </span>
-                    <span>
-                      {copy.ngSlides}: {item.ngCount}
-                    </span>
-                  </div>
-                </div>
-                <span className="dashboard-reference-ranked-row__value">
-                  {item.score}
-                  <small>{copy.scoreSuffix}</small>
-                </span>
-              </div>
-            ))
-          ) : (
-            <div className="dashboard-reference-empty">{copy.noData}</div>
-          )}
-        </DashboardListPanel>
-
-        <DashboardListPanel
-          index="3"
-          title={copy.topCommentsTitle}
-          panelClassName={`dashboard-reference-panel--comments ${activeTab !== "comments" ? "is-hidden-on-mobile" : ""}`}
-        >
-          {topComments.length ? (
-            topComments.map((item, index) => (
-              <div className="dashboard-reference-ranked-row" key={item.id}>
-                <span className="dashboard-reference-rank">{index + 1}</span>
-                <div className="dashboard-reference-ranked-row__main">
-                  <strong title={item.text}>{item.text}</strong>
-                  <div className="dashboard-reference-ranked-row__sub">
-                    <span>
-                      {copy.commentSource}: {item.filename}
-                    </span>
-                    <span>{item.documentType}</span>
-                    {item.criterionLabel ? <span>{copy.criterion}: {item.criterionLabel}</span> : null}
-                    <span>{item.language.toUpperCase()}</span>
-                  </div>
-                </div>
-                <span className="dashboard-reference-score-warn">
-                  {item.score}
-                  <small>{copy.scoreSuffix}</small>
-                </span>
-              </div>
-            ))
-          ) : (
-            <div className="dashboard-reference-empty">{copy.noData}</div>
-          )}
-        </DashboardListPanel>
-
-        <DashboardListPanel
-          index="4"
-          title={`${copy.weakCriteriaTitle} (${copy.weakCriteriaSubtitle})`}
-          panelClassName={`dashboard-reference-panel--criteria ${activeTab !== "criteria" ? "is-hidden-on-mobile" : ""}`}
-        >
-          {weakCriteria.length ? (
-            weakCriteria.map((item, index) => (
-              <div className="dashboard-reference-ranked-row" key={item.key}>
-                <span className="dashboard-reference-rank">{index + 1}</span>
-                <div className="dashboard-reference-ranked-row__main">
-                  <strong title={item.label}>{item.label}</strong>
-                  <div className="dashboard-reference-ranked-row__meta">
-                    <span>{item.percent}%</span>
-                    <span>
-                      {copy.total}: {item.sampleCount}
-                    </span>
-                  </div>
-                </div>
-                <span className="dashboard-reference-score-warn">
-                  {item.average}
-                  <small>{copy.scoreSuffix}</small>
-                </span>
-              </div>
-            ))
-          ) : (
-            <div className="dashboard-reference-empty">{copy.noData}</div>
-          )}
-        </DashboardListPanel>
-      </div>
-
-      <div className="dashboard-reference-bottom-grid dashboard-reference-bottom-grid--v3">
-        <section className="dashboard-reference-panel dashboard-reference-panel--slide" style={{ display: 'flex', flexDirection: 'column' }}>
-          <div className="dashboard-reference-panel__visual-head">
-            <div>
-            <h2>5. {copy.slideSummaryTitle}</h2>
-            <p className="dashboard-reference-panel__subtitle">{copy.slideSummarySubtitle}</p>
-          </div>
-            <span className="dashboard-reference-panel__watermark" aria-hidden="true">
-              <img className="dashboard-reference-panel__watermark-image" src={slideWatermarkImage} alt="" />
+      <div className="prod-dashboard__kpis">
+        <div className="prod-kpi-card">
+          <div className="prod-kpi-card__head">
+            <span className="prod-kpi-card__icon">
+              <TargetIcon size="md" />
             </span>
+            <StatusBadge tone="primary">{copy.score}</StatusBadge>
           </div>
+          <strong className="prod-kpi-card__title">{copy.title}</strong>
+          <div className="prod-kpi-card__value">
+            {stats.avgScore} <span>/ 100</span>
+          </div>
+          <p>{t("dashboard.avgScore") || "Điểm trung bình hệ thống"}</p>
+        </div>
 
-          <div className="dashboard-reference-slide-visual" style={{ flex: 1 }}>
-            <div className="dashboard-reference-slide-chart-wrap">
-              <span
-                className="dashboard-reference-slide-donut"
-                style={{ "--dashboard-chart-value": `${slideSummary.okRate}%` } as CSSProperties}
-              />
-              <div className="dashboard-reference-slide-total">
-                <strong>{slideSummary.totalSlides}</strong>
-                <span>{copy.totalSlides}</span>
-              </div>
-            </div>
+        <div className="prod-kpi-card">
+          <div className="prod-kpi-card__head">
+            <span className="prod-kpi-card__icon">
+              <FileReviewIcon size="md" />
+            </span>
+            <StatusBadge tone="success">{copy.completed}</StatusBadge>
+          </div>
+          <strong className="prod-kpi-card__title">{t("project.totalDocuments") || "Tổng dự án"}</strong>
+          <div className="prod-kpi-card__value">
+            {stats.total}
+          </div>
+          <p>{stats.completed} {copy.completed}</p>
+        </div>
 
-            <div className="dashboard-reference-slide-legend">
-              <span>
-                <i className="is-ok" />
-                {copy.okSlides} <strong>{slideSummary.okSlideCount}</strong> ({slideSummary.okRate}%)
-              </span>
-              <span>
-                <i className="is-ng" />
-                {copy.ngSlides} <strong>{slideSummary.ngSlideCount}</strong> ({slideSummary.ngRate}%)
-              </span>
+        <div className="prod-kpi-card">
+          <div className="prod-kpi-card__head">
+            <span className="prod-kpi-card__icon">
+              <ShieldCheckIcon size="md" />
+            </span>
+            <StatusBadge tone="warning">{t("common.status") || "Trạng thái"}</StatusBadge>
+          </div>
+          <strong className="prod-kpi-card__title">{t("dashboard.activeProjects") || "Đang hoạt động"}</strong>
+          <div className="prod-kpi-card__value">
+            {projects.length}
+          </div>
+          <p>{t("dashboard.realtimeData") || "Dữ liệu thời gian thực"}</p>
+        </div>
+      </div>
+
+      <div className="prod-dashboard__grid">
+        <section className="prod-card">
+          <header className="prod-card__head">
+            <div>
+              <h2>{copy.scoreBars}</h2>
+              <p>{t("dashboard.topProjects") || "Top 10 dự án có điểm cao nhất"}</p>
             </div>
+          </header>
+          <div className="prod-chart" style={{ minHeight: '300px' }}>
+            {documentScoreBars.length ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={documentScoreBars} margin={{ top: 20, right: 18, bottom: 40, left: 0 }}>
+                  <CartesianGrid stroke="#EEF2F7" vertical={false} />
+                  <XAxis 
+                    dataKey="label" 
+                    tick={{ fill: "#64748B", fontSize: 11 }} 
+                    interval={0}
+                    angle={-25}
+                    textAnchor="end"
+                  />
+                  <YAxis domain={[0, 100]} tick={{ fill: "#64748B", fontSize: 12 }} width={36} />
+                  <RechartsTooltip formatter={(value) => [`${value}/100`, copy.score]} />
+                  <Bar dataKey="score" radius={[8, 8, 0, 0]} fill="#5263FF">
+                    <LabelList dataKey="score" position="top" fill="#0f172a" fontSize={12} fontWeight={700} />
+                    {documentScoreBars.map((entry, index) => {
+                      const status = scoreStatus(entry.score);
+                      const color = status === "GOOD" ? "#22C55E" : status === "WARNING" ? "#EAB308" : "#EF4444";
+                      return <Cell key={`cell-${index}`} fill={color} />;
+                    })}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyState title={copy.noData} description={t("dashboard.noDataDescription") || "Hãy tải tài liệu và chấm điểm để xem phân tích."} compact />
+            )}
           </div>
         </section>
 
-        <section className="dashboard-reference-panel dashboard-reference-panel--history">
-          <h2>6. {copy.reviewHistoryTitle}</h2>
-
-          <div className="dashboard-reference-table-wrap">
-            <table className="dashboard-reference-table">
+        <section className="prod-card">
+          <header className="prod-card__head">
+            <div>
+              <h2>{copy.latestReviews}</h2>
+              <p>{t("dashboard.latestActivity") || "Các dự án được cập nhật gần đây"}</p>
+            </div>
+          </header>
+          <div className="prod-table-wrap">
+            <table className="prod-history-table">
               <thead>
                 <tr>
-                  <th>{copy.historyHeaders.fileName}</th>
-                  <th>{copy.historyHeaders.type}</th>
-                  <th>{copy.historyHeaders.reviewedAt}</th>
-                  <th>{copy.historyHeaders.score}</th>
-                  <th>{copy.historyHeaders.status}</th>
+                  <th>{copy.projectName}</th>
+                  <th>{copy.score}</th>
+                  <th>{copy.reviewedAt}</th>
+                  <th>{copy.status}</th>
                 </tr>
               </thead>
               <tbody>
-                {recentHistory.length ? (
-                  recentHistory.map((item) => (
-                    <tr key={item.id}>
-                      <td>
-                        <FileReviewIcon size="sm" />
-                        <span title={item.filename}>{item.filename}</span>
-                      </td>
-                      <td>{item.type}</td>
-                      <td>{item.reviewedAt}</td>
-                      <td>
-                        <strong className={item.score >= 80 ? "text-score-high" : "text-score-low"}>{item.score}</strong>
-                        <span className="text-score-suffix">{copy.scoreSuffix}</span>
-                      </td>
-                      <td>
-                        <span className={`dashboard-reference-status dashboard-reference-status--${item.statusCode}`}>
-                          <i className={item.statusCode === "completed" ? "is-ok" : item.statusCode === "failed" ? "is-ng" : "is-pending"} />
-                          {item.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
+                {latestProjects.length ? (
+                  latestProjects.map((p) => {
+                    const status = scoreStatus(p.latest_score);
+                    return (
+                      <tr key={p.project_id} onClick={() => onSelectProject?.(p.project_id)} style={{ cursor: 'pointer' }}>
+                        <td style={{ fontWeight: 500 }}>{shortName(p.project_name, 30)}</td>
+                        <td>{p.latest_score !== null ? `${Math.round(p.latest_score)}/100` : "—"}</td>
+                        <td style={{ fontSize: '13px', color: '#64748B' }}>{formatUploadedAt(p.latest_updated_at, lang)}</td>
+                        <td>
+                          <StatusBadge tone={statusTone(status)}>
+                            {status === "NO DATA" ? copy.pending : status === "GOOD" ? copy.completed : status}
+                          </StatusBadge>
+                        </td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
-                      <td colSpan={5} className="dashboard-reference-empty">
-                        {copy.noData}
-                      </td>
-                    </tr>
+                    <td colSpan={4}>
+                      <EmptyState title={copy.noData} compact />
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>
           </div>
         </section>
       </div>
-
     </section>
   );
 }
-
-function DashboardListPanel({
-  index,
-  title,
-  children,
-  panelClassName,
-}: {
-  index: string;
-  title: string;
-  children: ReactNode;
-  panelClassName?: string;
-}) {
-  return (
-    <section className={`dashboard-reference-panel dashboard-reference-panel--list ${panelClassName ?? ""}`.trim()}>
-      <div className="dashboard-reference-panel__head">
-        <h2>
-          {index}. {title}
-        </h2>
-      </div>
-      <div className="dashboard-reference-ranked-list">{children}</div>
-    </section>
-  );
-}
-
-

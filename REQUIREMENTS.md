@@ -1,345 +1,223 @@
-# AI Review Tài Liệu — Requirements Specification
+# REQUIREMENT.md (v5 - ALIGNED WITH AGENTS v2)
 
-## 1. Tổng Quan
+## 🎯 Mục tiêu
 
-### 1.1 Tên hệ thống
+Hệ thống AI Review tài liệu phải:
 
-**AI Review Tài Liệu**
-
-### 1.2 Mục tiêu
-
-Hệ thống hỗ trợ upload tài liệu `PDF` hoặc `PPTX`, trích xuất nội dung, chấm điểm bằng Google Gemini theo tiêu chuẩn đánh giá, và hiển thị kết quả review chi tiết theo tổng điểm, tiêu chí và từng slide/page.
-
-### 1.3 Đối tượng sử dụng
-
-- Project Manager / PMO
-- Team Leader
-- QA Team
-- Người phụ trách review / tổng kết dự án
-
-### 1.4 Phạm vi hiện tại
-
-- Hệ thống full-stack chạy theo mô hình nội bộ, chưa có authentication/authorization.
-- Frontend: `React 19`, `TypeScript`, `Vite`.
-- Backend: `FastAPI` + `uvicorn`.
-- Runtime data: SQLite tại `backend/data/review_system.db`.
-- File upload: `backend/uploads/`.
-- UI hỗ trợ tiếng Việt và tiếng Nhật.
-- Kết quả review song ngữ `vi/ja`.
-- Giao diện hỗ trợ chế độ sáng/tối.
+* Quản lý nhiều tài liệu trong 1 project
+* Lưu lịch sử version của tài liệu
+* Chấm điểm độc lập từng version
+* Cho phép so sánh trước/sau
+* Không overwrite dữ liệu
 
 ---
 
-## 2. Functional Requirements
+# 🧠 Core Architecture
 
-### 2.1 Upload tài liệu
-
-- Chấp nhận file `PDF` và `PPTX`.
-- Tên file phải theo mẫu `P<project_id>_<project_name>.<ext>` (ví dụ: `P001_WebsiteDesign.pdf`).
-- Từ chối file sai định dạng hoặc sai quy tắc tên.
-- Trích xuất text sau khi upload: PPTX theo `[Slide n]`, PDF theo `[Page n]`.
-- Phát hiện ngôn ngữ tài liệu từ nội dung trích xuất.
-- Lưu metadata submission, nội dung trích xuất và `content_hash`.
-
-### 2.2 Loại tài liệu
-
-- Người dùng chọn `document_type` khi upload.
-- Các loại hỗ trợ:
-
-| document_type | Mô tả |
-|---|---|
-| `project-review` | Review retrospective / tổng kết dự án |
-| `bug-analysis` | Review phân tích bug |
-| `qa-review` | Review tài liệu QA |
-| `explanation-review` | Review tài liệu giải thích |
-
-### 2.3 Rubric và version
-
-- Người dùng chọn rubric version khi upload/chấm điểm.
-- Active version runtime được quản lý trong DB (không tự đồng bộ ngược về file seed).
-- Tổng điểm tối đa các tiêu chí trong một rubric phải bằng `100`.
-- Người dùng quản lý và kích hoạt version từ giao diện.
-- Thay đổi prompt/criteria nên tạo version mới thay vì sửa trực tiếp.
-
-### 2.4 Chấm điểm bằng AI
-
-- Dùng Google Gemini (multi-key round-robin, auto-retry).
-- Kết quả bao gồm: `score`, `criteria_scores`, `criteria_suggestions`, `draft_feedback`, `slide_reviews`.
-- `criteria_suggestions` và `draft_feedback` phải hỗ trợ song ngữ `vi/ja`.
-- `slide_reviews`: review từng slide/page với trạng thái `OK`/`NG`; nếu `NG` phải có lý do và tư vấn sửa.
-- Hỗ trợ chấm đơn và `force=true` để chấm lại.
-- Hỗ trợ chấm hàng loạt (background job).
-
-### 2.5 Cache và regrade
-
-- Tái dùng kết quả cũ chỉ khi grading signature khớp hoàn toàn:
-  - `content_hash`, `rubric_version`, `gemini_model`, `prompt_hash`, `criteria_hash`, `grading_schema_version`, `slide_reviews is not None`
-- In-memory cache giới hạn **200 entries** (LRU eviction).
-- Cache chỉ ghi khi `use_cache=True`; `force=True` bỏ qua cache đọc và không ghi cache.
-- Khi prompt/criteria thay đổi, tài liệu liên quan cần chấm lại.
-
-### 2.6 Review theo từng slide/page
-
-- AI phải review từng slide/page.
-- Mỗi item `slide_reviews` gồm: `slide_number`, `status` (`OK`/`NG`), `title`, `summary`, `issues`, `suggestions` — tất cả song ngữ `vi/ja`.
-- UI có khu vực `Review theo từng slide`, filter `Tất cả / OK / NG`, modal xem chi tiết.
-
-### 2.7 Danh sách submission
-
-- Hiển thị: `project_id`, `project_name`, `filename`, `document_type`, `uploaded_at`, `language`, trạng thái, điểm.
-- API trả về: `submissions`, `total`, `ungraded_count`.
-- Phân trang trên UI.
-
-### 2.8 Xóa submission
-
-- Xóa đơn theo `project_id` hoặc xóa hàng loạt theo danh sách.
-- Khi xóa: xóa toàn bộ dữ liệu liên quan (content, grading runs, criteria results, slide reviews).
-- Kết quả xóa hàng loạt trả về danh sách thành công / thất bại.
-
-### 2.9 Job chấm hàng loạt
-
-- Chạy background job, trả `job_id` ngay lập tức.
-- Trạng thái: `queued` → `running` → `completed` / `failed`.
-- Theo dõi: `total_count`, `processed_count`, `graded_count`, `failed_count`, `results`, `started_at`, `finished_at`.
-- Job in-memory — mất trạng thái nếu backend restart.
-
-### 2.10 Export dữ liệu
-
-- Export Excel gồm 4 sheet: `Summary`, `CriteriaDetails`, `Feedback`, `SlideReviews`.
-- Bao gồm: metadata, tổng điểm, điểm tiêu chí, góp ý, feedback, slide review, `rubric_version`, `gemini_model`, `prompt_hash`, `criteria_hash`, `grading_schema_version`.
-
-### 2.11 Đa ngôn ngữ
-
-- UI hỗ trợ `vi` và `ja`.
-- Phát hiện ngôn ngữ tài liệu tự động.
-- Kết quả review song ngữ; đổi ngôn ngữ UI → nội dung review đổi theo.
-
-### 2.12 Giao diện
-
-- Dashboard, màn hình upload, danh sách bài chấm, kết quả review chi tiết, quản lý tiêu chuẩn đánh giá.
-- Header/topbar nhất quán giữa các trang.
-- Chế độ sáng/tối.
-- Nội dung dài có modal xem chi tiết.
+Project (submission)
+→ Document
+→ Document Version
+→ Grading Run
 
 ---
 
-## 3. Schema Chấm Điểm
+# 📘 1. Project
 
-### `project-review`
-- `review_tong_the` `/25` · `diem_tot` `/25` · `diem_xau` `/30` · `chinh_sach` `/20`
-
-### `bug-analysis`
-- `kha_nang_tai_hien_bug` `/25` · `phan_tich_nguyen_nhan` `/25` · `danh_gia_anh_huong` `/25` · `giai_phap_phong_ngua` `/25`
-
-### `qa-review`
-- `do_ro_rang` `/25` · `do_bao_phu` `/25` · `kha_nang_truy_vet` `/25` · `tinh_thuc_thi` `/25`
-
-### `explanation-review`
-- `do_ro_rang_de_hieu` `/25` · `tinh_day_du_dung_trong_tam` `/25` · `tinh_chinh_xac` `/25` · `tinh_ung_dung` `/25`
+* Định danh bằng `project_id`
+* Đại diện cho 1 dự án
+* Không chứa file
 
 ---
 
-## 4. Data Requirements
+# 📄 2. Document
 
-### 4.1 Runtime database
+* Thuộc về 1 project
+* Định danh bởi:
 
 ```text
-backend/data/review_system.db
+document_type
+document_name
 ```
 
-| Bảng | Mô tả |
-|---|---|
-| `submission` | Metadata bài upload |
-| `submissioncontent` | Nội dung trích xuất + `content_hash` |
-| `rubric` | Version rubric, prompt `vi/ja`, trạng thái active |
-| `rubriccriterionrecord` | Tiêu chí và điểm tối đa |
-| `gradingrun` | Một lần chấm điểm |
-| `gradingcriteriaresult` | Điểm và góp ý theo tiêu chí |
-| `gradingslidereview` | Review từng slide/page |
+* Ví dụ:
 
-### 4.2 Grading run — các trường kiểm soát tính đúng đắn
-
-- `content_hash`, `rubric_version`, `gemini_model`, `prompt_hash`, `criteria_hash`, `grading_schema_version`
-
-Schema version hiện tại: `grading_schema_version = v1_slide_reviews`
-
----
-
-## 5. API Requirements
-
-### System
-- `GET /` · `GET /health` · `GET /docs`
-
-### Upload & Submissions
-- `POST /api/upload`
-- `GET /api/submissions` · `GET /api/submissions/{project_id}`
-- `GET /api/submissions/{project_id}/file`
-- `DELETE /api/submissions/{project_id}`
-- `POST /api/submissions/bulk-delete`
-- `GET /api/submissions/export.xlsx`
-
-### Grading
-- `POST /api/grade/{project_id}` · `POST /api/grade/{project_id}?force=true&rubric_version=v1`
-- `POST /api/grade-all`
-- `GET /api/grade-jobs/{job_id}`
-
-### Rubrics
-- `GET /api/rubrics` · `GET /api/rubrics/{document_type}`
-- `GET /api/rubrics/{document_type}/{version}`
-- `PUT /api/rubrics/{document_type}/{version}`
-- `POST /api/rubrics/{document_type}/{version}/activate`
-
-### Export
-- `GET /api/exports/submissions.xlsx`
-
----
-
-## 6. Technical Requirements
-
-### 6.1 Backend
-
-| Thành phần | Chi tiết |
-|---|---|
-| Framework | `FastAPI` |
-| Server | `uvicorn` |
-| Database | `SQLite` (`sqlmodel`) |
-| AI SDK | `google-genai` |
-| PDF parsing | `pdfplumber`, `PyPDF2` |
-| PPTX parsing | `python-pptx` |
-| Excel export | `openpyxl` |
-| Port local | `8000` |
-
-### 6.2 Frontend
-
-| Thành phần | Chi tiết |
-|---|---|
-| Framework | `React 19` + `TypeScript` |
-| Build tool | `Vite` |
-| Data fetching | `@tanstack/react-query` |
-| Icons | `lucide-react` |
-| Port local | `5173` |
-| API base local | `http://localhost:8000/api` |
-
-### 6.3 Environment variables
-
-**Backend** (`backend/.env`):
-- `GEMINI_API_KEY` / `GEMINI_API_KEYS` — một hoặc nhiều Gemini API key
-- `GEMINI_MODEL` — model Gemini sử dụng
-- `FRONTEND_URL` / `CORS_ALLOWED_ORIGINS` — CORS origins cho phép
-- `API_TITLE`, `API_VERSION`
-
-**Frontend** (`frontend/.env.local`):
-- `VITE_API_BASE_URL` — URL API backend (mặc định: `http://localhost:8000/api`)
-
----
-
-## 7. Non-Functional Requirements
-
-### 7.1 Performance
-
-- UI thông thường phản hồi nhanh.
-- Chấm điểm phụ thuộc thời gian phản hồi Gemini.
-- Chấm hàng loạt chạy nền, không block request.
-- Danh sách submission có phân trang.
-- In-memory grading cache LRU, tối đa 200 entries.
-- DB query history tối ưu: batch query thay vì N+1.
-
-### 7.2 Reliability
-
-- Dữ liệu tồn tại sau restart nếu SQLite file còn nguyên.
-- Lỗi upload/extract trả message rõ ràng.
-- Gemini multi-key: rate-limit → chuyển key; auth fail vĩnh viễn → disable key đó.
-- Gemini trả JSON không hợp lệ → runtime error rõ ràng, không expose raw response.
-- Job batch in-memory → mất trạng thái nếu backend restart.
-
-### 7.3 Security và validation
-
-- Chỉ chấp nhận `PDF` và `PPTX`.
-- Validate tên file trước khi lưu.
-- API key Gemini qua biến môi trường.
-- CORS giới hạn theo danh sách origin.
-- Không dùng `CORS_ALLOWED_ORIGINS=*` trong production.
-
-### 7.4 Operability
-
-- Deploy cloud với SQLite cần persistent storage.
-- Production nên cân nhắc PostgreSQL và object storage.
-
----
-
-## 8. Limitations
-
-- Chưa có authentication/authorization.
-- Chưa có phân quyền theo vai trò.
-- Chưa có persistent queue cho grading jobs.
-- Chưa có soft delete hoặc undo delete.
-- Chưa có audit log cho thay đổi rubric/prompt.
-- Upload xử lý file local; cloud cần persistent storage.
-
----
-
-## 9. Chạy Local
-
-### Backend
-
-```bash
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```text
+bug-analysis / bug_login
+qa-review / test_case_01
 ```
 
-### Frontend
+---
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+# 📂 3. Document Version
 
-Cấu hình `frontend/.env.local`:
-
-```env
-VITE_API_BASE_URL=http://localhost:8000/api
-```
-
-### Địa chỉ local
-
-| Service | URL |
-|---|---|
-| Frontend | `http://localhost:5173` |
-| Backend | `http://localhost:8000` |
-| API base | `http://localhost:8000/api` |
-| API docs | `http://localhost:8000/docs` |
-| Health | `http://localhost:8000/health` |
-
-### Reset database
-
-1. Dừng backend
-2. Xóa `backend/data/review_system.db`
-3. Khởi động lại → DB tự tạo và seed rubric từ `backend/app/rubrics/`
-
-> File trong `backend/uploads/` không tự bị xóa khi reset DB.
+* Mỗi lần upload = 1 version mới
+* Format: v1, v2, v3...
+* Không sửa version cũ
 
 ---
 
-## 10. Hướng Nâng Cấp
+## Version Rule
 
-- Thêm authentication/authorization và phân quyền.
-- Server-side pagination đầy đủ.
-- Filter/search theo loại tài liệu, trạng thái, ngôn ngữ, điểm.
-- API regrade stale results theo signature.
-- Chuyển batch grading sang persistent queue (Redis/Celery).
-- Chuyển runtime DB sang PostgreSQL cho production.
-- Chuyển upload file sang object storage (S3/GCS).
-- Thêm audit log cho thay đổi rubric/version/prompt.
-- Thêm soft delete và khôi phục dữ liệu.
+* Version thuộc Document
+* Không thuộc Project
+* Không thuộc document_type
 
 ---
 
-## 11. Thông Tin Tài Liệu
+# 📊 4. Quan hệ
 
-| Trường | Giá trị |
-|---|---|
-| Version | `4.0.0` |
-| Ngày cập nhật | `2026-05-02` |
-| Trạng thái | `Aligned with current codebase` |
+1 Project → nhiều Document
+1 Document → nhiều Version
+1 Version → nhiều GradingRun
+
+---
+
+# 📤 5. Upload Logic
+
+## Input
+
+```text
+project_id
+document_type
+document_name
+file
+```
+
+---
+
+## Flow
+
+IF project chưa tồn tại:
+create project
+
+IF document chưa tồn tại:
+create document
+
+ALWAYS:
+create document_version mới
+
+---
+
+## ❌ Không được
+
+* overwrite file
+* update version cũ
+
+---
+
+# 🧠 6. Grading Logic
+
+* Chấm theo document_version
+* Không chấm trực tiếp project
+* Cho phép nhiều grading run trên cùng version
+
+---
+
+## Input mới
+
+```json
+{
+  "document_version_id": 123,
+  "prompt_level": "medium"
+}
+```
+
+---
+
+# ⚡ 7. Cache Logic
+
+Cache key phải gồm:
+
+* content_hash
+* document_version_id
+* rubric_version
+* prompt_version
+* prompt_level
+
+---
+
+# 📊 8. Result
+
+Mỗi kết quả phải gắn với:
+
+```text
+project
+document
+version
+rubric_version
+prompt_version
+level
+```
+
+---
+
+# 🧩 9. Document Type
+
+* Bắt buộc
+* Quyết định:
+
+  * rubric
+  * prompt
+  * UI
+
+---
+
+# 🔒 10. Immutable Rules
+
+Không được sửa:
+
+* document_version
+* grading_run
+* rubric_version
+* prompt_version
+
+---
+
+# 🌐 11. API Evolution
+
+* Hệ thống chuyển từ:
+  submission-centric → document-centric
+
+---
+
+## API mới (target)
+
+```text
+GET /projects
+GET /projects/{id}/documents
+GET /documents/{id}/versions
+GET /versions/{id}/gradings
+```
+
+---
+
+## API cũ
+
+* vẫn tồn tại
+* phải map sang logic mới
+
+---
+
+# 🧪 12. Testing
+
+Hệ thống phải đảm bảo:
+
+* Không mất dữ liệu
+* Có version history
+* Có thể so sánh version
+* Test bằng pytest
+
+---
+
+# 🚨 13. Constraints
+
+* Không assume 1 document
+* Không assume 1 version
+* Không overwrite dữ liệu
+* Không dùng submissioncontent làm source of truth
+
+---
+
+# 🏁 14. Kết luận
+
+System = versioned + immutable + auditable

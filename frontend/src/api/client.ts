@@ -1,6 +1,22 @@
 import { API_BASE_URL, DEFAULT_UI_LANGUAGE, UI_LANGUAGE_STORAGE_KEY } from "../config";
 import { normalizeLanguage } from "../locales/utils";
-import type { RubricListResponse, RubricVersion, RubricVersionPayload, Submission, SubmissionListResponse } from "../types";
+import type {
+  CompareRunResult,
+  SubmissionDocument,
+  DocumentVersion,
+  GradingRunDetail,
+  GradingRunHistory,
+  PromptLevel,
+  RubricListResponse,
+  RubricVersion,
+  RubricVersionPayload,
+  Submission,
+  SubmissionListResponse,
+  Project,
+  DocumentListOut,
+  VersionListOut,
+  GradingListOut,
+} from "../types";
 
 // Language setting
 let currentLanguage = normalizeLanguage(localStorage.getItem(UI_LANGUAGE_STORAGE_KEY) || DEFAULT_UI_LANGUAGE);
@@ -26,12 +42,12 @@ const apiMessages: Record<"vi" | "ja", Record<ApiMessageKey, string>> = {
     activateRubricFailed: "Áp dụng tiêu chuẩn thất bại.",
     cannotConnect: "Không thể kết nối backend. Vui lòng kiểm tra máy chủ.",
     connectionTimeout: "Kết nối quá thời gian. Vui lòng kiểm tra backend.",
-    deleteSubmissionFailed: "Xóa bài nộp thất bại.",
-    deleteSubmissionsFailed: "Xóa các bài nộp thất bại.",
-    exportSubmissionsFailed: "Xuất danh sách bài nộp thất bại.",
+    deleteSubmissionFailed: "Xóa dự án thất bại.",
+    deleteSubmissionsFailed: "Xóa các dự án thất bại.",
+    exportSubmissionsFailed: "Xuất danh sách dự án thất bại.",
     fetchGradeJobFailed: "Không thể tải trạng thái review.",
     fetchRubricsFailed: "Không thể tải tiêu chuẩn đánh giá.",
-    fetchSubmissionsFailed: "Không thể tải danh sách bài nộp.",
+    fetchSubmissionsFailed: "Không thể tải danh sách dự án.",
     gradeAllFailed: "Review hàng loạt thất bại.",
     gradingFailed: "Review thất bại.",
     saveRubricFailed: "Lưu tiêu chuẩn thất bại.",
@@ -41,12 +57,12 @@ const apiMessages: Record<"vi" | "ja", Record<ApiMessageKey, string>> = {
     activateRubricFailed: "評価基準の適用に失敗しました。",
     cannotConnect: "バックエンドに接続できません。サーバーを確認してください。",
     connectionTimeout: "接続がタイムアウトしました。バックエンドを確認してください。",
-    deleteSubmissionFailed: "提出データの削除に失敗しました。",
-    deleteSubmissionsFailed: "提出データの一括削除に失敗しました。",
-    exportSubmissionsFailed: "提出データ一覧の出力に失敗しました。",
+    deleteSubmissionFailed: "プロジェクトの削除に失敗しました。",
+    deleteSubmissionsFailed: "プロジェクトの一括削除に失敗しました。",
+    exportSubmissionsFailed: "プロジェクト一覧の出力に失敗しました。",
     fetchGradeJobFailed: "レビュー状況を読み込めませんでした。",
     fetchRubricsFailed: "評価基準を読み込めませんでした。",
-    fetchSubmissionsFailed: "提出データ一覧を読み込めませんでした。",
+    fetchSubmissionsFailed: "プロジェクト一覧を読み込めませんでした。",
     gradeAllFailed: "一括レビューに失敗しました。",
     gradingFailed: "レビューに失敗しました。",
     saveRubricFailed: "評価基準の保存に失敗しました。",
@@ -84,6 +100,90 @@ export async function getSubmissions(limit: number = 100, offset: number = 0): P
 
 export async function getSubmission(projectId: string): Promise<Submission> {
   const res = await fetch(`${API_BASE_URL}/submissions/${encodeURIComponent(projectId)}`);
+  if (!res.ok) throw new Error(`${apiMessage("fetchSubmissionsFailed")} ${res.statusText}`);
+  return res.json();
+}
+
+export async function getSubmissionVersions(projectId: string): Promise<DocumentVersion[]> {
+  const res = await fetch(`${API_BASE_URL}/submissions/${encodeURIComponent(projectId)}/versions`);
+  if (!res.ok) throw new Error(`${apiMessage("fetchSubmissionsFailed")} ${res.statusText}`);
+  return res.json();
+}
+
+export async function getSubmissionDocuments(projectId: string): Promise<SubmissionDocument[]> {
+  const res = await fetch(`${API_BASE_URL}/submissions/${encodeURIComponent(projectId)}/documents`);
+  if (!res.ok) throw new Error(`${apiMessage("fetchSubmissionsFailed")} ${res.statusText}`);
+  return res.json();
+}
+
+export async function getSubmissionGradingRuns(projectId: string): Promise<GradingRunHistory[]> {
+  const res = await fetch(`${API_BASE_URL}/submissions/${encodeURIComponent(projectId)}/grading-runs`);
+  if (!res.ok) throw new Error(`${apiMessage("fetchSubmissionsFailed")} ${res.statusText}`);
+  return res.json();
+}
+
+export async function getGradingRunDetail(runId: number): Promise<GradingRunDetail> {
+  const res = await fetch(`${API_BASE_URL}/grading-runs/${runId}`);
+  if (!res.ok) throw new Error(`${apiMessage("fetchSubmissionsFailed")} ${res.statusText}`);
+  return res.json();
+}
+
+// New Hierarchical API methods
+export async function listProjects(limit: number = 100, offset: number = 0): Promise<Project[]> {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  });
+  const url = `${API_BASE_URL}/projects?${params.toString()}`;
+  console.log(`[API] Fetching projects: ${url}`);
+  const res = await fetch(url);
+  if (!res.ok) {
+    console.error(`[API] Fetch projects failed: ${res.status} ${res.statusText} at ${url}`);
+    throw new Error(`${apiMessage("fetchSubmissionsFailed")} ${res.statusText}`);
+  }
+  const data = await res.json();
+  // Handle wrapper objects from backend (SubmissionListResponse has 'submissions' key)
+  const list = data.submissions || data.projects || data.items || (Array.isArray(data) ? data : []);
+  return list as Project[];
+}
+
+export async function listProjectDocuments(projectId: string): Promise<DocumentListOut[]> {
+  const url = `${API_BASE_URL}/projects/${encodeURIComponent(projectId)}/documents`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    console.error(`[API] Fetch project documents failed: ${res.status} at ${url}`);
+    throw new Error(`${apiMessage("fetchSubmissionsFailed")} ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function listDocumentVersions(documentId: number): Promise<VersionListOut[]> {
+  const url = `${API_BASE_URL}/documents/${documentId}/versions`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    console.error(`[API] Fetch versions failed: ${res.status} at ${url}`);
+    throw new Error(`${apiMessage("fetchSubmissionsFailed")} ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function listVersionGradings(documentVersionId: number): Promise<GradingListOut[]> {
+  const url = `${API_BASE_URL}/versions/${documentVersionId}/gradings`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    console.error(`[API] Fetch gradings failed: ${res.status} at ${url}`);
+    throw new Error(`${apiMessage("fetchSubmissionsFailed")} ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function getGradingRun(gradingRunId: number): Promise<GradingRunDetail> {
+  return getGradingRunDetail(gradingRunId);
+}
+
+export async function compareGradingRuns(projectId: string, runA: number, runB: number): Promise<CompareRunResult> {
+  const params = new URLSearchParams({ run_a: String(runA), run_b: String(runB) });
+  const res = await fetch(`${API_BASE_URL}/submissions/${encodeURIComponent(projectId)}/compare?${params.toString()}`);
   if (!res.ok) throw new Error(`${apiMessage("fetchSubmissionsFailed")} ${res.statusText}`);
   return res.json();
 }
@@ -126,14 +226,23 @@ interface GradeSubmissionParams {
   projectId: string;
   force?: boolean;
   rubricVersion?: string | null;
+  documentVersionId?: number | null;
+  promptLevel?: PromptLevel | string | null;
 }
 
 interface GradeAllParams {
   force?: boolean;
   rubricVersion?: string | null;
+  promptLevel?: PromptLevel | string | null;
 }
 
-export async function gradeSubmission({ projectId, force = false, rubricVersion = null }: GradeSubmissionParams) {
+export async function gradeSubmission({
+  projectId,
+  force = false,
+  rubricVersion = null,
+  documentVersionId = null,
+  promptLevel = null,
+}: GradeSubmissionParams) {
   const params = new URLSearchParams({
     language: currentLanguage,
   });
@@ -142,6 +251,12 @@ export async function gradeSubmission({ projectId, force = false, rubricVersion 
   }
   if (rubricVersion) {
     params.set("rubric_version", rubricVersion);
+  }
+  if (typeof documentVersionId === "number") {
+    params.set("document_version_id", String(documentVersionId));
+  }
+  if (promptLevel) {
+    params.set("prompt_level", promptLevel);
   }
 
   const res = await fetch(`${API_BASE_URL}/grade/${projectId}?${params.toString()}`, {
@@ -154,7 +269,7 @@ export async function gradeSubmission({ projectId, force = false, rubricVersion 
   return res.json();
 }
 
-export async function gradeAll({ force = false, rubricVersion = null }: GradeAllParams = {}) {
+export async function gradeAll({ force = false, rubricVersion = null, promptLevel = null }: GradeAllParams = {}) {
   const params = new URLSearchParams({
     language: currentLanguage,
   });
@@ -163,6 +278,9 @@ export async function gradeAll({ force = false, rubricVersion = null }: GradeAll
   }
   if (rubricVersion) {
     params.set("rubric_version", rubricVersion);
+  }
+  if (promptLevel) {
+    params.set("prompt_level", promptLevel);
   }
 
   const res = await fetch(`${API_BASE_URL}/grade-all?${params.toString()}`, {

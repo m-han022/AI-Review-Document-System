@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import { getSubmission, getSubmissions } from "../api/client";
-import { submissionDetailQueryKey, submissionsQueryKey } from "../query";
-import type { Submission } from "../types";
+import { listProjects } from "../api/client";
+import { projectsQueryKey } from "../query";
+import type { Project } from "../types";
 import DashboardOverview from "./dashboard/DashboardOverview";
 import FileUpload from "./FileUpload";
 import { useTranslation } from "./LanguageSelector";
@@ -13,55 +13,25 @@ import Topbar from "./layout/Topbar";
 import ProjectCard from "./project/ProjectCard";
 import ReviewListOverview from "./reviews/ReviewListOverview";
 import RubricManagement from "./rubrics/RubricManagement";
-import Badge from "./ui/Badge";
+import OperationalScreen from "./workspace/OperationalScreens";
 import SectionBlock from "./ui/SectionBlock";
-
-function PlaceholderPanel({
-  title,
-  description,
-  badge,
-}: {
-  title: string;
-  description: string;
-  badge?: string;
-}) {
-  return (
-    <SectionBlock className="placeholder-panel">
-      <SectionBlock.Header title={title} subtitle={description} aside={badge ? <Badge>{badge}</Badge> : null} />
-      <SectionBlock.Body>
-        <div className="placeholder-panel__body">
-          <div className="placeholder-panel__grid">
-            <div className="placeholder-card" />
-            <div className="placeholder-card" />
-            <div className="placeholder-card" />
-          </div>
-          <p className="placeholder-panel__note">{description}</p>
-        </div>
-      </SectionBlock.Body>
-    </SectionBlock>
-  );
-}
+import { ErrorState, LoadingState } from "./ui/States";
 
 export default function Dashboard() {
   const { t } = useTranslation();
   const [activeView, setActiveView] = useState<WorkspaceView>("dashboard");
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const { data, isLoading, error } = useQuery({
-    queryKey: submissionsQueryKey,
-    queryFn: () => getSubmissions(),
-  });
-  const { data: detailedSubmission } = useQuery({
-    queryKey: selectedProjectId ? submissionDetailQueryKey(selectedProjectId) : ["submission", "empty"],
-    queryFn: () => getSubmission(selectedProjectId as string),
-    enabled: activeView === "detail" && Boolean(selectedProjectId),
+  
+  const { data: projectsData, isLoading, error } = useQuery({
+    queryKey: projectsQueryKey,
+    queryFn: () => listProjects(),
   });
 
-  const submissions: Submission[] = useMemo(() => data?.submissions ?? [], [data?.submissions]);
-  const selectedSubmission = useMemo(
-    () => submissions.find((item) => item.project_id === selectedProjectId) ?? submissions[0] ?? null,
-    [selectedProjectId, submissions],
+  const projects: Project[] = useMemo(() => (Array.isArray(projectsData) ? projectsData : []), [projectsData]);
+  const selectedProject = useMemo(
+    () => projects.find((item) => item.project_id === selectedProjectId) ?? projects[0] ?? null,
+    [selectedProjectId, projects],
   );
-  const detailSubmission = detailedSubmission ?? selectedSubmission;
 
   const topbarContent = useMemo(() => {
     switch (activeView) {
@@ -78,12 +48,12 @@ export default function Dashboard() {
           title: t("submissions.title"),
           subtitle: t("submissions.subtitle"),
           breadcrumb: undefined,
-          rightBadge: t("submissions.count", { count: submissions.length }),
+          rightBadge: t("submissions.count", { count: projects.length }),
           hideMain: false,
         };
       case "detail":
         return {
-          title: detailSubmission?.filename ?? t("project.reviewResult"),
+          title: selectedProject?.project_name ?? t("project.reviewResult"),
           subtitle: t("project.reviewDetailSubtitle"),
           breadcrumb: undefined,
           rightBadge: null,
@@ -97,12 +67,36 @@ export default function Dashboard() {
           rightBadge: null,
           hideMain: false,
         };
+      case "report":
+        return {
+          title: t("nav.qualityReport"),
+          subtitle: undefined,
+          breadcrumb: [t("nav.dashboard"), t("nav.qualityReport")],
+          rightBadge: null,
+          hideMain: false,
+        };
+      case "workflow":
+        return {
+          title: t("nav.approvalWorkflow"),
+          subtitle: undefined,
+          breadcrumb: [t("nav.dashboard"), t("nav.approvalWorkflow")],
+          rightBadge: null,
+          hideMain: false,
+        };
+      case "export":
+        return {
+          title: t("nav.export"),
+          subtitle: undefined,
+          breadcrumb: [t("nav.dashboard"), t("nav.export")],
+          rightBadge: null,
+          hideMain: false,
+        };
       case "settings":
         return {
           title: t("nav.settings"),
           subtitle: undefined,
           breadcrumb: [t("nav.dashboard"), t("nav.settings")],
-          rightBadge: t("common.comingSoon"),
+          rightBadge: null,
           hideMain: false,
         };
       case "dashboard":
@@ -115,15 +109,14 @@ export default function Dashboard() {
           hideMain: false,
         };
     }
-  }, [activeView, detailSubmission, submissions.length, t]);
+  }, [activeView, selectedProject, projects.length, t]);
 
   const content = (() => {
     if (error) {
       return (
         <SectionBlock>
-          <SectionBlock.Header title={t("common.error")} subtitle={t("rubric.loadFailed")} />
           <SectionBlock.Body>
-            <div className="error-banner">{error instanceof Error ? error.message : t("rubric.loadFailed")}</div>
+            <ErrorState title={t("common.error")} description={error instanceof Error ? error.message : t("rubric.loadFailed")} />
           </SectionBlock.Body>
         </SectionBlock>
       );
@@ -132,9 +125,8 @@ export default function Dashboard() {
     if (isLoading) {
       return (
         <SectionBlock>
-          <SectionBlock.Header title={t("submissions.title")} subtitle={t("common.loading")} />
           <SectionBlock.Body>
-            <div className="loading-panel">{t("common.loading")}</div>
+            <LoadingState title={t("common.loading")} description={t("nav.dashboard")} />
           </SectionBlock.Body>
         </SectionBlock>
       );
@@ -144,15 +136,20 @@ export default function Dashboard() {
       case "upload":
         return (
           <div className="workspace-stack">
-            <FileUpload />
+            <FileUpload
+              onReviewComplete={(projectId) => {
+                setSelectedProjectId(projectId);
+                setActiveView("detail");
+              }}
+            />
           </div>
         );
       case "reviews":
         return (
           <div className="workspace-stack">
             <ReviewListOverview
-              submissions={submissions}
-              activeProjectId={selectedSubmission?.project_id ?? null}
+              projects={projects}
+              activeProjectId={selectedProject?.project_id ?? null}
               onSelectProject={(projectId) => {
                 setSelectedProjectId(projectId);
                 setActiveView("detail");
@@ -161,7 +158,7 @@ export default function Dashboard() {
           </div>
         );
       case "detail":
-        if (!detailSubmission) {
+        if (!selectedProjectId) {
           return (
             <div className="workspace-stack">
               <SectionBlock>
@@ -172,9 +169,8 @@ export default function Dashboard() {
         }
         return (
           <ProjectCard 
-            submission={detailSubmission} 
-            allSubmissions={submissions}
-            onNavigate={(projectId) => setSelectedProjectId(projectId)}
+            key={selectedProjectId}
+            projectId={selectedProjectId}
             onBack={() => setActiveView("reviews")}
           />
         );
@@ -184,19 +180,31 @@ export default function Dashboard() {
             <RubricManagement />
           </div>
         );
+      case "report":
+      case "workflow":
+      case "export":
       case "settings":
         return (
-          <PlaceholderPanel
-            title={t("nav.settings")}
-            description={t("common.comingSoon")}
-            badge={t("common.comingSoon")}
+          <OperationalScreen
+            route={activeView}
+            projects={projects}
+            onOpenReviews={() => setActiveView("reviews")}
+            onOpenUpload={() => setActiveView("upload")}
           />
         );
       case "dashboard":
       default:
         return (
           <div className="workspace-stack workspace-stack--dashboard-reference">
-            <DashboardOverview submissions={submissions} />
+            <DashboardOverview
+              projects={projects}
+              onSelectProject={(projectId) => {
+                setSelectedProjectId(projectId);
+                setActiveView("detail");
+              }}
+              onOpenReviews={() => setActiveView("reviews")}
+              onOpenExport={() => setActiveView("export")}
+            />
           </div>
         );
     }

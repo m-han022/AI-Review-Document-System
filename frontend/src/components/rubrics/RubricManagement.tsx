@@ -11,6 +11,7 @@ import { useTranslation } from "../LanguageSelector";
 import Badge from "../ui/Badge";
 import { PlusIcon } from "../ui/Icon";
 import SectionBlock from "../ui/SectionBlock";
+import { ErrorState, LoadingState } from "../ui/States";
 const RubricScoreAllocationChart = lazy(() => import("./charts/RubricScoreAllocationChart"));
 
 type FormState = RubricVersionPayload;
@@ -210,11 +211,11 @@ export default function RubricManagement() {
   };
 
   if (isLoading) {
-    return <div className="loading-panel">{t("rubric.loading")}</div>;
+    return <LoadingState title={t("rubric.loading")} description={t("rubric.pageSubtitle")} />;
   }
 
   if (error) {
-    return <div className="error-banner">{error instanceof Error ? error.message : t("rubric.loadFailed")}</div>;
+    return <ErrorState title={t("rubric.loadFailed")} description={error instanceof Error ? error.message : t("rubric.loadFailed")} />;
   }
 
   return (

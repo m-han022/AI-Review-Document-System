@@ -58,6 +58,7 @@ class GradeJobStore:
         *,
         force: bool = False,
         rubric_version: str | None = None,
+        prompt_level: str = "medium",
     ) -> GradeJobResponse:
         now = datetime.now(timezone.utc).isoformat()
         job_id = uuid4().hex
@@ -75,6 +76,7 @@ class GradeJobStore:
             "project_ids": project_ids,
             "force": force,
             "rubric_version": rubric_version,
+            "prompt_level": prompt_level,
         }
         with self._lock:
             self._prune_jobs_locked()
@@ -145,6 +147,7 @@ class GradeJobStore:
                 project_ids = list(self._jobs[job_id]["project_ids"])
                 force = bool(self._jobs[job_id].get("force", False))
                 rubric_version = self._jobs[job_id].get("rubric_version")
+                prompt_level = self._jobs[job_id].get("prompt_level", "medium")
 
             for project_id in project_ids:
                 submission = store.get(project_id)
@@ -161,7 +164,23 @@ class GradeJobStore:
                     )
                     continue
 
-                document_language = submission.language
+                document_version = store.get_document_version(project_id)
+                if not document_version:
+                    self.append_result(
+                        job_id,
+                        GradeAllResult(
+                            project_id=project_id,
+                            project_name=submission.project_name,
+                            success=False,
+                            error="Document version not found",
+                        ),
+                        success=False,
+                    )
+                    continue
+
+                document_language = document_version.language
+                document = store.get_document_for_version(document_version.id or 0)
+                document_type = document.document_type if document else getattr(submission, "document_type", None)
                 # [FIX BUG-01] Capture project_name before try block — submission may be
                 # reassigned by store.save_grading_result() inside the try, making
                 # submission.project_name unreliable in the except handler.
@@ -170,10 +189,12 @@ class GradeJobStore:
                 try:
                     started_at = datetime.now(timezone.utc).isoformat()
                     result = grade_submission(
-                        submission.extracted_text,
+                        document_version.extracted_text,
                         document_language,
-                        getattr(submission, "document_type", None),
+                        document_type,
                         rubric_version=rubric_version,
+                        document_version_id=document_version.id,
+                        prompt_level=prompt_level,
                         use_cache=not force,
                         refresh_cache=force,
                     )
@@ -193,8 +214,16 @@ class GradeJobStore:
                             project_name=submission.project_name,
                             score=result["score"],
                             run_id=latest_run.id if latest_run else None,
+                            document_version_id=latest_run.document_version_id if latest_run else None,
+                            document_version=latest_run.document_version if latest_run else None,
                             rubric_version=latest_run.rubric_version if latest_run else None,
+                            rubric_hash=latest_run.rubric_hash if latest_run else None,
                             gemini_model=latest_run.gemini_model if latest_run else None,
+                            prompt_version=latest_run.prompt_version if latest_run else None,
+                            prompt_level=latest_run.prompt_level if latest_run else None,
+                            policy_version=latest_run.policy_version if latest_run else None,
+                            policy_hash=latest_run.policy_hash if latest_run else None,
+                            required_rule_hash=latest_run.required_rule_hash if latest_run else None,
                             prompt_hash=latest_run.prompt_hash if latest_run else None,
                             criteria_hash=latest_run.criteria_hash if latest_run else None,
                             grading_schema_version=latest_run.grading_schema_version if latest_run else None,

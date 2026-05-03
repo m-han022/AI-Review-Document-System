@@ -18,6 +18,9 @@
   --ds-space-2: 8px;
   --ds-space-3: 12px;
   --ds-space-4: 16px;
+  --ds-space-section: 24px;
+  --ds-space-card: 16px;
+  --ds-space-inner: 12px;
   --ds-space-5: 24px;
   --ds-space-6: 32px;
 
@@ -28,25 +31,27 @@
   --ds-color-primary: #2F5F9F;
   --ds-color-primary-text: #244E83;
   --ds-color-primary-soft: #F1F6FC;
-  --ds-color-success: #2F7D4F;
+  --ds-color-success: #22C55E;
   --ds-color-success-soft: #F4FAF6;
-  --ds-color-warning: #A66A00;
+  --ds-color-warning: #F59E0B;
   --ds-color-warning-soft: #FFFAF0;
-  --ds-color-danger: #B4232A;
+  --ds-color-danger: #EF4444;
+  --ds-color-danger-strong: #B91C1C;
   --ds-color-danger-soft: #FFF5F5;
-  --ds-color-error: #B4232A;
+  --ds-color-error: #EF4444;
   --ds-color-error-soft: #FEF2F2;
   --ds-color-text: #1F2933;
-  --ds-color-text-secondary: #667085;
-  --ds-color-text-muted: #667085;
+  --ds-color-text-secondary: #64748B;
+  --ds-color-text-muted: #64748B;
   --ds-color-text-on-dark: #FFFFFF;
   --ds-color-bg-app: #F9FAFB;
   --ds-color-white: #FFFFFF;
   --ds-color-surface: #FFFFFF;
   --ds-color-surface-muted: #F3F4F6;
-  --ds-color-border: #E5E7EB;
+  --ds-color-border: #E5EAF3;
+  --ds-color-border-subtle: #EEF2F7;
   --ds-color-border-strong: #D1D5DB;
-  --ds-color-row-hover: #F9FAFB;
+  --ds-color-row-hover: #F8FAFC;
   --ds-color-row-selected: #F8FBFF;
   --ds-color-sidebar: #111827;
   --ds-color-sidebar-active: #1F2937;
@@ -70,8 +75,9 @@
   --ds-chart-criteria-fill: linear-gradient(90deg, #2b6df3 0%, #2563eb 100%);
 
   --ds-radius-sm: 4px;
-  --ds-radius-md: 8px;
-  --ds-radius-card: 10px;
+  --ds-radius-md: 10px;
+  --ds-radius-control: 12px;
+  --ds-radius-card: 16px;
   --ds-radius-pill: 999px;
   --ds-border-width: 1px;
   --ds-selected-indicator-width: 2px;

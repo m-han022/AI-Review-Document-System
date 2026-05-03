@@ -3,21 +3,32 @@ from sqlalchemy import UniqueConstraint
 from sqlmodel import SQLModel, Field, Column, JSON
 from typing import Optional, Literal, Dict, Any
 
+
 # Supported languages
 LanguageCode = Literal["vi", "ja"]
 RubricStatus = Literal["draft", "active", "archived"]
+PromptLevel = Literal["low", "medium", "high"]
 
 
 class Submission(SQLModel, table=True):
+    """
+    Represents a Project (Submission).
+    As per AGENTS.md v2, this should not contain document-specific data.
+    Legacy fields are kept for backward compatibility.
+    """
     id: Optional[int] = Field(default=None, primary_key=True)
     project_id: str = Field(index=True, unique=True)
     project_name: str
-    filename: str
-    document_type: str = Field(default="project-review", index=True)
-    language: str = Field(default="ja", index=True)
-    file_path: Optional[str] = None
-    uploaded_at: str = ""
+    
+    # Legacy fields (Superseded by SubmissionDocument and SubmissionDocumentVersion)
+    filename: str  # Legacy: Use SubmissionDocumentVersion.original_filename
+    document_type: str = Field(default="project-review", index=True)  # Legacy: Use SubmissionDocument.document_type
+    language: str = Field(default="ja", index=True)  # Legacy: Use SubmissionDocumentVersion.language
+    file_path: Optional[str] = None  # Legacy: Use SubmissionDocumentVersion.file_path
+    uploaded_at: str = ""  # Legacy: Use SubmissionDocumentVersion.uploaded_at
+    
     status: str = Field(default="uploaded", index=True)
+    project_description: Optional[str] = None
     latest_grading_run_id: Optional[int] = Field(default=None, foreign_key="gradingrun.id")
 
 
@@ -25,6 +36,41 @@ class SubmissionContent(SQLModel, table=True):
     submission_id: int = Field(primary_key=True, foreign_key="submission.id")
     extracted_text: str
     content_hash: str = Field(index=True)
+
+
+class SubmissionDocument(SQLModel, table=True):
+    __tablename__ = "submission_document"
+    __table_args__ = (
+        UniqueConstraint("submission_id", "document_type", "document_name", name="uq_submission_document_identity"),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    submission_id: int = Field(foreign_key="submission.id", index=True)
+    document_type: str = Field(index=True)
+    document_name: str = Field(index=True)
+    created_at: str = ""
+    updated_at: str = ""
+    is_latest: bool = Field(default=True, index=True)
+
+
+class SubmissionDocumentVersion(SQLModel, table=True):
+    __tablename__ = "submission_document_version"
+    __table_args__ = (
+        UniqueConstraint("document_id", "document_version", name="uq_document_version"),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    submission_id: int = Field(foreign_key="submission.id", index=True)
+    document_id: Optional[int] = Field(default=None, foreign_key="submission_document.id", index=True)
+    document_version: str = Field(index=True)
+    filename: str
+    original_filename: str
+    file_path: Optional[str] = None
+    extracted_text: str
+    content_hash: str = Field(index=True)
+    language: str = Field(default="ja", index=True)
+    uploaded_at: str = ""
+    is_latest: bool = Field(default=True, index=True)
 
 
 class Rubric(SQLModel, table=True):
@@ -54,14 +100,23 @@ class RubricCriterionRecord(SQLModel, table=True):
 class GradingRun(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     submission_id: int = Field(foreign_key="submission.id", index=True)
+    document_version_id: Optional[int] = Field(default=None, foreign_key="submission_document_version.id", index=True)
+    document_version: Optional[str] = Field(default=None, index=True)
     rubric_id: Optional[int] = Field(default=None, foreign_key="rubric.id", index=True)
     rubric_version: Optional[str] = None
+    rubric_hash: Optional[str] = Field(default=None, index=True)
     gemini_model: Optional[str] = None
     score: Optional[int] = Field(default=None, index=True)
+    total_score: Optional[int] = Field(default=None, index=True)
     draft_feedback: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
     status: str = Field(default="completed", index=True)
     error_message: Optional[str] = None
     content_hash: str = Field(index=True)
+    prompt_version: Optional[str] = Field(default=None, index=True)
+    prompt_level: Optional[str] = Field(default="medium", index=True)
+    policy_version: Optional[str] = Field(default=None, index=True)
+    policy_hash: Optional[str] = Field(default=None, index=True)
+    required_rule_hash: Optional[str] = Field(default=None, index=True)
     prompt_hash: Optional[str] = Field(default=None, index=True)
     criteria_hash: Optional[str] = Field(default=None, index=True)
     grading_schema_version: Optional[str] = Field(default=None, index=True)
@@ -99,7 +154,12 @@ class UploadResponse(BaseModel):
     project_name: str
     filename: str
     document_type: Optional[str] = None
+    document_id: Optional[int] = None
+    document_name: Optional[str] = None
+    document_version_id: Optional[int] = None
+    document_version: Optional[str] = None
     message: str
+    project_description: Optional[str] = None
     language: LanguageCode = "ja"
 
 
@@ -118,8 +178,16 @@ class GradeResponse(BaseModel):
     project_name: str
     score: int
     run_id: int
+    document_version_id: Optional[int] = None
+    document_version: Optional[str] = None
     rubric_version: Optional[str] = None
+    rubric_hash: Optional[str] = None
     gemini_model: Optional[str] = None
+    prompt_version: Optional[str] = None
+    prompt_level: Optional[str] = None
+    policy_version: Optional[str] = None
+    policy_hash: Optional[str] = None
+    required_rule_hash: Optional[str] = None
     prompt_hash: Optional[str] = None
     criteria_hash: Optional[str] = None
     grading_schema_version: Optional[str] = None
@@ -136,8 +204,16 @@ class GradeAllResult(BaseModel):
     project_name: str
     score: Optional[int] = None
     run_id: Optional[int] = None
+    document_version_id: Optional[int] = None
+    document_version: Optional[str] = None
     rubric_version: Optional[str] = None
+    rubric_hash: Optional[str] = None
     gemini_model: Optional[str] = None
+    prompt_version: Optional[str] = None
+    prompt_level: Optional[str] = None
+    policy_version: Optional[str] = None
+    policy_hash: Optional[str] = None
+    required_rule_hash: Optional[str] = None
     prompt_hash: Optional[str] = None
     criteria_hash: Optional[str] = None
     grading_schema_version: Optional[str] = None
@@ -179,8 +255,17 @@ class CriteriaResultOut(BaseModel):
 class GradingRunOut(BaseModel):
     id: int
     score: Optional[int] = None
+    total_score: Optional[int] = None
+    document_version_id: Optional[int] = None
+    document_version: Optional[str] = None
     rubric_version: Optional[str] = None
+    rubric_hash: Optional[str] = None
     gemini_model: Optional[str] = None
+    prompt_version: Optional[str] = None
+    prompt_level: Optional[str] = None
+    policy_version: Optional[str] = None
+    policy_hash: Optional[str] = None
+    required_rule_hash: Optional[str] = None
     prompt_hash: Optional[str] = None
     criteria_hash: Optional[str] = None
     grading_schema_version: Optional[str] = None
@@ -196,8 +281,20 @@ class GradingRunOut(BaseModel):
 class GradingRunHistoryOut(BaseModel):
     id: int
     score: Optional[int] = None
+    total_score: Optional[int] = None
+    document_id: Optional[int] = None
+    document_type: Optional[str] = None
+    document_name: Optional[str] = None
+    document_version_id: Optional[int] = None
+    document_version: Optional[str] = None
     rubric_version: Optional[str] = None
+    rubric_hash: Optional[str] = None
     gemini_model: Optional[str] = None
+    prompt_version: Optional[str] = None
+    prompt_level: Optional[str] = None
+    policy_version: Optional[str] = None
+    policy_hash: Optional[str] = None
+    required_rule_hash: Optional[str] = None
     prompt_hash: Optional[str] = None
     criteria_hash: Optional[str] = None
     grading_schema_version: Optional[str] = None
@@ -210,6 +307,15 @@ class GradingRunHistoryOut(BaseModel):
     issue_count: int = 0
 
 
+class ProjectOut(BaseModel):
+    project_id: str
+    project_name: str
+    total_documents: int
+    latest_updated_at: str
+    latest_score: Optional[int] = None
+    project_description: Optional[str] = None
+
+
 class SubmissionOut(BaseModel):
     project_id: str
     project_name: str
@@ -218,8 +324,80 @@ class SubmissionOut(BaseModel):
     uploaded_at: str
     language: LanguageCode = "ja"
     status: str = "uploaded"
+    project_description: Optional[str] = None
+    latest_document_version_id: Optional[int] = None
+    latest_document_version: Optional[str] = None
+    latest_document_id: Optional[int] = None
+    latest_document_name: Optional[str] = None
+    latest_score: Optional[int] = None
+    latest_prompt_level: Optional[str] = None
+    latest_graded_at: Optional[str] = None
     latest_run: Optional[GradingRunOut] = None
     run_history: list[GradingRunHistoryOut] = []
+
+
+class DocumentOut(BaseModel):
+    id: int
+    submission_id: int
+    document_type: str
+    document_name: str
+    created_at: str
+    updated_at: str
+    is_latest: bool
+
+
+class DocumentListOut(BaseModel):
+    document_id: int
+    document_type: str
+    document_name: str
+    latest_version: Optional[str] = None
+    latest_uploaded_at: Optional[str] = None
+    latest_score: Optional[int] = None
+
+
+class DocumentVersionOut(BaseModel):
+    id: int
+    submission_id: int
+    document_id: Optional[int] = None
+    document_type: Optional[str] = None
+    document_name: Optional[str] = None
+    document_version: str
+    filename: str
+    original_filename: str
+    file_path: Optional[str] = None
+    content_hash: str
+    language: LanguageCode = "ja"
+    uploaded_at: str
+    is_latest: bool
+
+
+class VersionListOut(BaseModel):
+    document_version_id: int
+    version: str
+    filename: str
+    uploaded_at: str
+    is_latest: bool
+    content_hash: str
+    latest_grading_score: Optional[int] = None
+
+
+class GradingRunDetailOut(BaseModel):
+    submission: SubmissionOut
+    document: Optional[DocumentOut] = None
+    document_version: Optional[DocumentVersionOut] = None
+    grading_run: GradingRunOut
+    rubric: Optional["RubricVersionOut"] = None
+    criteria_results: list[CriteriaResultOut] = []
+    slide_reviews: list[SlideReviewOut] = []
+
+
+class CompareRunOut(BaseModel):
+    run_a: GradingRunOut
+    run_b: GradingRunOut
+    score_delta: Optional[int] = None
+    criteria_delta: Dict[str, float] = {}
+    ok_slide_delta: int = 0
+    ng_slide_delta: int = 0
 
 
 class SubmissionListResponse(BaseModel):
@@ -240,6 +418,7 @@ class RubricVersionPayload(BaseModel):
     prompt: Dict[LanguageCode, str]
 
 
+
 class RubricVersionOut(RubricVersionPayload):
     document_type: str
     active: bool = False
@@ -247,3 +426,20 @@ class RubricVersionOut(RubricVersionPayload):
 
 class RubricListResponse(BaseModel):
     rubrics: list[RubricVersionOut]
+
+
+class GradingListOut(BaseModel):
+    grading_run_id: int
+    total_score: Optional[int] = None
+    prompt_level: Optional[str] = None
+    rubric_version: Optional[str] = None
+    prompt_version: Optional[str] = None
+    gemini_model: Optional[str] = None
+    created_at: str
+
+
+class GradeRequest(BaseModel):
+    document_version_id: int
+    prompt_level: PromptLevel = "medium"
+    rubric_version: Optional[str] = None
+    force: bool = False

@@ -21,8 +21,17 @@ export interface SlideReview {
 export interface GradingRun {
   id: number;
   score: number | null;
+  total_score?: number | null;
+  document_version_id?: number | null;
+  document_version?: string | null;
   rubric_version?: string | null;
+  rubric_hash?: string | null;
   gemini_model?: string | null;
+  prompt_version?: string | null;
+  prompt_level?: PromptLevel | string | null;
+  policy_version?: string | null;
+  policy_hash?: string | null;
+  required_rule_hash?: string | null;
   prompt_hash?: string | null;
   criteria_hash?: string | null;
   grading_schema_version?: string | null;
@@ -38,8 +47,20 @@ export interface GradingRun {
 export interface GradingRunHistory {
   id: number;
   score: number | null;
+  total_score?: number | null;
+  document_id?: number | null;
+  document_type?: string | null;
+  document_name?: string | null;
+  document_version_id?: number | null;
+  document_version?: string | null;
   rubric_version?: string | null;
+  rubric_hash?: string | null;
   gemini_model?: string | null;
+  prompt_version?: string | null;
+  prompt_level?: PromptLevel | string | null;
+  policy_version?: string | null;
+  policy_hash?: string | null;
+  required_rule_hash?: string | null;
   prompt_hash?: string | null;
   criteria_hash?: string | null;
   grading_schema_version?: string | null;
@@ -52,6 +73,43 @@ export interface GradingRunHistory {
   issue_count: number;
 }
 
+export interface Project {
+  project_id: string;
+  project_name: string;
+  total_documents: number;
+  latest_score: number | null;
+  latest_updated_at: string;
+}
+
+export interface DocumentListOut {
+  document_id: number;
+  document_type: string;
+  document_name: string;
+  latest_version: string;
+  latest_score: number | null;
+  updated_at: string;
+}
+
+export interface VersionListOut {
+  document_version_id: number;
+  version: string;
+  filename: string;
+  uploaded_at: string;
+  is_latest: boolean;
+  content_hash: string;
+  latest_grading_score: number | null;
+}
+
+export interface GradingListOut {
+  grading_run_id: number;
+  total_score: number;
+  prompt_level: string;
+  rubric_version: string;
+  prompt_version: string;
+  gemini_model: string;
+  created_at: string;
+}
+
 export interface Submission {
   project_id: string;
   project_name: string;
@@ -60,8 +118,62 @@ export interface Submission {
   uploaded_at: string;
   language: LanguageCode;
   status: string;
+  latest_document_id?: number | null;
+  latest_document_name?: string | null;
+  latest_document_version_id?: number | null;
+  latest_document_version?: string | null;
+  latest_score?: number | null;
+  latest_prompt_level?: PromptLevel | string | null;
+  latest_graded_at?: string | null;
   latest_run?: GradingRun | null;
   run_history?: GradingRunHistory[];
+}
+
+export type PromptLevel = "low" | "medium" | "high";
+
+export interface SubmissionDocument {
+  id: number;
+  submission_id: number;
+  document_type: string;
+  document_name: string;
+  created_at: string;
+  updated_at: string;
+  is_latest: boolean;
+}
+
+export interface DocumentVersion {
+  id: number;
+  submission_id: number;
+  document_id?: number | null;
+  document_type?: string | null;
+  document_name?: string | null;
+  document_version: string;
+  filename: string;
+  original_filename: string;
+  file_path?: string | null;
+  content_hash: string;
+  language: LanguageCode;
+  uploaded_at: string;
+  is_latest: boolean;
+}
+
+export interface GradingRunDetail {
+  submission: Submission;
+  document?: SubmissionDocument | null;
+  document_version?: DocumentVersion | null;
+  grading_run: GradingRun;
+  rubric?: RubricVersion | null;
+  criteria_results: CriteriaResult[];
+  slide_reviews: SlideReview[];
+}
+
+export interface CompareRunResult {
+  run_a: GradingRun;
+  run_b: GradingRun;
+  score_delta?: number | null;
+  criteria_delta: Record<string, number>;
+  ok_slide_delta: number;
+  ng_slide_delta: number;
 }
 
 export interface UploadResponse {
@@ -69,6 +181,10 @@ export interface UploadResponse {
   project_name: string;
   filename: string;
   document_type?: string | null;
+  document_id?: number | null;
+  document_name?: string | null;
+  document_version_id?: number | null;
+  document_version?: string | null;
   message: string;
   language: LanguageCode;
 }
@@ -78,8 +194,16 @@ export interface GradeResponse {
   project_name: string;
   run_id: number;
   score: number;
+  document_version_id?: number | null;
+  document_version?: string | null;
   rubric_version?: string | null;
+  rubric_hash?: string | null;
   gemini_model?: string | null;
+  prompt_version?: string | null;
+  prompt_level?: PromptLevel | string | null;
+  policy_version?: string | null;
+  policy_hash?: string | null;
+  required_rule_hash?: string | null;
   prompt_hash?: string | null;
   criteria_hash?: string | null;
   grading_schema_version?: string | null;
@@ -96,8 +220,16 @@ export interface GradeAllResult {
   project_name: string;
   score: number | null;
   run_id?: number | null;
+  document_version_id?: number | null;
+  document_version?: string | null;
   rubric_version?: string | null;
+  rubric_hash?: string | null;
   gemini_model?: string | null;
+  prompt_version?: string | null;
+  prompt_level?: PromptLevel | string | null;
+  policy_version?: string | null;
+  policy_hash?: string | null;
+  required_rule_hash?: string | null;
   prompt_hash?: string | null;
   criteria_hash?: string | null;
   grading_schema_version?: string | null;

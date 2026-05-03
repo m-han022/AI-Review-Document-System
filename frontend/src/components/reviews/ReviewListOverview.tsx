@@ -1,34 +1,31 @@
-import { useMemo } from "react";
-import type { Submission } from "../../types";
+import type { Project } from "../../types";
 import { useTranslation } from "../LanguageSelector";
 import SubmissionsTable from "../SubmissionsTable";
 import { PageHeader } from "../ui/PageHeader";
 import { FileReviewIcon, ShieldCheckIcon, TargetIcon } from "../ui/Icon";
 
 interface ReviewListOverviewProps {
-  submissions: Submission[];
+  projects: Project[];
   activeProjectId?: string | null;
   onSelectProject?: (projectId: string) => void;
 }
 
 export default function ReviewListOverview({
-  submissions,
+  projects,
   activeProjectId,
   onSelectProject,
 }: ReviewListOverviewProps) {
   const { lang } = useTranslation();
   const isJa = lang === "ja";
 
-  const stats = useMemo(() => {
-    const total = submissions.length;
-    const completed = submissions.filter(s => s.latest_run?.score !== null && s.latest_run?.score !== undefined).length;
-    const pending = total - completed;
-    const avgScore = completed > 0 
-      ? Math.round(submissions.reduce((acc, s) => acc + (s.latest_run?.score ?? 0), 0) / completed)
-      : 0;
-
-    return { total, completed, pending, avgScore };
-  }, [submissions]);
+  const stats = {
+    total: projects.length,
+    completed: projects.filter(p => p.latest_score !== null).length,
+    pending: projects.filter(p => p.latest_score === null).length,
+    avgScore: projects.length > 0 
+      ? Math.round(projects.reduce((acc, p) => acc + (p.latest_score ?? 0), 0) / projects.length)
+      : 0
+  };
 
   return (
     <section className="dashboard-reference" aria-label={isJa ? "レビュー一覧" : "Danh sách review"}>
@@ -88,7 +85,7 @@ export default function ReviewListOverview({
         </header>
 
         <SubmissionsTable
-          submissions={submissions}
+          projects={projects}
           activeProjectId={activeProjectId ?? null}
           onSelectProject={onSelectProject}
           variant="reference"

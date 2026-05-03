@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { getGradeJob, gradeAll } from "../api/client";
-import { submissionsQueryKey } from "../query";
+import { projectsQueryKey } from "../query";
 import type { GradeJobResponse } from "../types";
 import Badge from "./ui/Badge";
 import ConfirmDialog from "./ui/ConfirmDialog";
@@ -42,7 +42,7 @@ export default function GradeActions({ ungradedCount, totalCount }: GradeActions
           );
           setGrading(false);
           setActiveJobId(null);
-          queryClient.invalidateQueries({ queryKey: submissionsQueryKey });
+          queryClient.invalidateQueries({ queryKey: projectsQueryKey });
         } else if (job.status === "failed") {
           setResult(job.error || t("submissions.gradingFailed"));
           setGrading(false);
@@ -80,7 +80,7 @@ export default function GradeActions({ ungradedCount, totalCount }: GradeActions
       <div className="grade-actions__panel">
         <div className="grade-actions__summary">
           <div className="grade-actions__summary-main">
-            <strong>{t("submissions.title")}</strong>
+            <strong>{t("project.title") || t("submissions.title")}</strong>
             <span>
               {grading
                 ? t("submissions.grading")

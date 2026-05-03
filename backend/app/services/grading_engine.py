@@ -8,6 +8,7 @@ from google.genai import types
 from app.config import settings
 from app.rubric import get_active_rubric_version, get_rubric, get_rubric_criteria_config
 from app.services.gemini_manager import get_gemini_client
+from app.services.prompt_policy import get_prompt_policy_bundle, normalize_prompt_level, stable_hash
 
 _GRADING_CACHE_MAX_SIZE = 200
 
@@ -118,31 +119,58 @@ def build_grading_signature(
     language: str,
     document_type: str | None,
     rubric_version: str | None = None,
-) -> dict[str, str]:
+    document_version_id: int | None = None,
+    prompt_level: str | None = "medium",
+) -> dict[str, Any]:
     normalized_document_type = document_type or "project-review"
     resolved_rubric_version = rubric_version or get_active_rubric_version(document_type=document_type)
     rubric = get_rubric(document_type=normalized_document_type, version=resolved_rubric_version)
     criteria_keys, max_scores = _get_criteria_config(normalized_document_type, resolved_rubric_version)
+    prompt_policy = get_prompt_policy_bundle(
+        document_type=normalized_document_type,
+        prompt_level=prompt_level,
+        required_keys=criteria_keys,
+        max_scores=max_scores,
+    )
+    final_system_instruction = _build_system_instruction(rubric, prompt_policy.policy_text, prompt_policy.prompt_text)
     return {
         "content_hash": _get_text_hash(text),
+        "document_version_id": document_version_id,
         "language": language,
         "document_type": normalized_document_type,
         "rubric_version": resolved_rubric_version,
-        "prompt_hash": _get_text_hash(rubric),
+        "rubric_hash": stable_hash(rubric),
+        "prompt_version": prompt_policy.prompt_version,
+        "prompt_level": prompt_policy.prompt_level,
+        "prompt_hash": _get_text_hash(final_system_instruction),
+        "policy_version": prompt_policy.policy_version,
+        "policy_hash": stable_hash(prompt_policy.policy_text),
+        "required_rule_hash": prompt_policy.required_rule_hash,
         "criteria_hash": _stable_json_hash({"keys": criteria_keys, "max_scores": max_scores}),
         "gemini_model": settings.gemini_model,
         "grading_schema_version": GRADING_SCHEMA_VERSION,
     }
 
 
-def _build_cache_key(signature: dict[str, str]) -> str:
+def _build_system_instruction(rubric: str, policy_text: str, prompt_text: str) -> str:
+    return "\n\n".join(part.strip() for part in [rubric, policy_text, prompt_text] if part and part.strip())
+
+
+def _build_cache_key(signature: dict[str, Any]) -> str:
     return "_".join(
         [
             signature["content_hash"],
+            str(signature.get("document_version_id") or ""),
             signature["language"],
             signature["document_type"],
             signature["rubric_version"],
+            signature["rubric_hash"],
+            signature["prompt_version"],
+            signature["prompt_level"],
             signature["prompt_hash"],
+            signature["policy_version"],
+            signature["policy_hash"],
+            signature["required_rule_hash"],
             signature["criteria_hash"],
             signature["gemini_model"],
             signature["grading_schema_version"],
@@ -281,17 +309,21 @@ def grade_submission(
     language: str = "ja",
     document_type: str | None = None,
     rubric_version: str | None = None,
+    document_version_id: int | None = None,
+    prompt_level: str | None = "medium",
     use_cache: bool = True,
     refresh_cache: bool = False,
 ) -> dict[str, Any]:
     if not settings.gemini_api_keys:
-        raise RuntimeError("GEMINI_API_KEY is not configured in .env")
+        raise RuntimeError("GEMINI_API_KEY or GEMINI_API_KEYS is not configured in backend/.env")
 
     signature = build_grading_signature(
         text=text,
         language=language,
         document_type=document_type,
         rubric_version=rubric_version,
+        document_version_id=document_version_id,
+        prompt_level=prompt_level,
     )
 
     cache_key = _build_cache_key(signature)
@@ -302,13 +334,20 @@ def grade_submission(
     rubric = get_rubric(document_type=document_type, version=signature["rubric_version"])
     prompt_prefix = PROMPT_PREFIXES.get(language, PROMPT_PREFIXES["ja"])
     required_keys, max_scores = _get_criteria_config(document_type, signature["rubric_version"])
+    prompt_policy = get_prompt_policy_bundle(
+        document_type=signature["document_type"],
+        prompt_level=normalize_prompt_level(prompt_level),
+        required_keys=required_keys,
+        max_scores=max_scores,
+    )
+    system_instruction = _build_system_instruction(rubric, prompt_policy.policy_text, prompt_policy.prompt_text)
 
     client = get_gemini_client()
     response = client.generate_content(
         model=settings.gemini_model,
         contents=f"{prompt_prefix}\n\n{text}{BILINGUAL_SCHEMA}",
         config=types.GenerateContentConfig(
-            system_instruction=rubric,
+            system_instruction=system_instruction,
             response_mime_type="application/json",
             temperature=0.3,
         ),
@@ -354,9 +393,17 @@ def grade_submission(
 
     result_data = {
         "score": score,
+        "total_score": score,
         "content_hash": signature["content_hash"],
+        "document_version_id": signature["document_version_id"],
         "rubric_version": signature["rubric_version"],
+        "rubric_hash": signature["rubric_hash"],
         "gemini_model": signature["gemini_model"],
+        "prompt_version": signature["prompt_version"],
+        "prompt_level": signature["prompt_level"],
+        "policy_version": signature["policy_version"],
+        "policy_hash": signature["policy_hash"],
+        "required_rule_hash": signature["required_rule_hash"],
         "prompt_hash": signature["prompt_hash"],
         "criteria_hash": signature["criteria_hash"],
         "grading_schema_version": signature["grading_schema_version"],

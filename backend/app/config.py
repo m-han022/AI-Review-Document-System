@@ -3,7 +3,8 @@ from pathlib import Path
 from typing import List
 from dotenv import load_dotenv
 
-load_dotenv()
+ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=ENV_PATH)
 
 
 class Settings:

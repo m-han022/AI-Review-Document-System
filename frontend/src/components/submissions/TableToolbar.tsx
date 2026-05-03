@@ -16,6 +16,8 @@ interface TableToolbarProps {
   onDocumentTypeFilterChange: (value: DocumentType | "all") => void;
   onStatusFilterChange: (value: "all" | "completed" | "pending") => void;
   onLanguageFilterChange: (value: LanguageCode | "all") => void;
+  searchQuery: string;
+  onSearchQueryChange: (value: string) => void;
   variant?: "full" | "reference";
 }
 
@@ -32,6 +34,8 @@ export default function TableToolbar({
   onDocumentTypeFilterChange,
   onStatusFilterChange,
   onLanguageFilterChange,
+  searchQuery,
+  onSearchQueryChange,
   variant = "full",
 }: TableToolbarProps) {
   const { lang, t } = useTranslation();
@@ -121,6 +125,8 @@ export default function TableToolbar({
           <input 
             type="text" 
             className="review-toolbar__search-input"
+            value={searchQuery}
+            onChange={(event) => onSearchQueryChange(event.target.value)}
             placeholder={lang === "ja" ? "ドキュメント名で検索..." : "Tìm kiếm tài liệu..."}
             aria-label="Search documents"
           />
