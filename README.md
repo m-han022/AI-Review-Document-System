@@ -216,6 +216,15 @@ GET    /versions/{id}/gradings
 
 ---
 
+### Project Structure
+
+Project → Document → Version → Grading Run
+
+### Upload Flow
+
+- Chọn project có sẵn
+- Không auto-create project từ filename
+
 ## Troubleshooting: stale backend process
 
 Nếu API đã sửa nhưng vẫn trả 404 hoặc không thấy route mới trong Swagger:

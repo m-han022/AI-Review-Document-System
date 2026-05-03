@@ -303,3 +303,17 @@ submissioncontent:
 Không overwrite
 → chỉ append
 → mọi thứ đều version hóa
+
+## Project Rules (Updated)
+
+- Project là master data, KHÔNG auto-create trong upload
+- Upload phải gắn với project_id tồn tại
+- project_description là metadata của project
+- project_description có thể được dùng làm auxiliary context cho AI
+- Không dùng project_description để thay thế nội dung tài liệu
+
+## Upload Validation
+
+- project_id phải tồn tại trước
+- filename phải match project_id
+- không tạo project ngầm

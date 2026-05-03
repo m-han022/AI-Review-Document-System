@@ -221,3 +221,18 @@ Hệ thống phải đảm bảo:
 # 🏁 14. Kết luận
 
 System = versioned + immutable + auditable
+
+
+## Project Management
+
+- Project phải được tạo trước khi upload
+- User phải chọn project khi upload
+- File upload phải thuộc project đã chọn
+- Validation:
+  - project_id từ filename phải match project đã chọn
+
+## Project Description
+
+- Là mô tả tổng quan dự án
+- Không phải nội dung tài liệu
+- Dùng làm context bổ sung cho AI
