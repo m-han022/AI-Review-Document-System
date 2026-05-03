@@ -121,6 +121,7 @@ def build_grading_signature(
     rubric_version: str | None = None,
     document_version_id: int | None = None,
     prompt_level: str | None = "medium",
+    project_description: str | None = None,
 ) -> dict[str, Any]:
     normalized_document_type = document_type or "project-review"
     resolved_rubric_version = rubric_version or get_active_rubric_version(document_type=document_type)
@@ -149,6 +150,7 @@ def build_grading_signature(
         "criteria_hash": _stable_json_hash({"keys": criteria_keys, "max_scores": max_scores}),
         "gemini_model": settings.gemini_model,
         "grading_schema_version": GRADING_SCHEMA_VERSION,
+        "project_description_hash": _get_text_hash(project_description or ""),
     }
 
 
@@ -174,6 +176,7 @@ def _build_cache_key(signature: dict[str, Any]) -> str:
             signature["criteria_hash"],
             signature["gemini_model"],
             signature["grading_schema_version"],
+            signature.get("project_description_hash") or "",
         ]
     )
 
@@ -311,6 +314,7 @@ def grade_submission(
     rubric_version: str | None = None,
     document_version_id: int | None = None,
     prompt_level: str | None = "medium",
+    project_description: str | None = None,
     use_cache: bool = True,
     refresh_cache: bool = False,
 ) -> dict[str, Any]:
@@ -324,6 +328,7 @@ def grade_submission(
         rubric_version=rubric_version,
         document_version_id=document_version_id,
         prompt_level=prompt_level,
+        project_description=project_description,
     )
 
     cache_key = _build_cache_key(signature)
@@ -341,11 +346,18 @@ def grade_submission(
         max_scores=max_scores,
     )
     system_instruction = _build_system_instruction(rubric, prompt_policy.policy_text, prompt_policy.prompt_text)
-
     client = get_gemini_client()
+
     response = client.generate_content(
         model=settings.gemini_model,
-        contents=f"{prompt_prefix}\n\n{text}{BILINGUAL_SCHEMA}",
+        contents=(
+            f"{prompt_prefix}\n\n"
+            "ADDITIONAL PROJECT CONTEXT (FOR REFERENCE ONLY):\n"
+            f"{project_description or 'No additional context provided.'}\n\n"
+            "IMPORTANT: Use the project context only to better understand the domain. "
+            "All grading decisions must be based on evidence found within the DOCUMENT CONTENT below.\n\n"
+            f"DOCUMENT CONTENT:\n{text}{BILINGUAL_SCHEMA}"
+        ),
         config=types.GenerateContentConfig(
             system_instruction=system_instruction,
             response_mime_type="application/json",

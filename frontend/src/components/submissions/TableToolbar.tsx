@@ -1,7 +1,7 @@
 import type { DocumentType } from "../../constants/documentTypes";
 import type { LanguageCode } from "../../types";
 import { useTranslation } from "../LanguageSelector";
-import { DownloadIcon, SearchIcon, TrashIcon } from "../ui/Icon";
+import { DownloadIcon, PlusIcon, SearchIcon, TrashIcon } from "../ui/Icon";
 
 interface TableToolbarProps {
   selectedCount: number;
@@ -18,6 +18,7 @@ interface TableToolbarProps {
   onLanguageFilterChange: (value: LanguageCode | "all") => void;
   searchQuery: string;
   onSearchQueryChange: (value: string) => void;
+  onCreateProject?: () => void;
   variant?: "full" | "reference";
 }
 
@@ -36,6 +37,7 @@ export default function TableToolbar({
   onLanguageFilterChange,
   searchQuery,
   onSearchQueryChange,
+  onCreateProject,
   variant = "full",
 }: TableToolbarProps) {
   const { lang, t } = useTranslation();
@@ -94,6 +96,14 @@ export default function TableToolbar({
           </div>
 
           <div className="review-toolbar__actions">
+            <button
+              className="btn-primary btn-primary--compact"
+              onClick={onCreateProject}
+              disabled={isActionPending}
+            >
+              <PlusIcon size="md" />
+              {lang === "ja" ? "新規プロジェクト" : "Dự án mới"}
+            </button>
             <button
               className="btn-primary btn-primary--compact"
               onClick={onExport}
@@ -173,13 +183,19 @@ export default function TableToolbar({
           <button
             className="review-pagination-btn-v3"
             style={{ height: '40px', background: '#6366f1', color: '#ffffff', borderColor: '#6366f1' }}
+            onClick={onCreateProject}
+            disabled={isActionPending}
+          >
+            <PlusIcon size="sm" />
+          </button>
+
+          <button
+            className="review-pagination-btn-v3"
+            style={{ height: '40px', background: '#f8fafc', color: '#475569' }}
             onClick={onExport}
             disabled={totalCount === 0 || exporting || isActionPending}
           >
             <DownloadIcon size="sm" />
-            <span style={{ marginLeft: '8px' }}>
-              {exporting ? t("submissions.exporting") : lang === "ja" ? "Excel出力" : "Xuất Excel"}
-            </span>
           </button>
           
           <button

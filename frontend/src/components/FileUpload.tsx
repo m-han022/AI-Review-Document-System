@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-
-import { gradeSubmission, uploadFile } from "../api/client";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { gradeSubmission, uploadFile, listProjects } from "../api/client";
 import { getActiveRubricConfig } from "../constants/gradingCriteria";
 import { DOCUMENT_TYPE_OPTIONS, type DocumentType } from "../constants/documentTypes";
 import { useRubricList } from "../hooks/useRubrics";
@@ -66,6 +65,8 @@ const UPLOAD_COPY = {
       grade: "Đang chấm điểm",
       recommend: "Đang tạo khuyến nghị",
     },
+    projectDescription: "Mô tả dự án (ngữ cảnh bổ sung)",
+    projectDescriptionHint: "Nhập thêm thông tin về dự án để AI review chính xác hơn (ngữ cảnh, yêu cầu đặc biệt...).",
   },
   ja: {
     title: "アップロード",
@@ -102,6 +103,8 @@ const UPLOAD_COPY = {
       grade: "スコアリング中",
       recommend: "推奨事項を生成中",
     },
+    projectDescription: "プロジェクトの説明 (追加のコンテキスト)",
+    projectDescriptionHint: "AI レビューの精度を高めるために、プロジェクトの背景や要件などの追加情報を入力してください。",
   },
 } as const;
 
@@ -212,6 +215,8 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
   const [dragActive, setDragActive] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadedProjectId, setUploadedProjectId] = useState<string | null>(null);
+  const [projectDescription, setProjectDescription] = useState("");
+  const [selectedExistingProjectId, setSelectedExistingProjectId] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState(false);
   const [processingStep, setProcessingStep] = useState<ProcessingStep>("read");
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
@@ -280,6 +285,13 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
     },
   });
 
+  const { data: projectsData } = useQuery({
+    queryKey: projectsQueryKey,
+    queryFn: () => listProjects(),
+  });
+  const projects = Array.isArray(projectsData) ? projectsData : [];
+  const selectedExistingProject = projects.find(p => p.project_id === selectedExistingProjectId);
+
   const resetInput = () => {
     if (inputRef.current) inputRef.current.value = "";
   };
@@ -334,12 +346,17 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
       const uploadMetadata = resolveUploadMetadata(file);
       formData.append("file", file);
       formData.append("language", lang);
-      if (uploadMetadata.projectId) {
-        formData.append("project_id", uploadMetadata.projectId);
+      
+      const finalProjectId = selectedExistingProjectId || uploadMetadata.projectId;
+      if (finalProjectId) {
+        formData.append("project_id", finalProjectId);
       }
       formData.append("project_name", uploadMetadata.projectName);
       formData.append("document_type", documentType);
       formData.append("document_name", uploadMetadata.documentName);
+      if (projectDescription) {
+        formData.append("project_description", projectDescription);
+      }
 
       const result = await uploadMutation.mutateAsync(formData);
       setUploadProgress(100);
@@ -452,7 +469,6 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                 })}
               </div>
             </section>
-
             <section className="prod-upload-card">
               <header className="prod-upload-card__head">
                 <div>
@@ -463,6 +479,36 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                   {uploadState === "uploaded" ? copy.uploaded : uploadState.toUpperCase()}
                 </StatusBadge>
               </header>
+
+              <div className="prod-field" style={{ marginBottom: '20px', padding: '0 24px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>{lang === 'ja' ? 'プロジェクト選択' : 'Chọn dự án'}</label>
+                <select 
+                  className="prod-select" 
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                  value={selectedExistingProjectId || ""}
+                  onChange={(e) => {
+                    const pid = e.target.value;
+                    setSelectedExistingProjectId(pid || null);
+                    const p = projects.find(proj => proj.project_id === pid);
+                    if (p) {
+                      setProjectDescription(p.project_description || "");
+                    }
+                  }}
+                >
+                  <option value="">{lang === 'ja' ? '-- 既存プロジェクトを選択 (またはファイル名から自動抽出) --' : '-- Chọn dự án cũ (hoặc tự trích xuất từ tên file) --'}</option>
+                  {projects.map(p => (
+                    <option key={p.project_id} value={p.project_id}>{p.project_id} - {p.project_name}</option>
+                  ))}
+                </select>
+                {selectedExistingProject && (
+                  <div style={{ marginTop: '12px', padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                    <strong style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>{selectedExistingProject.project_name}</strong>
+                    <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>
+                      {selectedExistingProject.project_description || (lang === 'ja' ? '説明なし' : 'Không có mô tả')}
+                    </p>
+                  </div>
+                )}
+              </div>
 
               <input
                 ref={inputRef}
@@ -544,6 +590,18 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                   }
                 />
               ) : null}
+              
+              <div className="prod-field" style={{ marginTop: '24px' }}>
+                <span style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>{(copy as any).projectDescription}</span>
+                <textarea
+                  className="prod-textarea"
+                  style={{ width: '100%', minHeight: '80px', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.875rem' }}
+                  placeholder={(copy as any).projectDescriptionHint}
+                  value={projectDescription}
+                  onChange={(e) => setProjectDescription(e.target.value)}
+                  disabled={uploadState === "uploading" || reviewing}
+                />
+              </div>
 
               <div className="prod-upload-actions">
                 <div>

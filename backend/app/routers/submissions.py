@@ -1,11 +1,12 @@
 from datetime import datetime
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 from app.config import UPLOADS_DIR
-from app.models import CompareRunOut, DocumentOut, DocumentVersionOut, GradingRunDetailOut, GradingRunHistoryOut, SubmissionListResponse, SubmissionOut
+from app.models import CompareRunOut, DocumentOut, DocumentVersionOut, GradingRunDetailOut, GradingRunHistoryOut, SubmissionListResponse, SubmissionOut, ProjectCreate, ProjectUpdate
 from app.services.excel_export import build_submissions_excel
 from app.storage import store
 
@@ -21,6 +22,7 @@ def _submission_out(sub) -> SubmissionOut:
         uploaded_at=sub.uploaded_at,
         language="vi" if sub.language == "vi" else "ja",
         status=sub.status,
+        project_description=sub.project_description,
         latest_document_version_id=sub.latest_document_version_id,
         latest_document_version=sub.latest_document_version,
         latest_document_id=sub.latest_document_id,
@@ -201,6 +203,33 @@ async def bulk_delete_projects(request: DeleteProjectsRequest):
         "deleted": deleted,
         "failed": failed,
     }
+
+
+@router.post("/projects", response_model=SubmissionOut, tags=["Projects"])
+async def create_project(request: ProjectCreate):
+    """Create a new project master record."""
+    try:
+        submission_record = store.create_project(
+            project_id=request.project_id,
+            project_name=request.project_name,
+            project_description=request.project_description,
+        )
+        return _submission_out(submission_record)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.patch("/projects/{project_id}", response_model=SubmissionOut, tags=["Projects"])
+async def update_project(project_id: str, request: ProjectUpdate):
+    """Update project metadata (name, description)."""
+    submission_record = store.update_project(
+        project_id=project_id,
+        project_name=request.project_name,
+        project_description=request.project_description,
+    )
+    if not submission_record:
+        raise HTTPException(status_code=404, detail=f"Project {project_id} not found")
+    return _submission_out(submission_record)
 
 # New Hierarchical API Aliases (supporting Project -> Document -> Version flow)
 

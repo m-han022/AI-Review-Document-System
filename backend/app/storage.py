@@ -44,6 +44,7 @@ class SubmissionRecord:
     status: str
     extracted_text: str
     content_hash: str
+    project_description: str | None = None
     latest_document_id: int | None = None
     latest_document_name: str | None = None
     latest_document_version_id: int | None = None
@@ -110,6 +111,54 @@ class SubmissionStore:
             latest_run=record.latest_run,
             run_history=record.run_history or [],
         )
+
+    def create_project(
+        self,
+        project_id: str,
+        project_name: str,
+        project_description: str | None = None,
+    ) -> SubmissionRecord:
+        with Session(engine) as session:
+            existing = session.exec(select(Submission).where(Submission.project_id == project_id)).first()
+            if existing:
+                raise ValueError(f"Project already exists: {project_id}")
+            
+            now = datetime.now().isoformat()
+            submission = Submission(
+                project_id=project_id,
+                project_name=project_name,
+                project_description=project_description,
+                uploaded_at=now,
+                status="pending",
+                filename="",
+                document_type="",
+                language="ja",
+            )
+            session.add(submission)
+            session.commit()
+            session.refresh(submission)
+            return self._to_record(session, submission)
+
+    def update_project(
+        self,
+        project_id: str,
+        project_name: str | None = None,
+        project_description: str | None = None,
+    ) -> SubmissionRecord | None:
+        with Session(engine) as session:
+            submission = session.exec(select(Submission).where(Submission.project_id == project_id)).first()
+            if not submission:
+                return None
+            
+            if project_name is not None:
+                submission.project_name = project_name
+            if project_description is not None:
+                submission.project_description = project_description
+                
+            session.add(submission)
+            session.commit()
+            session.refresh(submission)
+            return self._to_record(session, submission)
 
     def _latest_document_version(self, session: Session, submission_id: int) -> SubmissionDocumentVersion | None:
         return session.exec(
@@ -713,6 +762,7 @@ class SubmissionStore:
                 submission = Submission(
                     project_id=project_id,
                     project_name=project_name,
+                    project_description=project_description,
                     filename=filename,
                     document_type=document_type,
                     language=language,
@@ -720,6 +770,7 @@ class SubmissionStore:
                     uploaded_at=uploaded_at,
                     status="uploaded",
                 )
+
                 session.add(submission)
 
             session.commit()

@@ -15,6 +15,7 @@ import {
   Ellipsis,
   Eye,
   FileText,
+  Edit,
   Folder,
   Globe2,
   HelpCircle,
@@ -57,6 +58,7 @@ const icons = {
   chevronRight: ChevronRight,
   clipboardCheck: ClipboardCheck,
   download: Download,
+  edit: Edit,
   eye: Eye,
   fileReview: FileText,
   folder: Folder,
@@ -161,6 +163,10 @@ export function ClipboardCheckIcon(props: NamedIconProps) {
 
 export function DownloadIcon(props: NamedIconProps) {
   return <Icon name="download" {...props} />;
+}
+
+export function EditIcon(props: NamedIconProps) {
+  return <Icon name="edit" {...props} />;
 }
 
 export function EyeIcon(props: NamedIconProps) {

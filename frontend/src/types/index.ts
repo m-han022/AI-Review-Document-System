@@ -79,6 +79,7 @@ export interface Project {
   total_documents: number;
   latest_score: number | null;
   latest_updated_at: string;
+  project_description?: string | null;
 }
 
 export interface DocumentListOut {
@@ -118,6 +119,7 @@ export interface Submission {
   uploaded_at: string;
   language: LanguageCode;
   status: string;
+  project_description?: string | null;
   latest_document_id?: number | null;
   latest_document_name?: string | null;
   latest_document_version_id?: number | null;
@@ -187,6 +189,7 @@ export interface UploadResponse {
   document_version?: string | null;
   message: string;
   language: LanguageCode;
+  project_description?: string | null;
 }
 
 export interface GradeResponse {

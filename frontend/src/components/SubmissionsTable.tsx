@@ -13,6 +13,8 @@ import TableHeader from "./submissions/TableHeader";
 import TableRow from "./submissions/TableRow";
 import TableToolbar from "./submissions/TableToolbar";
 import TableFooter from "./submissions/TableFooter";
+import ProjectCreateDialog from "./project/ProjectCreateDialog";
+import ProjectEditDialog from "./project/ProjectEditDialog";
 
 interface SubmissionsTableProps {
   projects: Project[];
@@ -52,6 +54,8 @@ export default function SubmissionsTable({
   const [statusFilter, setStatusFilter] = useState<"all" | "completed" | "pending">("all");
   const [documentTypeFilter, setDocumentTypeFilter] = useState<DocumentType | "all">("all");
   const [languageFilter, setLanguageFilter] = useState<LanguageCode | "all">("all");
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
   
   const queryClient = useQueryClient();
   const { t, lang } = useTranslation();
@@ -221,6 +225,7 @@ export default function SubmissionsTable({
         onLanguageFilterChange={setLanguageFilter}
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
+        onCreateProject={() => setShowCreateDialog(true)}
         variant={variant === "reference" ? "reference" : "full"}
       />
 
@@ -247,6 +252,7 @@ export default function SubmissionsTable({
                   onToggleSelect={toggleSelect}
                   onGrade={handleGrade}
                   onDelete={(id) => openDeleteDialog([id], "single")}
+                  onEdit={(p) => setEditingProject(p)}
                 />
               ))
             ) : (
@@ -288,6 +294,17 @@ export default function SubmissionsTable({
       )}
 
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
+
+      <ProjectCreateDialog 
+        open={showCreateDialog} 
+        onClose={() => setShowCreateDialog(false)} 
+      />
+      
+      <ProjectEditDialog
+        open={!!editingProject}
+        project={editingProject}
+        onClose={() => setEditingProject(null)}
+      />
     </div>
   );
 }

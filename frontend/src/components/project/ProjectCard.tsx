@@ -314,7 +314,8 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
     { label: "Version", value: currentVersion?.version ?? "—" },
     { label: "Graded At", value: formatDateTime(result?.graded_at, lang) },
     { label: "Score", value: result?.score !== null ? `${result?.score}/100` : "—" },
-  ], [currentDocument, currentVersion, result, lang]);
+    { label: "Description", value: gradingDetail?.submission?.project_description || "—" },
+  ], [currentDocument, currentVersion, result, gradingDetail, lang]);
 
   if (loadingDocs) return <LoadingState title="Loading documents..." />;
 

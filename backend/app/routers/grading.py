@@ -39,6 +39,7 @@ async def _perform_grading(
         rubric_version=rubric_version,
         document_version_id=document_version.id,
         prompt_level=prompt_level,
+        project_description=submission.project_description if hasattr(submission, "project_description") else None,
     )
 
     # Skip API call only when the stored grading signature still matches the current one.
@@ -92,6 +93,7 @@ async def _perform_grading(
             rubric_version=rubric_version,
             document_version_id=document_version.id,
             prompt_level=prompt_level,
+            project_description=submission.project_description if hasattr(submission, "project_description") else None,
             use_cache=not force,
             refresh_cache=force,
         )

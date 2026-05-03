@@ -1,6 +1,6 @@
 import type { Project } from "../../types";
 import { useTranslation } from "../LanguageSelector";
-import { EyeIcon, FileReviewIcon, RefreshIcon, TrashIcon } from "../ui/Icon";
+import { EditIcon, EyeIcon, FileReviewIcon, RefreshIcon, TrashIcon } from "../ui/Icon";
 import { formatUploadedAt } from "./utils";
 
 interface TableRowProps {
@@ -15,6 +15,7 @@ interface TableRowProps {
   onToggleSelect: (projectId: string) => void;
   onGrade: (projectId: string) => void;
   onDelete: (projectId: string) => void;
+  onEdit: (project: Project) => void;
 }
 
 export default function TableRow({
@@ -29,6 +30,7 @@ export default function TableRow({
   onToggleSelect,
   onGrade,
   onDelete,
+  onEdit,
 }: TableRowProps) {
   const { t, lang } = useTranslation();
   const latestScore = project.latest_score;
@@ -59,6 +61,11 @@ export default function TableRow({
               {project.project_name}
             </strong>
             <span className="review-table__file-meta-v3">{project.project_id}</span>
+            {project.project_description && (
+              <span className="review-table__file-desc-v3" style={{ fontSize: "12px", color: "#64748b", display: "block", marginTop: "2px", maxWidth: "300px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {project.project_description}
+              </span>
+            )}
           </div>
         </div>
       </td>
@@ -111,6 +118,18 @@ export default function TableRow({
             title={t("project.reviewResult")}
           >
             <EyeIcon size="sm" />
+          </button>
+
+          <button
+            className="review-action-button-v3"
+            onClick={(event) => {
+              event.stopPropagation();
+              onEdit(project);
+            }}
+            disabled={isActionPending}
+            title={t("common.edit") || "Sửa"}
+          >
+            <EditIcon size="sm" />
           </button>
 
           <button

@@ -62,6 +62,7 @@ async def upload_project(
     project_name: str | None = Form(default=None),
     document_type: str | None = Form(default=None),
     document_name: str | None = Form(default=None),
+    project_description: str | None = Form(default=None),
 ):
     if not file.filename or not file.filename.lower().endswith((".pdf", ".pptx")):
         raise HTTPException(status_code=400, detail=MESSAGES[ui_language]["pdf_only"])
@@ -111,6 +112,7 @@ async def upload_project(
         submission = store.save_upload(
             project_id=resolved_project_id,
             project_name=resolved_project_name,
+            project_description=project_description,
             filename=stored_filename,
             original_filename=original_filename,
             document_type=resolved_document_type,

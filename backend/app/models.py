@@ -443,3 +443,14 @@ class GradeRequest(BaseModel):
     prompt_level: PromptLevel = "medium"
     rubric_version: Optional[str] = None
     force: bool = False
+
+
+class ProjectCreate(BaseModel):
+    project_id: str
+    project_name: str
+    project_description: Optional[str] = None
+
+
+class ProjectUpdate(BaseModel):
+    project_name: Optional[str] = None
+    project_description: Optional[str] = None
