@@ -254,3 +254,30 @@ def test_cache_not_reused_when_project_description_changes(client: TestClient):
         grade_2 = client.post("/api/grade", json={"document_version_id": version_id, "prompt_level": "medium"})
         assert grade_2.status_code == 200
         assert mock_client.generate_content.call_count == 2
+
+
+def test_grading_run_stores_exact_final_prompt_snapshot(client: TestClient):
+    client.post("/api/projects", json={"project_id": "P107", "project_name": "Prompt Snapshot"})
+    files = {"file": ("P107_Doc.pdf", b"content", "application/pdf")}
+    upload_res = client.post("/api/upload", files=files, data={"language": "ja", "project_id": "P107", "document_name": "Doc"})
+    assert upload_res.status_code == 200
+    version_id = upload_res.json()["document_version_id"]
+
+    grade_res = client.post("/api/grade", json={"document_version_id": version_id, "prompt_level": "medium"})
+    assert grade_res.status_code == 200
+    run_id = grade_res.json()["run_id"]
+
+    detail = client.get(f"/api/grading-runs/{run_id}")
+    assert detail.status_code == 200
+    snapshot = detail.json()["grading_run"].get("final_prompt_snapshot")
+    assert isinstance(snapshot, str)
+    assert "IMPORTANT RULES" in snapshot
+
+    # Regrade without force should create a new run from cache, carrying exact prompt snapshot
+    grade_res_2 = client.post("/api/grade", json={"document_version_id": version_id, "prompt_level": "medium"})
+    assert grade_res_2.status_code == 200
+    run_id_2 = grade_res_2.json()["run_id"]
+    assert run_id_2 != run_id
+    detail_2 = client.get(f"/api/grading-runs/{run_id_2}")
+    assert detail_2.status_code == 200
+    assert detail_2.json()["grading_run"].get("final_prompt_snapshot") == snapshot

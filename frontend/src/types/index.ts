@@ -35,6 +35,7 @@ export interface GradingRun {
   prompt_hash?: string | null;
   criteria_hash?: string | null;
   grading_schema_version?: string | null;
+  final_prompt_snapshot?: string | null;
   criteria_results: CriteriaResult[];
   slide_reviews?: SlideReview[];
   issue_breakdown?: Record<string, number>;
@@ -64,6 +65,7 @@ export interface GradingRunHistory {
   prompt_hash?: string | null;
   criteria_hash?: string | null;
   grading_schema_version?: string | null;
+  final_prompt_snapshot?: string | null;
   status: string;
   error_message?: string | null;
   graded_at?: string | null;
@@ -365,4 +367,18 @@ export interface FinalPromptPreviewResponse {
   policy_hash: string;
   required_rule_hash: string;
   full_prompt_preview: string;
+}
+
+export interface EvaluationSet {
+  id: number;
+  name: string;
+  document_type: string;
+  level: string;
+  rubric_version_id: number;
+  prompt_version_id: number;
+  policy_version_id: number;
+  required_rules_version: string;
+  required_rule_hash: string;
+  status: string;
+  created_at: string;
 }

@@ -15,6 +15,7 @@ class FinalPromptBundle:
     prompt_version: str
     prompt_hash: str
     required_rule_hash: str
+    evaluation_set_id: Optional[int] = None
 
 # Centralized Required Rules
 REQUIRED_RULES = [

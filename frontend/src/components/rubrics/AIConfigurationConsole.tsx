@@ -1,65 +1,66 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { diffLines } from "diff";
 
 import {
-  activateMgmtPolicy,
-  activateMgmtPrompt,
-  activateMgmtRubric,
-  createMgmtPolicy,
-  createMgmtPrompt,
-  createMgmtRubric,
+  createEvaluationSet,
+  getActiveEvaluationSet,
   getRequiredRules,
+  listEvaluationSets,
   listMgmtPolicies,
   listMgmtPrompts,
   listMgmtRubrics,
   previewFinalPrompt,
 } from "../../api/client";
-import type { MgmtPolicy, MgmtPrompt, MgmtRubric } from "../../types";
-import ConfirmDialog from "../ui/ConfirmDialog";
+import type { EvaluationSet, MgmtPolicy, MgmtPrompt, MgmtRubric } from "../../types";
 import SectionBlock from "../ui/SectionBlock";
 import { ErrorState, LoadingState } from "../ui/States";
 
 const LEVELS = ["low", "medium", "high"] as const;
-
-const qk = {
-  rubrics: ["mgmt-rubrics"] as const,
-  prompts: ["mgmt-prompts"] as const,
-  policies: ["mgmt-policies"] as const,
-  rules: ["mgmt-required-rules"] as const,
-};
-
-function nextVersion(items: Array<{ version: string }>) {
-  const values = items
-    .map((item) => /^v(\d+)$/i.exec(item.version)?.[1])
-    .filter(Boolean)
-    .map((value) => Number(value));
-  const next = values.length ? Math.max(...values) + 1 : 1;
-  return `v${next}`;
-}
 
 export default function AIConfigurationConsole() {
   const queryClient = useQueryClient();
   const [documentType, setDocumentType] = useState("project-review");
   const [level, setLevel] = useState("medium");
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [compareMode, setCompareMode] = useState<"rubric" | "prompt" | "policy">("rubric");
-  const [leftId, setLeftId] = useState<number | "">("");
-  const [rightId, setRightId] = useState<number | "">("");
-  const [activateTarget, setActivateTarget] = useState<null | { type: "rubric" | "prompt" | "policy"; id: number; label: string }>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [compareLeftId, setCompareLeftId] = useState<number | "">("");
+  const [compareRightId, setCompareRightId] = useState<number | "">("");
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const [changeRubric, setChangeRubric] = useState(false);
+  const [changePrompt, setChangePrompt] = useState(true);
+  const [changePolicy, setChangePolicy] = useState(false);
+  const [setName, setSetName] = useState("");
+  const [newRubricContent, setNewRubricContent] = useState("");
+  const [newPromptContent, setNewPromptContent] = useState("");
+  const [newPolicyContent, setNewPolicyContent] = useState("");
 
   const { data: rubrics = [], isLoading: loadingRubrics, error: rubricsError } = useQuery({
-    queryKey: qk.rubrics,
+    queryKey: ["mgmt-rubrics"],
     queryFn: () => listMgmtRubrics(),
   });
   const { data: prompts = [], isLoading: loadingPrompts } = useQuery({
-    queryKey: qk.prompts,
+    queryKey: ["mgmt-prompts"],
     queryFn: () => listMgmtPrompts(),
   });
   const { data: policies = [], isLoading: loadingPolicies } = useQuery({
-    queryKey: qk.policies,
+    queryKey: ["mgmt-policies"],
     queryFn: () => listMgmtPolicies(),
   });
-  const { data: rules } = useQuery({ queryKey: qk.rules, queryFn: getRequiredRules });
+  const { data: requiredRules } = useQuery({
+    queryKey: ["mgmt-required-rules"],
+    queryFn: getRequiredRules,
+  });
+  const { data: evaluationSets = [], isLoading: loadingSets } = useQuery({
+    queryKey: ["mgmt-evaluation-sets", documentType, level],
+    queryFn: () => listEvaluationSets(documentType, level),
+  });
+  const { data: activeSet } = useQuery({
+    queryKey: ["mgmt-evaluation-set-active", documentType, level],
+    queryFn: () => getActiveEvaluationSet(documentType, level),
+    retry: false,
+  });
   const { data: previewData, refetch: refetchPreview, isFetching: previewLoading, error: previewError } = useQuery({
     queryKey: ["mgmt-preview", documentType, level],
     queryFn: () => previewFinalPrompt(documentType, level),
@@ -67,74 +68,70 @@ export default function AIConfigurationConsole() {
   });
 
   const documentTypes = useMemo(() => {
-    const fromRubrics = [...new Set(rubrics.map((r) => r.document_type))];
+    const fromRubrics = [...new Set(rubrics.map((item) => item.document_type))];
     return fromRubrics.length ? fromRubrics : ["project-review", "bug-analysis", "qa-review", "explanation-review"];
   }, [rubrics]);
 
-  const scopedRubrics = rubrics.filter((r) => r.document_type === documentType);
-  const scopedPrompts = prompts.filter((p) => p.document_type === documentType && p.level === level);
-  const scopedPolicies = policies.filter((p) => p.level === level);
-  const activeRubric = scopedRubrics.find((r) => r.status === "active");
-  const activePrompt = scopedPrompts.find((p) => p.status === "active");
-  const activePolicy = scopedPolicies.find((p) => p.status === "active");
-  const comparePool = compareMode === "rubric" ? scopedRubrics : compareMode === "prompt" ? scopedPrompts : scopedPolicies;
-  const leftItem = comparePool.find((item) => item.id === leftId);
-  const rightItem = comparePool.find((item) => item.id === rightId);
+  const rubricsById = useMemo(() => new Map(rubrics.map((item) => [item.id, item])), [rubrics]);
+  const promptsById = useMemo(() => new Map(prompts.map((item) => [item.id, item])), [prompts]);
+  const policiesById = useMemo(() => new Map(policies.map((item) => [item.id, item])), [policies]);
 
-  const refreshAll = async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: qk.rubrics }),
-      queryClient.invalidateQueries({ queryKey: qk.prompts }),
-      queryClient.invalidateQueries({ queryKey: qk.policies }),
-    ]);
+  const setWithDetails = (setItem: EvaluationSet | undefined | null) => {
+    if (!setItem) return null;
+    return {
+      ...setItem,
+      rubric: rubricsById.get(setItem.rubric_version_id),
+      prompt: promptsById.get(setItem.prompt_version_id),
+      policy: policiesById.get(setItem.policy_version_id),
+    };
   };
 
-  const createRubricMutation = useMutation({
-    mutationFn: () =>
-      createMgmtRubric({
-        document_type: documentType,
-        version: nextVersion(scopedRubrics),
-        prompt: { vi: "New rubric prompt" },
-        criteria: [{ key: "review_tong_the", max_score: 100, labels: { vi: "Tổng thể", ja: "総合" } }],
+  const activeDetails = setWithDetails(activeSet);
+  const leftSet = setWithDetails(evaluationSets.find((item) => item.id === compareLeftId));
+  const rightSet = setWithDetails(evaluationSets.find((item) => item.id === compareRightId));
+
+  const createSetMutation = useMutation({
+    mutationFn: () => {
+      if (!activeSet) throw new Error("No active evaluation set in current scope");
+      return createEvaluationSet({
+        base_set_id: activeSet.id,
+        name: setName.trim() || `${documentType}-${level}-${Date.now()}`,
+        changes: {
+          rubric_content: changeRubric ? newRubricContent : null,
+          prompt_content: changePrompt ? newPromptContent : null,
+          policy_content: changePolicy ? newPolicyContent : null,
+        },
         activate: true,
-      }),
-    onSuccess: refreshAll,
-  });
-  const createPromptMutation = useMutation({
-    mutationFn: () =>
-      createMgmtPrompt({
-        document_type: documentType,
-        level,
-        version: nextVersion(scopedPrompts),
-        content: "This creates a new immutable version.",
-        activate: true,
-      }),
-    onSuccess: refreshAll,
-  });
-  const createPolicyMutation = useMutation({
-    mutationFn: () =>
-      createMgmtPolicy({
-        level,
-        version: nextVersion(scopedPolicies),
-        content: "This creates a new immutable version.",
-        activate: true,
-      }),
-    onSuccess: refreshAll,
-  });
-  const activateMutation = useMutation({
-    mutationFn: async () => {
-      if (!activateTarget) return;
-      if (activateTarget.type === "rubric") return activateMgmtRubric(activateTarget.id);
-      if (activateTarget.type === "prompt") return activateMgmtPrompt(activateTarget.id);
-      return activateMgmtPolicy(activateTarget.id);
+      });
     },
     onSuccess: async () => {
-      setActivateTarget(null);
-      await refreshAll();
+      setCreateOpen(false);
+      setMessage({ type: "success", text: "New Evaluation Set created and activated." });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["mgmt-evaluation-sets", documentType, level] }),
+        queryClient.invalidateQueries({ queryKey: ["mgmt-evaluation-set-active", documentType, level] }),
+        queryClient.invalidateQueries({ queryKey: ["mgmt-rubrics"] }),
+        queryClient.invalidateQueries({ queryKey: ["mgmt-prompts"] }),
+        queryClient.invalidateQueries({ queryKey: ["mgmt-policies"] }),
+      ]);
+    },
+    onError: (error) => {
+      setMessage({ type: "error", text: error instanceof Error ? error.message : "Create set failed" });
     },
   });
 
-  if (loadingRubrics || loadingPrompts || loadingPolicies) {
+  const openCreateFromCurrent = () => {
+    setSetName(`${documentType} ${level} set ${new Date().toISOString().slice(0, 16)}`);
+    setChangeRubric(false);
+    setChangePrompt(true);
+    setChangePolicy(false);
+    setNewRubricContent(activeDetails?.rubric?.prompt?.vi || activeDetails?.rubric?.prompt?.ja || "");
+    setNewPromptContent(activeDetails?.prompt?.content || "");
+    setNewPolicyContent(activeDetails?.policy?.content || "");
+    setCreateOpen(true);
+  };
+
+  if (loadingRubrics || loadingPrompts || loadingPolicies || loadingSets) {
     return <LoadingState title="Loading AI Configuration Console..." />;
   }
   if (rubricsError) {
@@ -144,160 +141,180 @@ export default function AIConfigurationConsole() {
   return (
     <div className="workspace-stack">
       <SectionBlock>
-        <SectionBlock.Header title="AI Configuration Console" subtitle="Manage versioned and immutable Rubric / Prompt / Policy components." />
+        <SectionBlock.Header title="AI Configuration Console" subtitle="Operate by Evaluation Set to reduce configuration complexity." />
         <SectionBlock.Body>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(220px,1fr))", gap: 12, marginBottom: 16 }}>
-            <select value={documentType} onChange={(e) => setDocumentType(e.target.value)}>
+            <select value={documentType} onChange={(event) => setDocumentType(event.target.value)}>
               {documentTypes.map((item) => <option key={item} value={item}>{item}</option>)}
             </select>
-            <select value={level} onChange={(e) => setLevel(e.target.value)}>
+            <select value={level} onChange={(event) => setLevel(event.target.value)}>
               {LEVELS.map((item) => <option key={item} value={item}>{item}</option>)}
             </select>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(150px,1fr))", gap: 12, marginBottom: 16 }}>
-            <div><strong>Rubric:</strong> {activeRubric?.version || "—"}</div>
-            <div><strong>Prompt:</strong> {activePrompt?.version || "—"}</div>
-            <div><strong>Policy:</strong> {activePolicy?.version || "—"}</div>
-            <div><strong>Required Rules:</strong> {rules?.hash?.slice(0, 12) || "—"}</div>
-          </div>
-
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
-            <button className="btn-secondary btn-secondary--compact" onClick={async () => { setPreviewOpen(true); await refetchPreview(); }}>Preview Final Prompt</button>
-            <button className="btn-secondary btn-secondary--compact" onClick={() => setCompareMode(compareMode === "rubric" ? "prompt" : compareMode === "prompt" ? "policy" : "rubric")}>Compare Versions</button>
-            <button className="btn-secondary btn-secondary--compact" onClick={() => createRubricMutation.mutate()} disabled={createRubricMutation.isPending}>Create New Rubric</button>
-            <button className="btn-secondary btn-secondary--compact" onClick={() => createPromptMutation.mutate()} disabled={createPromptMutation.isPending}>Create New Prompt</button>
-            <button className="btn-secondary btn-secondary--compact" onClick={() => createPolicyMutation.mutate()} disabled={createPolicyMutation.isPending}>Create New Policy</button>
-          </div>
-
-          <ConfigList
-            title="Rubric Versions"
-            items={scopedRubrics}
-            onActivate={(item) => setActivateTarget({ type: "rubric", id: item.id, label: `Rubric ${item.version} for ${documentType}` })}
-          />
-          <ConfigList
-            title="Prompt Versions"
-            items={scopedPrompts}
-            onActivate={(item) => setActivateTarget({ type: "prompt", id: item.id, label: `Prompt ${item.version} for ${documentType}/${level}` })}
-          />
-          <ConfigList
-            title="Policy Versions"
-            items={scopedPolicies}
-            onActivate={(item) => setActivateTarget({ type: "policy", id: item.id, label: `Policy ${item.version} for ${level}` })}
-          />
+          {message ? (
+            <div style={{ marginBottom: 12, padding: "8px 10px", borderRadius: 8, border: `1px solid ${message.type === "error" ? "#fecaca" : "#bbf7d0"}`, background: message.type === "error" ? "#fef2f2" : "#f0fdf4" }}>
+              {message.text}
+            </div>
+          ) : null}
 
           <SectionBlock>
-            <SectionBlock.Header title={`Compare ${compareMode} versions`} />
+            <SectionBlock.Header title="Active Evaluation Set" subtitle="One active set per document type + level." />
             <SectionBlock.Body>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-                <select value={leftId} onChange={(e) => setLeftId(e.target.value ? Number(e.target.value) : "")}>
-                  <option value="">Left version</option>
-                  {comparePool.map((item) => <option key={item.id} value={item.id}>{item.version}</option>)}
-                </select>
-                <select value={rightId} onChange={(e) => setRightId(e.target.value ? Number(e.target.value) : "")}>
-                  <option value="">Right version</option>
-                  {comparePool.map((item) => <option key={item.id} value={item.id}>{item.version}</option>)}
-                </select>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(5,minmax(160px,1fr))", gap: 8 }}>
+                <div><strong>Set</strong>: {activeDetails?.name || "-"}</div>
+                <div><strong>Rubric</strong>: {activeDetails?.rubric?.version || "-"}</div>
+                <div><strong>Prompt</strong>: {activeDetails?.prompt?.version || "-"}</div>
+                <div><strong>Policy</strong>: {activeDetails?.policy?.version || "-"}</div>
+                <div><strong>Rules</strong>: {activeDetails?.required_rules_version || "system-rules-v1"}</div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                <pre style={{ whiteSpace: "pre-wrap", maxHeight: 260, overflow: "auto", background: "#f8fafc", padding: 8 }}>
-                  {renderCompareContent(leftItem)}
-                </pre>
-                <pre style={{ whiteSpace: "pre-wrap", maxHeight: 260, overflow: "auto", background: "#f8fafc", padding: 8 }}>
-                  {renderCompareContent(rightItem)}
-                </pre>
+              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                <button className="btn-secondary btn-secondary--compact" onClick={openCreateFromCurrent} disabled={!activeDetails}>
+                  Create New Set from Current
+                </button>
+                <button className="btn-secondary btn-secondary--compact" onClick={async () => { setPreviewOpen(true); await refetchPreview(); }}>
+                  Preview Final Prompt
+                </button>
               </div>
             </SectionBlock.Body>
           </SectionBlock>
 
           <SectionBlock>
-            <SectionBlock.Header title="Required Rules" subtitle={`Hash: ${rules?.hash || "—"}`} />
+            <SectionBlock.Header title="Evaluation Set History" subtitle="Track active/archived sets for this scope." />
+            <SectionBlock.Body>
+              <div style={{ display: "grid", gap: 8 }}>
+                {evaluationSets.map((setItem) => {
+                  const details = setWithDetails(setItem);
+                  return (
+                    <div key={setItem.id} style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: 10 }}>
+                      <div><strong>{setItem.name}</strong> | <span>{setItem.status}</span></div>
+                      <div style={{ fontSize: 12, color: "#64748b" }}>
+                        Rubric: {details?.rubric?.version || "#"+setItem.rubric_version_id} | Prompt: {details?.prompt?.version || "#"+setItem.prompt_version_id} | Policy: {details?.policy?.version || "#"+setItem.policy_version_id}
+                      </div>
+                    </div>
+                  );
+                })}
+                {!evaluationSets.length ? <div style={{ color: "#64748b" }}>No evaluation set.</div> : null}
+              </div>
+            </SectionBlock.Body>
+          </SectionBlock>
+
+          <SectionBlock>
+            <SectionBlock.Header title="Compare Sets" subtitle="Side-by-side comparison for auditing." />
+            <SectionBlock.Body>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+                <select value={compareLeftId} onChange={(event) => setCompareLeftId(event.target.value ? Number(event.target.value) : "")}>
+                  <option value="">Left set</option>
+                  {evaluationSets.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                </select>
+                <select value={compareRightId} onChange={(event) => setCompareRightId(event.target.value ? Number(event.target.value) : "")}>
+                  <option value="">Right set</option>
+                  {evaluationSets.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                </select>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <pre style={{ whiteSpace: "pre-wrap", maxHeight: 260, overflow: "auto", background: "#f8fafc", padding: 8 }}>{renderSet(leftSet)}</pre>
+                <pre style={{ whiteSpace: "pre-wrap", maxHeight: 260, overflow: "auto", background: "#f8fafc", padding: 8 }}>{renderSet(rightSet)}</pre>
+              </div>
+              <div style={{ marginTop: 8 }}>
+                <strong>Diff Highlight</strong>
+                <div style={{ maxHeight: 260, overflow: "auto", background: "#f8fafc", padding: 8, borderRadius: 8 }}>
+                  {renderDiff(renderSet(leftSet), renderSet(rightSet))}
+                </div>
+              </div>
+            </SectionBlock.Body>
+          </SectionBlock>
+
+          <SectionBlock>
+            <SectionBlock.Header title="Required Rules (Read-only)" subtitle={`Hash: ${requiredRules?.hash || "-"}`} />
             <SectionBlock.Body>
               <div style={{ display: "grid", gap: 6 }}>
-                {(rules?.rules || []).map((rule) => <code key={rule}>{rule}</code>)}
+                {(requiredRules?.rules || []).map((rule) => <code key={rule}>{rule}</code>)}
               </div>
             </SectionBlock.Body>
           </SectionBlock>
         </SectionBlock.Body>
       </SectionBlock>
 
+      {createOpen ? (
+        <SectionBlock>
+          <SectionBlock.Header title="Set Changes" subtitle="Select components to change in this new set." />
+          <SectionBlock.Body>
+            <input value={setName} onChange={(event) => setSetName(event.target.value)} placeholder="set name" style={{ width: "100%", marginBottom: 8 }} />
+            <label style={{ display: "block" }}><input type="checkbox" checked={changeRubric} onChange={(event) => setChangeRubric(event.target.checked)} /> Change Rubric</label>
+            {changeRubric ? <textarea value={newRubricContent} onChange={(event) => setNewRubricContent(event.target.value)} rows={5} style={{ width: "100%", marginBottom: 8 }} /> : null}
+            <label style={{ display: "block" }}><input type="checkbox" checked={changePrompt} onChange={(event) => setChangePrompt(event.target.checked)} /> Change Prompt</label>
+            {changePrompt ? <textarea value={newPromptContent} onChange={(event) => setNewPromptContent(event.target.value)} rows={5} style={{ width: "100%", marginBottom: 8 }} /> : null}
+            <label style={{ display: "block" }}><input type="checkbox" checked={changePolicy} onChange={(event) => setChangePolicy(event.target.checked)} /> Change Policy</label>
+            {changePolicy ? <textarea value={newPolicyContent} onChange={(event) => setNewPolicyContent(event.target.value)} rows={5} style={{ width: "100%" }} /> : null}
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <button className="btn-secondary btn-secondary--compact" onClick={() => setCreateOpen(false)}>Cancel</button>
+              <button className="btn-primary btn-primary--compact" disabled={createSetMutation.isPending} onClick={() => createSetMutation.mutate()}>
+                {createSetMutation.isPending ? "Saving..." : "Save and Activate"}
+              </button>
+            </div>
+          </SectionBlock.Body>
+        </SectionBlock>
+      ) : null}
+
       {previewOpen ? (
         <SectionBlock>
-          <SectionBlock.Header title="Final Prompt Preview" subtitle="Read-only inspection for audit." />
+          <SectionBlock.Header title="Final Prompt Preview" subtitle="Read-only preview for the current active set scope." />
           <SectionBlock.Body>
             {previewLoading ? <LoadingState title="Loading preview..." /> : null}
             {previewError ? <ErrorState title="Failed to preview" description={previewError instanceof Error ? previewError.message : ""} /> : null}
             {previewData ? (
-              <>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(180px,1fr))", gap: 8, marginBottom: 10 }}>
-                  <div>document_type: {previewData.document_type}</div>
-                  <div>level: {previewData.level}</div>
-                  <div>required_rule_hash: {previewData.required_rule_hash.slice(0, 16)}...</div>
-                  <div>rubric: {previewData.rubric_version}</div>
-                  <div>prompt: {previewData.prompt_version}</div>
-                  <div>policy: {previewData.policy_version}</div>
-                </div>
-                <button className="btn-secondary btn-secondary--compact" onClick={() => navigator.clipboard.writeText(previewData.full_prompt_preview)}>Copy</button>
-                <pre style={{ whiteSpace: "pre-wrap", maxHeight: 320, overflow: "auto", background: "#f8fafc", padding: 12, marginTop: 8 }}>
-                  {previewData.full_prompt_preview}
-                </pre>
-              </>
+              <pre style={{ whiteSpace: "pre-wrap", maxHeight: 360, overflow: "auto", background: "#f8fafc", padding: 12 }}>
+                {previewData.full_prompt_preview}
+              </pre>
             ) : null}
             <button className="btn-secondary btn-secondary--compact" onClick={() => setPreviewOpen(false)}>Close</button>
           </SectionBlock.Body>
         </SectionBlock>
       ) : null}
-
-      <ConfirmDialog
-        open={Boolean(activateTarget)}
-        title="Xác nhận kích hoạt version"
-        description={activateTarget ? `Bạn đang kích hoạt ${activateTarget.label}. Các lần chấm mới sẽ dùng version này. Kết quả cũ không bị thay đổi.` : ""}
-        confirmLabel="Kích hoạt"
-        cancelLabel="Hủy"
-        pending={activateMutation.isPending}
-        onConfirm={() => activateMutation.mutate()}
-        onCancel={() => setActivateTarget(null)}
-      />
     </div>
   );
 }
 
-function renderCompareContent(item: MgmtRubric | MgmtPrompt | MgmtPolicy | undefined) {
-  if (!item) return "No version selected";
-  if ("document_type" in item && "prompt" in item) return JSON.stringify(item.prompt, null, 2);
-  return "content" in item ? item.content : "";
+function renderSet(setItem: {
+  name: string;
+  status: string;
+  level: string;
+  rubric?: MgmtRubric;
+  prompt?: MgmtPrompt;
+  policy?: MgmtPolicy;
+  required_rule_hash: string;
+} | null) {
+  if (!setItem) return "No set selected";
+  return [
+    `name: ${setItem.name}`,
+    `status: ${setItem.status}`,
+    `level: ${setItem.level}`,
+    `rubric: ${setItem.rubric?.version || "-"}`,
+    `prompt: ${setItem.prompt?.version || "-"}`,
+    `policy: ${setItem.policy?.version || "-"}`,
+    `required_rule_hash: ${setItem.required_rule_hash}`,
+    "",
+    "prompt_content:",
+    setItem.prompt?.content || "-",
+  ].join("\n");
 }
 
-function ConfigList({
-  title,
-  items,
-  onActivate,
-}: {
-  title: string;
-  items: Array<MgmtRubric | MgmtPrompt | MgmtPolicy>;
-  onActivate: (item: MgmtRubric | MgmtPrompt | MgmtPolicy) => void;
-}) {
-  return (
-    <SectionBlock>
-      <SectionBlock.Header title={title} />
-      <SectionBlock.Body>
-        <div style={{ display: "grid", gap: 8 }}>
-          {items.map((item) => (
-            <div key={item.id} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, border: "1px solid #e2e8f0", borderRadius: 8, padding: 10 }}>
-              <div>
-                <strong>{item.version}</strong> · <span>{item.status}</span> · <span>{item.hash.slice(0, 12)}...</span>
-                <div style={{ fontSize: 12, color: "#64748b" }}>{item.created_at}</div>
-              </div>
-              {item.status !== "active" ? (
-                <button className="btn-secondary btn-secondary--compact" onClick={() => onActivate(item)}>Activate</button>
-              ) : (
-                <span style={{ fontSize: 12, color: "#16a34a", alignSelf: "center" }}>Active</span>
-              )}
-            </div>
-          ))}
-          {!items.length ? <div style={{ color: "#64748b" }}>No versions</div> : null}
-        </div>
-      </SectionBlock.Body>
-    </SectionBlock>
-  );
+function renderDiff(left: string, right: string) {
+  const parts = diffLines(left || "", right || "");
+  return parts.map((part, idx) => {
+    const style = part.added
+      ? { background: "#ecfdf5", color: "#166534" }
+      : part.removed
+        ? { background: "#fef2f2", color: "#991b1b" }
+        : { color: "#334155" };
+    const prefix = part.added ? "+ " : part.removed ? "- " : "  ";
+    return (
+      <div key={idx} style={{ ...style, fontFamily: "monospace", whiteSpace: "pre-wrap" }}>
+        {prefix}{part.value}
+      </div>
+    );
+  });
 }
+
+

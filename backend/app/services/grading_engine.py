@@ -5,12 +5,13 @@ from typing import Any
 
 from google.genai import types
 
-from sqlmodel import Session
+from sqlmodel import Session, select
 from app.config import settings
 from app.database import engine
 from app.rubric import get_active_rubric_version, get_rubric, get_rubric_criteria_config, _select_rubric
 from app.services.gemini_manager import get_gemini_client
 from app.services.prompt_policy import get_prompt_policy_bundle, normalize_prompt_level, stable_hash, get_active_policy, get_active_prompt_version
+from app.models import EvaluationSet, Rubric, PromptVersion, EvaluationPolicy
 from app.services.prompt_composer import PromptComposer
 
 _GRADING_CACHE_MAX_SIZE = 200
@@ -130,7 +131,21 @@ def build_grading_signature(
     resolved_rubric_version = rubric_version or get_active_rubric_version(document_type=document_type)
     
     with Session(engine) as session:
-        rubric_obj = _select_rubric(session, normalized_document_type, resolved_rubric_version)
+        eval_set = session.exec(
+            select(EvaluationSet).where(
+                EvaluationSet.document_type == normalized_document_type,
+                EvaluationSet.level == normalize_prompt_level(prompt_level),
+                EvaluationSet.status == "active",
+            )
+        ).first()
+        rubric_obj = None
+        if eval_set:
+            rubric_obj = session.get(Rubric, eval_set.rubric_version_id)
+            prompt_ver = session.get(PromptVersion, eval_set.prompt_version_id)
+            policy = session.get(EvaluationPolicy, eval_set.policy_version_id)
+            resolved_rubric_version = rubric_obj.version if rubric_obj else resolved_rubric_version
+        else:
+            rubric_obj = _select_rubric(session, normalized_document_type, resolved_rubric_version)
         if not rubric_obj:
             # Fallback for seeding or missing data
             rubric_text = get_rubric(document_type=normalized_document_type, version=resolved_rubric_version)
@@ -140,8 +155,9 @@ def build_grading_signature(
 
     criteria_keys, max_scores = _get_criteria_config(normalized_document_type, resolved_rubric_version)
     
-    policy = get_active_policy(prompt_level)
-    prompt_ver = get_active_prompt_version(normalized_document_type, prompt_level)
+    if not eval_set:
+        policy = get_active_policy(prompt_level)
+        prompt_ver = get_active_prompt_version(normalized_document_type, prompt_level)
     
     # Use PromptComposer to build final prompt and get metadata
     bundle = PromptComposer.compose(
@@ -168,7 +184,8 @@ def build_grading_signature(
         "gemini_model": settings.gemini_model,
         "grading_schema_version": GRADING_SCHEMA_VERSION,
         "project_description_hash": _get_text_hash(project_description or ""),
-        "final_system_instruction": bundle.full_prompt
+        "final_system_instruction": bundle.full_prompt,
+        "evaluation_set_id": eval_set.id if eval_set else None,
     }
 
 
@@ -432,6 +449,8 @@ def grade_submission(
         "criteria_hash": signature["criteria_hash"],
         "grading_schema_version": signature["grading_schema_version"],
         "project_description_hash": signature.get("project_description_hash"),
+        "final_prompt_snapshot": signature.get("final_system_instruction"),
+        "evaluation_set_id": signature.get("evaluation_set_id"),
         "criteria_scores": criteria_scores,
         "criteria_suggestions": criteria_suggestions,
         "draft_feedback": draft_feedback,

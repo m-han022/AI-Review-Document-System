@@ -149,6 +149,7 @@ class SubmissionStore:
             prompt_hash=run.prompt_hash,
             criteria_hash=run.criteria_hash,
             grading_schema_version=run.grading_schema_version,
+            final_prompt_snapshot=run.final_prompt_snapshot,
             criteria_results=[
                 CriteriaResultOut(
                     key=item.criterion_key,
@@ -248,6 +249,7 @@ class SubmissionStore:
                     prompt_hash=run.prompt_hash,
                     criteria_hash=run.criteria_hash,
                     grading_schema_version=run.grading_schema_version,
+                    final_prompt_snapshot=run.final_prompt_snapshot,
                     status=run.status,
                     error_message=run.error_message,
                     graded_at=run.graded_at,

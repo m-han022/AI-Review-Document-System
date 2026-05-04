@@ -172,6 +172,8 @@ class GradingService:
         run.criteria_hash = result_data["criteria_hash"]
         run.grading_schema_version = result_data["grading_schema_version"]
         run.project_description_hash = result_data.get("project_description_hash")
+        run.final_prompt_snapshot = result_data.get("final_prompt_snapshot")
+        run.evaluation_set_id = result_data.get("evaluation_set_id")
         run.draft_feedback = result_data["draft_feedback"]
         run.status = "COMPLETED"
         run.graded_at = datetime.now(timezone.utc).isoformat()
@@ -241,6 +243,8 @@ class GradingService:
             criteria_hash=cached_run.criteria_hash,
             grading_schema_version=cached_run.grading_schema_version,
             project_description_hash=cached_run.project_description_hash,
+            final_prompt_snapshot=cached_run.final_prompt_snapshot,
+            evaluation_set_id=cached_run.evaluation_set_id,
             score=cached_run.score,
             total_score=cached_run.total_score,
             draft_feedback=cached_run.draft_feedback,
@@ -308,6 +312,8 @@ class GradingService:
             "prompt_hash": new_run.prompt_hash,
             "criteria_hash": new_run.criteria_hash,
             "grading_schema_version": new_run.grading_schema_version,
+            "final_prompt_snapshot": new_run.final_prompt_snapshot,
+            "evaluation_set_id": new_run.evaluation_set_id,
             "criteria_scores": criteria_scores,
             # For simplicity, I'll return the full run detail if needed or just minimal for now
             # The grade_submission return format is what we want

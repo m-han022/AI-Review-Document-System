@@ -21,6 +21,7 @@ import type {
   MgmtPolicy,
   RequiredRulesResponse,
   FinalPromptPreviewResponse,
+  EvaluationSet,
 } from "../types";
 
 // Language setting
@@ -400,9 +401,33 @@ export async function activateRubricVersion(documentType: string, version: strin
 export async function listMgmtRubrics(documentType?: string): Promise<MgmtRubric[]> {
   const params = new URLSearchParams();
   if (documentType) params.set("document_type", documentType);
-  const res = await fetch(`${API_BASE_URL}/mgmt/rubrics?${params.toString()}`);
-  if (!res.ok) throw new Error(`Failed to fetch mgmt rubrics: ${res.statusText}`);
-  return res.json();
+  const mgmtRes = await fetch(`${API_BASE_URL}/mgmt/rubrics?${params.toString()}`);
+  if (mgmtRes.ok) {
+    return mgmtRes.json();
+  }
+
+  // Backward-compatible fallback for older backend instances that only expose /rubrics
+  const legacyRes = await fetch(`${API_BASE_URL}/rubrics`);
+  if (!legacyRes.ok) {
+    throw new Error(`Failed to fetch mgmt rubrics: ${mgmtRes.status} ${mgmtRes.statusText}`);
+  }
+
+  const legacyPayload = await legacyRes.json();
+  const legacyRubrics = Array.isArray(legacyPayload?.rubrics) ? legacyPayload.rubrics : [];
+  return legacyRubrics
+    .filter((item: any) => !documentType || item.document_type === documentType)
+    .map((item: any, index: number) => ({
+      id: Number(index + 1),
+      document_type: item.document_type,
+      version: item.version,
+      status: item.active ? "active" : "archived",
+      active: Boolean(item.active),
+      prompt: item.prompt || {},
+      created_at: "",
+      updated_at: "",
+      hash: "",
+      summary: `${Array.isArray(item.criteria) ? item.criteria.length : 0} criteria`,
+    }));
 }
 
 export async function createMgmtRubric(payload: {
@@ -418,11 +443,41 @@ export async function createMgmtRubric(payload: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || "Failed to create rubric");
+  if (res.ok) return res.json();
+
+  if (res.status === 404) {
+    const legacyRes = await fetch(`${API_BASE_URL}/rubrics/${payload.document_type}/${payload.version}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        version: payload.version,
+        criteria: payload.criteria,
+        prompt: payload.prompt,
+      }),
+    });
+    if (!legacyRes.ok) {
+      const legacyErr = await legacyRes.json().catch(() => ({ detail: legacyRes.statusText }));
+      throw new Error(legacyErr.detail || "Failed to create rubric");
+    }
+    const legacyBody = await legacyRes.json();
+    if (payload.activate) {
+      await fetch(`${API_BASE_URL}/rubrics/${payload.document_type}/${payload.version}/activate`, { method: "POST" });
+    }
+    return {
+      id: 0,
+      document_type: legacyBody.document_type,
+      version: legacyBody.version,
+      status: legacyBody.active ? "active" : "archived",
+      active: Boolean(legacyBody.active),
+      prompt: legacyBody.prompt || {},
+      created_at: "",
+      updated_at: "",
+      hash: "",
+      summary: `${Array.isArray(legacyBody.criteria) ? legacyBody.criteria.length : 0} criteria`,
+    };
   }
-  return res.json();
+  const err = await res.json().catch(() => ({ detail: res.statusText }));
+  throw new Error(err.detail || "Failed to create rubric");
 }
 
 export async function activateMgmtRubric(id: number): Promise<MgmtRubric> {
@@ -452,17 +507,33 @@ export async function createMgmtPrompt(payload: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || "Failed to create prompt");
+  if (res.ok) return res.json();
+
+  if (res.status === 404) {
+    const fallbackRes = await fetch(`${API_BASE_URL}/prompts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!fallbackRes.ok) {
+      const err = await fallbackRes.json().catch(() => ({ detail: fallbackRes.statusText }));
+      throw new Error(err.detail || "Failed to create prompt");
+    }
+    return fallbackRes.json();
   }
-  return res.json();
+  const err = await res.json().catch(() => ({ detail: res.statusText }));
+  throw new Error(err.detail || "Failed to create prompt");
 }
 
 export async function activateMgmtPrompt(id: number): Promise<MgmtPrompt> {
   const res = await fetch(`${API_BASE_URL}/mgmt/prompts/${id}/activate`, { method: "POST" });
-  if (!res.ok) throw new Error(`Failed to activate prompt: ${res.statusText}`);
-  return res.json();
+  if (res.ok) return res.json();
+  if (res.status === 404) {
+    const fallbackRes = await fetch(`${API_BASE_URL}/prompts/${id}/activate`, { method: "POST" });
+    if (!fallbackRes.ok) throw new Error(`Failed to activate prompt: ${fallbackRes.statusText}`);
+    return fallbackRes.json();
+  }
+  throw new Error(`Failed to activate prompt: ${res.statusText}`);
 }
 
 export async function listMgmtPolicies(level?: string): Promise<MgmtPolicy[]> {
@@ -484,17 +555,32 @@ export async function createMgmtPolicy(payload: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || "Failed to create policy");
+  if (res.ok) return res.json();
+  if (res.status === 404) {
+    const fallbackRes = await fetch(`${API_BASE_URL}/policies`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!fallbackRes.ok) {
+      const err = await fallbackRes.json().catch(() => ({ detail: fallbackRes.statusText }));
+      throw new Error(err.detail || "Failed to create policy");
+    }
+    return fallbackRes.json();
   }
-  return res.json();
+  const err = await res.json().catch(() => ({ detail: res.statusText }));
+  throw new Error(err.detail || "Failed to create policy");
 }
 
 export async function activateMgmtPolicy(id: number): Promise<MgmtPolicy> {
   const res = await fetch(`${API_BASE_URL}/mgmt/policies/${id}/activate`, { method: "POST" });
-  if (!res.ok) throw new Error(`Failed to activate policy: ${res.statusText}`);
-  return res.json();
+  if (res.ok) return res.json();
+  if (res.status === 404) {
+    const fallbackRes = await fetch(`${API_BASE_URL}/policies/${id}/activate`, { method: "POST" });
+    if (!fallbackRes.ok) throw new Error(`Failed to activate policy: ${fallbackRes.statusText}`);
+    return fallbackRes.json();
+  }
+  throw new Error(`Failed to activate policy: ${res.statusText}`);
 }
 
 export async function getRequiredRules(): Promise<RequiredRulesResponse> {
@@ -510,5 +596,45 @@ export async function previewFinalPrompt(documentType: string, level: string): P
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(err.detail || "Failed to preview final prompt");
   }
+  return res.json();
+}
+
+export async function listEvaluationSets(documentType?: string, level?: string): Promise<EvaluationSet[]> {
+  const params = new URLSearchParams();
+  if (documentType) params.set("document_type", documentType);
+  if (level) params.set("level", level);
+  const res = await fetch(`${API_BASE_URL}/mgmt/evaluation-sets?${params.toString()}`);
+  if (!res.ok) throw new Error(`Failed to fetch evaluation sets: ${res.statusText}`);
+  return res.json();
+}
+
+export async function getActiveEvaluationSet(documentType: string, level: string): Promise<EvaluationSet> {
+  const params = new URLSearchParams({ document_type: documentType, level });
+  const res = await fetch(`${API_BASE_URL}/mgmt/evaluation-sets/active?${params.toString()}`);
+  if (!res.ok) throw new Error(`Failed to fetch active evaluation set: ${res.statusText}`);
+  return res.json();
+}
+
+export async function createEvaluationSet(payload: {
+  base_set_id: number;
+  name: string;
+  changes: { rubric_content?: string | null; prompt_content?: string | null; policy_content?: string | null };
+  activate: boolean;
+}): Promise<EvaluationSet> {
+  const res = await fetch(`${API_BASE_URL}/mgmt/evaluation-sets`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || "Failed to create evaluation set");
+  }
+  return res.json();
+}
+
+export async function activateEvaluationSet(id: number): Promise<EvaluationSet> {
+  const res = await fetch(`${API_BASE_URL}/mgmt/evaluation-sets/${id}/activate`, { method: "POST" });
+  if (!res.ok) throw new Error(`Failed to activate evaluation set: ${res.statusText}`);
   return res.json();
 }

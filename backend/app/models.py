@@ -121,6 +121,22 @@ class PromptVersion(SQLModel, table=True):
     status: ItemStatus = Field(default="active", index=True)
     created_at: str = ""
 
+class EvaluationSet(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("document_type", "level", "name", name="uq_evalset_scope_name"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True)
+    document_type: str = Field(index=True)
+    level: str = Field(index=True)
+    rubric_version_id: int = Field(foreign_key="rubric.id", index=True)
+    prompt_version_id: int = Field(foreign_key="promptversion.id", index=True)
+    policy_version_id: int = Field(foreign_key="evaluationpolicy.id", index=True)
+    required_rules_version: str = Field(default="system-rules-v1")
+    required_rule_hash: str = Field(index=True)
+    version_label: Optional[str] = Field(default=None, index=True)
+    status: str = Field(default="active", index=True)
+    created_at: str = ""
+
 
 class GradingRun(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -146,6 +162,8 @@ class GradingRun(SQLModel, table=True):
     criteria_hash: Optional[str] = Field(default=None, index=True)
     grading_schema_version: Optional[str] = Field(default=None, index=True)
     project_description_hash: Optional[str] = Field(default=None, index=True)
+    final_prompt_snapshot: Optional[str] = None
+    evaluation_set_id: Optional[int] = Field(default=None, foreign_key="evaluationset.id", index=True)
     started_at: str = ""
     graded_at: Optional[str] = Field(default=None, index=True)
 
@@ -296,6 +314,7 @@ class GradingRunOut(BaseModel):
     prompt_hash: Optional[str] = None
     criteria_hash: Optional[str] = None
     grading_schema_version: Optional[str] = None
+    final_prompt_snapshot: Optional[str] = None
     criteria_results: list[CriteriaResultOut] = []
     slide_reviews: list[SlideReviewOut] = []
     issue_breakdown: Dict[str, int] = {}
@@ -325,6 +344,7 @@ class GradingRunHistoryOut(BaseModel):
     prompt_hash: Optional[str] = None
     criteria_hash: Optional[str] = None
     grading_schema_version: Optional[str] = None
+    final_prompt_snapshot: Optional[str] = None
     status: str
     error_message: Optional[str] = None
     graded_at: Optional[str] = None

@@ -47,6 +47,9 @@ def _migrate_sqlite_schema() -> None:
     _ensure_sqlite_column("gradingrun", "criteria_hash", "VARCHAR")
     _ensure_sqlite_column("gradingrun", "grading_schema_version", "VARCHAR")
     _ensure_sqlite_column("gradingrun", "project_description_hash", "VARCHAR")
+    _ensure_sqlite_column("gradingrun", "final_prompt_snapshot", "TEXT")
+    _ensure_sqlite_column("gradingrun", "evaluation_set_id", "INTEGER")
+    _ensure_sqlite_column("evaluationset", "version_label", "VARCHAR")
 
 
 def _rebuild_document_version_table_if_needed() -> None:

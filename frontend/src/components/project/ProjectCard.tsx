@@ -434,6 +434,11 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
             disabled={!result}
             onClick={async () => {
               try {
+                if (result?.final_prompt_snapshot) {
+                  setPromptUsedText(result.final_prompt_snapshot);
+                  setPromptUsedOpen(true);
+                  return;
+                }
                 const preview = await previewFinalPrompt(currentDocument?.document_type || "project-review", result?.prompt_level || "medium");
                 setPromptUsedText(preview.full_prompt_preview);
                 setPromptUsedOpen(true);

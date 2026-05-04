@@ -3,11 +3,11 @@ function getApiBaseUrl() {
 
   if (!baseUrl) {
     if (typeof window === "undefined") {
-      baseUrl = "http://127.0.0.1:8000/api";
+      baseUrl = "http://localhost:8000/api";
     } else {
       const hostname = window.location.hostname;
-      const apiHost = !hostname || hostname === "localhost" ? "127.0.0.1" : hostname;
-      baseUrl = `http://${apiHost}:8000/api`;
+      const resolvedHost = resolveApiHost(hostname || "localhost");
+      baseUrl = `http://${resolvedHost}:8000/api`;
     }
   }
 
@@ -22,6 +22,26 @@ function getApiBaseUrl() {
   }
 
   return baseUrl;
+}
+
+function formatHostForUrl(hostname: string): string {
+  if (hostname.includes(":") && !hostname.startsWith("[")) {
+    return `[${hostname}]`;
+  }
+  return hostname;
+}
+
+function resolveApiHost(hostname: string): string {
+  const normalized = hostname.trim().toLowerCase();
+  if (
+    normalized === "localhost"
+    || normalized === "127.0.0.1"
+    || normalized === "::1"
+    || normalized === "[::1]"
+  ) {
+    return "localhost";
+  }
+  return formatHostForUrl(hostname);
 }
 
 export const API_BASE_URL = getApiBaseUrl();
