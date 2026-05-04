@@ -7,15 +7,12 @@ import {
   listVersionGradings, 
   getGradingRun,
   gradeSubmission,
+  compareVersions,
   exportSubmissionsExcel 
 } from "../../api/client";
 import { getDocumentTypeKey } from "../../constants/documentTypes";
 import { getLocalizedText } from "../../locales/utils";
 import { 
-  projectDocumentsQueryKey, 
-  documentVersionsQueryKey, 
-  versionGradingsQueryKey, 
-  gradingRunDetailQueryKey,
   projectsQueryKey
 } from "../../query";
 import type { 
@@ -24,7 +21,8 @@ import type {
   GradingListOut,
   VersionListOut,
   DocumentListOut,
-  GradingRunDetail
+  GradingRunDetail,
+  VersionComparison as VersionComparisonData
 } from "../../types";
 import { useTranslation } from "../LanguageSelector";
 import Badge from "../ui/Badge";
@@ -38,10 +36,12 @@ import {
   SparkIcon,
   TargetIcon,
   WorkflowIcon,
-  AlertTriangleIcon
+  AlertTriangleIcon,
+  LayersIcon
 } from "../ui/Icon";
 import { formatUploadedAt } from "../submissions/utils";
 import ProjectReviewDialog from "./ProjectReviewDialog";
+import VersionComparison from "./VersionComparison";
 import {
   ExecutiveSummaryPanel,
   FeedbackPreviewPanel,
@@ -103,12 +103,6 @@ function getCriterionIcon(criterionKey: string) {
   }
 }
 
-function getStatusTone(score: number | null): "primary" | "success" | "warning" | "danger" {
-  if (score === null) return "warning";
-  if (score >= 80) return "success";
-  if (score >= 50) return "warning";
-  return "danger";
-}
 
 function formatDateTime(value: string | null | undefined, lang: LanguageCode) {
   if (!value) return "—";
@@ -176,29 +170,78 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
   const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
   const [actionMessage, setActionMessage] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
 
+  // Comparison states
+  const [comparisonMode, setComparisonMode] = useState(false);
+  const [baseVersionId, setBaseVersionId] = useState<number | null>(null);
+  const [compareVersionId, setCompareVersionId] = useState<number | null>(null);
+
   // Queries
   const { data: documents = [], isLoading: loadingDocs } = useQuery<DocumentListOut[]>({
-    queryKey: projectDocumentsQueryKey(projectId),
+    queryKey: ["project-documents", projectId],
     queryFn: () => listProjectDocuments(projectId),
   });
 
   const { data: versions = [], isLoading: loadingVersions } = useQuery<VersionListOut[]>({
-    queryKey: selectedDocumentId ? documentVersionsQueryKey(selectedDocumentId) : ["versions", "empty"],
+    queryKey: ["document-versions", selectedDocumentId],
     queryFn: () => listDocumentVersions(selectedDocumentId!),
-    enabled: !!selectedDocumentId,
+    enabled: selectedDocumentId !== null && selectedDocumentId !== undefined,
+    staleTime: 0, 
   });
 
   const { data: gradings = [], isLoading: loadingGradings } = useQuery<GradingListOut[]>({
-    queryKey: selectedVersionId ? versionGradingsQueryKey(selectedVersionId) : ["gradings", "empty"],
+    queryKey: ["version-gradings", selectedVersionId],
     queryFn: () => listVersionGradings(selectedVersionId!),
     enabled: !!selectedVersionId,
+    staleTime: 0,
+    refetchInterval: (query) => {
+      const list = Array.isArray(query.state.data) ? query.state.data as GradingListOut[] : [];
+      const hasPending = list.some(g => {
+        const s = g.status?.toLowerCase();
+        return s === "pending" || s === "extracting" || s === "grading";
+      });
+      return hasPending ? 3000 : false;
+    }
   });
 
   const { data: gradingDetail, isLoading: loadingDetail } = useQuery<GradingRunDetail>({
-    queryKey: selectedGradingId ? gradingRunDetailQueryKey(selectedGradingId) : ["grading", "empty"],
+    queryKey: ["grading-detail", selectedGradingId],
     queryFn: () => getGradingRun(selectedGradingId!),
     enabled: !!selectedGradingId,
+    refetchInterval: (query) => {
+      const detail = query.state.data as GradingRunDetail | undefined;
+      const s = detail?.grading_run?.status?.toLowerCase();
+      const isPending = s === "pending" || s === "extracting" || s === "grading";
+      return isPending ? 3000 : false;
+    }
   });
+  
+  const { data: comparisonData, isLoading: loadingComparison } = useQuery<VersionComparisonData>({
+    queryKey: ["version-comparison", selectedDocumentId, baseVersionId, compareVersionId],
+    queryFn: () => compareVersions(selectedDocumentId!, baseVersionId!, compareVersionId!),
+    enabled: !!(selectedDocumentId && baseVersionId && compareVersionId && comparisonMode),
+  });
+
+  useEffect(() => {
+    console.log("[ProjectCard] selectedDocumentId updated:", selectedDocumentId);
+  }, [selectedDocumentId]);
+
+  useEffect(() => {
+    if (selectedDocumentId) {
+      console.log(`[ProjectCard] Trace - Selected Document ID: ${selectedDocumentId}`);
+    }
+  }, [selectedDocumentId]);
+
+  useEffect(() => {
+    if (selectedVersionId) {
+      console.log(`[ProjectCard] Selected Version ID: ${selectedVersionId}`);
+    }
+  }, [selectedVersionId]);
+
+  useEffect(() => {
+    if (selectedGradingId) {
+      console.log(`[ProjectCard] Selected Grading Run ID: ${selectedGradingId}`);
+    }
+  }, [selectedGradingId]);
 
   // Auto-select logic
   useEffect(() => {
@@ -208,17 +251,36 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
   }, [documents, selectedDocumentId]);
 
   useEffect(() => {
-    if (versions.length > 0 && selectedVersionId === null) {
-      const latest = versions.find(v => v.is_latest) || versions[0];
-      setSelectedVersionId(latest.document_version_id);
+    if (versions.length > 0) {
+      // Find the version to select:
+      // 1. Current selectedVersionId if it's in the current versions list
+      // 2. Latest version (is_latest)
+      // 3. First version in list
+      const currentExists = versions.some(v => v.document_version_id === selectedVersionId);
+      if (!currentExists) {
+        const latest = versions.find(v => v.is_latest) || versions[0];
+        setSelectedVersionId(latest.document_version_id);
+      }
+    } else if (!loadingVersions) {
+      setSelectedVersionId(null);
     }
-  }, [versions, selectedVersionId]);
+  }, [versions, selectedVersionId, loadingVersions]);
 
   useEffect(() => {
-    if (gradings.length > 0 && selectedGradingId === null) {
-      setSelectedGradingId(gradings[0].grading_run_id);
+    if (gradings.length > 0) {
+      // Find the grading run to select:
+      // 1. Current selectedGradingId if it's in the current gradings list
+      // 2. Latest COMPLETED run
+      // 3. First run in list
+      const currentExists = gradings.some(g => g.grading_run_id === selectedGradingId);
+      if (!currentExists) {
+        const completed = gradings.find(g => g.status?.toLowerCase() === "completed") || gradings[0];
+        setSelectedGradingId(completed.grading_run_id);
+      }
+    } else if (!loadingGradings) {
+      setSelectedGradingId(null);
     }
-  }, [gradings, selectedGradingId]);
+  }, [gradings, selectedGradingId, loadingGradings]);
 
   const currentDocument = documents.find(d => d.document_id === selectedDocumentId);
   const currentVersion = versions.find(v => v.document_version_id === selectedVersionId);
@@ -233,7 +295,7 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
       setActionMessage({ tone: "success", text: lang === "ja" ? "レビューを再実行しました。" : "Đã chạy lại review." });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: projectsQueryKey }),
-        queryClient.invalidateQueries({ queryKey: versionGradingsQueryKey(selectedVersionId!) }),
+        queryClient.invalidateQueries({ queryKey: ["version-gradings", selectedVersionId!] }),
       ]);
     },
     onError: (error) => {
@@ -314,6 +376,10 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
     { label: "Version", value: currentVersion?.version ?? "—" },
     { label: "Graded At", value: formatDateTime(result?.graded_at, lang) },
     { label: "Score", value: result?.score !== null ? `${result?.score}/100` : "—" },
+    { label: "Rubric", value: result?.rubric_version ? `v${result.rubric_version}` : "—" },
+    { label: "Prompt", value: result?.prompt_version ? `v${result.prompt_version}` : "—" },
+    { label: "Policy", value: result?.policy_version ? `v${result.policy_version}` : "—" },
+    { label: "Level", value: result?.prompt_level ?? "—" },
     { label: "Description", value: gradingDetail?.submission?.project_description || "—" },
   ], [currentDocument, currentVersion, result, gradingDetail, lang]);
 
@@ -328,14 +394,29 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
               <ArrowLeftIcon size="sm" />
               {t("nav.allReviews")}
             </button>
-            <Badge tone={getStatusTone(result?.score ?? null)}>
-              {result?.score !== null ? t("project.completed") : t("project.pending")}
-            </Badge>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Badge tone={
+                result?.status === "completed" || result?.status === "graded" ? "success" :
+                result?.status === "failed" ? "danger" :
+                "warning"
+              }>
+                {result?.status ? (t(`status.${result.status.toLowerCase()}`) || result.status) : t("project.pending")}
+              </Badge>
+              {result?.status === "failed" && result?.error_message && (
+                <span style={{ fontSize: '12px', color: '#ef4444' }} title={result.error_message}>
+                  {result.error_message}
+                </span>
+              )}
+            </div>
           </div>
           <h2>{currentDocument?.document_name || "Project Details"}</h2>
         </div>
 
         <div className="project-header-navigation">
+          <button className={`btn-secondary btn-secondary--compact ${comparisonMode ? 'is-active' : ''}`} onClick={() => setComparisonMode(!comparisonMode)}>
+            <LayersIcon size="sm" />
+            {lang === "ja" ? "バージョン比較" : "So sánh version"}
+          </button>
           <button className="btn-secondary btn-secondary--compact" onClick={() => rerunMutation.mutate()} disabled={rerunMutation.isPending || !selectedVersionId}>
             <RefreshIcon size="sm" className={rerunMutation.isPending ? "animate-spin" : ""} />
             {lang === "ja" ? "再レビュー" : "Re-run review"}
@@ -361,53 +442,101 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
             <select 
               value={selectedDocumentId || ""} 
               onChange={(e) => {
-                setSelectedDocumentId(Number(e.target.value));
+                const docId = e.target.value ? Number(e.target.value) : null;
+                console.log("[ProjectCard] DOCUMENT CHANGE:", docId);
+                setSelectedDocumentId(docId);
                 setSelectedVersionId(null);
                 setSelectedGradingId(null);
+                setBaseVersionId(null);
+                setCompareVersionId(null);
               }}
               style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #e2e8f0' }}
             >
+              <option value="">Select document...</option>
               {documents.map(d => <option key={d.document_id} value={d.document_id}>{d.document_name} ({t(getDocumentTypeKey(d.document_type))})</option>)}
             </select>
           </SectionBlock.Body>
         </SectionBlock>
 
-        <SectionBlock>
-          <SectionBlock.Header title={t("project.versions") || "Versions"} />
-          <SectionBlock.Body>
-            <select 
-              value={selectedVersionId || ""} 
-              onChange={(e) => {
-                setSelectedVersionId(Number(e.target.value));
-                setSelectedGradingId(null);
-              }}
-              disabled={!selectedDocumentId || loadingVersions}
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #e2e8f0' }}
-            >
-              <option value="">Select version...</option>
-              {versions.map(v => <option key={v.document_version_id} value={v.document_version_id}>{v.version} {v.is_latest ? "(Latest)" : ""}</option>)}
-            </select>
-          </SectionBlock.Body>
-        </SectionBlock>
+        {!comparisonMode ? (
+          <>
+            <SectionBlock>
+              <SectionBlock.Header title={t("project.versions") || "Versions"} />
+              <SectionBlock.Body>
+                <select 
+                  value={selectedVersionId || ""} 
+                  onChange={(e) => {
+                    const vId = Number(e.target.value);
+                    setSelectedVersionId(vId);
+                    setSelectedGradingId(null);
+                  }}
+                  disabled={!selectedDocumentId}
+                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #e2e8f0' }}
+                >
+                  <option value="">Select version...</option>
+                  {versions.map(v => <option key={v.document_version_id} value={v.document_version_id}>{v.version} {v.is_latest ? "(Latest)" : ""}</option>)}
+                </select>
+              </SectionBlock.Body>
+            </SectionBlock>
 
-        <SectionBlock>
-          <SectionBlock.Header title={t("project.gradingRuns") || "Grading Runs"} />
-          <SectionBlock.Body>
-            <select 
-              value={selectedGradingId || ""} 
-              onChange={(e) => setSelectedGradingId(Number(e.target.value))}
-              disabled={!selectedVersionId || loadingGradings}
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #e2e8f0' }}
-            >
-              <option value="">Select grading...</option>
-              {gradings.map(g => <option key={g.grading_run_id} value={g.grading_run_id}>{formatDateTime(g.created_at, lang)} - Score: {g.total_score ?? "N/A"}</option>)}
-            </select>
-          </SectionBlock.Body>
-        </SectionBlock>
+            <SectionBlock>
+              <SectionBlock.Header title={t("project.gradingRuns") || "Grading Runs"} />
+              <SectionBlock.Body>
+                <select 
+                  value={selectedGradingId || ""} 
+                  onChange={(e) => setSelectedGradingId(Number(e.target.value))}
+                  disabled={!selectedVersionId}
+                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #e2e8f0' }}
+                >
+                  <option value="">Select grading...</option>
+                  {gradings.map(g => (
+                    <option key={g.grading_run_id} value={g.grading_run_id}>
+                      {formatDateTime(g.created_at, lang)} - {g.status?.toUpperCase() || "PENDING"} {g.total_score !== null ? `(Score: ${g.total_score})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </SectionBlock.Body>
+            </SectionBlock>
+          </>
+        ) : (
+          <>
+            <SectionBlock>
+              <SectionBlock.Header title={t("compare.baseVersion")} />
+              <SectionBlock.Body>
+                <select 
+                  value={baseVersionId || ""} 
+                  onChange={(e) => setBaseVersionId(Number(e.target.value))}
+                  disabled={!selectedDocumentId || loadingVersions}
+                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #e2e8f0' }}
+                >
+                  <option value="">Select version...</option>
+                  {versions.map(v => <option key={v.document_version_id} value={v.document_version_id}>{v.version}</option>)}
+                </select>
+              </SectionBlock.Body>
+            </SectionBlock>
+
+            <SectionBlock>
+              <SectionBlock.Header title={t("compare.compareVersion")} />
+              <SectionBlock.Body>
+                <select 
+                  value={compareVersionId || ""} 
+                  onChange={(e) => setCompareVersionId(Number(e.target.value))}
+                  disabled={!selectedDocumentId || loadingVersions}
+                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #e2e8f0' }}
+                >
+                  <option value="">Select version...</option>
+                  {versions.map(v => <option key={v.document_version_id} value={v.document_version_id}>{v.version}</option>)}
+                </select>
+              </SectionBlock.Body>
+            </SectionBlock>
+          </>
+        )}
       </div>
 
-      {loadingDetail ? (
-        <LoadingState title="Fetching result details..." />
+      {loadingDetail || loadingComparison ? (
+        <LoadingState title="Fetching details..." />
+      ) : comparisonMode ? (
+        comparisonData ? <VersionComparison data={comparisonData} /> : <EmptyState title={t("compare.selectVersions")} />
       ) : result ? (
         <div className="project-detail-layout">
           <div className="project-detail-main">

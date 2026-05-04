@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 from app.config import UPLOADS_DIR
-from app.models import CompareRunOut, DocumentOut, DocumentVersionOut, GradingRunDetailOut, GradingRunHistoryOut, SubmissionListResponse, SubmissionOut, ProjectCreate, ProjectUpdate
+from app.models import DocumentOut, DocumentVersionOut, GradingRunDetailOut, GradingRunHistoryOut, SubmissionListResponse, SubmissionOut, ProjectCreate, ProjectUpdate, ProjectOut, VersionComparisonOut, DocumentListOut
 from app.services.excel_export import build_submissions_excel
 from app.storage import store
 
@@ -36,8 +36,7 @@ def _submission_out(sub) -> SubmissionOut:
 
 
 @router.get("/submissions", response_model=SubmissionListResponse, tags=["Submissions"])
-@router.get("/projects", response_model=SubmissionListResponse, tags=["Projects"])
-async def list_projects(limit: int = 100, offset: int = 0):
+async def list_submissions(limit: int = 100, offset: int = 0):
     paged_subs, total, ungraded = store.list(limit=limit, offset=offset)
     submissions_out = [_submission_out(sub) for sub in paged_subs]
 
@@ -46,6 +45,12 @@ async def list_projects(limit: int = 100, offset: int = 0):
         total=total,
         ungraded_count=ungraded,
     )
+
+
+@router.get("/projects", response_model=list[ProjectOut], tags=["Projects"])
+async def list_projects(limit: int = 100, offset: int = 0):
+    """Returns a summarized list of projects for the dashboard."""
+    return store.list_projects_summary(limit=limit, offset=offset)
 
 
 @router.get("/submissions/{project_id}", response_model=SubmissionOut, tags=["Submissions"])
@@ -93,35 +98,6 @@ async def get_grading_run_detail(grading_run_id: int):
     return detail
 
 
-@router.get("/submissions/{project_id}/compare", response_model=CompareRunOut)
-async def compare_grading_runs(project_id: str, run_a: int, run_b: int):
-    detail_a = store.get_grading_run_detail(run_a)
-    detail_b = store.get_grading_run_detail(run_b)
-    if not detail_a or not detail_b:
-        raise HTTPException(status_code=404, detail="One or both grading runs were not found")
-    if detail_a.submission.project_id != project_id or detail_b.submission.project_id != project_id:
-        raise HTTPException(status_code=400, detail="Both grading runs must belong to the requested project")
-
-    score_a = detail_a.grading_run.total_score if detail_a.grading_run.total_score is not None else detail_a.grading_run.score
-    score_b = detail_b.grading_run.total_score if detail_b.grading_run.total_score is not None else detail_b.grading_run.score
-    criteria_a = {item.key: item.score for item in detail_a.criteria_results}
-    criteria_b = {item.key: item.score for item in detail_b.criteria_results}
-    criteria_delta = {
-        key: round(criteria_b.get(key, 0) - criteria_a.get(key, 0), 1)
-        for key in sorted(set(criteria_a) | set(criteria_b))
-    }
-    ok_a = sum(1 for item in detail_a.slide_reviews if item.status == "OK")
-    ok_b = sum(1 for item in detail_b.slide_reviews if item.status == "OK")
-    ng_a = sum(1 for item in detail_a.slide_reviews if item.status == "NG")
-    ng_b = sum(1 for item in detail_b.slide_reviews if item.status == "NG")
-    return CompareRunOut(
-        run_a=detail_a.grading_run,
-        run_b=detail_b.grading_run,
-        score_delta=(score_b - score_a) if score_a is not None and score_b is not None else None,
-        criteria_delta=criteria_delta,
-        ok_slide_delta=ok_b - ok_a,
-        ng_slide_delta=ng_b - ng_a,
-    )
 
 
 class DeleteProjectsRequest(BaseModel):
@@ -233,7 +209,7 @@ async def update_project(project_id: str, request: ProjectUpdate):
 
 # New Hierarchical API Aliases (supporting Project -> Document -> Version flow)
 
-@router.get("/projects/{project_id}/documents-summary", response_model=list[dict], tags=["Projects"])
+@router.get("/projects/{project_id}/documents-summary", response_model=list[DocumentListOut], tags=["Projects"])
 async def list_project_documents_summary(project_id: str):
     """Returns summary of documents for the new hierarchical UI."""
     return store.list_documents_summary(project_id)
@@ -248,3 +224,10 @@ async def list_version_gradings_hierarchical(document_version_id: int):
     """Returns list of grading runs for a version."""
     return store.list_gradings_by_version(document_version_id)
 
+@router.get("/documents/{document_id}/compare", response_model=VersionComparisonOut, tags=["Projects"])
+async def compare_document_versions(document_id: int, base_version_id: int, compare_version_id: int):
+    """Compare two versions of a document."""
+    try:
+        return store.compare_versions(document_id, base_version_id, compare_version_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))

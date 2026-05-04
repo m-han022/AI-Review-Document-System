@@ -78,6 +78,8 @@ export interface Project {
   project_name: string;
   total_documents: number;
   latest_score: number | null;
+  latest_status: string;
+  latest_error_message?: string | null;
   latest_updated_at: string;
   project_description?: string | null;
 }
@@ -87,8 +89,10 @@ export interface DocumentListOut {
   document_type: string;
   document_name: string;
   latest_version: string;
+  latest_uploaded_at?: string | null;
   latest_score: number | null;
-  updated_at: string;
+  latest_status: string;
+  latest_error_message?: string | null;
 }
 
 export interface VersionListOut {
@@ -99,11 +103,15 @@ export interface VersionListOut {
   is_latest: boolean;
   content_hash: string;
   latest_grading_score: number | null;
+  latest_status: string;
+  latest_error_message?: string | null;
 }
 
 export interface GradingListOut {
   grading_run_id: number;
   total_score: number;
+  status: string;
+  error_message?: string | null;
   prompt_level: string;
   rubric_version: string;
   prompt_version: string;
@@ -169,13 +177,25 @@ export interface GradingRunDetail {
   slide_reviews: SlideReview[];
 }
 
-export interface CompareRunResult {
-  run_a: GradingRun;
-  run_b: GradingRun;
+export interface CriteriaDelta {
+  key: string;
+  base_score: number | null;
+  compare_score: number | null;
+  delta: number;
+  status: "improved" | "regressed" | "unchanged" | "new" | "retired";
+}
+
+export interface VersionComparison {
+  document: DocumentListOut;
+  base_version: VersionListOut;
+  compare_version: VersionListOut;
+  base_run?: GradingRun | null;
+  compare_run?: GradingRun | null;
   score_delta?: number | null;
-  criteria_delta: Record<string, number>;
+  criteria_deltas: CriteriaDelta[];
   ok_slide_delta: number;
   ng_slide_delta: number;
+  insights: string[];
 }
 
 export interface UploadResponse {
