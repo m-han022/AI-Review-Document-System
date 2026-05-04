@@ -251,3 +251,19 @@ Frontend lint:
 cd frontend
 npm run lint
 ```
+
+## 10. Legacy API behavior (compatibility)
+
+Hệ thống vẫn hỗ trợ một số API cũ để backward compatibility.
+
+Tuy nhiên, semantics runtime luôn theo kiến trúc mới:
+
+```text
+project -> document -> version -> grading
+```
+
+Lưu ý vận hành:
+
+- Upload qua API cũ vẫn bắt buộc `project_id` tồn tại trước.
+- Không auto-create project ngầm từ filename.
+- Route grading legacy vẫn resolve về `document_version` trước khi chấm.

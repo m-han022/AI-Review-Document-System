@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 from app.config import UPLOADS_DIR
-from app.models import DocumentOut, DocumentVersionOut, GradingRunDetailOut, GradingRunHistoryOut, SubmissionListResponse, SubmissionOut, ProjectCreate, ProjectUpdate, ProjectOut, VersionComparisonOut, DocumentListOut
+from app.models import DocumentOut, DocumentVersionOut, GradingRunDetailOut, GradingRunHistoryOut, SubmissionListResponse, SubmissionOut, ProjectCreate, ProjectUpdate, ProjectOut, VersionComparisonOut, DocumentListOut, VersionListOut, GradingListOut
 from app.services.excel_export import build_submissions_excel
 from app.storage import store
 
@@ -214,12 +214,12 @@ async def list_project_documents_summary(project_id: str):
     """Returns summary of documents for the new hierarchical UI."""
     return store.list_documents_summary(project_id)
 
-@router.get("/documents/{document_id}/versions", response_model=list[dict], tags=["Projects"])
+@router.get("/documents/{document_id}/versions", response_model=list[VersionListOut], tags=["Projects"])
 async def list_document_versions_hierarchical(document_id: int):
     """Returns list of versions for a document."""
     return store.list_versions_by_document(document_id)
 
-@router.get("/versions/{document_version_id}/gradings", response_model=list[dict], tags=["Projects"])
+@router.get("/versions/{document_version_id}/gradings", response_model=list[GradingListOut], tags=["Projects"])
 async def list_version_gradings_hierarchical(document_version_id: int):
     """Returns list of grading runs for a version."""
     return store.list_gradings_by_version(document_version_id)

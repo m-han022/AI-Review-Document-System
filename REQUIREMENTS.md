@@ -88,7 +88,7 @@ file
 ## Flow
 
 IF project chưa tồn tại:
-create project
+reject upload (project must be created explicitly first)
 
 IF document chưa tồn tại:
 create document
@@ -121,6 +121,18 @@ create document_version mới
   "prompt_level": "medium"
 }
 ```
+
+---
+
+# ⚡ 6.1 Async Grading (Production)
+
+* **Async execution**: Việc chấm điểm được tách biệt khỏi API request qua hàng đợi (Queue).
+* **Lifecycle**: Trạng thái `GradingRun` thay đổi theo thời gian: `PENDING` -> `EXTRACTING` -> `GRADING` -> `COMPLETED/FAILED`.
+* **Reliability**:
+  * Tự động Retry khi gặp lỗi tạm thời (Gemini error).
+  * Lưu `error_message` khi thất bại cuối cùng.
+  * Backend restart không làm mất job (Job được lưu trong Redis).
+* **Production mode**: Yêu cầu Redis + Celery Worker.
 
 ---
 
@@ -228,6 +240,8 @@ System = versioned + immutable + auditable
 - Project phải được tạo trước khi upload
 - User phải chọn project khi upload
 - File upload phải thuộc project đã chọn
+- Không auto-create project ngầm từ filename
+- Filename chỉ dùng để validate/gợi ý
 - Validation:
   - project_id từ filename phải match project đã chọn
 

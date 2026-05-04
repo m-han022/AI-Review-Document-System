@@ -14,13 +14,16 @@ def extract_text_from_pdf(file_path: str) -> str:
                     text_parts.append(f"[Page {page_num}]\n{page_text}")
     except Exception as e:
         print(f"[PDF Extract] Error with pdfplumber: {e}")
-        # Fallback to PyPDF2
-        from PyPDF2 import PdfReader
-        reader = PdfReader(file_path)
-        for page_num, page in enumerate(reader.pages, 1):
-            page_text = page.extract_text()
-            if page_text:
-                text_parts.append(f"[Page {page_num}]\n{page_text}")
+        try:
+            # Fallback to PyPDF2
+            from PyPDF2 import PdfReader
+            reader = PdfReader(file_path)
+            for page_num, page in enumerate(reader.pages, 1):
+                page_text = page.extract_text()
+                if page_text:
+                    text_parts.append(f"[Page {page_num}]\n{page_text}")
+        except Exception as e2:
+            print(f"[PDF Extract] Error with PyPDF2: {e2}")
     return "\n\n".join(text_parts)
 
 

@@ -145,6 +145,19 @@ def test_upload_rejects_filename_project_id_mismatch(client: TestClient):
     assert response.status_code == 400
     assert "does not match selected project" in response.json()["detail"].lower()
 
+def test_upload_rejects_invalid_filename_pattern(client: TestClient):
+    client.post("/api/projects", json={"project_id": "P104", "project_name": "Rule Test 3"})
+    files = {"file": ("DocWithoutProjectPrefix.pdf", b"content", "application/pdf")}
+    response = client.post("/api/upload", files=files, data={"language": "ja", "project_id": "P104"})
+    assert response.status_code == 400
+    assert "invalid filename format" in response.json()["detail"].lower()
+
+    project_check = client.get("/api/projects/P104")
+    assert project_check.status_code == 200
+    docs_res = client.get("/api/projects/P104/documents-summary")
+    assert docs_res.status_code == 200
+    assert docs_res.json() == []
+
 
 def test_document_summary_returns_document_id_for_hierarchical_flow(client: TestClient):
     client.post("/api/projects", json={"project_id": "P102", "project_name": "Hierarchy Test"})
@@ -162,3 +175,82 @@ def test_document_summary_returns_document_id_for_hierarchical_flow(client: Test
     assert isinstance(payload, list) and payload
     assert "document_id" in payload[0]
     assert isinstance(payload[0]["document_id"], int)
+
+
+def test_versions_and_gradings_hierarchical_contract(client: TestClient):
+    client.post("/api/projects", json={"project_id": "P103", "project_name": "Contract Test"})
+    files = {"file": ("P103_Doc.pdf", b"content", "application/pdf")}
+    upload_res = client.post(
+        "/api/upload",
+        files=files,
+        data={"language": "ja", "project_id": "P103", "document_name": "Doc Contract"},
+    )
+    assert upload_res.status_code == 200
+
+    document_id = upload_res.json()["document_id"]
+    version_id = upload_res.json()["document_version_id"]
+
+    versions_res = client.get(f"/api/documents/{document_id}/versions")
+    assert versions_res.status_code == 200
+    versions_payload = versions_res.json()
+    assert isinstance(versions_payload, list) and versions_payload
+    assert "document_version_id" in versions_payload[0]
+    assert "version" in versions_payload[0]
+    assert "latest_status" in versions_payload[0]
+
+    grade_res = client.post("/api/grade", json={"document_version_id": version_id, "prompt_level": "medium"})
+    assert grade_res.status_code == 200
+
+    gradings_res = client.get(f"/api/versions/{version_id}/gradings")
+    assert gradings_res.status_code == 200
+    gradings_payload = gradings_res.json()
+    assert isinstance(gradings_payload, list) and gradings_payload
+    assert "grading_run_id" in gradings_payload[0]
+    assert "status" in gradings_payload[0]
+    assert "created_at" in gradings_payload[0]
+
+
+def test_cache_not_reused_when_prompt_level_changes(client: TestClient):
+    client.post("/api/projects", json={"project_id": "P105", "project_name": "Prompt Level Cache"})
+    files = {"file": ("P105_Doc.pdf", b"content", "application/pdf")}
+    upload_res = client.post("/api/upload", files=files, data={"language": "ja", "project_id": "P105", "document_name": "Doc"})
+    assert upload_res.status_code == 200
+    version_id = upload_res.json()["document_version_id"]
+
+    with patch("app.services.grading_engine.get_gemini_client") as mock_get_client:
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        mock_response = MagicMock()
+        mock_response.text = '{"score": 85, "criteria_scores": {"review_tong_the": 20, "diem_tot": 20, "diem_xau": 25, "chinh_sach": 20}, "criteria_suggestions": {"vi": {}, "ja": {}}, "draft_feedback": {"vi": "Tot", "ja": "Good"}, "slide_reviews": []}'
+        mock_client.generate_content.return_value = mock_response
+
+        grade_medium = client.post("/api/grade", json={"document_version_id": version_id, "prompt_level": "medium"})
+        assert grade_medium.status_code == 200
+        grade_high = client.post("/api/grade", json={"document_version_id": version_id, "prompt_level": "high"})
+        assert grade_high.status_code == 200
+        assert mock_client.generate_content.call_count == 2
+
+
+def test_cache_not_reused_when_project_description_changes(client: TestClient):
+    client.post("/api/projects", json={"project_id": "P106", "project_name": "Description Cache", "project_description": "alpha"})
+    files = {"file": ("P106_Doc.pdf", b"content", "application/pdf")}
+    upload_res = client.post("/api/upload", files=files, data={"language": "ja", "project_id": "P106", "document_name": "Doc"})
+    assert upload_res.status_code == 200
+    version_id = upload_res.json()["document_version_id"]
+
+    with patch("app.services.grading_engine.get_gemini_client") as mock_get_client:
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        mock_response = MagicMock()
+        mock_response.text = '{"score": 85, "criteria_scores": {"review_tong_the": 20, "diem_tot": 20, "diem_xau": 25, "chinh_sach": 20}, "criteria_suggestions": {"vi": {}, "ja": {}}, "draft_feedback": {"vi": "Tot", "ja": "Good"}, "slide_reviews": []}'
+        mock_client.generate_content.return_value = mock_response
+
+        grade_1 = client.post("/api/grade", json={"document_version_id": version_id, "prompt_level": "medium"})
+        assert grade_1.status_code == 200
+
+        update_res = client.patch("/api/projects/P106", json={"project_description": "beta"})
+        assert update_res.status_code == 200
+
+        grade_2 = client.post("/api/grade", json={"document_version_id": version_id, "prompt_level": "medium"})
+        assert grade_2.status_code == 200
+        assert mock_client.generate_content.call_count == 2

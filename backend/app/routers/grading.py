@@ -1,66 +1,102 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Depends
 from app.storage import store
-from app.models import GradeResponse, GradeAllResult, GradeJobResponse, LanguageCode, GradeRequest, SubmissionDocumentVersion, Submission
-from app.services.grading_engine import build_grading_signature, grade_submission
-from app.services.grading_jobs import grade_job_store
+from app.models import GradeResponse, GradeRequest, SubmissionDocumentVersion, Submission
+from app.database import engine, get_session
+from app.config import settings
+from app.tasks import grade_document_version_task
+from app.repositories.submission_repository import SubmissionRepository
+from app.repositories.grading_repository import GradingRepository
+from app.services.grading_service import GradingService
 from sqlmodel import Session
-from app.database import engine
 
 router = APIRouter()
 
+def get_grading_service(session: Session = Depends(get_session)) -> GradingService:
+    sub_repo = SubmissionRepository(session)
+    grading_repo = GradingRepository(session)
+    return GradingService(sub_repo, grading_repo)
 
 async def _perform_grading(
+    service: GradingService,
     project_id: str,
     document_version_id: int | None = None,
     prompt_level: str = "medium",
     rubric_version: str | None = None,
     force: bool = False,
 ) -> GradeResponse:
-    submission = store.get(project_id)
-    if not submission:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Project not found: {project_id}",
+    # 1. Resolve document_version_id if not provided
+    if document_version_id is None:
+        version = service.submission_repo.get_latest_document_version_by_project(project_id) # I need to add this method or use store
+        if not version:
+            # Fallback to store for backward compatibility or if service doesn't have it yet
+            version = store.get_document_version(project_id)
+        if not version:
+            raise HTTPException(status_code=404, detail="Document version not found")
+        document_version_id = version.id
+
+    try:
+        # 2. Check if we should use Celery
+        if settings.use_celery:
+            # Create a PENDING run record first
+            submission = service.submission_repo.get_submission(project_id)
+            if not submission:
+                raise HTTPException(status_code=404, detail=f"Project not found: {project_id}")
+            
+            version = service.submission_repo.get_document_version_by_id(document_version_id)
+            if not version:
+                raise HTTPException(status_code=404, detail=f"Version not found: {document_version_id}")
+            
+            # Create run in PENDING status
+            run = service.create_pending_run(
+                submission_id=submission.id,
+                document_version_id=version.id,
+                document_version=version.document_version,
+                rubric_version=rubric_version or "latest", # Will be resolved in task
+                prompt_level=prompt_level,
+                content_hash=version.content_hash
+            )
+            
+            # Dispatch Celery task
+            grade_document_version_task.delay(
+                project_id=project_id,
+                document_version_id=document_version_id,
+                grading_run_id=run.id,
+                prompt_level=prompt_level,
+                rubric_version=rubric_version,
+                force=force
+            )
+            
+            return GradeResponse(
+                project_id=project_id,
+                project_name=submission.project_name,
+                run_id=run.id,
+                status="PENDING",
+                document_version_id=version.id,
+                document_version=version.document_version,
+                prompt_level=prompt_level,
+                language=submission.language,
+            )
+
+        # Synchronous behavior (existing)
+        result = service.run_grading(
+            project_id=project_id,
+            document_version_id=document_version_id,
+            prompt_level=prompt_level,
+            rubric_version=rubric_version,
+            force=force
         )
-
-    document_version = store.get_document_version(project_id, document_version_id=document_version_id)
-    if not document_version:
-        raise HTTPException(status_code=404, detail="Document version not found")
-    document = store.get_document_for_version(document_version.id or 0)
-    document_type = document.document_type if document else getattr(submission, "document_type", None)
-
-    document_language = document_version.language
-
-    current_signature = build_grading_signature(
-        text=document_version.extracted_text,
-        language=document_language,
-        document_type=document_type,
-        rubric_version=rubric_version,
-        document_version_id=document_version.id,
-        prompt_level=prompt_level,
-        project_description=submission.project_description if hasattr(submission, "project_description") else None,
-    )
-
-    # Skip API call only when the stored grading signature still matches the current one.
-    matching_run = None if force else store.find_matching_run(project_id, current_signature)
-    if matching_run is not None and matching_run.score is not None:
-        print(f"[Grade] Project {project_id} matched cached signature, appending a new grading run")
-        now = datetime.now(timezone.utc).isoformat()
-        submission = store.append_cached_grading_run(
-            project_id,
-            matching_run.id,
-            started_at=now,
-            graded_at=now,
-        )
-        latest_run = submission.latest_run
-        if latest_run is None:
-            raise HTTPException(status_code=500, detail="Cached grading run was not saved")
+        
+        # Re-fetch submission to get the latest run details
+        submission_record = store.get(project_id)
+        latest_run = submission_record.latest_run
+        
         return GradeResponse(
             project_id=project_id,
-            project_name=submission.project_name,
+            project_name=submission_record.project_name,
             run_id=latest_run.id,
             score=latest_run.score,
+            status=latest_run.status,
             document_version_id=latest_run.document_version_id,
             document_version=latest_run.document_version,
             rubric_version=latest_run.rubric_version,
@@ -80,73 +116,32 @@ async def _perform_grading(
             },
             draft_feedback=latest_run.draft_feedback,
             slide_reviews=latest_run.slide_reviews or [],
-            graded_at=latest_run.graded_at or now,
-            language=document_language,
+            graded_at=latest_run.graded_at or datetime.now(timezone.utc).isoformat(),
+            language=submission_record.language,
         )
-
-    started_at = datetime.now(timezone.utc).isoformat()
-    try:
-        result = grade_submission(
-            document_version.extracted_text,
-            document_language,
-            document_type,
-            rubric_version=rubric_version,
-            document_version_id=document_version.id,
-            prompt_level=prompt_level,
-            project_description=submission.project_description if hasattr(submission, "project_description") else None,
-            use_cache=not force,
-            refresh_cache=force,
-        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         raise HTTPException(
             status_code=502,
-            detail=f"Gemini API call failed: {str(e)}",
+            detail=f"Grading failed: {str(e)}",
         )
-
-    graded_at = datetime.now(timezone.utc).isoformat()
-    submission = store.save_grading_result(project_id, result, started_at=started_at, graded_at=graded_at)
-    latest_run = submission.latest_run
-    if latest_run is None:
-        raise HTTPException(status_code=500, detail="Grading run was not saved")
-
-    return GradeResponse(
-        project_id=project_id,
-        project_name=submission.project_name,
-        run_id=latest_run.id,
-        score=result["score"],
-        document_version_id=latest_run.document_version_id,
-        document_version=latest_run.document_version,
-        rubric_version=latest_run.rubric_version,
-        rubric_hash=latest_run.rubric_hash,
-        gemini_model=latest_run.gemini_model,
-        prompt_version=latest_run.prompt_version,
-        prompt_level=latest_run.prompt_level,
-        policy_version=latest_run.policy_version,
-        policy_hash=latest_run.policy_hash,
-        required_rule_hash=latest_run.required_rule_hash,
-        prompt_hash=latest_run.prompt_hash,
-        criteria_hash=latest_run.criteria_hash,
-        grading_schema_version=latest_run.grading_schema_version,
-        criteria_scores=result["criteria_scores"],
-        criteria_suggestions=result.get("criteria_suggestions", {}),
-        draft_feedback=result["draft_feedback"],
-        slide_reviews=latest_run.slide_reviews,
-        graded_at=latest_run.graded_at or graded_at,
-        language=document_language,
-    )
-
 
 @router.post("/grade/{project_id}", response_model=GradeResponse)
 async def grade_single(
     project_id: str,
-    ui_language: LanguageCode = Query(default="ja", alias="language", description="UI language (not used for grading)"),
-    force: bool = Query(default=False, description="Force regrading even if a cached result exists"),
-    rubric_version: str | None = Query(default=None, description="Rubric version to use for this grading run"),
-    document_version_id: int | None = Query(default=None, description="Document version id to grade. Defaults to latest."),
-    prompt_level: str = Query(default="medium", description="PMO prompt level: low, medium, high"),
+    force: bool = Query(default=False),
+    rubric_version: str | None = Query(default=None),
+    document_version_id: int | None = Query(default=None),
+    prompt_level: str = Query(default="medium"),
+    service: GradingService = Depends(get_grading_service),
 ):
-    """Legacy grading API for backward compatibility"""
+    # Legacy alias route retained for backward compatibility.
+    # Even on this endpoint, grading is always executed against a concrete document_version.
     return await _perform_grading(
+        service=service,
         project_id=project_id,
         document_version_id=document_version_id,
         prompt_level=prompt_level,
@@ -154,41 +149,43 @@ async def grade_single(
         force=force
     )
 
-
 @router.post("/grade", response_model=GradeResponse)
-async def grade_version(request: GradeRequest):
-    """New grading API that uses document_version_id as primary input"""
-    with Session(engine) as session:
-        v = session.get(SubmissionDocumentVersion, request.document_version_id)
-        if not v:
-            raise HTTPException(status_code=404, detail="Document version not found")
-        sub = session.get(Submission, v.submission_id)
-        if not sub:
-            raise HTTPException(status_code=404, detail="Project not found")
-        project_id = sub.project_id
-
+async def grade_version(
+    request: GradeRequest,
+    service: GradingService = Depends(get_grading_service),
+):
+    # Resolve project_id from version_id
+    version = service.submission_repo.get_document_version_by_id(request.document_version_id)
+    if not version:
+        raise HTTPException(status_code=404, detail="Document version not found")
+    submission = service.submission_repo.get_submission_by_id(version.submission_id)
+    if not submission:
+        raise HTTPException(status_code=404, detail="Project not found")
+        
     return await _perform_grading(
-        project_id=project_id,
+        service=service,
+        project_id=submission.project_id,
         document_version_id=request.document_version_id,
         prompt_level=request.prompt_level,
         rubric_version=request.rubric_version,
         force=request.force
     )
 
+# Keeping grade-all and other routes same for now but they should eventually use the service too
+from app.services.grading_jobs import grade_job_store
+from app.models import GradeJobResponse
 
 @router.post("/grade-all", response_model=GradeJobResponse)
 async def grade_all(
     background_tasks: BackgroundTasks,
-    ui_language: LanguageCode = Query(default="ja", alias="language", description="UI language (not used for grading)"),
-    force: bool = Query(default=False, description="Force regrading for all submissions, including already graded ones"),
-    rubric_version: str | None = Query(default=None, description="Rubric version to use for all grading runs"),
-    prompt_level: str = Query(default="medium", description="PMO prompt level: low, medium, high"),
+    force: bool = Query(default=False),
+    rubric_version: str | None = Query(default=None),
+    prompt_level: str = Query(default="medium"),
 ):
     project_ids = store.get_all_project_ids() if force else store.get_ungraded_project_ids()
     job = grade_job_store.create_job(project_ids, force=force, rubric_version=rubric_version, prompt_level=prompt_level)
     background_tasks.add_task(grade_job_store.run_grade_all_job, job.job_id)
     return job
-
 
 @router.get("/grade-jobs/{job_id}", response_model=GradeJobResponse)
 async def get_grade_job(job_id: str):

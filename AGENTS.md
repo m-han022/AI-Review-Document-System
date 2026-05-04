@@ -151,7 +151,7 @@ file hoặc file_url
 ## Flow
 
 IF project chưa tồn tại:
-create submission
+reject upload (project must be created explicitly first)
 
 IF document chưa tồn tại:
 create document
@@ -185,6 +185,25 @@ gradingrun
 → document_version
 → document
 → project
+
+---
+
+# ⚡ GRADING EXECUTION MODEL
+
+## 1. Async Flow (Production)
+* **API**:
+  1. Nhận request chấm điểm.
+  2. Tạo record `GradingRun` mới với status `PENDING`.
+  3. Enqueue Celery task (`grade_document_version_task`).
+  4. Trả về `GradeResponse` với status `PENDING` ngay lập tức.
+* **Worker**:
+  1. Cập nhật status: `EXTRACTING` (khi bắt đầu).
+  2. Cập nhật status: `GRADING` (khi gọi LLM).
+  3. Cập nhật status: `COMPLETED` (thành công) hoặc `FAILED` (lỗi).
+  4. Lưu kết quả/error message vào DB.
+
+## 2. Sync Flow (Local/Dev)
+* Nếu `USE_CELERY=false`: API block cho đến khi chấm xong và trả kết quả `COMPLETED` hoặc `FAILED` ngay trong response.
 
 ---
 
@@ -315,5 +334,8 @@ Không overwrite
 ## Upload Validation
 
 - project_id phải tồn tại trước
-- filename phải match project_id
+- user phải chọn project từ danh sách project có sẵn
+- không auto-create project ngầm từ filename
+- filename chỉ dùng để validate/gợi ý
+- project_id parse từ filename phải match project đã chọn
 - không tạo project ngầm

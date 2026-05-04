@@ -6,236 +6,160 @@ Hệ thống AI Review Tài Liệu cho phép:
 
 * Upload tài liệu (`PDF`, `PPTX`)
 * Tự động trích xuất nội dung
-* Chấm điểm bằng AI (Google Gemini)
+* Chấm điểm bằng AI (Google Gemini) qua Background Worker (Celery)
 * Quản lý nhiều tài liệu trong cùng một project
-* Lưu lịch sử version của tài liệu
-* So sánh kết quả trước và sau khi chỉnh sửa
+* Lưu lịch sử version của tài liệu (Immutable/Append-only)
+* So sánh kết quả giữa các phiên bản
 
 ---
 
 # 🏗️ Architecture
 
 ```text
-Project (submission)
+Project (Submission)
   → Document
       → Document Version
-          → Grading Run
+          → Grading Run (Status: PENDING -> EXTRACTING -> GRADING -> COMPLETED/FAILED)
 ```
 
-### Nguyên tắc:
+### Nguyên tắc cốt lõi:
+* **Không overwrite**: Mọi thay đổi nội dung đều tạo Version mới.
+* **Auditability**: Mọi lần chấm điểm đều được lưu lại thành một Grading Run độc lập.
+* **Decoupling**: API nhận request, Worker thực hiện chấm điểm.
 
-* 1 Project có nhiều Document
-* 1 Document có nhiều Version (`v1`, `v2`, `v3`)
-* Mỗi Version được chấm độc lập
-* Không overwrite dữ liệu cũ
-
----
-
-# 📂 Example Structure
-
-```text
-Project: P001
-
-Bug Analysis
-  - bug_login
-      v1
-      v2
-  - bug_checkout
-      v1
-
-QA Review
-  - test_case_01
-      v1
-```
+### Upload & Project Rules
+* **Project là master data**: phải tạo project trước khi upload.
+* **Upload phải chọn project có sẵn**: không auto-create project ngầm từ filename.
+* **Filename chỉ dùng để validate/gợi ý**: không dùng làm source of truth.
+* **Validation bắt buộc**: project_id parse từ filename phải khớp project đã chọn.
+* **project_description** là metadata project, không thay thế nội dung tài liệu.
 
 ---
 
-# 📤 Upload
+# 🛠️ Modes of Operation
 
-## Input
+Hệ thống hỗ trợ 2 chế độ chạy chính:
 
-* `project_id`
-* `document_type`
-* `document_name`
-* `file` hoặc `file_url`
+### 1. Dev Mode (Mặc định)
+Phù hợp cho phát triển local, gọn nhẹ.
+* **Database**: SQLite
+* **Task Processing**: Synchronous (API xử lý trực tiếp)
+* **Storage**: Local filesystem
 
----
-
-## Behavior
-
-* Nếu project chưa tồn tại → tạo mới
-* Nếu document chưa tồn tại → tạo mới
-* Luôn tạo `document_version` mới
-* Không overwrite file cũ
+### 2. Production-like Mode
+Phù hợp cho môi trường thật hoặc staging.
+* **Database**: PostgreSQL (qua Docker)
+* **Task Processing**: Asynchronous (Redis + Celery Worker)
+* **Storage**: Docker Volumes
 
 ---
 
-# 🧠 Grading
+# ⚙️ Configuration (Environment Variables)
 
-## Nguyên tắc
+### Backend (`backend/.env`)
 
-* Chấm theo `document_version`
-* Không chấm trực tiếp project
-* Mỗi version có thể chấm nhiều lần
-
----
-
-## Kết quả gồm
-
-* Tổng điểm
-* Điểm theo tiêu chí
-* Góp ý chi tiết
-* Review từng slide/page (`OK` / `NG`)
-* Hỗ trợ song ngữ `vi / ja`
+| Variable | Dev Value | Production Value | Description |
+| :--- | :--- | :--- | :--- |
+| `GEMINI_API_KEY` | `your_key` | `your_key` | Google Gemini API Key |
+| `DATABASE_URL` | (trống) | `postgresql+psycopg2://...` | Connection string |
+| `USE_CELERY` | `false` | `true` | Bật/tắt background worker |
+| `CELERY_BROKER_URL` | `redis://...` | `redis://...` | Redis broker |
+| `CELERY_RESULT_BACKEND` | `redis://...` | `redis://...` | Redis backend |
 
 ---
 
-# ⚡ Cache
+# 🚀 Running the System
 
-Kết quả grading được cache dựa trên:
-
-* `content_hash`
-* `document_version_id`
-* `rubric_version`
-* `prompt_version`
-* `prompt_level`
-
----
-
-# 📊 Data Model
-
-| Entity           | Mô tả              |
-| ---------------- | ------------------ |
-| Project          | Dự án              |
-| Document         | Tài liệu logic     |
-| Document Version | Phiên bản tài liệu |
-| Grading Run      | Kết quả chấm       |
-
----
-
-# 🧪 Development
-
-## Backend
+### 1. Development Mode
 
 ```bash
+# Backend
 cd backend
 pip install -r requirements.txt
 uvicorn app.main:app --reload
-```
 
----
-
-## Frontend
-
-```bash
+# Frontend
 cd frontend
 npm install
 npm run dev
 ```
 
----
-
-## Test
+### 2. Production-like Mode (Docker)
 
 ```bash
+# Khởi động toàn bộ stack (DB, Redis, Backend, Worker)
+docker-compose up -d --build
+```
+
+### 3. Database Management
+
+```bash
+# Tạo migration mới
+cd backend
+alembic revision --autogenerate -m "description"
+
+# Update database lên bản mới nhất
+alembic upgrade head
+
+# Migrate dữ liệu từ SQLite sang PostgreSQL
+python backend/scripts/migrate_sqlite_to_postgres.py
+```
+
+### 4. Running Worker manually (nếu không dùng Docker)
+
+```bash
+cd backend
+celery -A app.celery_app worker --loglevel=info --pool=solo
+```
+
+---
+
+# 🧪 Testing
+
+```bash
+# Chạy toàn bộ test suite
+cd backend
+$env:PYTHONPATH="."
 pytest
-```
-
----
-
-# ⚙️ Environment
-
-### Backend (`backend/.env`)
-
-```env
-GEMINI_API_KEY=your_key
-GEMINI_MODEL=gemini-3-flash-preview
-```
-
----
-
-### Frontend (`frontend/.env.local`)
-
-```env
-VITE_API_BASE_URL=http://localhost:8000/api
 ```
 
 ---
 
 # 🌐 API (High-level)
 
-### Core Flow
-
-```text
-GET    /projects
-GET    /projects/{id}/documents
-GET    /documents/{id}/versions
-GET    /versions/{id}/gradings
-```
+* `GET /projects`: Danh sách dự án
+* `POST /api/upload`: Upload tài liệu mới (tạo Version mới)
+* `POST /api/grade`: Bắt đầu chấm điểm (Nếu dùng Celery sẽ trả về PENDING ngay)
+* `GET /versions/{id}/gradings`: Lấy lịch sử chấm điểm
 
 ---
 
-### Legacy APIs
+# 🔒 Safety & Rollback
 
-* `/api/submissions`
-* `/api/grade/{project_id}`
-
-→ vẫn được hỗ trợ (backward compatibility)
-
----
-
-# 🖥️ Frontend Rules
-
-* Không hardcode criteria
-* Không assume 1 document per type
-* Hiển thị đầy đủ:
-
-  * Project
-  * Document
-  * Version
-  * Rubric version
-  * Prompt version
-  * Level
+* Dữ liệu trong `backend/data/review_system.db` là nguồn SQLite mặc định.
+* Luôn backup thư mục `backend/uploads` và `backend/data` trước khi migrate.
+* Nếu PostgreSQL gặp sự cố, gỡ biến `DATABASE_URL` để quay lại dùng SQLite.
 
 ---
-
-# 🔒 Important Rules
-
-* Không overwrite dữ liệu
-* Mọi thay đổi đều tạo version mới
-* Có thể xem lại toàn bộ lịch sử
-* Có thể so sánh version
-
----
-
-# 🚨 Limitations
-
-* Chưa có authentication / authorization
-* Batch job in-memory (mất khi restart)
-* SQLite chưa tối ưu cho production
-
----
-
-### Project Structure
-
-Project → Document → Version → Grading Run
-
-### Upload Flow
-
-- Chọn project có sẵn
-- Không auto-create project từ filename
-
-## Troubleshooting: stale backend process
-
-Nếu API đã sửa nhưng vẫn trả 404 hoặc không thấy route mới trong Swagger:
-
-```powershell
-taskkill /F /IM python.exe /T
-cd backend
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 
 # 🏁 Summary
 
 ```text
-System = versioned + immutable + auditable
+System = Versioned + Immutable + Auditable + Async (Production)
 ```
+
+---
+
+# 🔁 Legacy API Mapping
+
+Các API cũ vẫn được giữ để tương thích ngược, nhưng phải map sang flow mới:
+
+```text
+project -> document -> version -> grading
+```
+
+Quy tắc bắt buộc:
+
+* Upload legacy vẫn phải gắn với `project_id` đã tồn tại.
+* Không auto-create project từ upload/filename.
+* Grading legacy endpoint vẫn chấm theo `document_version` (không chấm trực tiếp project).

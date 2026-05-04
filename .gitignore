@@ -48,6 +48,14 @@ backend/artifacts/
 # Temporary files
 ~$*.pptx
 *.tmp
+build_log_*.txt
+lint_log*.txt
+upload_success*.json
+upload_error*.json
+test.pdf
+test.pptx
+valid.pdf
+regression.pptx
 
 # Test files
 test_*.py

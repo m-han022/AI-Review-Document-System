@@ -1,5 +1,5 @@
-import re
 import hashlib
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -16,20 +16,24 @@ PROJECT_PATTERN = re.compile(r"^(P\d+)[_\-](.+?)\.(pdf|pptx)$", re.IGNORECASE)
 
 MESSAGES = {
     "vi": {
-        "pdf_only": "Chỉ chấp nhận file PDF và PowerPoint (.pptx).",
-        "invalid_filename": "Tên file không đúng định dạng. Yêu cầu: P<mã_dự_án>_<tên_dự_án>.pdf hoặc .pptx (ví dụ: P001_ThietKeWeb.pptx)",
-        "empty_file": "File tải lên đang rỗng.",
-        "empty_pdf": "Không thể trích xuất nội dung từ file. File có thể là ảnh scan hoặc không có text.",
-        "upload_failed": "Tải lên thất bại trong quá trình xử lý file.",
-        "upload_success": "Tải lên dự án thành công",
+        "pdf_only": "Only PDF and PowerPoint (.pptx) files are accepted.",
+        "invalid_filename": "Invalid filename format.",
+        "missing_project_selection": "Please select an existing project before upload.",
+        "project_id_mismatch": "Filename project_id does not match selected project.",
+        "empty_file": "Uploaded file is empty.",
+        "empty_pdf": "Could not extract content from file.",
+        "upload_failed": "Upload failed during file processing.",
+        "upload_success": "Upload successful",
     },
     "ja": {
-        "pdf_only": "PDF および PowerPoint (.pptx) ファイルのみ受け付けます。",
-        "invalid_filename": "ファイル名の形式が正しくありません。形式: P<プロジェクトID>_<プロジェクト名>.pdf または .pptx (例: P001_WebsiteDesign.pptx)",
-        "empty_file": "アップロードされたファイルが空です。",
-        "empty_pdf": "ファイルからテキストを抽出できませんでした。画像ベースまたは空のファイルの可能性があります。",
-        "upload_failed": "ファイル処理中にアップロードに失敗しました。",
-        "upload_success": "プロジェクトのアップロードに成功しました",
+        "pdf_only": "Only PDF and PowerPoint (.pptx) files are accepted.",
+        "invalid_filename": "Invalid filename format.",
+        "missing_project_selection": "Please select an existing project before upload.",
+        "project_id_mismatch": "Filename project_id does not match selected project.",
+        "empty_file": "Uploaded file is empty.",
+        "empty_pdf": "Could not extract content from file.",
+        "upload_failed": "Upload failed during file processing.",
+        "upload_success": "Upload successful",
     },
 }
 
@@ -69,19 +73,23 @@ async def upload_project(
 
     match = PROJECT_PATTERN.match(file.filename)
     resolved_project_id = (project_id or "").strip().upper()
-    if not resolved_project_id and match:
-        resolved_project_id = match.group(1).upper()
     if not resolved_project_id:
-        raise HTTPException(
-            status_code=400,
-            detail=MESSAGES[ui_language]["invalid_filename"],
-        )
+        raise HTTPException(status_code=400, detail=MESSAGES[ui_language]["missing_project_selection"])
+
+    if not match:
+        raise HTTPException(status_code=400, detail=MESSAGES[ui_language]["invalid_filename"])
+
+    if match:
+        parsed_project_id = match.group(1).upper()
+        if parsed_project_id != resolved_project_id:
+            raise HTTPException(status_code=400, detail=MESSAGES[ui_language]["project_id_mismatch"])
 
     resolved_project_name = (project_name or "").strip()
     if not resolved_project_name and match:
         resolved_project_name = match.group(2).replace("_", " ").replace("-", " ")
     if not resolved_project_name:
         resolved_project_name = Path(file.filename).stem
+
     original_filename = Path(file.filename).name
     save_path = _unique_upload_path(original_filename)
     stored_filename = save_path.name
@@ -89,20 +97,14 @@ async def upload_project(
     try:
         content = await file.read()
         if not content:
-            raise HTTPException(
-                status_code=400,
-                detail=MESSAGES[ui_language]["empty_file"],
-            )
+            raise HTTPException(status_code=400, detail=MESSAGES[ui_language]["empty_file"])
 
         with open(save_path, "wb") as saved_file:
             saved_file.write(content)
 
         extracted_text = extract_text_from_file(str(save_path))
         if not extracted_text.strip():
-            raise HTTPException(
-                status_code=400,
-                detail=MESSAGES[ui_language]["empty_pdf"],
-            )
+            raise HTTPException(status_code=400, detail=MESSAGES[ui_language]["empty_pdf"])
 
         detected_language = detect_language_from_text(extracted_text)
         message_bundle = MESSAGES.get(detected_language, MESSAGES["ja"])
@@ -139,11 +141,11 @@ async def upload_project(
     except HTTPException:
         _cleanup_uploaded_file(save_path)
         raise
+    except ValueError as exc:
+        _cleanup_uploaded_file(save_path)
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         _cleanup_uploaded_file(save_path)
-        raise HTTPException(
-            status_code=500,
-            detail=f"{MESSAGES[ui_language]['upload_failed']} {str(exc)}",
-        ) from exc
+        raise HTTPException(status_code=500, detail=f"{MESSAGES[ui_language]['upload_failed']} {str(exc)}") from exc
     finally:
         await file.close()

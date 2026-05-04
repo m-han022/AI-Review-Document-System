@@ -1,0 +1,64 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: ai_review_db
+    restart: always
+    environment:
+      POSTGRES_USER: ai_user
+      POSTGRES_PASSWORD: ai_password
+      POSTGRES_DB: ai_review
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: ai_review_redis
+    ports:
+      - "6379:6379"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ai_review_backend
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - backend/.env
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://ai_user:ai_password@db:5432/ai_review
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - USE_CELERY=true
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/data:/app/data
+      - ./backend/tests:/app/tests
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ai_review_worker
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - backend/.env
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://ai_user:ai_password@db:5432/ai_review
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - USE_CELERY=true
+    command: celery -A app.celery_app worker --loglevel=info --pool=solo
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/data:/app/data
+
+volumes:
+  postgres_data:

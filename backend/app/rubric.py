@@ -136,23 +136,22 @@ def save_rubric_version(document_type: str, payload: RubricVersionPayload) -> Ru
             select(Rubric).where(Rubric.document_type == document_type, Rubric.version == payload.version)
         ).first()
 
-        timestamp = _now()
         if existing:
-            existing.prompt = prompt
-            existing.updated_at = timestamp
-            rubric = existing
-        else:
-            rubric = Rubric(
-                document_type=document_type,
-                version=payload.version,
-                active=False,
-                prompt=prompt,
-                created_at=timestamp,
-                updated_at=timestamp,
-            )
-            session.add(rubric)
-            session.commit()
-            session.refresh(rubric)
+            raise ValueError(f"Rubric version {payload.version} already exists and is immutable.")
+
+        timestamp = _now()
+        rubric = Rubric(
+            document_type=document_type,
+            version=payload.version,
+            active=False,
+            status="active",
+            prompt=prompt,
+            created_at=timestamp,
+            updated_at=timestamp,
+        )
+        session.add(rubric)
+        session.commit()
+        session.refresh(rubric)
 
         session.exec(delete(RubricCriterionRecord).where(RubricCriterionRecord.rubric_id == rubric.id))
         for index, criterion in enumerate(payload.criteria):
@@ -181,8 +180,10 @@ def activate_rubric_version(document_type: str, version: str) -> RubricVersionOu
 
         for rubric in rubrics:
             rubric.active = False
+            rubric.status = "archived"
             rubric.updated_at = _now()
         target.active = True
+        target.status = "active"
         target.updated_at = _now()
 
         session.commit()
@@ -239,6 +240,7 @@ def seed_rubrics_from_files() -> None:
                     document_type=document_type,
                     version=version_dir.name,
                     active=version_dir.name == active_version,
+                    status="active" if version_dir.name == active_version else "archived",
                     prompt=prompt,
                     created_at=timestamp,
                     updated_at=timestamp,

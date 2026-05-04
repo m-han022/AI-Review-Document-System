@@ -1,7 +1,6 @@
 import { API_BASE_URL, DEFAULT_UI_LANGUAGE, UI_LANGUAGE_STORAGE_KEY } from "../config";
 import { normalizeLanguage } from "../locales/utils";
 import type {
-  CompareRunResult,
   SubmissionDocument,
   DocumentVersion,
   GradingRunDetail,
@@ -16,6 +15,12 @@ import type {
   DocumentListOut,
   VersionListOut,
   GradingListOut,
+  VersionComparison,
+  MgmtRubric,
+  MgmtPrompt,
+  MgmtPolicy,
+  RequiredRulesResponse,
+  FinalPromptPreviewResponse,
 } from "../types";
 
 // Language setting
@@ -148,7 +153,7 @@ export async function listProjects(limit: number = 100, offset: number = 0): Pro
 }
 
 export async function listProjectDocuments(projectId: string): Promise<DocumentListOut[]> {
-  const url = `${API_BASE_URL}/projects/${encodeURIComponent(projectId)}/documents`;
+  const url = `${API_BASE_URL}/projects/${encodeURIComponent(projectId)}/documents-summary`;
   const res = await fetch(url);
   if (!res.ok) {
     console.error(`[API] Fetch project documents failed: ${res.status} at ${url}`);
@@ -181,9 +186,16 @@ export async function getGradingRun(gradingRunId: number): Promise<GradingRunDet
   return getGradingRunDetail(gradingRunId);
 }
 
-export async function compareGradingRuns(projectId: string, runA: number, runB: number): Promise<CompareRunResult> {
+export async function compareGradingRuns(projectId: string, runA: number, runB: number): Promise<any> {
   const params = new URLSearchParams({ run_a: String(runA), run_b: String(runB) });
   const res = await fetch(`${API_BASE_URL}/submissions/${encodeURIComponent(projectId)}/compare?${params.toString()}`);
+  if (!res.ok) throw new Error(`${apiMessage("fetchSubmissionsFailed")} ${res.statusText}`);
+  return res.json();
+}
+
+export async function compareVersions(documentId: number, baseId: number, compareId: number): Promise<VersionComparison> {
+  const params = new URLSearchParams({ base_version_id: String(baseId), compare_version_id: String(compareId) });
+  const res = await fetch(`${API_BASE_URL}/documents/${documentId}/compare?${params.toString()}`);
   if (!res.ok) throw new Error(`${apiMessage("fetchSubmissionsFailed")} ${res.statusText}`);
   return res.json();
 }
@@ -383,4 +395,120 @@ export async function activateRubricVersion(documentType: string, version: strin
   }
 
   return response.json();
+}
+
+export async function listMgmtRubrics(documentType?: string): Promise<MgmtRubric[]> {
+  const params = new URLSearchParams();
+  if (documentType) params.set("document_type", documentType);
+  const res = await fetch(`${API_BASE_URL}/mgmt/rubrics?${params.toString()}`);
+  if (!res.ok) throw new Error(`Failed to fetch mgmt rubrics: ${res.statusText}`);
+  return res.json();
+}
+
+export async function createMgmtRubric(payload: {
+  document_type: string;
+  version: string;
+  prompt: Record<string, string>;
+  criteria: Array<{ key: string; max_score: number; labels?: Record<string, string> }>;
+  summary?: string;
+  activate?: boolean;
+}): Promise<MgmtRubric> {
+  const res = await fetch(`${API_BASE_URL}/mgmt/rubrics`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || "Failed to create rubric");
+  }
+  return res.json();
+}
+
+export async function activateMgmtRubric(id: number): Promise<MgmtRubric> {
+  const res = await fetch(`${API_BASE_URL}/mgmt/rubrics/${id}/activate`, { method: "POST" });
+  if (!res.ok) throw new Error(`Failed to activate rubric: ${res.statusText}`);
+  return res.json();
+}
+
+export async function listMgmtPrompts(documentType?: string, level?: string): Promise<MgmtPrompt[]> {
+  const params = new URLSearchParams();
+  if (documentType) params.set("document_type", documentType);
+  if (level) params.set("level", level);
+  const res = await fetch(`${API_BASE_URL}/mgmt/prompts?${params.toString()}`);
+  if (!res.ok) throw new Error(`Failed to fetch prompts: ${res.statusText}`);
+  return res.json();
+}
+
+export async function createMgmtPrompt(payload: {
+  document_type: string;
+  level: string;
+  version: string;
+  content: string;
+  activate?: boolean;
+}): Promise<MgmtPrompt> {
+  const res = await fetch(`${API_BASE_URL}/mgmt/prompts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || "Failed to create prompt");
+  }
+  return res.json();
+}
+
+export async function activateMgmtPrompt(id: number): Promise<MgmtPrompt> {
+  const res = await fetch(`${API_BASE_URL}/mgmt/prompts/${id}/activate`, { method: "POST" });
+  if (!res.ok) throw new Error(`Failed to activate prompt: ${res.statusText}`);
+  return res.json();
+}
+
+export async function listMgmtPolicies(level?: string): Promise<MgmtPolicy[]> {
+  const params = new URLSearchParams();
+  if (level) params.set("level", level);
+  const res = await fetch(`${API_BASE_URL}/mgmt/policies?${params.toString()}`);
+  if (!res.ok) throw new Error(`Failed to fetch policies: ${res.statusText}`);
+  return res.json();
+}
+
+export async function createMgmtPolicy(payload: {
+  level: string;
+  version: string;
+  content: string;
+  activate?: boolean;
+}): Promise<MgmtPolicy> {
+  const res = await fetch(`${API_BASE_URL}/mgmt/policies`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || "Failed to create policy");
+  }
+  return res.json();
+}
+
+export async function activateMgmtPolicy(id: number): Promise<MgmtPolicy> {
+  const res = await fetch(`${API_BASE_URL}/mgmt/policies/${id}/activate`, { method: "POST" });
+  if (!res.ok) throw new Error(`Failed to activate policy: ${res.statusText}`);
+  return res.json();
+}
+
+export async function getRequiredRules(): Promise<RequiredRulesResponse> {
+  const res = await fetch(`${API_BASE_URL}/mgmt/required-rules`);
+  if (!res.ok) throw new Error(`Failed to fetch required rules: ${res.statusText}`);
+  return res.json();
+}
+
+export async function previewFinalPrompt(documentType: string, level: string): Promise<FinalPromptPreviewResponse> {
+  const params = new URLSearchParams({ document_type: documentType, level });
+  const res = await fetch(`${API_BASE_URL}/mgmt/final-prompt/preview?${params.toString()}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || "Failed to preview final prompt");
+  }
+  return res.json();
 }

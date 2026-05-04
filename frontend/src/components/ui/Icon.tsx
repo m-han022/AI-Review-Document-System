@@ -1,6 +1,9 @@
 import {
   ArrowLeft,
   ArrowUp,
+  ArrowDown,
+  Minus,
+  Layers,
   Bell,
   BookOpen,
   Bug,
@@ -49,6 +52,9 @@ const icons = {
   alertTriangle: TriangleAlert,
   arrowLeft: ArrowLeft,
   arrowUp: ArrowUp,
+  arrowDown: ArrowDown,
+  minus: Minus,
+  layers: Layers,
   bell: Bell,
   bookOpen: BookOpen,
   bug: Bug,
@@ -127,6 +133,18 @@ export function ArrowLeftIcon(props: NamedIconProps) {
 
 export function ArrowUpIcon(props: NamedIconProps) {
   return <Icon name="arrowUp" {...props} />;
+}
+
+export function ArrowDownIcon(props: NamedIconProps) {
+  return <Icon name="arrowDown" {...props} />;
+}
+
+export function MinusIcon(props: NamedIconProps) {
+  return <Icon name="minus" {...props} />;
+}
+
+export function LayersIcon(props: NamedIconProps) {
+  return <Icon name="layers" {...props} />;
 }
 
 export function BellIcon(props: NamedIconProps) {

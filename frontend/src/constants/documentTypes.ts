@@ -1,4 +1,4 @@
-import type { LanguageCode } from "../types";
+import type { LanguageCode, RubricVersion } from "../types";
 import { getCriteriaConfig } from "./gradingCriteria";
 
 export type DocumentType = "project-review" | "bug-analysis" | "qa-review" | "explanation-review";
@@ -38,10 +38,10 @@ export function getDocumentTypeKey(documentType: string | null | undefined): str
 }
 
 export function getDocumentTypeCriteriaPreview(
-  documentType: string | null | undefined,
+  rubric: RubricVersion | null | undefined,
   language: LanguageCode,
 ): string[] {
-  const config = getCriteriaConfig(documentType, language);
+  const config = getCriteriaConfig(rubric, language);
 
   return config.order.map((criterionKey) => {
     const label = config.labels[criterionKey] ?? criterionKey;

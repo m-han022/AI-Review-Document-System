@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 interface SectionBlockRootProps {
   children: ReactNode;
   className?: string;
+  style?: React.CSSProperties;
 }
 
 interface SectionBlockHeaderProps {
@@ -14,10 +15,11 @@ interface SectionBlockHeaderProps {
 interface SectionBlockBodyProps {
   children: ReactNode;
   className?: string;
+  style?: React.CSSProperties;
 }
 
-function SectionBlockRoot({ children, className }: SectionBlockRootProps) {
-  return <section className={`section-block ${className ?? ""}`.trim()}>{children}</section>;
+function SectionBlockRoot({ children, className, style }: SectionBlockRootProps) {
+  return <section className={`section-block ${className ?? ""}`.trim()} style={style}>{children}</section>;
 }
 
 function SectionBlockHeader({ title, subtitle, aside }: SectionBlockHeaderProps) {
@@ -32,8 +34,8 @@ function SectionBlockHeader({ title, subtitle, aside }: SectionBlockHeaderProps)
   );
 }
 
-function SectionBlockBody({ children, className }: SectionBlockBodyProps) {
-  return <div className={`section-block__body ${className ?? ""}`.trim()}>{children}</div>;
+function SectionBlockBody({ children, className, style }: SectionBlockBodyProps) {
+  return <div className={`section-block__body ${className ?? ""}`.trim()} style={style}>{children}</div>;
 }
 
 const SectionBlock = Object.assign(SectionBlockRoot, {

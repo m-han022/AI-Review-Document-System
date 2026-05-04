@@ -8,7 +8,8 @@ import {
   getGradingRun,
   gradeSubmission,
   compareVersions,
-  exportSubmissionsExcel 
+  exportSubmissionsExcel,
+  previewFinalPrompt
 } from "../../api/client";
 import { getDocumentTypeKey } from "../../constants/documentTypes";
 import { getLocalizedText } from "../../locales/utils";
@@ -168,6 +169,8 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
   const [activeTab, setActiveTab] = useState<"overview" | "slides">("overview");
   const [selectedSlideId, setSelectedSlideId] = useState<number | null>(null);
   const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
+  const [promptUsedOpen, setPromptUsedOpen] = useState(false);
+  const [promptUsedText, setPromptUsedText] = useState("");
   const [actionMessage, setActionMessage] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
 
   // Comparison states
@@ -380,6 +383,7 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
     { label: "Prompt", value: result?.prompt_version ? `v${result.prompt_version}` : "—" },
     { label: "Policy", value: result?.policy_version ? `v${result.policy_version}` : "—" },
     { label: "Level", value: result?.prompt_level ?? "—" },
+    { label: "Required Rules Hash", value: result?.required_rule_hash ?? "—" },
     { label: "Description", value: gradingDetail?.submission?.project_description || "—" },
   ], [currentDocument, currentVersion, result, gradingDetail, lang]);
 
@@ -424,6 +428,24 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
           <button className="btn-secondary btn-secondary--compact" onClick={() => exportMutation.mutate()} disabled={exportMutation.isPending}>
             <DownloadIcon size="sm" />
             {lang === "ja" ? "レポート出力" : "Export report"}
+          </button>
+          <button
+            className="btn-secondary btn-secondary--compact"
+            disabled={!result}
+            onClick={async () => {
+              try {
+                const preview = await previewFinalPrompt(currentDocument?.document_type || "project-review", result?.prompt_level || "medium");
+                setPromptUsedText(preview.full_prompt_preview);
+                setPromptUsedOpen(true);
+              } catch (error) {
+                setActionMessage({
+                  tone: "danger",
+                  text: error instanceof Error ? error.message : "Cannot load prompt preview",
+                });
+              }
+            }}
+          >
+            View Prompt Used
           </button>
         </div>
       </header>
@@ -646,6 +668,17 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
           </div>
         </ProjectReviewDialog>
       )}
+      {promptUsedOpen && (
+        <ProjectReviewDialog
+          title="Prompt Used"
+          onClose={() => setPromptUsedOpen(false)}
+          closeLabel={t("common.close") || "Close"}
+          wide
+        >
+          <pre style={{ whiteSpace: "pre-wrap", maxHeight: "60vh", overflow: "auto" }}>{promptUsedText || "N/A"}</pre>
+        </ProjectReviewDialog>
+      )}
     </div>
   );
 }
+

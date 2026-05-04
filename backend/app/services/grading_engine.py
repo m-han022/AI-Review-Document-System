@@ -5,10 +5,13 @@ from typing import Any
 
 from google.genai import types
 
+from sqlmodel import Session
 from app.config import settings
-from app.rubric import get_active_rubric_version, get_rubric, get_rubric_criteria_config
+from app.database import engine
+from app.rubric import get_active_rubric_version, get_rubric, get_rubric_criteria_config, _select_rubric
 from app.services.gemini_manager import get_gemini_client
-from app.services.prompt_policy import get_prompt_policy_bundle, normalize_prompt_level, stable_hash
+from app.services.prompt_policy import get_prompt_policy_bundle, normalize_prompt_level, stable_hash, get_active_policy, get_active_prompt_version
+from app.services.prompt_composer import PromptComposer
 
 _GRADING_CACHE_MAX_SIZE = 200
 
@@ -125,32 +128,47 @@ def build_grading_signature(
 ) -> dict[str, Any]:
     normalized_document_type = document_type or "project-review"
     resolved_rubric_version = rubric_version or get_active_rubric_version(document_type=document_type)
-    rubric = get_rubric(document_type=normalized_document_type, version=resolved_rubric_version)
+    
+    with Session(engine) as session:
+        rubric_obj = _select_rubric(session, normalized_document_type, resolved_rubric_version)
+        if not rubric_obj:
+            # Fallback for seeding or missing data
+            rubric_text = get_rubric(document_type=normalized_document_type, version=resolved_rubric_version)
+        else:
+            # Get prompt from rubric_obj.prompt
+            rubric_text = rubric_obj.prompt.get("vi", "") or next(iter(rubric_obj.prompt.values()), "")
+
     criteria_keys, max_scores = _get_criteria_config(normalized_document_type, resolved_rubric_version)
-    prompt_policy = get_prompt_policy_bundle(
-        document_type=normalized_document_type,
-        prompt_level=prompt_level,
-        required_keys=criteria_keys,
-        max_scores=max_scores,
+    
+    policy = get_active_policy(prompt_level)
+    prompt_ver = get_active_prompt_version(normalized_document_type, prompt_level)
+    
+    # Use PromptComposer to build final prompt and get metadata
+    bundle = PromptComposer.compose(
+        rubric=rubric_obj, # This might be None if fallback used, but compose handles it or we should fix it
+        rubric_text=rubric_text,
+        policy=policy,
+        prompt_version=prompt_ver
     )
-    final_system_instruction = _build_system_instruction(rubric, prompt_policy.policy_text, prompt_policy.prompt_text)
+
     return {
         "content_hash": _get_text_hash(text),
         "document_version_id": document_version_id,
         "language": language,
         "document_type": normalized_document_type,
         "rubric_version": resolved_rubric_version,
-        "rubric_hash": stable_hash(rubric),
-        "prompt_version": prompt_policy.prompt_version,
-        "prompt_level": prompt_policy.prompt_level,
-        "prompt_hash": _get_text_hash(final_system_instruction),
-        "policy_version": prompt_policy.policy_version,
-        "policy_hash": stable_hash(prompt_policy.policy_text),
-        "required_rule_hash": prompt_policy.required_rule_hash,
+        "rubric_hash": bundle.rubric_hash,
+        "prompt_version": bundle.prompt_version,
+        "prompt_level": normalize_prompt_level(prompt_level),
+        "prompt_hash": bundle.prompt_hash,
+        "policy_version": bundle.policy_version,
+        "policy_hash": bundle.policy_hash,
+        "required_rule_hash": bundle.required_rule_hash,
         "criteria_hash": _stable_json_hash({"keys": criteria_keys, "max_scores": max_scores}),
         "gemini_model": settings.gemini_model,
         "grading_schema_version": GRADING_SCHEMA_VERSION,
         "project_description_hash": _get_text_hash(project_description or ""),
+        "final_system_instruction": bundle.full_prompt
     }
 
 
@@ -336,16 +354,10 @@ def grade_submission(
     if use_cache and not refresh_cache and cache_key in _grading_cache:
         return _grading_cache[cache_key]
 
-    rubric = get_rubric(document_type=document_type, version=signature["rubric_version"])
+    system_instruction = signature["final_system_instruction"]
     prompt_prefix = PROMPT_PREFIXES.get(language, PROMPT_PREFIXES["ja"])
     required_keys, max_scores = _get_criteria_config(document_type, signature["rubric_version"])
-    prompt_policy = get_prompt_policy_bundle(
-        document_type=signature["document_type"],
-        prompt_level=normalize_prompt_level(prompt_level),
-        required_keys=required_keys,
-        max_scores=max_scores,
-    )
-    system_instruction = _build_system_instruction(rubric, prompt_policy.policy_text, prompt_policy.prompt_text)
+    
     client = get_gemini_client()
 
     response = client.generate_content(
@@ -356,7 +368,7 @@ def grade_submission(
             f"{project_description or 'No additional context provided.'}\n\n"
             "IMPORTANT: Use the project context only to better understand the domain. "
             "All grading decisions must be based on evidence found within the DOCUMENT CONTENT below.\n\n"
-            f"DOCUMENT CONTENT:\n{text}{BILINGUAL_SCHEMA}"
+            f"DOCUMENT CONTENT:\n{text}"
         ),
         config=types.GenerateContentConfig(
             system_instruction=system_instruction,
@@ -419,6 +431,7 @@ def grade_submission(
         "prompt_hash": signature["prompt_hash"],
         "criteria_hash": signature["criteria_hash"],
         "grading_schema_version": signature["grading_schema_version"],
+        "project_description_hash": signature.get("project_description_hash"),
         "criteria_scores": criteria_scores,
         "criteria_suggestions": criteria_suggestions,
         "draft_feedback": draft_feedback,

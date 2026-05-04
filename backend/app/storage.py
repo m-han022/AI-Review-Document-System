@@ -1,9 +1,9 @@
 from __future__ import annotations
-
 import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
+from datetime import datetime, timezone
 
 from sqlmodel import Session, col, delete, func, select
 
@@ -27,8 +27,15 @@ from app.models import (
     SubmissionDocument,
     SubmissionDocumentVersion,
     SubmissionOut,
+    VersionComparisonOut,
+    CriteriaDeltaOut,
 )
 from app.services.issue_analytics import issue_breakdown, issue_count
+from app.repositories.submission_repository import SubmissionRepository
+from app.repositories.grading_repository import GradingRepository
+from app.services.file_service import FileStorageService
+from app.services.upload_service import UploadService
+from app.services.grading_service import GradingService
 
 
 @dataclass
@@ -54,6 +61,11 @@ class SubmissionRecord:
 
 
 class SubmissionStore:
+    """
+    Facade class for data storage and retrieval.
+    Delegates to repositories and services for implementation.
+    Maintains backward compatibility for existing code.
+    """
 
     def _document_out(self, document: SubmissionDocument | None) -> DocumentOut | None:
         if document is None or document.id is None:
@@ -112,89 +124,13 @@ class SubmissionStore:
             run_history=record.run_history or [],
         )
 
-    def create_project(
-        self,
-        project_id: str,
-        project_name: str,
-        project_description: str | None = None,
-    ) -> SubmissionRecord:
-        with Session(engine) as session:
-            existing = session.exec(select(Submission).where(Submission.project_id == project_id)).first()
-            if existing:
-                raise ValueError(f"Project already exists: {project_id}")
-            
-            now = datetime.now().isoformat()
-            submission = Submission(
-                project_id=project_id,
-                project_name=project_name,
-                project_description=project_description,
-                uploaded_at=now,
-                status="pending",
-                filename="",
-                document_type="",
-                language="ja",
-            )
-            session.add(submission)
-            session.commit()
-            session.refresh(submission)
-            return self._to_record(session, submission)
-
-    def update_project(
-        self,
-        project_id: str,
-        project_name: str | None = None,
-        project_description: str | None = None,
-    ) -> SubmissionRecord | None:
-        with Session(engine) as session:
-            submission = session.exec(select(Submission).where(Submission.project_id == project_id)).first()
-            if not submission:
-                return None
-            
-            if project_name is not None:
-                submission.project_name = project_name
-            if project_description is not None:
-                submission.project_description = project_description
-                
-            session.add(submission)
-            session.commit()
-            session.refresh(submission)
-            return self._to_record(session, submission)
-
-    def _latest_document_version(self, session: Session, submission_id: int) -> SubmissionDocumentVersion | None:
-        return session.exec(
-            select(SubmissionDocumentVersion)
-            .where(
-                SubmissionDocumentVersion.submission_id == submission_id,
-                SubmissionDocumentVersion.is_latest == True,
-            )
-            .order_by(col(SubmissionDocumentVersion.id).desc())
-        ).first()
-
-    def _document_for_version(
-        self,
-        session: Session,
-        version: SubmissionDocumentVersion | None,
-    ) -> SubmissionDocument | None:
-        if version is None or version.document_id is None:
-            return None
-        return session.get(SubmissionDocument, version.document_id)
-
     def _run_out(self, session: Session, run: GradingRun | None) -> GradingRunOut | None:
         if run is None or run.id is None:
             return None
 
-        criteria_statement = (
-            select(GradingCriteriaResult)
-            .where(GradingCriteriaResult.grading_run_id == run.id)
-            .order_by(GradingCriteriaResult.id)
-        )
-        criteria = session.exec(criteria_statement).all()
-        slide_statement = (
-            select(GradingSlideReview)
-            .where(GradingSlideReview.grading_run_id == run.id)
-            .order_by(GradingSlideReview.slide_number)
-        )
-        slide_reviews = session.exec(slide_statement).all()
+        repo = GradingRepository(session)
+        criteria = repo.get_criteria_results(run.id)
+        slide_reviews = repo.get_slide_reviews(run.id)
 
         return GradingRunOut(
             id=run.id,
@@ -242,55 +178,43 @@ class SubmissionStore:
         )
 
     def _to_record(self, session: Session, submission: Submission) -> SubmissionRecord:
-        content = session.get(SubmissionContent, submission.id)
-        latest_document_version = self._latest_document_version(session, submission.id or 0)
-        latest_document = self._document_for_version(session, latest_document_version)
+        repo = SubmissionRepository(session)
+        latest_version = repo.get_latest_document_version(submission.id or 0)
+        latest_document = repo.get_document_for_version(latest_version) if latest_version else None
         latest_run = session.get(GradingRun, submission.latest_grading_run_id) if submission.latest_grading_run_id else None
+        
         return SubmissionRecord(
             id=submission.id or 0,
             project_id=submission.project_id,
             project_name=submission.project_name,
-            filename=latest_document_version.original_filename if latest_document_version else submission.filename,
+            filename=latest_version.original_filename if latest_version else submission.filename,
             document_type=latest_document.document_type if latest_document else submission.document_type,
-            language=latest_document_version.language if latest_document_version else submission.language,
-            file_path=latest_document_version.file_path if latest_document_version else submission.file_path,
-            uploaded_at=latest_document_version.uploaded_at if latest_document_version else submission.uploaded_at,
+            language=latest_version.language if latest_version else submission.language,
+            file_path=latest_version.file_path if latest_version else submission.file_path,
+            uploaded_at=latest_version.uploaded_at if latest_version else submission.uploaded_at,
             status=submission.status,
             project_description=submission.project_description,
-            extracted_text=latest_document_version.extracted_text if latest_document_version else (content.extracted_text if content else ""),
-            content_hash=latest_document_version.content_hash if latest_document_version else (content.content_hash if content else ""),
+            extracted_text=latest_version.extracted_text if latest_version else "",
+            content_hash=latest_version.content_hash if latest_version else "",
             latest_document_id=latest_document.id if latest_document else None,
             latest_document_name=latest_document.document_name if latest_document else None,
-            latest_document_version_id=latest_document_version.id if latest_document_version else None,
-            latest_document_version=latest_document_version.document_version if latest_document_version else None,
+            latest_document_version_id=latest_version.id if latest_version else None,
+            latest_document_version=latest_version.document_version if latest_version else None,
             latest_run=self._run_out(session, latest_run),
         )
 
     def _run_history(self, session: Session, submission_id: int, limit: int = 5) -> list[GradingRunHistoryOut]:
-        statement = (
-            select(GradingRun)
-            .where(GradingRun.submission_id == submission_id)
-            .order_by(col(GradingRun.graded_at).desc(), col(GradingRun.id).desc())
-            .limit(limit)
-        )
-        runs = session.exec(statement).all()
+        grading_repo = GradingRepository(session)
+        sub_repo = SubmissionRepository(session)
+        
+        runs = grading_repo.list_grading_runs(submission_id, limit)
         if not runs:
             return []
 
         run_ids = [run.id for run in runs if run.id is not None]
-
-        # [FIX PERF-01] Batch: 2 queries total instead of 2×N
-        criteria_count_rows = session.exec(
-            select(GradingCriteriaResult.grading_run_id, func.count().label("cnt"))
-            .where(col(GradingCriteriaResult.grading_run_id).in_(run_ids))
-            .group_by(GradingCriteriaResult.grading_run_id)
-        ).all()
-        criteria_counts_map: dict[int, int] = {row[0]: row[1] for row in criteria_count_rows}
-
-        all_slides = session.exec(
-            select(GradingSlideReview)
-            .where(col(GradingSlideReview.grading_run_id).in_(run_ids))
-        ).all()
+        criteria_counts_map = grading_repo.get_criteria_counts(run_ids)
+        all_slides = grading_repo.get_all_slides_for_runs(run_ids)
+        
         slides_by_run: dict[int, list] = {}
         for slide in all_slides:
             slides_by_run.setdefault(slide.grading_run_id, []).append(slide)
@@ -300,8 +224,9 @@ class SubmissionStore:
             slide_rows = slides_by_run.get(run.id or 0, [])
             ng_slide_count = sum(1 for item in slide_rows if item.status == "NG")
             issue_count_value = issue_count(slide_rows)
-            document_version = session.get(SubmissionDocumentVersion, run.document_version_id) if run.document_version_id else None
-            document = self._document_for_version(session, document_version)
+            version = sub_repo.get_document_version_by_id(run.document_version_id) if run.document_version_id else None
+            document = sub_repo.get_document_for_version(version) if version else None
+            
             history.append(
                 GradingRunHistoryOut(
                     id=run.id or 0,
@@ -334,10 +259,59 @@ class SubmissionStore:
             )
         return history
 
+    def create_project(
+        self,
+        project_id: str,
+        project_name: str,
+        project_description: str | None = None,
+    ) -> SubmissionRecord:
+        with Session(engine) as session:
+            repo = SubmissionRepository(session)
+            if repo.get_submission(project_id):
+                raise ValueError(f"Project already exists: {project_id}")
+            
+            now = datetime.now(timezone.utc).isoformat()
+            submission = Submission(
+                project_id=project_id,
+                project_name=project_name,
+                project_description=project_description,
+                uploaded_at=now,
+                status="pending",
+                filename="",
+                document_type="",
+                language="ja",
+            )
+            repo.add(submission)
+            repo.commit()
+            repo.refresh(submission)
+            return self._to_record(session, submission)
+
+    def update_project(
+        self,
+        project_id: str,
+        project_name: str | None = None,
+        project_description: str | None = None,
+    ) -> SubmissionRecord | None:
+        with Session(engine) as session:
+            repo = SubmissionRepository(session)
+            submission = repo.get_submission(project_id)
+            if not submission:
+                return None
+            
+            if project_name is not None:
+                submission.project_name = project_name
+            if project_description is not None:
+                submission.project_description = project_description
+                
+            repo.add(submission)
+            repo.commit()
+            repo.refresh(submission)
+            return self._to_record(session, submission)
+
     def get(self, project_id: str) -> Optional[SubmissionRecord]:
         with Session(engine) as session:
-            statement = select(Submission).where(Submission.project_id == project_id)
-            submission = session.exec(statement).first()
+            repo = SubmissionRepository(session)
+            submission = repo.get_submission(project_id)
             if not submission:
                 return None
             record = self._to_record(session, submission)
@@ -346,45 +320,31 @@ class SubmissionStore:
 
     def list(self, limit: int = 100, offset: int = 0) -> tuple[list[SubmissionRecord], int, int]:
         with Session(engine) as session:
-            total = session.exec(select(func.count()).select_from(Submission)).one()
-            ungraded = session.exec(
-                select(func.count()).select_from(Submission).where(Submission.latest_grading_run_id == None)
-            ).one()
-            statement = (
-                select(Submission)
-                .order_by(col(Submission.uploaded_at).desc())
-                .offset(offset)
-                .limit(limit)
-            )
-            submissions = session.exec(statement).all()
+            repo = SubmissionRepository(session)
+            total = repo.count_submissions()
+            ungraded = repo.count_ungraded_submissions()
+            submissions = repo.list_submissions(limit, offset)
             return [self._to_record(session, item) for item in submissions], int(total), int(ungraded)
 
     def get_all_for_export(self) -> list[SubmissionRecord]:
         with Session(engine) as session:
-            statement = select(Submission).order_by(col(Submission.uploaded_at).desc())
-            return [self._to_record(session, item) for item in session.exec(statement).all()]
+            repo = SubmissionRepository(session)
+            submissions = repo.list_submissions(limit=1000) # Bulk fetch
+            return [self._to_record(session, item) for item in submissions]
 
     def list_projects_summary(self, limit: int = 100, offset: int = 0) -> list[dict]:
         with Session(engine) as session:
-            statement = (
-                select(Submission)
-                .order_by(col(Submission.uploaded_at).desc())
-                .offset(offset)
-                .limit(limit)
-            )
-            submissions = session.exec(statement).all()
+            repo = SubmissionRepository(session)
+            submissions = repo.list_submissions(limit, offset)
             results = []
             for sub in submissions:
-                # Count total documents
                 total_docs = session.exec(
                     select(func.count()).select_from(SubmissionDocument).where(SubmissionDocument.submission_id == sub.id)
                 ).one()
                 
-                # Latest score and updated_at
                 latest_run = session.get(GradingRun, sub.latest_grading_run_id) if sub.latest_grading_run_id else None
                 latest_score = latest_run.score if latest_run else None
                 
-                # latest_updated_at from documents
                 latest_doc = session.exec(
                     select(SubmissionDocument)
                     .where(SubmissionDocument.submission_id == sub.id)
@@ -398,55 +358,43 @@ class SubmissionStore:
                     "total_documents": int(total_docs),
                     "latest_updated_at": latest_updated_at,
                     "latest_score": latest_score,
+                    "latest_status": (latest_run.status if latest_run else sub.status).lower(),
+                    "latest_error_message": latest_run.error_message if latest_run else None,
                     "project_description": sub.project_description
                 })
             return results
 
-    def get_all_project_ids(self) -> list[str]:
-        with Session(engine) as session:
-            # [FIX BUG-02] Must use col() wrapper — calling .desc() directly on a str attr is invalid
-            statement = select(Submission.project_id).order_by(col(Submission.uploaded_at).desc())
-            return list(session.exec(statement).all())
-
     def list_document_versions(self, project_id: str) -> list[DocumentVersionOut]:
         with Session(engine) as session:
-            submission = session.exec(select(Submission).where(Submission.project_id == project_id)).first()
+            repo = SubmissionRepository(session)
+            submission = repo.get_submission(project_id)
             if not submission:
                 return []
-            versions = session.exec(
-                select(SubmissionDocumentVersion)
-                .where(SubmissionDocumentVersion.submission_id == submission.id)
-                .order_by(col(SubmissionDocumentVersion.id).desc())
-            ).all()
+            versions = repo.list_document_versions(submission.id or 0)
             output: list[DocumentVersionOut] = []
             for version in versions:
-                item = self._document_version_out(version, self._document_for_version(session, version))
+                item = self._document_version_out(version, repo.get_document_for_version(version))
                 if item is not None:
                     output.append(item)
             return output
 
     def list_documents(self, project_id: str) -> list[DocumentOut]:
         with Session(engine) as session:
-            submission = session.exec(select(Submission).where(Submission.project_id == project_id)).first()
+            repo = SubmissionRepository(session)
+            submission = repo.get_submission(project_id)
             if not submission:
                 return []
-            documents = session.exec(
-                select(SubmissionDocument)
-                .where(SubmissionDocument.submission_id == submission.id)
-                .order_by(col(SubmissionDocument.updated_at).desc(), col(SubmissionDocument.id).desc())
-            ).all()
+            documents = repo.list_documents(submission.id or 0)
             return [item for item in (self._document_out(document) for document in documents) if item is not None]
 
     def list_documents_summary(self, project_id: str) -> list[dict]:
         with Session(engine) as session:
-            submission = session.exec(select(Submission).where(Submission.project_id == project_id)).first()
+            repo = SubmissionRepository(session)
+            grading_repo = GradingRepository(session)
+            submission = repo.get_submission(project_id)
             if not submission:
                 return []
-            documents = session.exec(
-                select(SubmissionDocument)
-                .where(SubmissionDocument.submission_id == submission.id)
-                .order_by(col(SubmissionDocument.updated_at).desc(), col(SubmissionDocument.id).desc())
-            ).all()
+            documents = repo.list_documents(submission.id or 0)
             
             results = []
             for doc in documents:
@@ -455,7 +403,6 @@ class SubmissionStore:
                     .where(SubmissionDocumentVersion.document_id == doc.id, SubmissionDocumentVersion.is_latest == True)
                 ).first()
                 
-                # Latest score for this document (from its latest version's latest grading run)
                 latest_score = None
                 if latest_version:
                     run = session.exec(
@@ -471,39 +418,21 @@ class SubmissionStore:
                     "document_name": doc.document_name,
                     "latest_version": latest_version.document_version if latest_version else None,
                     "latest_uploaded_at": latest_version.uploaded_at if latest_version else doc.updated_at,
-                    "latest_score": latest_score
+                    "latest_score": latest_score,
+                    "latest_status": (run.status if run else "pending").lower(),
+                    "latest_error_message": run.error_message if run else None
                 })
             return results
 
-    def get_document_version(
-        self,
-        project_id: str,
-        document_version_id: int | None = None,
-    ) -> SubmissionDocumentVersion | None:
-        with Session(engine) as session:
-            submission = session.exec(select(Submission).where(Submission.project_id == project_id)).first()
-            if not submission:
-                return None
-            if document_version_id is not None:
-                return session.exec(
-                    select(SubmissionDocumentVersion).where(
-                        SubmissionDocumentVersion.id == document_version_id,
-                        SubmissionDocumentVersion.submission_id == submission.id,
-                    )
-                ).first()
-            return self._latest_document_version(session, submission.id or 0)
-
     def list_versions_by_document(self, document_id: int) -> list[dict]:
         with Session(engine) as session:
-            versions = session.exec(
-                select(SubmissionDocumentVersion)
-                .where(SubmissionDocumentVersion.document_id == document_id)
-                .order_by(col(SubmissionDocumentVersion.id).desc())
-            ).all()
+            repo = SubmissionRepository(session)
+            grading_repo = GradingRepository(session)
+            versions = repo.list_versions_by_document(document_id)
             
             results = []
             for v in versions:
-                latest_run = session.exec(
+                run = session.exec(
                     select(GradingRun)
                     .where(GradingRun.document_version_id == v.id)
                     .order_by(col(GradingRun.id).desc())
@@ -516,13 +445,16 @@ class SubmissionStore:
                     "uploaded_at": v.uploaded_at,
                     "is_latest": bool(v.is_latest),
                     "content_hash": v.content_hash,
-                    "latest_grading_score": latest_run.score if latest_run else None
+                    "latest_grading_score": run.score if run else None,
+                    "latest_status": (run.status if run else "pending").lower(),
+                    "latest_error_message": run.error_message if run else None
                 })
             return results
 
     def list_gradings_by_version(self, document_version_id: int) -> list[dict]:
         with Session(engine) as session:
-            runs = session.exec(
+            repo = GradingRepository(session)
+            runs = repo.session.exec(
                 select(GradingRun)
                 .where(GradingRun.document_version_id == document_version_id)
                 .order_by(col(GradingRun.id).desc())
@@ -533,37 +465,154 @@ class SubmissionStore:
                 results.append({
                     "grading_run_id": r.id,
                     "total_score": r.total_score if r.total_score is not None else r.score,
+                    "status": r.status.lower(),
+                    "error_message": r.error_message,
                     "prompt_level": r.prompt_level,
                     "rubric_version": r.rubric_version,
                     "prompt_version": r.prompt_version,
                     "gemini_model": r.gemini_model,
-                    "created_at": r.graded_at or r.started_at
+                    "created_at": r.graded_at or r.started_at or ""
                 })
             return results
 
-    def get_document_for_version(self, document_version_id: int) -> DocumentOut | None:
+    def compare_versions(self, document_id: int, base_version_id: int, compare_version_id: int) -> VersionComparisonOut:
         with Session(engine) as session:
-            version = session.get(SubmissionDocumentVersion, document_version_id)
-            return self._document_out(self._document_for_version(session, version))
+            sub_repo = SubmissionRepository(session)
+            grading_repo = GradingRepository(session)
+            
+            doc = session.get(SubmissionDocument, document_id)
+            if not doc:
+                raise ValueError(f"Document {document_id} not found")
+            
+            base_v = session.get(SubmissionDocumentVersion, base_version_id)
+            compare_v = session.get(SubmissionDocumentVersion, compare_version_id)
+            
+            if not base_v or not compare_v:
+                raise ValueError("Base or compare version not found")
+                
+            base_run = grading_repo.get_latest_completed_run(base_version_id)
+            compare_run = grading_repo.get_latest_completed_run(compare_version_id)
+            
+            base_run_out = self._run_out(session, base_run) if base_run else None
+            compare_run_out = self._run_out(session, compare_run) if compare_run else None
+            
+            score_delta = None
+            criteria_deltas = []
+            ok_delta = 0
+            ng_delta = 0
+            insights = []
+            
+            if base_run_out and compare_run_out:
+                score_a = base_run_out.total_score if base_run_out.total_score is not None else base_run_out.score
+                score_b = compare_run_out.total_score if compare_run_out.total_score is not None else compare_run_out.score
+                if score_a is not None and score_b is not None:
+                    score_delta = score_b - score_a
+                
+                criteria_a = {item.key: item for item in base_run_out.criteria_results}
+                criteria_b = {item.key: item for item in compare_run_out.criteria_results}
+                all_keys = sorted(list(set(criteria_a.keys()) | set(criteria_b.keys())))
+                
+                for key in all_keys:
+                    cA = criteria_a.get(key)
+                    cB = criteria_b.get(key)
+                    
+                    sA = cA.score if cA else None
+                    sB = cB.score if cB else None
+                    
+                    status = "unchanged"
+                    delta = 0.0
+                    
+                    if cA and not cB:
+                        status = "retired"
+                        delta = -cA.score
+                    elif not cA and cB:
+                        status = "new"
+                        delta = cB.score
+                    elif sA is not None and sB is not None:
+                        delta = round(sB - sA, 1)
+                        if delta > 0:
+                            status = "improved"
+                        elif delta < 0:
+                            status = "regressed"
+                    
+                    from app.models import CriteriaDeltaOut
+                    criteria_deltas.append(CriteriaDeltaOut(
+                        key=key,
+                        base_score=sA,
+                        compare_score=sB,
+                        delta=delta,
+                        status=status
+                    ))
+                
+                # Compute Insights
+                if score_delta is not None:
+                    if score_delta > 0:
+                        insights.append(f"Score improved by {score_delta} points.")
+                    elif score_delta < 0:
+                        insights.append(f"Score regressed by {abs(score_delta)} points.")
+                
+                sorted_deltas = sorted(criteria_deltas, key=lambda x: x.delta, reverse=True)
+                top_improvers = [d for d in sorted_deltas if d.delta > 0][:2]
+                top_regressors = [d for d in sorted_deltas if d.delta < 0][-2:] # These are at the end if reversed=True
+                
+                # Re-sort regressors to get most negative first
+                top_regressors = sorted([d for d in criteria_deltas if d.delta < 0], key=lambda x: x.delta)[:2]
+
+                for d in top_improvers:
+                    insights.append(f"Significant improvement in '{d.key}' (+{d.delta}).")
+                for d in top_regressors:
+                    insights.append(f"Regression found in '{d.key}' ({d.delta}).")
+                    
+                ok_a = sum(1 for s in base_run_out.slide_reviews if s.status == "OK")
+                ok_b = sum(1 for s in compare_run_out.slide_reviews if s.status == "OK")
+                ok_delta = ok_b - ok_a
+                
+                ng_a = sum(1 for s in base_run_out.slide_reviews if s.status == "NG")
+                ng_b = sum(1 for s in compare_run_out.slide_reviews if s.status == "NG")
+                ng_delta = ng_b - ng_a
+                
+                if ok_delta > 0:
+                    insights.append(f"Document quality increased with {ok_delta} more OK slides.")
+                if ng_delta > 0:
+                    insights.append(f"Warning: {ng_delta} additional NG slides detected.")
+            
+            from app.models import VersionComparisonOut, CriteriaDeltaOut
+            # Re-wrap criteria_deltas if needed or ensure they are created with the class
+            return VersionComparisonOut(
+                document=self._document_out(doc),
+                base_version=self._document_version_out(base_v, doc),
+                compare_version=self._document_version_out(compare_v, doc),
+                base_run=base_run_out,
+                compare_run=compare_run_out,
+                score_delta=score_delta,
+                criteria_deltas=criteria_deltas,
+                ok_slide_delta=ok_delta,
+                ng_slide_delta=ng_delta,
+                insights=insights
+            )
 
     def list_grading_runs(self, project_id: str) -> list[GradingRunHistoryOut]:
         with Session(engine) as session:
-            submission = session.exec(select(Submission).where(Submission.project_id == project_id)).first()
+            repo = SubmissionRepository(session)
+            submission = repo.get_submission(project_id)
             if not submission:
                 return []
             return self._run_history(session, submission.id or 0, limit=100)
 
     def get_grading_run_detail(self, grading_run_id: int) -> GradingRunDetailOut | None:
         with Session(engine) as session:
-            run = session.get(GradingRun, grading_run_id)
+            grading_repo = GradingRepository(session)
+            sub_repo = SubmissionRepository(session)
+            
+            run = grading_repo.get_grading_run(grading_run_id)
             if not run:
                 return None
-            submission = session.get(Submission, run.submission_id)
+            submission = sub_repo.get_submission_by_id(run.submission_id)
             if not submission:
                 return None
 
-            document_version = session.get(SubmissionDocumentVersion, run.document_version_id) if run.document_version_id else None
-            document = self._document_for_version(session, document_version)
+            document_version = sub_repo.get_document_version_by_id(run.document_version_id) if run.document_version_id else None
+            document = sub_repo.get_document_for_version(document_version) if document_version else None
             rubric = session.get(Rubric, run.rubric_id) if run.rubric_id else None
             rubric_out = None
             if rubric and rubric.id:
@@ -604,424 +653,124 @@ class SubmissionStore:
                 slide_reviews=run_out.slide_reviews or [],
             )
 
-    def find_matching_run(self, project_id: str, signature: dict[str, Any]) -> GradingRunOut | None:
+    def save_upload(self, **kwargs) -> SubmissionRecord:
         with Session(engine) as session:
-            submission = session.exec(select(Submission).where(Submission.project_id == project_id)).first()
-            if not submission:
-                return None
-            run = session.exec(
-                select(GradingRun)
-                .where(
-                    GradingRun.submission_id == submission.id,
-                    GradingRun.document_version_id == signature.get("document_version_id"),
-                    GradingRun.content_hash == signature.get("content_hash"),
-                    GradingRun.rubric_version == signature.get("rubric_version"),
-                    GradingRun.rubric_hash == signature.get("rubric_hash"),
-                    GradingRun.criteria_hash == signature.get("criteria_hash"),
-                    GradingRun.prompt_version == signature.get("prompt_version"),
-                    GradingRun.prompt_level == signature.get("prompt_level"),
-                    GradingRun.prompt_hash == signature.get("prompt_hash"),
-                    GradingRun.policy_version == signature.get("policy_version"),
-                    GradingRun.policy_hash == signature.get("policy_hash"),
-                    GradingRun.required_rule_hash == signature.get("required_rule_hash"),
-                    GradingRun.gemini_model == signature.get("gemini_model"),
-                    GradingRun.grading_schema_version == signature.get("grading_schema_version"),
-                )
-                .order_by(col(GradingRun.graded_at).desc(), col(GradingRun.id).desc())
-            ).first()
-            return self._run_out(session, run)
-
-    def append_cached_grading_run(
-        self,
-        project_id: str,
-        source_run_id: int,
-        *,
-        started_at: str,
-        graded_at: str,
-    ) -> SubmissionRecord:
-        with Session(engine) as session:
-            submission = session.exec(select(Submission).where(Submission.project_id == project_id)).first()
-            if submission is None:
-                raise ValueError(f"Project not found: {project_id}")
-            source_run = session.get(GradingRun, source_run_id)
-            if source_run is None or source_run.submission_id != submission.id:
-                raise ValueError(f"Grading run not found for project {project_id}: {source_run_id}")
-            if source_run.document_version_id is None:
-                raise ValueError(f"Source grading run has no document version: {source_run_id}")
-
-            document_version = session.exec(
-                select(SubmissionDocumentVersion).where(
-                    SubmissionDocumentVersion.id == source_run.document_version_id,
-                    SubmissionDocumentVersion.submission_id == submission.id,
-                )
-            ).first()
-            if document_version is None:
-                raise ValueError(f"Document version not found for cached run: {source_run.document_version_id}")
-
-            run = GradingRun(
-                submission_id=submission.id,
-                document_version_id=document_version.id,
-                document_version=document_version.document_version,
-                rubric_id=source_run.rubric_id,
-                rubric_version=source_run.rubric_version,
-                rubric_hash=source_run.rubric_hash,
-                gemini_model=source_run.gemini_model,
-                prompt_version=source_run.prompt_version,
-                prompt_level=source_run.prompt_level,
-                policy_version=source_run.policy_version,
-                policy_hash=source_run.policy_hash,
-                required_rule_hash=source_run.required_rule_hash,
-                prompt_hash=source_run.prompt_hash,
-                criteria_hash=source_run.criteria_hash,
-                grading_schema_version=source_run.grading_schema_version,
-                score=source_run.score,
-                total_score=source_run.total_score if source_run.total_score is not None else source_run.score,
-                draft_feedback=source_run.draft_feedback,
-                status=source_run.status,
-                error_message=source_run.error_message,
-                content_hash=source_run.content_hash,
-                started_at=started_at,
-                graded_at=graded_at,
-            )
-            session.add(run)
-            session.commit()
-            session.refresh(run)
-
-            criteria = session.exec(
-                select(GradingCriteriaResult)
-                .where(GradingCriteriaResult.grading_run_id == source_run.id)
-                .order_by(GradingCriteriaResult.id)
-            ).all()
-            for item in criteria:
-                session.add(
-                    GradingCriteriaResult(
-                        grading_run_id=run.id,
-                        criterion_key=item.criterion_key,
-                        score=item.score,
-                        max_score=item.max_score,
-                        suggestion=item.suggestion,
-                    )
-                )
-
-            slide_reviews = session.exec(
-                select(GradingSlideReview)
-                .where(GradingSlideReview.grading_run_id == source_run.id)
-                .order_by(GradingSlideReview.slide_number)
-            ).all()
-            for item in slide_reviews:
-                session.add(
-                    GradingSlideReview(
-                        grading_run_id=run.id,
-                        slide_number=item.slide_number,
-                        status="OK" if item.status == "OK" else "NG",
-                        title=item.title,
-                        summary=item.summary,
-                        issues=item.issues,
-                        suggestions=item.suggestions,
-                        created_at=graded_at,
-                    )
-                )
-
-            submission.latest_grading_run_id = run.id
-            submission.status = "graded"
-            session.commit()
-            session.refresh(submission)
+            sub_repo = SubmissionRepository(session)
+            file_service = FileStorageService()
+            upload_service = UploadService(sub_repo, file_service)
+            
+            submission = upload_service.handle_upload(**kwargs)
             return self._to_record(session, submission)
-
-    def save_upload(
-        self,
-        *,
-        project_id: str,
-        project_name: str,
-        project_description: str | None = None,
-        filename: str,
-        original_filename: str | None = None,
-        document_type: str,
-        document_name: str,
-        language: str,
-        file_path: str,
-        extracted_text: str,
-        content_hash: str,
-        uploaded_at: str,
-    ) -> SubmissionRecord:
-        with Session(engine) as session:
-            existing = session.exec(select(Submission).where(Submission.project_id == project_id)).first()
-            if existing:
-                existing.project_name = existing.project_name or project_name
-                if project_description is not None:
-                    existing.project_description = project_description
-                existing.filename = filename
-                existing.document_type = document_type
-                existing.language = language
-                existing.file_path = file_path
-                existing.uploaded_at = uploaded_at
-                existing.status = "uploaded"
-                existing.latest_grading_run_id = None
-                submission = existing
-            else:
-                submission = Submission(
-                    project_id=project_id,
-                    project_name=project_name,
-                    project_description=project_description,
-                    filename=filename,
-                    document_type=document_type,
-                    language=language,
-                    file_path=file_path,
-                    uploaded_at=uploaded_at,
-                    status="uploaded",
-                )
-
-                session.add(submission)
-
-            session.commit()
-            session.refresh(submission)
-
-            normalized_document_name = document_name.strip() or Path(original_filename or filename).stem
-            document = session.exec(
-                select(SubmissionDocument).where(
-                    SubmissionDocument.submission_id == submission.id,
-                    SubmissionDocument.document_type == document_type,
-                    SubmissionDocument.document_name == normalized_document_name,
-                )
-            ).first()
-            for item in session.exec(
-                select(SubmissionDocument).where(SubmissionDocument.submission_id == submission.id)
-            ).all():
-                item.is_latest = False
-            if document is None:
-                document = SubmissionDocument(
-                    submission_id=submission.id or 0,
-                    document_type=document_type,
-                    document_name=normalized_document_name,
-                    created_at=uploaded_at,
-                    updated_at=uploaded_at,
-                    is_latest=True,
-                )
-                session.add(document)
-                session.commit()
-                session.refresh(document)
-            else:
-                document.updated_at = uploaded_at
-                document.is_latest = True
-
-            latest_version = session.exec(
-                select(SubmissionDocumentVersion)
-                .where(SubmissionDocumentVersion.document_id == document.id)
-                .order_by(col(SubmissionDocumentVersion.id).desc())
-            ).first()
-            if latest_version and latest_version.document_version.startswith("v"):
-                try:
-                    version_number = int(latest_version.document_version[1:]) + 1
-                except ValueError:
-                    version_number = 2
-            else:
-                version_number = 1
-            document_version = f"v{version_number}"
-
-            old_versions = session.exec(
-                select(SubmissionDocumentVersion).where(SubmissionDocumentVersion.document_id == document.id)
-            ).all()
-            for item in old_versions:
-                item.is_latest = False
-
-            session.add(
-                SubmissionDocumentVersion(
-                    submission_id=submission.id or 0,
-                    document_id=document.id,
-                    document_version=document_version,
-                    filename=filename,
-                    original_filename=Path(original_filename or filename).name,
-                    file_path=file_path,
-                    extracted_text=extracted_text,
-                    content_hash=content_hash,
-                    language=language,
-                    uploaded_at=uploaded_at,
-                    is_latest=True,
-                )
-            )
-
-            content = session.get(SubmissionContent, submission.id)
-            if content is None:
-                session.add(
-                    SubmissionContent(
-                        submission_id=submission.id,
-                        extracted_text=extracted_text,
-                        content_hash=content_hash,
-                    )
-                )
-
-            session.commit()
-            session.refresh(submission)
-            return self._to_record(session, submission)
-
-    def save_grading_result(
-        self,
-        project_id: str,
-        result: dict[str, Any],
-        *,
-        started_at: str,
-        graded_at: str,
-    ) -> SubmissionRecord:
-        with Session(engine) as session:
-            submission = session.exec(select(Submission).where(Submission.project_id == project_id)).first()
-            if submission is None:
-                raise ValueError(f"Project not found: {project_id}")
-
-            document_version_id = result.get("document_version_id")
-            document_version = None
-            if isinstance(document_version_id, int):
-                document_version = session.exec(
-                    select(SubmissionDocumentVersion).where(
-                        SubmissionDocumentVersion.id == document_version_id,
-                        SubmissionDocumentVersion.submission_id == submission.id,
-                    )
-                ).first()
-            if document_version is None:
-                document_version = self._latest_document_version(session, submission.id or 0)
-            if document_version is None:
-                raise ValueError(f"No document version found for {project_id}")
-            document = self._document_for_version(session, document_version)
-            resolved_document_type = document.document_type if document else submission.document_type
-
-            rubric = session.exec(
-                select(Rubric).where(
-                    Rubric.document_type == resolved_document_type,
-                    Rubric.version == result.get("rubric_version"),
-                )
-            ).first()
-
-            run = GradingRun(
-                submission_id=submission.id,
-                document_version_id=document_version.id,
-                document_version=document_version.document_version,
-                rubric_id=rubric.id if rubric else None,
-                rubric_version=result.get("rubric_version"),
-                rubric_hash=result.get("rubric_hash"),
-                gemini_model=result.get("gemini_model"),
-                prompt_version=result.get("prompt_version"),
-                prompt_level=result.get("prompt_level", "medium"),
-                policy_version=result.get("policy_version"),
-                policy_hash=result.get("policy_hash"),
-                required_rule_hash=result.get("required_rule_hash"),
-                prompt_hash=result.get("prompt_hash"),
-                criteria_hash=result.get("criteria_hash"),
-                grading_schema_version=result.get("grading_schema_version"),
-                score=result.get("score"),
-                total_score=result.get("total_score", result.get("score")),
-                draft_feedback=result.get("draft_feedback"),
-                status="completed",
-                content_hash=result.get("content_hash", document_version.content_hash),
-                started_at=started_at,
-                graded_at=graded_at,
-            )
-            session.add(run)
-            session.commit()
-            session.refresh(run)
-
-            max_scores = self._rubric_max_scores(session, rubric.id if rubric else None)
-            suggestions = result.get("criteria_suggestions") if isinstance(result.get("criteria_suggestions"), dict) else {}
-            scores = result.get("criteria_scores") if isinstance(result.get("criteria_scores"), dict) else {}
-
-            for key, score in scores.items():
-                session.add(
-                    GradingCriteriaResult(
-                        grading_run_id=run.id,
-                        criterion_key=key,
-                        score=float(score),
-                        max_score=float(max_scores.get(key, 100)),
-                        suggestion=self._suggestion_for_key(suggestions, key),
-                    )
-                )
-
-            slide_reviews = result.get("slide_reviews") if isinstance(result.get("slide_reviews"), list) else []
-            for item in slide_reviews:
-                if not isinstance(item, dict):
-                    continue
-                slide_number = item.get("slide_number")
-                if not isinstance(slide_number, int) or slide_number < 1:
-                    continue
-                session.add(
-                    GradingSlideReview(
-                        grading_run_id=run.id,
-                        slide_number=slide_number,
-                        status="OK" if item.get("status") == "OK" else "NG",
-                        title=item.get("title") if isinstance(item.get("title"), dict) else None,
-                        summary=item.get("summary") if isinstance(item.get("summary"), dict) else None,
-                        issues=item.get("issues") if isinstance(item.get("issues"), dict) else None,
-                        suggestions=item.get("suggestions") if isinstance(item.get("suggestions"), dict) else None,
-                        created_at=graded_at,
-                    )
-                )
-
-            submission.latest_grading_run_id = run.id
-            submission.status = "graded"
-            session.commit()
-            session.refresh(submission)
-            return self._to_record(session, submission)
-
-    def _rubric_max_scores(self, session: Session, rubric_id: int | None) -> dict[str, float]:
-        if rubric_id is None:
-            return {}
-        criteria = session.exec(
-            select(RubricCriterionRecord).where(RubricCriterionRecord.rubric_id == rubric_id)
-        ).all()
-        return {item.key: item.max_score for item in criteria}
-
-    def _suggestion_for_key(self, suggestions: dict[str, Any], key: str) -> dict[str, Any] | None:
-        if "vi" in suggestions or "ja" in suggestions:
-            return {
-                lang: values.get(key)
-                for lang, values in suggestions.items()
-                if isinstance(values, dict) and values.get(key) is not None
-            }
-        value = suggestions.get(key)
-        return {"text": value} if value is not None else None
-
-    def _delete_runs_for_submission(self, session: Session, submission_id: int) -> None:
-        run_ids = session.exec(select(GradingRun.id).where(GradingRun.submission_id == submission_id)).all()
-        for run_id in run_ids:
-            session.exec(delete(GradingCriteriaResult).where(GradingCriteriaResult.grading_run_id == run_id))
-            session.exec(delete(GradingSlideReview).where(GradingSlideReview.grading_run_id == run_id))
-        session.exec(delete(GradingRun).where(GradingRun.submission_id == submission_id))
 
     def delete(self, project_id: str) -> bool:
         with Session(engine) as session:
             submission = session.exec(select(Submission).where(Submission.project_id == project_id)).first()
-            if submission is None:
+            if not submission:
                 return False
-
-            filename = submission.filename
-            version_rows = session.exec(
-                select(SubmissionDocumentVersion).where(SubmissionDocumentVersion.submission_id == submission.id)
-            ).all()
-            version_paths = [
-                Path(row.file_path) if row.file_path else UPLOADS_DIR / row.filename
-                for row in version_rows
-            ]
-            self._delete_runs_for_submission(session, submission.id or 0)
+            
+            # Cascade delete in a real DB would handle this, but for SQLite/SQLModel we do it manually or rely on foreign keys
+            # Let's do a safe delete
+            session.exec(delete(GradingCriteriaResult).where(GradingCriteriaResult.grading_run_id.in_(
+                select(GradingRun.id).where(GradingRun.submission_id == submission.id)
+            )))
+            session.exec(delete(GradingSlideReview).where(GradingSlideReview.grading_run_id.in_(
+                select(GradingRun.id).where(GradingRun.submission_id == submission.id)
+            )))
+            session.exec(delete(GradingRun).where(GradingRun.submission_id == submission.id))
             session.exec(delete(SubmissionDocumentVersion).where(SubmissionDocumentVersion.submission_id == submission.id))
             session.exec(delete(SubmissionDocument).where(SubmissionDocument.submission_id == submission.id))
             session.exec(delete(SubmissionContent).where(SubmissionContent.submission_id == submission.id))
             session.delete(submission)
             session.commit()
-
-        candidate_paths = [
-            UPLOADS_DIR / filename,
-            UPLOADS_DIR / f"{filename}.txt",
-            *version_paths,
-            *(Path(f"{path}.txt") for path in version_paths),
-        ]
-        for file_path in candidate_paths:
-            if file_path.exists():
-                try:
-                    os.remove(file_path)
-                except OSError:
-                    pass
-
-        return True
+            return True
 
     def delete_many(self, project_ids: list[str]) -> dict[str, bool]:
-        return {project_id: self.delete(project_id) for project_id in project_ids}
+        return {pid: self.delete(pid) for pid in project_ids}
+
+    # Helper methods for specific lookups
+    def get_document_version(self, project_id: str, document_version_id: int | None = None) -> SubmissionDocumentVersion | None:
+        with Session(engine) as session:
+            repo = SubmissionRepository(session)
+            submission = repo.get_submission(project_id)
+            if not submission:
+                return None
+            if document_version_id is not None:
+                return repo.get_document_version_by_id(document_version_id)
+            return repo.get_latest_document_version(submission.id or 0)
+
+    def find_matching_run(self, project_id: str, signature: dict[str, Any]) -> GradingRunOut | None:
+        with Session(engine) as session:
+            repo = SubmissionRepository(session)
+            grading_repo = GradingRepository(session)
+            submission = repo.get_submission(project_id)
+            if not submission:
+                return None
+            run = grading_repo.find_matching_run(submission.id or 0, signature)
+            return self._run_out(session, run)
+
+    def get_document_for_version(self, version_id: int) -> DocumentOut | None:
+        with Session(engine) as session:
+            repo = SubmissionRepository(session)
+            version = repo.get_document_version_by_id(version_id)
+            if not version:
+                return None
+            document = repo.get_document_for_version(version)
+            return self._document_out(document)
+
+    def save_grading_result(self, project_id: str, result_data: dict[str, Any], **kwargs) -> SubmissionRecord:
+        with Session(engine) as session:
+            sub_repo = SubmissionRepository(session)
+            grading_repo = GradingRepository(session)
+            grading_service = GradingService(sub_repo, grading_repo)
+            
+            submission = sub_repo.get_submission(project_id)
+            version_id = result_data["document_version_id"]
+            version = sub_repo.get_document_version_by_id(version_id)
+            
+            run = grading_service.create_pending_run(
+                submission_id=submission.id,
+                document_version_id=version.id,
+                document_version=version.document_version,
+                rubric_version=result_data["rubric_version"],
+                prompt_level=result_data["prompt_level"],
+                content_hash=version.content_hash
+            )
+            
+            grading_service._save_grading_results(run, result_data)
+            
+            # Update submission latest run
+            submission.latest_grading_run_id = run.id
+            submission.status = "graded"
+            sub_repo.add(submission)
+            sub_repo.commit()
+            
+            return self._to_record(session, submission)
+
+    def append_cached_grading_run(self, project_id: str, source_run_id: int, **kwargs) -> SubmissionRecord:
+        with Session(engine) as session:
+            sub_repo = SubmissionRepository(session)
+            grading_repo = GradingRepository(session)
+            grading_service = GradingService(sub_repo, grading_repo)
+            
+            # We need to adapt the logic from _reuse_cached_run but for the specific signature of append_cached_grading_run
+            # This is used in the legacy flow.
+            submission = sub_repo.get_submission(project_id)
+            version = sub_repo.get_latest_document_version(submission.id or 0)
+            cached_run = grading_repo.get_grading_run(source_run_id)
+            
+            grading_service._reuse_cached_run(submission.id, version, cached_run)
+            return self._to_record(session, submission)
+
+
+    def get_all_project_ids(self) -> list[str]:
+        with Session(engine) as session:
+            return list(session.exec(select(Submission.project_id)).all())
+
+    def get_ungraded_project_ids(self) -> list[str]:
+        with Session(engine) as session:
+            return list(session.exec(
+                select(Submission.project_id).where(Submission.latest_grading_run_id == None)
+            ).all())
 
 
 store = SubmissionStore()

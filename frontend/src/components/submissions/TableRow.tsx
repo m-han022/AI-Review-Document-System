@@ -37,6 +37,41 @@ export default function TableRow({
   const scoreValue = latestScore ?? 0;
 
   const iconClass = "review-table__file-icon-v3 review-table__file-icon-v3--default";
+  
+  const getStatusBadge = () => {
+    const status = project.latest_status?.toUpperCase() || "PENDING";
+    const error = project.latest_error_message;
+    
+    const baseStyle: React.CSSProperties = {
+      display: "inline-flex",
+      alignItems: "center",
+      padding: "2px 8px",
+      borderRadius: "12px",
+      fontSize: "11px",
+      fontWeight: 600,
+      textTransform: "uppercase",
+    };
+
+    switch (status) {
+      case "COMPLETED":
+      case "GRADED":
+        return <span style={{ ...baseStyle, backgroundColor: "#dcfce7", color: "#166534" }}>{t("status.completed") || "Completed"}</span>;
+      case "FAILED":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+            <span style={{ ...baseStyle, backgroundColor: "#fee2e2", color: "#991b1b" }}>{t("status.failed") || "Failed"}</span>
+            {error && <span style={{ fontSize: "10px", color: "#ef4444", maxWidth: "120px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={error}>{error}</span>}
+          </div>
+        );
+      case "GRADING":
+        return <span style={{ ...baseStyle, backgroundColor: "#fef9c3", color: "#854d0e" }}>{t("status.grading") || "Grading..."}</span>;
+      case "EXTRACTING":
+        return <span style={{ ...baseStyle, backgroundColor: "#e0f2fe", color: "#075985" }}>{t("status.extracting") || "Extracting..."}</span>;
+      case "PENDING":
+      default:
+        return <span style={{ ...baseStyle, backgroundColor: "#f1f5f9", color: "#475569" }}>{t("status.pending") || "Pending"}</span>;
+    }
+  };
 
   return (
     <tr className={isActive ? "is-active" : ""} onClick={() => onSelect(project.project_id)}>
@@ -72,8 +107,12 @@ export default function TableRow({
 
       <td>
         <span style={{ fontWeight: 500, color: "#475569" }}>
-          {project.total_documents} {t("project.documents") || "Tài liệu"}
+          {project.total_documents}
         </span>
+      </td>
+
+      <td>
+        {getStatusBadge()}
       </td>
 
       <td>

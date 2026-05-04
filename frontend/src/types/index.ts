@@ -88,9 +88,9 @@ export interface DocumentListOut {
   document_id: number;
   document_type: string;
   document_name: string;
-  latest_version: string;
+  latest_version?: string | null;
   latest_uploaded_at?: string | null;
-  latest_score: number | null;
+  latest_score?: number | null;
   latest_status: string;
   latest_error_message?: string | null;
 }
@@ -102,20 +102,20 @@ export interface VersionListOut {
   uploaded_at: string;
   is_latest: boolean;
   content_hash: string;
-  latest_grading_score: number | null;
+  latest_grading_score?: number | null;
   latest_status: string;
   latest_error_message?: string | null;
 }
 
 export interface GradingListOut {
   grading_run_id: number;
-  total_score: number;
+  total_score?: number | null;
   status: string;
   error_message?: string | null;
-  prompt_level: string;
-  rubric_version: string;
-  prompt_version: string;
-  gemini_model: string;
+  prompt_level?: string | null;
+  rubric_version?: string | null;
+  prompt_version?: string | null;
+  gemini_model?: string | null;
   created_at: string;
 }
 
@@ -313,4 +313,56 @@ export interface RubricVersionPayload {
   version: string;
   criteria: RubricCriterion[];
   prompt: Partial<Record<LanguageCode, string>>;
+}
+
+export interface MgmtRubric {
+  id: number;
+  document_type: string;
+  version: string;
+  status: "active" | "archived" | string;
+  active: boolean;
+  prompt: Record<string, string>;
+  created_at: string;
+  updated_at: string;
+  hash: string;
+  summary?: string | null;
+}
+
+export interface MgmtPrompt {
+  id: number;
+  document_type: string;
+  level: PromptLevel | string;
+  version: string;
+  content: string;
+  status: "active" | "archived" | string;
+  created_at: string;
+  hash: string;
+}
+
+export interface MgmtPolicy {
+  id: number;
+  level: PromptLevel | string;
+  version: string;
+  content: string;
+  status: "active" | "archived" | string;
+  created_at: string;
+  hash: string;
+}
+
+export interface RequiredRulesResponse {
+  rules: string[];
+  hash: string;
+}
+
+export interface FinalPromptPreviewResponse {
+  document_type: string;
+  level: PromptLevel | string;
+  rubric_version: string;
+  rubric_hash: string;
+  prompt_version: string;
+  prompt_hash: string;
+  policy_version: string;
+  policy_hash: string;
+  required_rule_hash: string;
+  full_prompt_preview: string;
 }

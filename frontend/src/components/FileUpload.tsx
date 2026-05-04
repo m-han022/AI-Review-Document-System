@@ -50,6 +50,7 @@ const UPLOAD_COPY = {
     invalidType: "File không được hỗ trợ. Vui lòng chọn PDF hoặc PPTX.",
     tooLarge: "File vượt quá 100MB. Vui lòng chọn file nhỏ hơn.",
     uploadFailed: "Upload thất bại. Vui lòng thử lại.",
+    projectRequired: "Vui lòng chọn project trước khi upload.",
     retry: "Thử lại",
     chooseOther: "Chọn file khác",
     startReview: "Bắt đầu review",
@@ -88,6 +89,7 @@ const UPLOAD_COPY = {
     invalidType: "対応していないファイルです。PDF または PPTX を選択してください。",
     tooLarge: "ファイルが100MBを超えています。小さいファイルを選択してください。",
     uploadFailed: "アップロードに失敗しました。もう一度お試しください。",
+    projectRequired: "アップロード前にプロジェクトを選択してください。",
     retry: "再試行",
     chooseOther: "別ファイルを選択",
     startReview: "レビュー開始",
@@ -220,6 +222,12 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
   const [reviewing, setReviewing] = useState(false);
   const [processingStep, setProcessingStep] = useState<ProcessingStep>("read");
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{
+    project?: string;
+    file?: string;
+    rubric?: string;
+  }>({});
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const { lang, t } = useTranslation();
@@ -237,6 +245,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
     () => getActiveRubricConfig(rubrics, effectiveDocumentType, lang),
     [effectiveDocumentType, lang, rubrics],
   );
+  const hasActiveCriteria = criteriaConfig.order.length > 0;
   const selectedCriteriaPreview = useMemo(
     () =>
       criteriaConfig.order.map((criterionKey) => ({
@@ -247,7 +256,10 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
     [criteriaConfig, t],
   );
   const activeStep = getStepIndex(documentType, uploadState, reviewing);
-  const canStartReview = Boolean(documentType && uploadedProjectId && uploadState === "uploaded" && !reviewing);
+  const canStartReview = Boolean(documentType && uploadedProjectId && uploadState === "uploaded" && !reviewing && hasActiveCriteria);
+  const rubricStatusLabel = hasActiveCriteria
+    ? (lang === "ja" ? "レビュー準備完了" : "Sẵn sàng review")
+    : (lang === "ja" ? "Rubric 設定が必要" : "Cần cấu hình rubric");
 
   useEffect(() => {
     if (
@@ -302,6 +314,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
     setUploadState("idle");
     setUploadProgress(0);
     setMessage(null);
+    setFieldErrors({});
     resetInput();
   };
 
@@ -312,6 +325,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
   };
 
   const uploadSelectedFile = async (file: File) => {
+    setFieldErrors({});
     if (!documentType) {
       setMessage({ text: copy.disabledHelper, type: "error" });
       return;
@@ -320,14 +334,14 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
     if (!isAcceptedFile(file)) {
       setSelectedFile(file);
       setUploadState("error");
-      setMessage({ text: copy.invalidType, type: "error" });
+      setFieldErrors({ file: copy.invalidType });
       return;
     }
 
     if (file.size > MAX_FILE_SIZE) {
       setSelectedFile(file);
       setUploadState("error");
-      setMessage({ text: copy.tooLarge, type: "error" });
+      setFieldErrors({ file: copy.tooLarge });
       return;
     }
 
@@ -347,10 +361,13 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
       formData.append("file", file);
       formData.append("language", lang);
       
-      const finalProjectId = selectedExistingProjectId || uploadMetadata.projectId;
-      if (finalProjectId) {
-        formData.append("project_id", finalProjectId);
+      if (!selectedExistingProjectId) {
+        setUploadState("error");
+        setFieldErrors({ project: copy.projectRequired });
+        window.clearInterval(timer);
+        return;
       }
+      formData.append("project_id", selectedExistingProjectId);
       formData.append("project_name", uploadMetadata.projectName);
       formData.append("document_type", documentType);
       formData.append("document_name", uploadMetadata.documentName);
@@ -365,7 +382,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
       setMessage({ text: `${copy.uploaded}: ${result.project_name}`, type: "success" });
     } catch (err) {
       setUploadState("error");
-      setMessage({ text: err instanceof Error ? err.message : copy.uploadFailed, type: "error" });
+      setFieldErrors({ file: err instanceof Error ? err.message : copy.uploadFailed });
     } finally {
       window.clearInterval(timer);
       resetInput();
@@ -386,9 +403,19 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
 
   const handleReview = async () => {
     if (!uploadedProjectId || !documentType) return;
+    if (!hasActiveCriteria) {
+      setFieldErrors({
+        rubric:
+          lang === "ja"
+            ? "Rubric active version を設定してください。"
+            : "Vui lòng bật rubric active trước khi review.",
+      });
+      return;
+    }
     setReviewing(true);
     setProcessingStep("read");
     setMessage(null);
+    setFieldErrors({});
 
     try {
       const result = (await reviewMutation.mutateAsync({
@@ -495,11 +522,14 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                     }
                   }}
                 >
-                  <option value="">{lang === 'ja' ? '-- 既存プロジェクトを選択 (またはファイル名から自動抽出) --' : '-- Chọn dự án cũ (hoặc tự trích xuất từ tên file) --'}</option>
+                  <option value="">{lang === 'ja' ? '-- 既存プロジェクトを選択 --' : '-- Chọn project có sẵn --'}</option>
                   {projects.map(p => (
                     <option key={p.project_id} value={p.project_id}>{p.project_id} - {p.project_name}</option>
                   ))}
                 </select>
+                {fieldErrors.project ? (
+                  <p style={{ marginTop: "8px", color: "#dc2626", fontSize: "12px" }}>{fieldErrors.project}</p>
+                ) : null}
                 {selectedExistingProject && (
                   <div style={{ marginTop: '12px', padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                     <strong style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>{selectedExistingProject.project_name}</strong>
@@ -548,6 +578,9 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                   <small>{copy.idleHint}</small>
                 </span>
               </label>
+              {fieldErrors.file ? (
+                <ErrorState title={copy.uploadFailed} description={fieldErrors.file} compact />
+              ) : null}
 
               {uploadState === "uploading" && selectedFile ? (
                 <div className="prod-upload-progress">
@@ -573,7 +606,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                 />
               ) : null}
 
-              {uploadState === "error" ? (
+              {uploadState === "error" && !fieldErrors.file ? (
                 <ErrorState
                   title={copy.uploadFailed}
                   description={message?.text}
@@ -606,6 +639,16 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
               <div className="prod-upload-actions">
                 <div>
                   {!canStartReview ? <p>{copy.disabledHelper}</p> : null}
+                  {documentType && !hasActiveCriteria ? (
+                    <ErrorState
+                      title={lang === "ja" ? "有効な評価基準が見つかりません" : "Không tìm thấy tiêu chuẩn đánh giá đang active"}
+                      description={lang === "ja" ? "Rubric management で active version を設定してください。" : "Vui lòng vào Rubric Management để bật một version active cho loại tài liệu này."}
+                      compact
+                    />
+                  ) : null}
+                  {fieldErrors.rubric ? (
+                    <ErrorState title={lang === "ja" ? "Rubric 設定エラー" : "Lỗi cấu hình rubric"} description={fieldErrors.rubric} compact />
+                  ) : null}
                   {message && uploadState !== "error" ? (
                     message.type === "success" ? (
                       <SuccessState title={message.text} compact />
@@ -646,24 +689,6 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                 </div>
               </header>
               <div className="prod-options-stack">
-                <label className="prod-field">
-                  <span>{copy.version}</span>
-                  <select
-                    value={selectedRubricVersion}
-                    onChange={(event) => setSelectedRubricVersion(event.target.value)}
-                    disabled={uploadState === "uploading" || reviewing}
-                  >
-                    <option value="active">
-                      {copy.recommendedVersion} ({activeRubric?.version ?? "v1"})
-                    </option>
-                    {documentRubrics.filter((rubric) => !rubric.active).map((rubric) => (
-                      <option key={`${rubric.document_type}-${rubric.version}`} value={rubric.version}>
-                        {rubric.version}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
                 <div className="prod-option-summary">
                   <div>
                     <span>{copy.selectedType}</span>
@@ -677,17 +702,60 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                     <span>{copy.language}</span>
                     <strong>{lang.toUpperCase()}</strong>
                   </div>
+                  <div>
+                    <span>{lang === "ja" ? "Rubric" : "Trạng thái rubric"}</span>
+                    <strong>{rubricStatusLabel}</strong>
+                  </div>
                 </div>
 
                 <div className="prod-criteria-list">
-                  {selectedCriteriaPreview.map((criterion) => (
-                    <article key={criterion.key}>
+                  {hasActiveCriteria ? (
+                    selectedCriteriaPreview.map((criterion) => (
+                      <article key={criterion.key}>
+                        <ShieldCheckIcon size="sm" />
+                        <span>{criterion.label}</span>
+                        <strong>/{criterion.maxScore}</strong>
+                      </article>
+                    ))
+                  ) : (
+                    <article>
                       <ShieldCheckIcon size="sm" />
-                      <span>{criterion.label}</span>
-                      <strong>/{criterion.maxScore}</strong>
+                      <span>{lang === "ja" ? "Rubric active version が未設定です" : "Chưa có rubric active cho loại tài liệu này"}</span>
                     </article>
-                  ))}
+                  )}
                 </div>
+                <div className="prod-field" style={{ marginTop: "12px" }}>
+                  <button
+                    type="button"
+                    className="btn-secondary btn-secondary--compact"
+                    onClick={() => setShowAdvancedOptions((prev) => !prev)}
+                    disabled={uploadState === "uploading" || reviewing}
+                  >
+                    {showAdvancedOptions
+                      ? (lang === "ja" ? "詳細オプションを隠す" : "Ẩn tùy chọn nâng cao")
+                      : (lang === "ja" ? "詳細オプションを表示" : "Hiện tùy chọn nâng cao")}
+                  </button>
+                </div>
+
+                {showAdvancedOptions ? (
+                  <label className="prod-field">
+                    <span>{copy.version}</span>
+                    <select
+                      value={selectedRubricVersion}
+                      onChange={(event) => setSelectedRubricVersion(event.target.value)}
+                      disabled={uploadState === "uploading" || reviewing}
+                    >
+                      <option value="active">
+                        {copy.recommendedVersion} ({activeRubric?.version ?? "v1"})
+                      </option>
+                      {documentRubrics.filter((rubric) => !rubric.active).map((rubric) => (
+                        <option key={`${rubric.document_type}-${rubric.version}`} value={rubric.version}>
+                          {rubric.version}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
               </div>
             </section>
           </aside>

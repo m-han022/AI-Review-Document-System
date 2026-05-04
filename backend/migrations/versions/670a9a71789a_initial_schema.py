@@ -158,6 +158,7 @@ def upgrade() -> None:
         sa.Column("prompt_hash", sa.String(), nullable=True),
         sa.Column("criteria_hash", sa.String(), nullable=True),
         sa.Column("grading_schema_version", sa.String(), nullable=True),
+        sa.Column("project_description_hash", sa.String(), nullable=True),
         sa.Column("started_at", sa.String(), nullable=False, server_default=""),
         sa.Column("graded_at", sa.String(), nullable=True),
     )
@@ -169,6 +170,7 @@ def upgrade() -> None:
     op.create_index(op.f("ix_gradingrun_grading_schema_version"), "gradingrun", ["grading_schema_version"], unique=False)
     op.create_index(op.f("ix_gradingrun_policy_hash"), "gradingrun", ["policy_hash"], unique=False)
     op.create_index(op.f("ix_gradingrun_policy_version"), "gradingrun", ["policy_version"], unique=False)
+    op.create_index(op.f("ix_gradingrun_project_description_hash"), "gradingrun", ["project_description_hash"], unique=False)
     op.create_index(op.f("ix_gradingrun_prompt_hash"), "gradingrun", ["prompt_hash"], unique=False)
     op.create_index(op.f("ix_gradingrun_prompt_level"), "gradingrun", ["prompt_level"], unique=False)
     op.create_index(op.f("ix_gradingrun_prompt_version"), "gradingrun", ["prompt_version"], unique=False)
@@ -248,6 +250,7 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_gradingrun_prompt_version"), table_name="gradingrun")
     op.drop_index(op.f("ix_gradingrun_prompt_level"), table_name="gradingrun")
     op.drop_index(op.f("ix_gradingrun_prompt_hash"), table_name="gradingrun")
+    op.drop_index(op.f("ix_gradingrun_project_description_hash"), table_name="gradingrun")
     op.drop_index(op.f("ix_gradingrun_policy_version"), table_name="gradingrun")
     op.drop_index(op.f("ix_gradingrun_policy_hash"), table_name="gradingrun")
     op.drop_index(op.f("ix_gradingrun_grading_schema_version"), table_name="gradingrun")

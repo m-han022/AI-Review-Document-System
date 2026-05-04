@@ -40,9 +40,13 @@ def client_fixture(session: Session) -> Generator[TestClient, None, None]:
     # Also patch the engine used in storage.py and database.py if they use it directly
     with patch("app.database.engine", session.get_bind()):
         with patch("app.storage.engine", session.get_bind()):
-            with patch("app.routers.grading.engine", session.get_bind()):
-                with TestClient(app) as client:
-                    yield client
+            with patch("app.rubric.engine", session.get_bind()):
+                with patch("app.routers.grading.engine", session.get_bind()):
+                    with patch("app.repositories.submission_repository.engine", session.get_bind()):
+                        with patch("app.services.prompt_policy.engine", session.get_bind()):
+                            with patch("app.services.grading_engine.engine", session.get_bind()):
+                                with TestClient(app) as client:
+                                    yield client
     
     app.dependency_overrides.clear()
 

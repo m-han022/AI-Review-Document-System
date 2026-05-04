@@ -18,13 +18,18 @@ app.add_middleware(
 )
 
 # Include routers
-from app.routers import exports, grading, rubrics, submissions, upload
+from app.routers import exports, grading, rubrics, submissions, upload, management
 
 app.include_router(upload.router, prefix="/api")
 app.include_router(grading.router, prefix="/api")
 app.include_router(submissions.router, prefix="/api")
 app.include_router(exports.router, prefix="/api")
 app.include_router(rubrics.router, prefix="/api")
+app.include_router(management.router, prefix="/api/mgmt")
+
+@app.get("/api/health")
+async def api_health_check():
+    return {"status": "healthy"}
 
 @app.get("/")
 async def root():

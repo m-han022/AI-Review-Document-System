@@ -1,3 +1,4 @@
+import os
 from sqlmodel import create_engine, SQLModel, Session
 from sqlalchemy import inspect, text
 from pathlib import Path
@@ -6,12 +7,15 @@ DB_DIR = Path(__file__).resolve().parent.parent / "data"
 DB_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH = DB_DIR / "review_system.db"
 
-sqlite_url = f"sqlite:///{DB_PATH}"
+# Fallback to SQLite if DATABASE_URL is not provided
+database_url = os.getenv("DATABASE_URL", f"sqlite:///{DB_PATH}")
 
-engine = create_engine(
-    sqlite_url, 
-    connect_args={"check_same_thread": False},
-)
+# For SQLite, we need connect_args={"check_same_thread": False}
+engine_args = {}
+if database_url.startswith("sqlite"):
+    engine_args["connect_args"] = {"check_same_thread": False}
+
+engine = create_engine(database_url, **engine_args)
 
 def _ensure_sqlite_column(table_name: str, column_name: str, column_type: str) -> None:
     inspector = inspect(engine)
@@ -27,6 +31,9 @@ def _ensure_sqlite_column(table_name: str, column_name: str, column_type: str) -
 def _migrate_sqlite_schema() -> None:
     _ensure_sqlite_column("submission", "project_description", "VARCHAR")
     _ensure_sqlite_column("submission_document_version", "document_id", "INTEGER")
+    _ensure_sqlite_column("rubric", "status", "VARCHAR DEFAULT 'active'")
+    _ensure_sqlite_column("promptversion", "status", "VARCHAR DEFAULT 'active'")
+    _ensure_sqlite_column("evaluationpolicy", "status", "VARCHAR DEFAULT 'active'")
     _ensure_sqlite_column("gradingrun", "document_version_id", "INTEGER")
     _ensure_sqlite_column("gradingrun", "document_version", "VARCHAR")
     _ensure_sqlite_column("gradingrun", "rubric_hash", "VARCHAR")
@@ -39,6 +46,7 @@ def _migrate_sqlite_schema() -> None:
     _ensure_sqlite_column("gradingrun", "prompt_hash", "VARCHAR")
     _ensure_sqlite_column("gradingrun", "criteria_hash", "VARCHAR")
     _ensure_sqlite_column("gradingrun", "grading_schema_version", "VARCHAR")
+    _ensure_sqlite_column("gradingrun", "project_description_hash", "VARCHAR")
 
 
 def _rebuild_document_version_table_if_needed() -> None:
@@ -271,9 +279,11 @@ def create_db_and_tables():
     import app.models  # noqa: F401
 
     SQLModel.metadata.create_all(engine)
-    _migrate_sqlite_schema()
-    _migrate_document_versions()
-    _rebuild_document_version_table_if_needed()
+    
+    if engine.url.drivername == "sqlite":
+        _migrate_sqlite_schema()
+        _migrate_document_versions()
+        _rebuild_document_version_table_if_needed()
     from app.rubric import seed_rubrics_from_files
 
     seed_rubrics_from_files()

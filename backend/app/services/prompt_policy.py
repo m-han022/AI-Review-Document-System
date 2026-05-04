@@ -40,7 +40,6 @@ POLICY_TEXT = {
     ),
 }
 
-
 def normalize_prompt_level(prompt_level: str | None) -> str:
     normalized = (prompt_level or "medium").strip().lower()
     return normalized if normalized in VALID_PROMPT_LEVELS else "medium"
@@ -54,6 +53,68 @@ def stable_hash(value: Any) -> str:
     return hashlib.sha256(payload.encode()).hexdigest()
 
 
+from datetime import datetime, timezone
+from sqlmodel import Session, select
+from app.database import engine
+from app.models import EvaluationPolicy, PromptVersion
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+def get_active_policy(level: str) -> EvaluationPolicy:
+    level = normalize_prompt_level(level)
+    with Session(engine) as session:
+        policy = session.exec(
+            select(EvaluationPolicy)
+            .where(EvaluationPolicy.level == level, EvaluationPolicy.status == "active")
+        ).first()
+        
+        if not policy:
+            # Seed default if not exists
+            policy = EvaluationPolicy(
+                level=level,
+                version="v1",
+                content=POLICY_TEXT[level],
+                status="active",
+                created_at=_now()
+            )
+            session.add(policy)
+            session.commit()
+            session.refresh(policy)
+        return policy
+
+def get_active_prompt_version(document_type: str, level: str) -> PromptVersion:
+    level = normalize_prompt_level(level)
+    with Session(engine) as session:
+        prompt = session.exec(
+            select(PromptVersion)
+            .where(
+                PromptVersion.document_type == document_type, 
+                PromptVersion.level == level, 
+                PromptVersion.status == "active"
+            )
+        ).first()
+        
+        if not prompt:
+            # Seed default if not exists
+            content = (
+                f"Mức đánh giá: {LEVEL_LABELS[level]}. "
+                "Luôn bám theo rubric/version đã chọn, không dùng tiêu chí ngoài rubric. "
+                "Kết quả phải giải thích được điểm số, issue, slide/page và hành động tiếp theo."
+            )
+            prompt = PromptVersion(
+                document_type=document_type,
+                level=level,
+                version="v1",
+                content=content,
+                status="active",
+                created_at=_now()
+            )
+            session.add(prompt)
+            session.commit()
+            session.refresh(prompt)
+        return prompt
+
 def get_prompt_policy_bundle(
     *,
     document_type: str,
@@ -62,8 +123,10 @@ def get_prompt_policy_bundle(
     max_scores: dict[str, float],
 ) -> PromptPolicyBundle:
     level = normalize_prompt_level(prompt_level)
-    prompt_version = f"{document_type}-{level}-prompt-v1"
-    policy_version = f"pmo-{level}-policy-v1"
+    
+    policy = get_active_policy(level)
+    prompt_ver = get_active_prompt_version(document_type, level)
+    
     required_rules = {
         "document_type": document_type,
         "prompt_level": level,
@@ -71,16 +134,12 @@ def get_prompt_policy_bundle(
         "max_scores": max_scores,
         "output_schema": "bilingual_criteria_slide_reviews",
     }
-    prompt_text = (
-        f"Mức đánh giá: {LEVEL_LABELS[level]}. "
-        "Luôn bám theo rubric/version đã chọn, không dùng tiêu chí ngoài rubric. "
-        "Kết quả phải giải thích được điểm số, issue, slide/page và hành động tiếp theo."
-    )
+    
     return PromptPolicyBundle(
-        prompt_version=prompt_version,
+        prompt_version=prompt_ver.version,
         prompt_level=level,
-        prompt_text=prompt_text,
-        policy_version=policy_version,
-        policy_text=POLICY_TEXT[level],
+        prompt_text=prompt_ver.content,
+        policy_version=policy.version,
+        policy_text=policy.content,
         required_rule_hash=stable_hash(required_rules),
     )

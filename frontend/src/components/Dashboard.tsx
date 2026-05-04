@@ -12,7 +12,7 @@ import Sidebar, { type WorkspaceView } from "./layout/Sidebar";
 import Topbar from "./layout/Topbar";
 import ProjectCard from "./project/ProjectCard";
 import ReviewListOverview from "./reviews/ReviewListOverview";
-import RubricManagement from "./rubrics/RubricManagement";
+import AIConfigurationConsole from "./rubrics/AIConfigurationConsole";
 import OperationalScreen from "./workspace/OperationalScreens";
 import SectionBlock from "./ui/SectionBlock";
 import { ErrorState, LoadingState } from "./ui/States";
@@ -25,6 +25,14 @@ export default function Dashboard() {
   const { data: projectsData, isLoading, error } = useQuery({
     queryKey: projectsQueryKey,
     queryFn: () => listProjects(),
+    refetchInterval: (query) => {
+      const projects = Array.isArray(query.state.data) ? query.state.data as Project[] : [];
+      const hasPending = projects.some(p => {
+        const s = p.latest_status?.toLowerCase();
+        return s === "pending" || s === "extracting" || s === "grading";
+      });
+      return hasPending ? 3000 : false;
+    }
   });
 
   const projects: Project[] = useMemo(() => (Array.isArray(projectsData) ? projectsData : []), [projectsData]);
@@ -177,7 +185,7 @@ export default function Dashboard() {
       case "rubrics":
         return (
           <div className="workspace-stack">
-            <RubricManagement />
+            <AIConfigurationConsole />
           </div>
         );
       case "report":

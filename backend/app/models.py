@@ -8,6 +8,7 @@ from typing import Optional, Literal, Dict, Any
 LanguageCode = Literal["vi", "ja"]
 RubricStatus = Literal["draft", "active", "archived"]
 PromptLevel = Literal["low", "medium", "high"]
+ItemStatus = str # Literal["active", "archived"]
 
 
 class Submission(SQLModel, table=True):
@@ -80,6 +81,7 @@ class Rubric(SQLModel, table=True):
     document_type: str = Field(index=True)
     version: str = Field(index=True)
     active: bool = Field(default=False, index=True)
+    status: ItemStatus = Field(default="active", index=True)
     prompt: Dict[str, str] = Field(default_factory=dict, sa_column=Column(JSON))
     created_at: str = ""
     updated_at: str = ""
@@ -95,6 +97,29 @@ class RubricCriterionRecord(SQLModel, table=True):
     label_vi: str
     label_ja: str
     sort_order: int = 0
+
+
+class EvaluationPolicy(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("level", "version", name="uq_policy_level_version"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    level: str = Field(index=True)
+    version: str = Field(index=True)
+    content: str
+    status: ItemStatus = Field(default="active", index=True)
+    created_at: str = ""
+
+
+class PromptVersion(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("document_type", "level", "version", name="uq_prompt_type_level_version"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    document_type: str = Field(index=True)
+    level: str = Field(index=True)
+    version: str = Field(index=True)
+    content: str
+    status: ItemStatus = Field(default="active", index=True)
+    created_at: str = ""
 
 
 class GradingRun(SQLModel, table=True):
@@ -120,6 +145,7 @@ class GradingRun(SQLModel, table=True):
     prompt_hash: Optional[str] = Field(default=None, index=True)
     criteria_hash: Optional[str] = Field(default=None, index=True)
     grading_schema_version: Optional[str] = Field(default=None, index=True)
+    project_description_hash: Optional[str] = Field(default=None, index=True)
     started_at: str = ""
     graded_at: Optional[str] = Field(default=None, index=True)
 
@@ -176,8 +202,9 @@ class SlideReviewOut(BaseModel):
 class GradeResponse(BaseModel):
     project_id: str
     project_name: str
-    score: int
-    run_id: int
+    score: Optional[int] = None
+    run_id: Optional[int] = None
+    status: str = "PENDING"
     document_version_id: Optional[int] = None
     document_version: Optional[str] = None
     rubric_version: Optional[str] = None
@@ -195,7 +222,7 @@ class GradeResponse(BaseModel):
     criteria_suggestions: Optional[Dict[str, Any]] = None
     draft_feedback: Optional[Dict[str, Any]] = None
     slide_reviews: list[SlideReviewOut] = []
-    graded_at: str
+    graded_at: Optional[str] = None
     language: LanguageCode = "ja"
 
 
@@ -313,6 +340,8 @@ class ProjectOut(BaseModel):
     total_documents: int
     latest_updated_at: str
     latest_score: Optional[int] = None
+    latest_status: str = "pending"
+    latest_error_message: Optional[str] = None
     project_description: Optional[str] = None
 
 
@@ -353,6 +382,8 @@ class DocumentListOut(BaseModel):
     latest_version: Optional[str] = None
     latest_uploaded_at: Optional[str] = None
     latest_score: Optional[int] = None
+    latest_status: str = "pending"
+    latest_error_message: Optional[str] = None
 
 
 class DocumentVersionOut(BaseModel):
@@ -379,6 +410,8 @@ class VersionListOut(BaseModel):
     is_latest: bool
     content_hash: str
     latest_grading_score: Optional[int] = None
+    latest_status: str = "pending"
+    latest_error_message: Optional[str] = None
 
 
 class GradingRunDetailOut(BaseModel):
@@ -391,13 +424,24 @@ class GradingRunDetailOut(BaseModel):
     slide_reviews: list[SlideReviewOut] = []
 
 
-class CompareRunOut(BaseModel):
-    run_a: GradingRunOut
-    run_b: GradingRunOut
+class CriteriaDeltaOut(BaseModel):
+    key: str
+    base_score: Optional[float] = None
+    compare_score: Optional[float] = None
+    delta: float = 0.0
+    status: Literal["improved", "regressed", "unchanged", "new", "retired"]
+
+class VersionComparisonOut(BaseModel):
+    document: DocumentOut
+    base_version: DocumentVersionOut
+    compare_version: DocumentVersionOut
+    base_run: Optional[GradingRunOut] = None
+    compare_run: Optional[GradingRunOut] = None
     score_delta: Optional[int] = None
-    criteria_delta: Dict[str, float] = {}
+    criteria_deltas: list[CriteriaDeltaOut] = []
     ok_slide_delta: int = 0
     ng_slide_delta: int = 0
+    insights: list[str] = []
 
 
 class SubmissionListResponse(BaseModel):
@@ -431,6 +475,8 @@ class RubricListResponse(BaseModel):
 class GradingListOut(BaseModel):
     grading_run_id: int
     total_score: Optional[int] = None
+    status: str = "completed"
+    error_message: Optional[str] = None
     prompt_level: Optional[str] = None
     rubric_version: Optional[str] = None
     prompt_version: Optional[str] = None

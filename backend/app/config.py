@@ -29,6 +29,11 @@ class Settings:
         self.gemini_model = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview").strip()
         self.api_title = os.getenv("API_TITLE", "AI Review Document API").strip()
         self.api_version = os.getenv("API_VERSION", "1.0.0").strip()
+        
+        self.use_celery = os.getenv("USE_CELERY", "false").lower() == "true"
+        self.celery_broker_url = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0").strip()
+        self.celery_result_backend = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/1").strip()
+        
         self.allowed_origins = self._build_allowed_origins()
 
     def _build_allowed_origins(self) -> List[str]:

@@ -15,6 +15,7 @@ export const projectDocumentsQueryKey = (projectId: string) => ["project", proje
 export const documentVersionsQueryKey = (documentId: number) => ["document", documentId, "versions"];
 export const versionGradingsQueryKey = (versionId: number) => ["version", versionId, "gradings"];
 export const gradingRunDetailQueryKey = (runId: number) => ["grading-run", runId];
+export const versionComparisonQueryKey = (docId: number, baseId: number, compareId: number) => ["comparison", docId, baseId, compareId];
 
 export const submissionsQueryKey = ["submissions"];
 export const submissionDetailQueryKey = (projectId: string) => ["submission", projectId];
