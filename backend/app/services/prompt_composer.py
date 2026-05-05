@@ -120,6 +120,11 @@ def parse_required_rules_content(raw_content: Optional[str]) -> list[str]:
         loaded = json.loads(raw_content)
         if isinstance(loaded, list) and all(isinstance(item, str) for item in loaded):
             return loaded
+        # Support JSON-object style required rules (for schema-driven rulesets).
+        # Render as one readable JSON block instead of falling back to defaults.
+        if isinstance(loaded, dict):
+            pretty = json.dumps(loaded, ensure_ascii=False, indent=2)
+            return [pretty]
     except Exception:
         pass
     return REQUIRED_RULES

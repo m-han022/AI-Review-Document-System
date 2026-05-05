@@ -308,7 +308,7 @@ export const translations = {
     // Rubric Management
     rubric: {
       pageTitle: "Bộ cấu hình đánh giá AI",
-      pageSubtitle: "Quản lý Evaluation Set: tạo bộ mới từ bộ hiện tại, chỉ tạo version mới cho thành phần thay đổi.",
+      pageSubtitle: "Quản lý Bộ tiêu chuẩn chấm: tạo bộ mới từ bộ hiện tại, chỉ tạo version mới cho thành phần thay đổi.",
       loading: "Đang tải tiêu chuẩn...",
       title: "Thiết lập version",
       subtitle: "Làm việc theo Evaluation Set để giảm nhầm lẫn và giữ lịch sử version rõ ràng.",
