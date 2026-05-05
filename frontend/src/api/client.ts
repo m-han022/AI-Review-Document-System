@@ -22,6 +22,7 @@ import type {
   RequiredRulesResponse,
   FinalPromptPreviewResponse,
   EvaluationSet,
+  EvaluationSetDetail,
 } from "../types";
 
 // Language setting
@@ -241,6 +242,7 @@ interface GradeSubmissionParams {
   rubricVersion?: string | null;
   documentVersionId?: number | null;
   promptLevel?: PromptLevel | string | null;
+  evaluationSetId?: number | null;
 }
 
 interface GradeAllParams {
@@ -255,6 +257,7 @@ export async function gradeSubmission({
   rubricVersion = null,
   documentVersionId = null,
   promptLevel = null,
+  evaluationSetId = null,
 }: GradeSubmissionParams) {
   const params = new URLSearchParams({
     language: currentLanguage,
@@ -270,6 +273,9 @@ export async function gradeSubmission({
   }
   if (promptLevel) {
     params.set("prompt_level", promptLevel);
+  }
+  if (typeof evaluationSetId === "number") {
+    params.set("evaluation_set_id", String(evaluationSetId));
   }
 
   const res = await fetch(`${API_BASE_URL}/grade/${projectId}?${params.toString()}`, {
@@ -615,10 +621,16 @@ export async function getActiveEvaluationSet(documentType: string, level: string
   return res.json();
 }
 
+export async function getEvaluationSetDetail(id: number): Promise<EvaluationSetDetail> {
+  const res = await fetch(`${API_BASE_URL}/mgmt/evaluation-sets/by-id/${id}`);
+  if (!res.ok) throw new Error(`Failed to fetch evaluation set detail: ${res.statusText}`);
+  return res.json();
+}
+
 export async function createEvaluationSet(payload: {
   base_set_id: number;
   name: string;
-  changes: { rubric_content?: string | null; prompt_content?: string | null; policy_content?: string | null };
+  changes: { rubric_content?: string | null; prompt_content?: string | null; policy_content?: string | null; required_rules_content?: string | null };
   activate: boolean;
 }): Promise<EvaluationSet> {
   const res = await fetch(`${API_BASE_URL}/mgmt/evaluation-sets`, {
@@ -636,5 +648,22 @@ export async function createEvaluationSet(payload: {
 export async function activateEvaluationSet(id: number): Promise<EvaluationSet> {
   const res = await fetch(`${API_BASE_URL}/mgmt/evaluation-sets/${id}/activate`, { method: "POST" });
   if (!res.ok) throw new Error(`Failed to activate evaluation set: ${res.statusText}`);
+  return res.json();
+}
+
+export async function bootstrapEvaluationSet(payload: {
+  document_type: string;
+  level: string;
+  name?: string;
+}): Promise<EvaluationSet> {
+  const res = await fetch(`${API_BASE_URL}/mgmt/evaluation-sets/bootstrap`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || "Failed to bootstrap evaluation set");
+  }
   return res.json();
 }

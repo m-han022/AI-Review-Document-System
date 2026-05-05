@@ -226,6 +226,7 @@ export interface GradeResponse {
   gemini_model?: string | null;
   prompt_version?: string | null;
   prompt_level?: PromptLevel | string | null;
+  evaluation_set_id?: number | null;
   policy_version?: string | null;
   policy_hash?: string | null;
   required_rule_hash?: string | null;
@@ -354,6 +355,8 @@ export interface MgmtPolicy {
 export interface RequiredRulesResponse {
   rules: string[];
   hash: string;
+  version?: string;
+  required_rule_set_id?: number;
 }
 
 export interface FinalPromptPreviewResponse {
@@ -372,6 +375,7 @@ export interface FinalPromptPreviewResponse {
 export interface EvaluationSet {
   id: number;
   name: string;
+  version_label?: string | null;
   document_type: string;
   level: string;
   rubric_version_id: number;
@@ -379,6 +383,16 @@ export interface EvaluationSet {
   policy_version_id: number;
   required_rules_version: string;
   required_rule_hash: string;
+  required_rule_set_id?: number | null;
   status: string;
   created_at: string;
+}
+
+export interface EvaluationSetDetail extends EvaluationSet {
+  rubric_version: string;
+  rubric_hash: string;
+  prompt_version: string;
+  prompt_hash: string;
+  policy_version: string;
+  policy_hash: string;
 }

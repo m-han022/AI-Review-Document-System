@@ -2,6 +2,7 @@ import os
 from sqlmodel import create_engine, SQLModel, Session
 from sqlalchemy import inspect, text
 from pathlib import Path
+import json
 
 DB_DIR = Path(__file__).resolve().parent.parent / "data"
 DB_DIR.mkdir(parents=True, exist_ok=True)
@@ -49,6 +50,8 @@ def _migrate_sqlite_schema() -> None:
     _ensure_sqlite_column("gradingrun", "project_description_hash", "VARCHAR")
     _ensure_sqlite_column("gradingrun", "final_prompt_snapshot", "TEXT")
     _ensure_sqlite_column("gradingrun", "evaluation_set_id", "INTEGER")
+    _ensure_sqlite_column("gradingrun", "required_rule_set_id", "INTEGER")
+    _ensure_sqlite_column("evaluationset", "required_rule_set_id", "INTEGER")
     _ensure_sqlite_column("evaluationset", "version_label", "VARCHAR")
 
 
@@ -278,6 +281,52 @@ def _migrate_document_versions() -> None:
         )
 
 
+def _seed_required_rule_sets() -> None:
+    from sqlmodel import select
+    from app.models import RequiredRuleSet, EvaluationSet, GradingRun
+    from app.services.prompt_composer import REQUIRED_RULES, stable_hash
+    from app.services.prompt_policy import _now
+
+    rules_content = json.dumps(REQUIRED_RULES, ensure_ascii=False)
+    rules_hash = stable_hash(REQUIRED_RULES)
+    with Session(engine) as session:
+        active = session.exec(
+            select(RequiredRuleSet).where(RequiredRuleSet.status == "active").order_by(RequiredRuleSet.id.desc())
+        ).first()
+        if not active:
+            existing = session.exec(select(RequiredRuleSet).where(RequiredRuleSet.hash == rules_hash)).first()
+            if existing:
+                existing.status = "active"
+            else:
+                session.add(
+                    RequiredRuleSet(
+                        version="system-rules-v1",
+                        hash=rules_hash,
+                        content=rules_content,
+                        status="active",
+                        created_at=_now(),
+                    )
+                )
+            session.commit()
+
+        active_row = session.exec(
+            select(RequiredRuleSet).where(RequiredRuleSet.status == "active").order_by(RequiredRuleSet.id.desc())
+        ).first()
+        if active_row:
+            eval_sets = session.exec(select(EvaluationSet).where(EvaluationSet.required_rule_set_id.is_(None))).all()
+            for item in eval_sets:
+                item.required_rule_set_id = active_row.id
+                item.required_rules_version = item.required_rules_version or active_row.version
+                item.required_rule_hash = item.required_rule_hash or active_row.hash
+
+            gradings = session.exec(select(GradingRun).where(GradingRun.required_rule_set_id.is_(None))).all()
+            for item in gradings:
+                item.required_rule_set_id = active_row.id
+                item.required_rule_hash = item.required_rule_hash or active_row.hash
+
+            session.commit()
+
+
 def create_db_and_tables():
     import app.models  # noqa: F401
 
@@ -287,6 +336,7 @@ def create_db_and_tables():
         _migrate_sqlite_schema()
         _migrate_document_versions()
         _rebuild_document_version_table_if_needed()
+        _seed_required_rule_sets()
     from app.rubric import seed_rubrics_from_files
 
     seed_rubrics_from_files()

@@ -1,9 +1,11 @@
 from __future__ import annotations
 import hashlib
 import json
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 from dataclasses import dataclass
-from app.models import Rubric, EvaluationPolicy, PromptVersion
+from sqlmodel import Session, select
+from app.models import Rubric, EvaluationPolicy, PromptVersion, RequiredRuleSet
+from app.services.prompt_policy import _now
 
 @dataclass
 class FinalPromptBundle:
@@ -26,6 +28,26 @@ REQUIRED_RULES = [
     "4. BILINGUAL: All text fields must have both 'vi' and 'ja' translations.",
     "5. SCHEMA COMPLIANCE: Strictly follow the requested output schema.",
 ]
+
+
+def get_active_required_rule_set(session: Session) -> RequiredRuleSet:
+    row = session.exec(
+        select(RequiredRuleSet).where(RequiredRuleSet.status == "active").order_by(RequiredRuleSet.id.desc())
+    ).first()
+    if row:
+        return row
+    # Safe fallback/auto-seed for environments not yet initialized
+    seeded = RequiredRuleSet(
+        version="system-rules-v1",
+        hash=stable_hash(REQUIRED_RULES),
+        content=json.dumps(REQUIRED_RULES, ensure_ascii=False),
+        status="active",
+        created_at=_now(),
+    )
+    session.add(seeded)
+    session.commit()
+    session.refresh(seeded)
+    return seeded
 
 OUTPUT_SCHEMA_HINT = (
     "\n\nReturn JSON: {score:int, criteria_scores:{key:number}, "
@@ -55,11 +77,14 @@ class PromptComposer:
         rubric_text: str,
         policy: EvaluationPolicy,
         prompt_version: PromptVersion,
+        required_rules_content: Optional[list[str]] = None,
+        required_rule_hash: Optional[str] = None,
     ) -> FinalPromptBundle:
         
         # 1. Required Rules
-        rules_text = "\n".join(REQUIRED_RULES)
-        rules_hash = stable_hash(REQUIRED_RULES)
+        active_rules = required_rules_content or REQUIRED_RULES
+        rules_text = "\n".join(active_rules)
+        rules_hash = required_rule_hash or stable_hash(active_rules)
         
         # 2. Build components
         parts = [
@@ -86,3 +111,15 @@ class PromptComposer:
             prompt_hash=stable_hash(prompt_version.content),
             required_rule_hash=rules_hash
         )
+
+
+def parse_required_rules_content(raw_content: Optional[str]) -> list[str]:
+    if not raw_content:
+        return REQUIRED_RULES
+    try:
+        loaded = json.loads(raw_content)
+        if isinstance(loaded, list) and all(isinstance(item, str) for item in loaded):
+            return loaded
+    except Exception:
+        pass
+    return REQUIRED_RULES

@@ -64,6 +64,7 @@ class GradingService:
         document_version_id: int,
         prompt_level: str = "medium",
         rubric_version: Optional[str] = None,
+        evaluation_set_id: Optional[int] = None,
         force: bool = False,
         existing_run_id: Optional[int] = None
     ) -> dict[str, Any]:
@@ -84,6 +85,7 @@ class GradingService:
             rubric_version=rubric_version,
             document_version_id=version.id,
             prompt_level=prompt_level,
+            evaluation_set_id=evaluation_set_id,
             project_description=submission.project_description
         )
 
@@ -132,7 +134,8 @@ class GradingService:
                     document_type=signature["document_type"],
                     rubric_version=signature["rubric_version"],
                     document_version_id=version.id,
-                    prompt_level=prompt_level,
+                    prompt_level=signature["prompt_level"],
+                    evaluation_set_id=evaluation_set_id,
                     project_description=submission.project_description,
                     use_cache=False
                 )
@@ -167,6 +170,7 @@ class GradingService:
         run.prompt_level = result_data["prompt_level"]
         run.policy_version = result_data["policy_version"]
         run.policy_hash = result_data["policy_hash"]
+        run.required_rule_set_id = result_data.get("required_rule_set_id")
         run.required_rule_hash = result_data["required_rule_hash"]
         run.prompt_hash = result_data["prompt_hash"]
         run.criteria_hash = result_data["criteria_hash"]
@@ -238,6 +242,7 @@ class GradingService:
             prompt_level=cached_run.prompt_level,
             policy_version=cached_run.policy_version,
             policy_hash=cached_run.policy_hash,
+            required_rule_set_id=cached_run.required_rule_set_id,
             required_rule_hash=cached_run.required_rule_hash,
             prompt_hash=cached_run.prompt_hash,
             criteria_hash=cached_run.criteria_hash,

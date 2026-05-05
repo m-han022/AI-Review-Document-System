@@ -15,8 +15,8 @@ vi.mock("../../api/client", async () => {
     getRequiredRules: vi.fn(),
     listEvaluationSets: vi.fn(),
     getActiveEvaluationSet: vi.fn(),
-    previewFinalPrompt: vi.fn(),
     createEvaluationSet: vi.fn(),
+    bootstrapEvaluationSet: vi.fn(),
   };
 });
 
@@ -83,8 +83,10 @@ describe("AIConfigurationConsole", () => {
       },
     ]);
     vi.mocked(client.getRequiredRules).mockResolvedValue({
-      rules: ["JSON only", "No markdown"],
+      rules: ["IMPORTANT RULES:", "1. JSON ONLY", "2. NO MARKDOWN"],
       hash: "rules-hash",
+      version: "system-rules-v1",
+      required_rule_set_id: 1,
     });
     vi.mocked(client.listEvaluationSets).mockResolvedValue([
       {
@@ -130,18 +132,6 @@ describe("AIConfigurationConsole", () => {
       status: "active",
       created_at: "2026-01-01",
     });
-    vi.mocked(client.previewFinalPrompt).mockResolvedValue({
-      document_type: "project-review",
-      level: "medium",
-      rubric_version: "v1",
-      rubric_hash: "rh1",
-      prompt_version: "v1",
-      prompt_hash: "ph1",
-      policy_version: "v1",
-      policy_hash: "poh1",
-      required_rule_hash: "rules-hash",
-      full_prompt_preview: "PREVIEW_CONTENT",
-    });
     vi.mocked(client.createEvaluationSet).mockResolvedValue({
       id: 102,
       name: "new-set",
@@ -161,24 +151,24 @@ describe("AIConfigurationConsole", () => {
   it("renders console and loads core sections", async () => {
     renderWithQueryClient();
     expect(await screen.findByText("AI Configuration Console")).toBeInTheDocument();
-    expect(screen.getByText("Active Evaluation Set")).toBeInTheDocument();
-    expect(screen.getByText("Compare Sets")).toBeInTheDocument();
+    expect(screen.getByText("Evaluation Set List")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Compare Sets" })).toBeInTheDocument();
   });
 
-  it("previews final prompt", async () => {
+  it("keeps UI minimal without preview panel", async () => {
     renderWithQueryClient();
-    const previewBtn = await screen.findByRole("button", { name: "Preview Final Prompt" });
-    fireEvent.click(previewBtn);
-    expect(await screen.findByText("Final Prompt Preview")).toBeInTheDocument();
-    expect(await screen.findByText("PREVIEW_CONTENT")).toBeInTheDocument();
+    await screen.findByText("AI Configuration Console");
+    expect(screen.queryByRole("button", { name: "Preview Final Prompt" })).not.toBeInTheDocument();
   });
 
   it("creates new set from current", async () => {
     renderWithQueryClient();
     fireEvent.click(await screen.findByRole("button", { name: "Create New Set from Current" }));
-    expect(await screen.findByText("Set Changes")).toBeInTheDocument();
-    const saveBtn = screen.getByRole("button", { name: "Save and Activate" });
-    fireEvent.click(saveBtn);
+    expect(await screen.findByText("Create New Evaluation Set")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save and Activate" }));
+    const activateButtons = await screen.findAllByRole("button", { name: "Save and Activate" });
+    fireEvent.click(activateButtons[activateButtons.length - 1]);
     await waitFor(() => {
       expect(client.createEvaluationSet).toHaveBeenCalledTimes(1);
     });
@@ -186,10 +176,13 @@ describe("AIConfigurationConsole", () => {
 
   it("renders diff highlight when selecting two sets", async () => {
     renderWithQueryClient();
+    fireEvent.click(await screen.findByRole("button", { name: "Compare Sets" }));
     const selects = await screen.findAllByRole("combobox");
-    fireEvent.change(selects[2], { target: { value: "100" } });
-    fireEvent.change(selects[3], { target: { value: "101" } });
+    const compareLeft = selects[selects.length - 2];
+    const compareRight = selects[selects.length - 1];
+    fireEvent.change(compareLeft, { target: { value: "100" } });
+    fireEvent.change(compareRight, { target: { value: "101" } });
     expect(await screen.findByText("Diff Highlight")).toBeInTheDocument();
-    expect(screen.getByText(/\+ prompt_v2/)).toBeInTheDocument();
+    expect(screen.getByText("changed")).toBeInTheDocument();
   });
 });

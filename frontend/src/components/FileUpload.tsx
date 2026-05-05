@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { gradeSubmission, uploadFile, listProjects } from "../api/client";
+import { gradeSubmission, uploadFile, listProjects, listEvaluationSets, getEvaluationSetDetail } from "../api/client";
 import { getActiveRubricConfig } from "../constants/gradingCriteria";
 import { DOCUMENT_TYPE_OPTIONS, type DocumentType } from "../constants/documentTypes";
 import { useRubricList } from "../hooks/useRubrics";
 import { projectsQueryKey } from "../query";
-import type { GradeResponse, LanguageCode } from "../types";
+import type { EvaluationSet, GradeResponse, LanguageCode } from "../types";
 import { useTranslation } from "./LanguageSelector";
 import {
   BookOpenIcon,
@@ -37,7 +37,7 @@ const UPLOAD_COPY = {
     chooseType: "Chọn loại tài liệu",
     chooseTypeHint: "AI sẽ áp dụng rubric, tiêu chí và prompt theo loại tài liệu bạn chọn.",
     uploadFile: "Tải file",
-    options: "Tiêu chuẩn đánh giá",
+    options: "Bộ cấu hình đánh giá",
     recommendedVersion: "Đang dùng phiên bản khuyến nghị",
     criteriaNote: "AI sẽ áp dụng bộ tiêu chí theo loại tài liệu bạn chọn.",
     idleTitle: "Kéo và thả file vào đây",
@@ -55,6 +55,8 @@ const UPLOAD_COPY = {
     chooseOther: "Chọn file khác",
     startReview: "Bắt đầu review",
     reviewing: "AI đang review...",
+    rerunWithoutCache: "Chấm lại không dùng cache",
+    rerunWithoutCacheHint: "Bật khi cần chạy lại hoàn toàn để lấy kết quả mới.",
     disabledHelper: "Vui lòng chọn loại tài liệu và tải file để bắt đầu review.",
     success: "Review hoàn tất",
     language: "Ngôn ngữ",
@@ -76,7 +78,7 @@ const UPLOAD_COPY = {
     chooseType: "資料タイプを選択",
     chooseTypeHint: "選択した資料タイプに応じて評価基準とプロンプトを適用します。",
     uploadFile: "ファイルアップロード",
-    options: "評価基準",
+    options: "評価設定セット",
     recommendedVersion: "推奨バージョンを使用中",
     criteriaNote: "AI は選択した資料タイプの評価基準を適用します。",
     idleTitle: "ファイルをドラッグ＆ドロップ",
@@ -94,6 +96,8 @@ const UPLOAD_COPY = {
     chooseOther: "別ファイルを選択",
     startReview: "レビュー開始",
     reviewing: "AI レビュー中...",
+    rerunWithoutCache: "キャッシュを使わず再評価",
+    rerunWithoutCacheHint: "完全に再実行して最新結果を取得したい場合に有効にします。",
     disabledHelper: "資料タイプを選択し、ファイルをアップロードするとレビューを開始できます。",
     success: "レビューが完了しました",
     language: "言語",
@@ -211,7 +215,7 @@ function getStepIndex(documentType: DocumentType | null, uploadState: UploadStat
 
 export default function FileUpload({ onReviewComplete }: FileUploadProps) {
   const [documentType, setDocumentType] = useState<DocumentType | null>(null);
-  const [selectedRubricVersion, setSelectedRubricVersion] = useState<string>("active");
+  const [selectedEvaluationSetId, setSelectedEvaluationSetId] = useState<number | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadState, setUploadState] = useState<UploadState>("idle");
   const [dragActive, setDragActive] = useState(false);
@@ -220,6 +224,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
   const [projectDescription, setProjectDescription] = useState("");
   const [selectedExistingProjectId, setSelectedExistingProjectId] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState(false);
+  const [forceRegrade, setForceRegrade] = useState(false);
   const [processingStep, setProcessingStep] = useState<ProcessingStep>("read");
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
@@ -234,13 +239,6 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
   const copy = UPLOAD_COPY[lang] ?? UPLOAD_COPY.vi;
   const rubrics = useRubricList();
   const effectiveDocumentType = documentType ?? "project-review";
-  const documentRubrics = useMemo(
-    () => rubrics.filter((rubric) => rubric.document_type === effectiveDocumentType),
-    [effectiveDocumentType, rubrics],
-  );
-  const activeRubric = documentRubrics.find((rubric) => rubric.active);
-  const resolvedRubricVersion =
-    selectedRubricVersion === "active" ? activeRubric?.version ?? null : selectedRubricVersion;
   const criteriaConfig = useMemo(
     () => getActiveRubricConfig(rubrics, effectiveDocumentType, lang),
     [effectiveDocumentType, lang, rubrics],
@@ -256,19 +254,46 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
     [criteriaConfig, t],
   );
   const activeStep = getStepIndex(documentType, uploadState, reviewing);
-  const canStartReview = Boolean(documentType && uploadedProjectId && uploadState === "uploaded" && !reviewing && hasActiveCriteria);
-  const rubricStatusLabel = hasActiveCriteria
-    ? (lang === "ja" ? "レビュー準備完了" : "Sẵn sàng review")
-    : (lang === "ja" ? "Rubric 設定が必要" : "Cần cấu hình rubric");
+  const canStartReview = Boolean(
+    documentType &&
+      uploadedProjectId &&
+      selectedEvaluationSetId &&
+      uploadState === "uploaded" &&
+      !reviewing &&
+      hasActiveCriteria,
+  );
+  const { data: evaluationSetsData } = useQuery({
+    queryKey: ["upload-evaluation-sets", effectiveDocumentType],
+    queryFn: () => listEvaluationSets(effectiveDocumentType),
+    enabled: Boolean(documentType),
+  });
+  const evaluationSets = (Array.isArray(evaluationSetsData) ? evaluationSetsData : []) as EvaluationSet[];
+  const scopedEvaluationSets = useMemo(
+    () => evaluationSets.filter((item) => item.document_type === effectiveDocumentType),
+    [evaluationSets, effectiveDocumentType],
+  );
+  const selectedEvaluationSet = scopedEvaluationSets.find((item) => item.id === selectedEvaluationSetId) ?? null;
+  const { data: selectedEvaluationSetDetail } = useQuery({
+    queryKey: ["upload-evaluation-set-detail", selectedEvaluationSetId],
+    queryFn: () => getEvaluationSetDetail(selectedEvaluationSetId as number),
+    enabled: showAdvancedOptions && typeof selectedEvaluationSetId === "number",
+  });
 
   useEffect(() => {
-    if (
-      selectedRubricVersion !== "active" &&
-      !documentRubrics.some((rubric) => rubric.version === selectedRubricVersion)
-    ) {
-      setSelectedRubricVersion("active");
+    if (!documentType) {
+      setSelectedEvaluationSetId(null);
+      return;
     }
-  }, [documentRubrics, selectedRubricVersion]);
+    if (!scopedEvaluationSets.length) {
+      setSelectedEvaluationSetId(null);
+      return;
+    }
+    if (selectedEvaluationSetId && scopedEvaluationSets.some((item) => item.id === selectedEvaluationSetId)) {
+      return;
+    }
+    const preferred = scopedEvaluationSets.find((item) => item.status === "active") ?? scopedEvaluationSets[0];
+    setSelectedEvaluationSetId(preferred?.id ?? null);
+  }, [documentType, scopedEvaluationSets, selectedEvaluationSetId]);
 
   useEffect(() => {
     if (!reviewing) return;
@@ -420,8 +445,8 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
     try {
       const result = (await reviewMutation.mutateAsync({
         projectId: uploadedProjectId,
-        force: true,
-        rubricVersion: resolvedRubricVersion,
+        force: forceRegrade,
+        evaluationSetId: selectedEvaluationSetId,
       })) as GradeResponse;
       setMessage({ text: `${copy.success}: ${result.score}/100`, type: "success" });
       onReviewComplete?.(result.project_id);
@@ -638,7 +663,30 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
 
               <div className="prod-upload-actions">
                 <div>
+                  <label className="prod-field" style={{ marginBottom: "10px" }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 500 }}>
+                      <input
+                        type="checkbox"
+                        checked={forceRegrade}
+                        onChange={(event) => setForceRegrade(event.target.checked)}
+                        disabled={reviewing || uploadState === "uploading"}
+                      />
+                      {copy.rerunWithoutCache}
+                    </span>
+                    <small style={{ color: "#64748b" }}>{copy.rerunWithoutCacheHint}</small>
+                  </label>
                   {!canStartReview ? <p>{copy.disabledHelper}</p> : null}
+                  {documentType && !selectedEvaluationSetId ? (
+                    <ErrorState
+                      title={lang === "ja" ? "Evaluation Set が未選択です" : "Chưa chọn Evaluation Set"}
+                      description={
+                        lang === "ja"
+                          ? "先にこの資料タイプの Evaluation Set を選択してください。"
+                          : "Vui lòng chọn Evaluation Set trước khi chạy review."
+                      }
+                      compact
+                    />
+                  ) : null}
                   {documentType && !hasActiveCriteria ? (
                     <ErrorState
                       title={lang === "ja" ? "有効な評価基準が見つかりません" : "Không tìm thấy tiêu chuẩn đánh giá đang active"}
@@ -691,22 +739,27 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
               <div className="prod-options-stack">
                 <div className="prod-option-summary">
                   <div>
-                    <span>{copy.selectedType}</span>
-                    <strong>{documentType ? DOCUMENT_CARD_COPY[lang][documentType].title : "—"}</strong>
-                  </div>
-                  <div>
-                    <span>{copy.version}</span>
-                    <strong>{resolvedRubricVersion ?? "v1"}</strong>
-                  </div>
-                  <div>
-                    <span>{copy.language}</span>
-                    <strong>{lang.toUpperCase()}</strong>
-                  </div>
-                  <div>
-                    <span>{lang === "ja" ? "Rubric" : "Trạng thái rubric"}</span>
-                    <strong>{rubricStatusLabel}</strong>
+                    <span>Evaluation Set</span>
+                    <strong>{selectedEvaluationSet?.name ?? "—"}</strong>
                   </div>
                 </div>
+                <label className="prod-field">
+                  <span>{lang === "ja" ? "Evaluation Set 一覧" : "Danh sách Evaluation Set"}</span>
+                  <select
+                    value={selectedEvaluationSetId ? String(selectedEvaluationSetId) : ""}
+                    onChange={(event) => setSelectedEvaluationSetId(event.target.value ? Number(event.target.value) : null)}
+                    disabled={uploadState === "uploading" || reviewing}
+                  >
+                    {!scopedEvaluationSets.length ? (
+                      <option value="">{lang === "ja" ? "利用可能なセットなし" : "Không có set khả dụng"}</option>
+                    ) : null}
+                    {scopedEvaluationSets.map((setItem) => (
+                      <option key={setItem.id} value={setItem.id}>
+                        {setItem.name} • {setItem.level} • {setItem.status}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
                 <div className="prod-criteria-list">
                   {hasActiveCriteria ? (
@@ -732,29 +785,46 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                     disabled={uploadState === "uploading" || reviewing}
                   >
                     {showAdvancedOptions
-                      ? (lang === "ja" ? "詳細オプションを隠す" : "Ẩn tùy chọn nâng cao")
-                      : (lang === "ja" ? "詳細オプションを表示" : "Hiện tùy chọn nâng cao")}
+                      ? (lang === "ja" ? "詳細を隠す" : "Ẩn thông tin chi tiết")
+                      : (lang === "ja" ? "情報詳細" : "Thông tin chi tiết")}
                   </button>
                 </div>
 
                 {showAdvancedOptions ? (
-                  <label className="prod-field">
-                    <span>{copy.version}</span>
-                    <select
-                      value={selectedRubricVersion}
-                      onChange={(event) => setSelectedRubricVersion(event.target.value)}
-                      disabled={uploadState === "uploading" || reviewing}
-                    >
-                      <option value="active">
-                        {copy.recommendedVersion} ({activeRubric?.version ?? "v1"})
-                      </option>
-                      {documentRubrics.filter((rubric) => !rubric.active).map((rubric) => (
-                        <option key={`${rubric.document_type}-${rubric.version}`} value={rubric.version}>
-                          {rubric.version}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  <div className="prod-option-summary">
+                    <div>
+                      <span>{copy.selectedType}</span>
+                      <strong>{documentType ? DOCUMENT_CARD_COPY[lang][documentType].title : "—"}</strong>
+                    </div>
+                    <div>
+                      <span>Level</span>
+                      <strong>{selectedEvaluationSet?.level ?? "—"}</strong>
+                    </div>
+                    <div>
+                      <span>Rubric</span>
+                      <strong>{selectedEvaluationSetDetail?.rubric_version ?? "—"}</strong>
+                    </div>
+                    <div>
+                      <span>Prompt</span>
+                      <strong>{selectedEvaluationSetDetail?.prompt_version ?? "—"}</strong>
+                    </div>
+                    <div>
+                      <span>Policy</span>
+                      <strong>{selectedEvaluationSetDetail?.policy_version ?? "—"}</strong>
+                    </div>
+                    <div>
+                      <span>Required Rules</span>
+                      <strong>{selectedEvaluationSet?.required_rules_version ?? "—"}</strong>
+                    </div>
+                    <div>
+                      <span>Rules Hash</span>
+                      <strong>{selectedEvaluationSet?.required_rule_hash?.slice(0, 10) ?? "—"}</strong>
+                    </div>
+                    <div>
+                      <span>{lang === "ja" ? "Status" : "Trạng thái set"}</span>
+                      <strong>{selectedEvaluationSet?.status ?? "—"}</strong>
+                    </div>
+                  </div>
                 ) : null}
               </div>
             </section>

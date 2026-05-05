@@ -1,3 +1,4 @@
+import json
 import re
 from typing import Any, Optional
 
@@ -6,9 +7,15 @@ from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from app.database import get_session
-from app.models import EvaluationPolicy, PromptVersion, Rubric, RubricCriterionRecord, EvaluationSet
+from app.models import EvaluationPolicy, PromptVersion, Rubric, RubricCriterionRecord, EvaluationSet, RequiredRuleSet
 from app.rubric import _rubric_out
-from app.services.prompt_composer import OUTPUT_SCHEMA_HINT, REQUIRED_RULES, stable_hash
+from app.services.prompt_composer import (
+    OUTPUT_SCHEMA_HINT,
+    REQUIRED_RULES,
+    stable_hash,
+    get_active_required_rule_set,
+    parse_required_rules_content,
+)
 from app.services.prompt_policy import _now, normalize_prompt_level
 
 router = APIRouter()
@@ -79,11 +86,21 @@ class EvaluationSetOut(BaseModel):
     rubric_version_id: int
     prompt_version_id: int
     policy_version_id: int
+    required_rule_set_id: Optional[int] = None
     required_rules_version: str
     required_rule_hash: str
     version_label: Optional[str] = None
     status: str
     created_at: str
+
+
+class EvaluationSetDetailOut(EvaluationSetOut):
+    rubric_version: str
+    rubric_hash: str
+    prompt_version: str
+    prompt_hash: str
+    policy_version: str
+    policy_hash: str
 
 class EvaluationSetCreateIn(BaseModel):
     base_set_id: int
@@ -139,6 +156,24 @@ def _archive_active_sets(session: Session, document_type: str, level: str) -> No
         old.status = "archived"
 
 
+def _evaluation_set_detail(session: Session, row: EvaluationSet) -> EvaluationSetDetailOut:
+    rubric = session.get(Rubric, row.rubric_version_id)
+    prompt = session.get(PromptVersion, row.prompt_version_id)
+    policy = session.get(EvaluationPolicy, row.policy_version_id)
+    if not rubric or not prompt or not policy:
+        raise HTTPException(status_code=500, detail="Evaluation set has missing component reference")
+    rubric_hash = stable_hash({"prompt": rubric.prompt})
+    return EvaluationSetDetailOut(
+        **row.model_dump(),
+        rubric_version=rubric.version,
+        rubric_hash=rubric_hash,
+        prompt_version=prompt.version,
+        prompt_hash=stable_hash(prompt.content),
+        policy_version=policy.version,
+        policy_hash=stable_hash(policy.content),
+    )
+
+
 def _version_num(version: str) -> int:
     m = re.match(r"^v(\d+)$", (version or "").strip(), re.IGNORECASE)
     return int(m.group(1)) if m else 0
@@ -183,6 +218,23 @@ def _next_set_version_label(session: Session, document_type: str, level: str) ->
             if suffix.isdigit():
                 max_num = max(max_num, int(suffix))
     return f"{prefix}{max_num + 1}"
+
+
+def _next_required_rules_version(session: Session) -> str:
+    rows = session.exec(select(RequiredRuleSet)).all()
+    max_num = 0
+    for row in rows:
+        version = (row.version or "").strip()
+        m = re.match(r"^system-rules-v(\d+)$", version, re.IGNORECASE)
+        if m:
+            max_num = max(max_num, int(m.group(1)))
+    return f"system-rules-v{max_num + 1}"
+
+
+def _archive_active_required_rules(session: Session) -> None:
+    rows = session.exec(select(RequiredRuleSet).where(RequiredRuleSet.status == "active")).all()
+    for row in rows:
+        row.status = "archived"
 
 
 @router.get("/rubrics")
@@ -449,8 +501,20 @@ async def activate_prompt(prompt_id: int, session: Session = Depends(get_session
 
 
 @router.get("/required-rules")
-async def get_required_rules():
-    return {"rules": REQUIRED_RULES, "hash": stable_hash(REQUIRED_RULES)}
+async def get_required_rules(session: Session = Depends(get_session)):
+    active = get_active_required_rule_set(session)
+    return {
+        "rules": parse_required_rules_content(active.content),
+        "hash": active.hash,
+        "version": active.version,
+        "required_rule_set_id": active.id,
+    }
+
+
+@router.get("/required-rules/versions")
+async def list_required_rule_versions(session: Session = Depends(get_session)):
+    rows = session.exec(select(RequiredRuleSet).order_by(RequiredRuleSet.created_at.desc(), RequiredRuleSet.id.desc())).all()
+    return [RequiredRuleSetOut(**row.model_dump()) for row in rows]
 
 
 @router.get("/final-prompt/preview")
@@ -486,10 +550,11 @@ async def final_prompt_preview(
 
     rubric_bundle = _rubric_out(session, rubric)
     rubric_text = (rubric.prompt or {}).get("vi") or (rubric.prompt or {}).get("ja") or ""
+    active_rule_set = get_active_required_rule_set(session)
     full_preview = "\n\n".join(
         [
             "---- Required Rules ----",
-            "\n".join(REQUIRED_RULES),
+            "\n".join(parse_required_rules_content(active_rule_set.content)),
             "---- Rubric ----",
             rubric_text,
             "---- Evaluation Policy ----",
@@ -514,7 +579,7 @@ async def final_prompt_preview(
         "prompt_hash": stable_hash(prompt.content),
         "policy_version": policy.version,
         "policy_hash": stable_hash(policy.content),
-        "required_rule_hash": stable_hash(REQUIRED_RULES),
+        "required_rule_hash": active_rule_set.hash,
         "full_prompt_preview": full_preview,
     }
 
@@ -531,6 +596,14 @@ async def list_evaluation_sets(
         stmt = stmt.where(EvaluationSet.level == normalize_prompt_level(level))
     rows = session.exec(stmt).all()
     return [EvaluationSetOut(**row.model_dump()) for row in rows]
+
+
+@router.get("/evaluation-sets/by-id/{set_id}", response_model=EvaluationSetDetailOut)
+async def get_evaluation_set(set_id: int, session: Session = Depends(get_session)):
+    row = session.get(EvaluationSet, set_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Evaluation set not found")
+    return _evaluation_set_detail(session, row)
 
 @router.get("/evaluation-sets/active")
 async def get_active_evaluation_set(document_type: str, level: str = "medium", session: Session = Depends(get_session)):
@@ -560,9 +633,13 @@ async def create_evaluation_set(payload: EvaluationSetCreateIn, session: Session
     new_rubric = rubric
     new_prompt = prompt
     new_policy = policy
+    active_rule_set = get_active_required_rule_set(session)
+    base_rule_set = session.get(RequiredRuleSet, base.required_rule_set_id) if base.required_rule_set_id else active_rule_set
+    selected_rule_set = base_rule_set or active_rule_set
     rubric_content = payload.changes.get("rubric_content")
     prompt_content = payload.changes.get("prompt_content")
     policy_content = payload.changes.get("policy_content")
+    required_rules_content = payload.changes.get("required_rules_content")
 
     if rubric_content is not None:
         old = (rubric.prompt or {}).get("vi") or ""
@@ -612,6 +689,26 @@ async def create_evaluation_set(payload: EvaluationSetCreateIn, session: Session
         )
         session.add(new_policy); session.commit(); session.refresh(new_policy)
 
+    if required_rules_content is not None:
+        normalized_rules = [line.strip() for line in required_rules_content.splitlines() if line.strip()]
+        base_rules = parse_required_rules_content((base_rule_set.content if base_rule_set else None))
+        if normalized_rules and normalized_rules != base_rules:
+            new_hash = stable_hash(normalized_rules)
+            existing_rule_set = session.exec(select(RequiredRuleSet).where(RequiredRuleSet.hash == new_hash)).first()
+            if existing_rule_set:
+                selected_rule_set = existing_rule_set
+            else:
+                selected_rule_set = RequiredRuleSet(
+                    version=_next_required_rules_version(session),
+                    hash=new_hash,
+                    content=json.dumps(normalized_rules, ensure_ascii=False),
+                    status="active" if payload.activate else "archived",
+                    created_at=_now(),
+                )
+                if payload.activate:
+                    _archive_active_required_rules(session)
+                session.add(selected_rule_set); session.commit(); session.refresh(selected_rule_set)
+
     status = "active" if payload.activate else "archived"
     if payload.activate:
         _archive_active_sets(session, base.document_type, base.level)
@@ -622,8 +719,9 @@ async def create_evaluation_set(payload: EvaluationSetCreateIn, session: Session
         rubric_version_id=new_rubric.id or 0,
         prompt_version_id=new_prompt.id or 0,
         policy_version_id=new_policy.id or 0,
-        required_rules_version=base.required_rules_version,
-        required_rule_hash=stable_hash(REQUIRED_RULES),
+        required_rule_set_id=selected_rule_set.id if selected_rule_set else active_rule_set.id,
+        required_rules_version=selected_rule_set.version if selected_rule_set else active_rule_set.version,
+        required_rule_hash=selected_rule_set.hash if selected_rule_set else active_rule_set.hash,
         version_label=_next_set_version_label(session, base.document_type, base.level),
         status=status,
         created_at=_now(),
@@ -670,6 +768,7 @@ async def bootstrap_evaluation_set(payload: EvaluationSetBootstrapIn, session: S
     if not rubric or not prompt or not policy:
         raise HTTPException(status_code=400, detail="Cannot bootstrap: missing active rubric/prompt/policy for scope")
 
+    active_rule_set = get_active_required_rule_set(session)
     row = EvaluationSet(
         name=payload.name or f"{payload.document_type}-{lvl}-set-v1",
         document_type=payload.document_type,
@@ -677,8 +776,9 @@ async def bootstrap_evaluation_set(payload: EvaluationSetBootstrapIn, session: S
         rubric_version_id=rubric.id or 0,
         prompt_version_id=prompt.id or 0,
         policy_version_id=policy.id or 0,
-        required_rules_version="system-rules-v1",
-        required_rule_hash=stable_hash(REQUIRED_RULES),
+        required_rule_set_id=active_rule_set.id,
+        required_rules_version=active_rule_set.version,
+        required_rule_hash=active_rule_set.hash,
         version_label=_next_set_version_label(session, payload.document_type, lvl),
         status="active",
         created_at=_now(),
@@ -686,3 +786,9 @@ async def bootstrap_evaluation_set(payload: EvaluationSetBootstrapIn, session: S
     _archive_active_sets(session, payload.document_type, lvl)
     session.add(row); session.commit(); session.refresh(row)
     return EvaluationSetOut(**row.model_dump())
+class RequiredRuleSetOut(BaseModel):
+    id: int
+    version: str
+    hash: str
+    status: str
+    created_at: str

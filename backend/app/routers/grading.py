@@ -23,6 +23,7 @@ async def _perform_grading(
     document_version_id: int | None = None,
     prompt_level: str = "medium",
     rubric_version: str | None = None,
+    evaluation_set_id: int | None = None,
     force: bool = False,
 ) -> GradeResponse:
     # 1. Resolve document_version_id if not provided
@@ -64,6 +65,7 @@ async def _perform_grading(
                 grading_run_id=run.id,
                 prompt_level=prompt_level,
                 rubric_version=rubric_version,
+                evaluation_set_id=evaluation_set_id,
                 force=force
             )
             
@@ -75,6 +77,7 @@ async def _perform_grading(
                 document_version_id=version.id,
                 document_version=version.document_version,
                 prompt_level=prompt_level,
+                evaluation_set_id=evaluation_set_id,
                 language=submission.language,
             )
 
@@ -84,6 +87,7 @@ async def _perform_grading(
             document_version_id=document_version_id,
             prompt_level=prompt_level,
             rubric_version=rubric_version,
+            evaluation_set_id=evaluation_set_id,
             force=force
         )
         
@@ -104,6 +108,7 @@ async def _perform_grading(
             gemini_model=latest_run.gemini_model,
             prompt_version=latest_run.prompt_version,
             prompt_level=latest_run.prompt_level,
+            evaluation_set_id=latest_run.evaluation_set_id,
             policy_version=latest_run.policy_version,
             policy_hash=latest_run.policy_hash,
             required_rule_hash=latest_run.required_rule_hash,
@@ -136,6 +141,7 @@ async def grade_single(
     rubric_version: str | None = Query(default=None),
     document_version_id: int | None = Query(default=None),
     prompt_level: str = Query(default="medium"),
+    evaluation_set_id: int | None = Query(default=None),
     service: GradingService = Depends(get_grading_service),
 ):
     # Legacy alias route retained for backward compatibility.
@@ -146,6 +152,7 @@ async def grade_single(
         document_version_id=document_version_id,
         prompt_level=prompt_level,
         rubric_version=rubric_version,
+        evaluation_set_id=evaluation_set_id,
         force=force
     )
 
@@ -168,6 +175,7 @@ async def grade_version(
         document_version_id=request.document_version_id,
         prompt_level=request.prompt_level,
         rubric_version=request.rubric_version,
+        evaluation_set_id=request.evaluation_set_id,
         force=request.force
     )
 

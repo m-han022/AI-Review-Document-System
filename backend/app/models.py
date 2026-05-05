@@ -110,6 +110,20 @@ class EvaluationPolicy(SQLModel, table=True):
     created_at: str = ""
 
 
+class RequiredRuleSet(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint("version", name="uq_required_rule_set_version"),
+        UniqueConstraint("hash", name="uq_required_rule_set_hash"),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    version: str = Field(index=True)
+    hash: str = Field(index=True)
+    content: str
+    status: ItemStatus = Field(default="active", index=True)
+    created_at: str = ""
+
+
 class PromptVersion(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("document_type", "level", "version", name="uq_prompt_type_level_version"),)
 
@@ -131,6 +145,7 @@ class EvaluationSet(SQLModel, table=True):
     rubric_version_id: int = Field(foreign_key="rubric.id", index=True)
     prompt_version_id: int = Field(foreign_key="promptversion.id", index=True)
     policy_version_id: int = Field(foreign_key="evaluationpolicy.id", index=True)
+    required_rule_set_id: Optional[int] = Field(default=None, foreign_key="requiredruleset.id", index=True)
     required_rules_version: str = Field(default="system-rules-v1")
     required_rule_hash: str = Field(index=True)
     version_label: Optional[str] = Field(default=None, index=True)
@@ -157,6 +172,7 @@ class GradingRun(SQLModel, table=True):
     prompt_level: Optional[str] = Field(default="medium", index=True)
     policy_version: Optional[str] = Field(default=None, index=True)
     policy_hash: Optional[str] = Field(default=None, index=True)
+    required_rule_set_id: Optional[int] = Field(default=None, foreign_key="requiredruleset.id", index=True)
     required_rule_hash: Optional[str] = Field(default=None, index=True)
     prompt_hash: Optional[str] = Field(default=None, index=True)
     criteria_hash: Optional[str] = Field(default=None, index=True)
@@ -230,6 +246,7 @@ class GradeResponse(BaseModel):
     gemini_model: Optional[str] = None
     prompt_version: Optional[str] = None
     prompt_level: Optional[str] = None
+    evaluation_set_id: Optional[int] = None
     policy_version: Optional[str] = None
     policy_hash: Optional[str] = None
     required_rule_hash: Optional[str] = None
@@ -308,6 +325,7 @@ class GradingRunOut(BaseModel):
     gemini_model: Optional[str] = None
     prompt_version: Optional[str] = None
     prompt_level: Optional[str] = None
+    evaluation_set_id: Optional[int] = None
     policy_version: Optional[str] = None
     policy_hash: Optional[str] = None
     required_rule_hash: Optional[str] = None
@@ -508,6 +526,7 @@ class GradeRequest(BaseModel):
     document_version_id: int
     prompt_level: PromptLevel = "medium"
     rubric_version: Optional[str] = None
+    evaluation_set_id: Optional[int] = None
     force: bool = False
 
 

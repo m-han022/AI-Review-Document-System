@@ -143,6 +143,7 @@ class SubmissionStore:
             gemini_model=run.gemini_model,
             prompt_version=run.prompt_version,
             prompt_level=run.prompt_level,
+            evaluation_set_id=run.evaluation_set_id,
             policy_version=run.policy_version,
             policy_hash=run.policy_hash,
             required_rule_hash=run.required_rule_hash,

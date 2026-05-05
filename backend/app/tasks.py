@@ -16,6 +16,7 @@ def grade_document_version_task(
     grading_run_id: int,
     prompt_level: str = "medium",
     rubric_version: str | None = None,
+    evaluation_set_id: int | None = None,
     force: bool = False
 ):
     logger.info(f"Starting grading task for project {project_id}, version {document_version_id}, run {grading_run_id}")
@@ -45,6 +46,7 @@ def grade_document_version_task(
                 document_version_id=document_version_id,
                 prompt_level=prompt_level,
                 rubric_version=rubric_version,
+                evaluation_set_id=evaluation_set_id,
                 force=force,
                 existing_run_id=grading_run_id
             )

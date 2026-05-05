@@ -11,8 +11,8 @@ from app.database import engine
 from app.rubric import get_active_rubric_version, get_rubric, get_rubric_criteria_config, _select_rubric
 from app.services.gemini_manager import get_gemini_client
 from app.services.prompt_policy import get_prompt_policy_bundle, normalize_prompt_level, stable_hash, get_active_policy, get_active_prompt_version
-from app.models import EvaluationSet, Rubric, PromptVersion, EvaluationPolicy
-from app.services.prompt_composer import PromptComposer
+from app.models import EvaluationSet, Rubric, PromptVersion, EvaluationPolicy, RequiredRuleSet
+from app.services.prompt_composer import PromptComposer, get_active_required_rule_set, parse_required_rules_content
 
 _GRADING_CACHE_MAX_SIZE = 200
 
@@ -125,25 +125,50 @@ def build_grading_signature(
     rubric_version: str | None = None,
     document_version_id: int | None = None,
     prompt_level: str | None = "medium",
+    evaluation_set_id: int | None = None,
     project_description: str | None = None,
 ) -> dict[str, Any]:
     normalized_document_type = document_type or "project-review"
+    normalized_prompt_level = normalize_prompt_level(prompt_level)
     resolved_rubric_version = rubric_version or get_active_rubric_version(document_type=document_type)
     
     with Session(engine) as session:
-        eval_set = session.exec(
-            select(EvaluationSet).where(
-                EvaluationSet.document_type == normalized_document_type,
-                EvaluationSet.level == normalize_prompt_level(prompt_level),
-                EvaluationSet.status == "active",
-            )
-        ).first()
+        required_rule_set = get_active_required_rule_set(session)
+        eval_set = None
+        if evaluation_set_id is not None:
+            eval_set = session.get(EvaluationSet, evaluation_set_id)
+            if not eval_set:
+                raise ValueError(f"Evaluation set not found: {evaluation_set_id}")
+            if eval_set.status != "active":
+                raise ValueError(f"Evaluation set is not active: {evaluation_set_id}")
+            if document_type and eval_set.document_type != normalized_document_type:
+                raise ValueError(
+                    f"Evaluation set {evaluation_set_id} does not match document_type '{normalized_document_type}'"
+                )
+            normalized_document_type = eval_set.document_type
+            normalized_prompt_level = normalize_prompt_level(eval_set.level)
+        else:
+            eval_set = session.exec(
+                select(EvaluationSet).where(
+                    EvaluationSet.document_type == normalized_document_type,
+                    EvaluationSet.level == normalized_prompt_level,
+                    EvaluationSet.status == "active",
+                )
+            ).first()
         rubric_obj = None
         if eval_set:
             rubric_obj = session.get(Rubric, eval_set.rubric_version_id)
             prompt_ver = session.get(PromptVersion, eval_set.prompt_version_id)
             policy = session.get(EvaluationPolicy, eval_set.policy_version_id)
-            resolved_rubric_version = rubric_obj.version if rubric_obj else resolved_rubric_version
+            if eval_set.required_rule_set_id:
+                scoped_rules = session.get(RequiredRuleSet, eval_set.required_rule_set_id)
+                if scoped_rules:
+                    required_rule_set = scoped_rules
+            # Safety fallback: if set references missing component rows, degrade gracefully.
+            if not rubric_obj or not prompt_ver or not policy:
+                eval_set = None
+            else:
+                resolved_rubric_version = rubric_obj.version
         else:
             rubric_obj = _select_rubric(session, normalized_document_type, resolved_rubric_version)
         if not rubric_obj:
@@ -156,15 +181,17 @@ def build_grading_signature(
     criteria_keys, max_scores = _get_criteria_config(normalized_document_type, resolved_rubric_version)
     
     if not eval_set:
-        policy = get_active_policy(prompt_level)
-        prompt_ver = get_active_prompt_version(normalized_document_type, prompt_level)
+        policy = get_active_policy(normalized_prompt_level)
+        prompt_ver = get_active_prompt_version(normalized_document_type, normalized_prompt_level)
     
     # Use PromptComposer to build final prompt and get metadata
     bundle = PromptComposer.compose(
         rubric=rubric_obj, # This might be None if fallback used, but compose handles it or we should fix it
         rubric_text=rubric_text,
         policy=policy,
-        prompt_version=prompt_ver
+        prompt_version=prompt_ver,
+        required_rules_content=parse_required_rules_content(required_rule_set.content),
+        required_rule_hash=required_rule_set.hash
     )
 
     return {
@@ -175,11 +202,12 @@ def build_grading_signature(
         "rubric_version": resolved_rubric_version,
         "rubric_hash": bundle.rubric_hash,
         "prompt_version": bundle.prompt_version,
-        "prompt_level": normalize_prompt_level(prompt_level),
+        "prompt_level": normalized_prompt_level,
         "prompt_hash": bundle.prompt_hash,
         "policy_version": bundle.policy_version,
         "policy_hash": bundle.policy_hash,
         "required_rule_hash": bundle.required_rule_hash,
+        "required_rule_set_id": required_rule_set.id,
         "criteria_hash": _stable_json_hash({"keys": criteria_keys, "max_scores": max_scores}),
         "gemini_model": settings.gemini_model,
         "grading_schema_version": GRADING_SCHEMA_VERSION,
@@ -349,6 +377,7 @@ def grade_submission(
     rubric_version: str | None = None,
     document_version_id: int | None = None,
     prompt_level: str | None = "medium",
+    evaluation_set_id: int | None = None,
     project_description: str | None = None,
     use_cache: bool = True,
     refresh_cache: bool = False,
@@ -363,6 +392,7 @@ def grade_submission(
         rubric_version=rubric_version,
         document_version_id=document_version_id,
         prompt_level=prompt_level,
+        evaluation_set_id=evaluation_set_id,
         project_description=project_description,
     )
 
