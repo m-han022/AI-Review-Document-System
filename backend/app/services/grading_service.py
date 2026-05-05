@@ -30,7 +30,8 @@ class GradingService:
         document_version: str,
         rubric_version: str,
         prompt_level: str,
-        content_hash: str
+        content_hash: str,
+        evaluation_set_id: int,
     ) -> GradingRun:
         run = GradingRun(
             submission_id=submission_id,
@@ -39,6 +40,7 @@ class GradingService:
             rubric_version=rubric_version,
             prompt_level=prompt_level,
             content_hash=content_hash,
+            evaluation_set_id=evaluation_set_id,
             status="PENDING",
             started_at=datetime.now(timezone.utc).isoformat(),
         )
@@ -68,6 +70,8 @@ class GradingService:
         force: bool = False,
         existing_run_id: Optional[int] = None
     ) -> dict[str, Any]:
+        if evaluation_set_id is None:
+            raise ValueError("evaluation_set_id is required for grading")
         # 1. Fetch data
         submission = self.submission_repo.get_submission(project_id)
         if not submission:
@@ -114,7 +118,8 @@ class GradingService:
                 document_version=version.document_version,
                 rubric_version=signature["rubric_version"],
                 prompt_level=prompt_level,
-                content_hash=version.content_hash
+                content_hash=version.content_hash,
+                evaluation_set_id=evaluation_set_id,
             )
 
         try:
@@ -169,6 +174,8 @@ class GradingService:
     def _save_grading_results(self, run: GradingRun, result_data: dict[str, Any]):
         # Idempotency safety: always clear prior child rows before inserting fresh results.
         self.grading_repo.clear_run_children(run.id or 0)
+        if result_data.get("evaluation_set_id") is None:
+            raise ValueError("evaluation_set_id is required for new grading runs")
         run.score = result_data["score"]
         run.total_score = result_data["total_score"]
         run.rubric_hash = result_data["rubric_hash"]
@@ -237,6 +244,8 @@ class GradingService:
     def _reuse_cached_run(self, submission_id: int, version: SubmissionDocumentVersion, cached_run: GradingRun) -> dict[str, Any]:
         # Implementation similar to append_cached_grading_run but using the new service structure
         # We create a new run record that points to the same results
+        if cached_run.evaluation_set_id is None:
+            raise ValueError("Cached run is missing evaluation_set_id and cannot be reused in strict mode")
         now = datetime.now(timezone.utc).isoformat()
         new_run = GradingRun(
             submission_id=submission_id,

@@ -4,6 +4,25 @@ from sqlmodel import Session, select
 from app.models import Submission, SubmissionDocument, SubmissionDocumentVersion, GradingRun
 from unittest.mock import patch, MagicMock
 
+def _ensure_manual_eval_set(client: TestClient, document_type: str = "project-review", level: str = "medium"):
+    client.post("/api/mgmt/prompts", json={
+        "document_type": document_type,
+        "level": level,
+        "version": "v1",
+        "content": "manual prompt v1",
+        "activate": True,
+    })
+    client.post("/api/mgmt/policies", json={
+        "level": level,
+        "version": "v1",
+        "content": "manual policy v1",
+        "activate": True,
+    })
+    client.post("/api/mgmt/evaluation-sets/bootstrap", json={
+        "document_type": document_type,
+        "level": level,
+    })
+
 def test_upload_flow_hierarchical(client: TestClient, session: Session):
     # 0. Project must exist beforehand (New rule)
     project_id = "P999"
@@ -59,6 +78,8 @@ def test_grading_flow_with_state_machine(client: TestClient, session: Session):
     files = {"file": ("P777_Doc.pdf", b"content", "application/pdf")}
     res = client.post("/api/upload", files=files, data={"project_id": project_id, "document_name": "Doc"})
     version_id = res.json()["document_version_id"]
+    _ensure_manual_eval_set(client)
+    _ensure_manual_eval_set(client, level="high")
     
     # Grade
     grade_res = client.post("/api/grade", json={"document_version_id": version_id, "prompt_level": "medium"})
@@ -69,6 +90,7 @@ def test_grading_flow_with_state_machine(client: TestClient, session: Session):
     run = session.get(GradingRun, run_id)
     assert run.status == "COMPLETED"
     assert run.document_version_id == version_id
+    assert run.evaluation_set_id is not None
     
     # Multiple runs on same version
     grade_res2 = client.post("/api/grade", json={"document_version_id": version_id, "prompt_level": "high", "force": True})
@@ -78,6 +100,24 @@ def test_grading_flow_with_state_machine(client: TestClient, session: Session):
     
     runs = session.exec(select(GradingRun).where(GradingRun.document_version_id == version_id)).all()
     assert len(runs) == 2
+    assert all(item.evaluation_set_id is not None for item in runs)
+
+
+def test_grading_rejects_when_no_active_evaluation_set_for_scope(client: TestClient):
+    project_id = "P771"
+    client.post("/api/projects", json={"project_id": project_id, "project_name": "No Eval Set Scope"})
+    files = {"file": ("P771_Doc.pdf", b"content", "application/pdf")}
+    upload = client.post(
+        "/api/upload",
+        files=files,
+        data={"project_id": project_id, "document_name": "Doc", "document_type": "custom-no-rubric-scope"},
+    )
+    assert upload.status_code == 200
+    version_id = upload.json()["document_version_id"]
+
+    grade_res = client.post("/api/grade", json={"document_version_id": version_id, "prompt_level": "medium"})
+    assert grade_res.status_code == 422
+    assert "evaluation_set_id is required" in grade_res.json()["detail"]
 
 def test_grading_cache_reuse(client: TestClient, session: Session):
     project_id = "P666"
@@ -85,6 +125,7 @@ def test_grading_cache_reuse(client: TestClient, session: Session):
     files = {"file": ("P666_Doc.pdf", b"content", "application/pdf")}
     res = client.post("/api/upload", files=files, data={"project_id": project_id, "document_name": "Doc"})
     v1_id = res.json()["document_version_id"]
+    _ensure_manual_eval_set(client)
     
     # First grade (AI called)
     client.post("/api/grade", json={"document_version_id": v1_id})
@@ -105,6 +146,7 @@ def test_grading_failure_state(client: TestClient, session: Session):
     files = {"file": ("P555_Doc.pdf", b"content", "application/pdf")}
     res = client.post("/api/upload", files=files, data={"project_id": project_id, "document_name": "Doc"})
     v1_id = res.json()["document_version_id"]
+    _ensure_manual_eval_set(client)
     
     # Mock Gemini failure
     with patch("app.services.grading_engine.get_gemini_client") as mock_get_client:
@@ -125,6 +167,7 @@ def test_legacy_api_compatibility(client: TestClient, session: Session):
     client.post("/api/projects", json={"project_id": project_id, "project_name": "Legacy Test"})
     files = {"file": ("P444_Doc.pdf", b"content", "application/pdf")}
     client.post("/api/upload", files=files, data={"project_id": project_id}) # Uses /upload instead of hierarchical params
+    _ensure_manual_eval_set(client)
 
     # Legacy grade API: /api/grade/{project_id}
     response = client.post(f"/api/grade/{project_id}")
@@ -189,6 +232,7 @@ def test_versions_and_gradings_hierarchical_contract(client: TestClient):
 
     document_id = upload_res.json()["document_id"]
     version_id = upload_res.json()["document_version_id"]
+    _ensure_manual_eval_set(client)
 
     versions_res = client.get(f"/api/documents/{document_id}/versions")
     assert versions_res.status_code == 200
@@ -216,6 +260,8 @@ def test_cache_not_reused_when_prompt_level_changes(client: TestClient):
     upload_res = client.post("/api/upload", files=files, data={"language": "ja", "project_id": "P105", "document_name": "Doc"})
     assert upload_res.status_code == 200
     version_id = upload_res.json()["document_version_id"]
+    _ensure_manual_eval_set(client, level="medium")
+    _ensure_manual_eval_set(client, level="high")
 
     with patch("app.services.grading_engine.get_gemini_client") as mock_get_client:
         mock_client = MagicMock()
@@ -237,6 +283,7 @@ def test_cache_not_reused_when_project_description_changes(client: TestClient):
     upload_res = client.post("/api/upload", files=files, data={"language": "ja", "project_id": "P106", "document_name": "Doc"})
     assert upload_res.status_code == 200
     version_id = upload_res.json()["document_version_id"]
+    _ensure_manual_eval_set(client)
 
     with patch("app.services.grading_engine.get_gemini_client") as mock_get_client:
         mock_client = MagicMock()
@@ -262,6 +309,7 @@ def test_grading_run_stores_exact_final_prompt_snapshot(client: TestClient):
     upload_res = client.post("/api/upload", files=files, data={"language": "ja", "project_id": "P107", "document_name": "Doc"})
     assert upload_res.status_code == 200
     version_id = upload_res.json()["document_version_id"]
+    _ensure_manual_eval_set(client)
 
     grade_res = client.post("/api/grade", json={"document_version_id": version_id, "prompt_level": "medium"})
     assert grade_res.status_code == 200

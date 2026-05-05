@@ -10,7 +10,7 @@ from app.config import settings
 from app.database import engine
 from app.rubric import get_active_rubric_version, get_rubric, get_rubric_criteria_config, _select_rubric
 from app.services.gemini_manager import get_gemini_client
-from app.services.prompt_policy import get_prompt_policy_bundle, normalize_prompt_level, stable_hash, get_active_policy, get_active_prompt_version
+from app.services.prompt_policy import get_prompt_policy_bundle, normalize_prompt_level, stable_hash
 from app.models import EvaluationSet, Rubric, PromptVersion, EvaluationPolicy, RequiredRuleSet
 from app.services.prompt_composer import PromptComposer, get_active_required_rule_set, parse_required_rules_content
 
@@ -155,34 +155,28 @@ def build_grading_signature(
                     EvaluationSet.status == "active",
                 )
             ).first()
-        rubric_obj = None
-        if eval_set:
-            rubric_obj = session.get(Rubric, eval_set.rubric_version_id)
-            prompt_ver = session.get(PromptVersion, eval_set.prompt_version_id)
-            policy = session.get(EvaluationPolicy, eval_set.policy_version_id)
-            if eval_set.required_rule_set_id:
-                scoped_rules = session.get(RequiredRuleSet, eval_set.required_rule_set_id)
-                if scoped_rules:
-                    required_rule_set = scoped_rules
-            # Safety fallback: if set references missing component rows, degrade gracefully.
-            if not rubric_obj or not prompt_ver or not policy:
-                eval_set = None
-            else:
-                resolved_rubric_version = rubric_obj.version
-        else:
-            rubric_obj = _select_rubric(session, normalized_document_type, resolved_rubric_version)
-        if not rubric_obj:
-            # Fallback for seeding or missing data
-            rubric_text = get_rubric(document_type=normalized_document_type, version=resolved_rubric_version)
-        else:
-            # Get prompt from rubric_obj.prompt
-            rubric_text = rubric_obj.prompt.get("vi", "") or next(iter(rubric_obj.prompt.values()), "")
+
+        if not eval_set:
+            raise ValueError(
+                f"No active evaluation set for scope: document_type='{normalized_document_type}', level='{normalized_prompt_level}'"
+            )
+
+        rubric_obj = session.get(Rubric, eval_set.rubric_version_id)
+        prompt_ver = session.get(PromptVersion, eval_set.prompt_version_id)
+        policy = session.get(EvaluationPolicy, eval_set.policy_version_id)
+        if eval_set.required_rule_set_id:
+            scoped_rules = session.get(RequiredRuleSet, eval_set.required_rule_set_id)
+            if scoped_rules:
+                required_rule_set = scoped_rules
+        if not rubric_obj or not prompt_ver or not policy:
+            raise ValueError(
+                f"Evaluation set {eval_set.id} is invalid: missing rubric/prompt/policy references"
+            )
+
+        resolved_rubric_version = rubric_obj.version
+        rubric_text = rubric_obj.prompt.get("vi", "") or next(iter(rubric_obj.prompt.values()), "")
 
     criteria_keys, max_scores = _get_criteria_config(normalized_document_type, resolved_rubric_version)
-    
-    if not eval_set:
-        policy = get_active_policy(normalized_prompt_level)
-        prompt_ver = get_active_prompt_version(normalized_document_type, normalized_prompt_level)
     
     # Use PromptComposer to build final prompt and get metadata
     bundle = PromptComposer.compose(

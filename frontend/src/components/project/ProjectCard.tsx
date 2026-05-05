@@ -398,6 +398,10 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
     const firstNg = slideReviewItems.find(s => s.status === "NG");
     return firstNg ? firstNg.id : slideReviewItems[0]?.id ?? null;
   }, [selectedSlideId, slideReviewItems]);
+  const activeSlide = useMemo(
+    () => slideReviewItems.find((s) => s.id === activeSlideId) ?? null,
+    [slideReviewItems, activeSlideId],
+  );
 
   const documentMeta = useMemo(() => [
     { label: "Document", value: currentDocument?.document_name ?? "—" },
@@ -656,23 +660,63 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
                     {slideReviewItems.map((item) => (
                       <button key={item.id} className={`slide-nav-item ${activeSlideId === item.id ? "is-active" : ""}`} onClick={() => setSelectedSlideId(item.id)}>
                         <span className={`slide-status-dot ${item.status === "OK" ? "is-ok" : "is-ng"}`} />
-                        <span className="slide-label">{item.displayTitle}</span>
+                        <span className="slide-label" style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                          {item.displayTitle}
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              lineHeight: 1,
+                              padding: "3px 7px",
+                              borderRadius: "999px",
+                              fontWeight: 700,
+                              color: item.status === "OK" ? "#166534" : "#991b1b",
+                              background: item.status === "OK" ? "#dcfce7" : "#fee2e2",
+                              border: `1px solid ${item.status === "OK" ? "#86efac" : "#fecaca"}`,
+                            }}
+                          >
+                            {item.status}
+                          </span>
+                        </span>
                       </button>
                     ))}
                   </aside>
                   <main className="slide-content">
-                    {slideReviewItems.find(s => s.id === activeSlideId) ? (
-                      <div className="slide-detail-card">
-                        <h3>{slideReviewItems.find(s => s.id === activeSlideId)?.displayTitle}</h3>
+                    {activeSlide ? (
+                      <div className="slide-detail-card" style={{ border: "1px solid #e2e8f0", borderRadius: "12px", padding: "16px", background: "#fff" }}>
+                        <h3 style={{ marginBottom: "12px", display: "flex", alignItems: "center", gap: "10px" }}>
+                          {activeSlide.displayTitle}
+                          <span
+                            style={{
+                              fontSize: "12px",
+                              lineHeight: 1,
+                              padding: "4px 8px",
+                              borderRadius: "999px",
+                              fontWeight: 700,
+                              color: activeSlide.status === "OK" ? "#166534" : "#991b1b",
+                              background: activeSlide.status === "OK" ? "#dcfce7" : "#fee2e2",
+                              border: `1px solid ${activeSlide.status === "OK" ? "#86efac" : "#fecaca"}`,
+                            }}
+                          >
+                            {activeSlide.status === "OK" ? "OK" : "NG"}
+                          </span>
+                        </h3>
                         <div className="slide-detail-body">
-                          <p><strong>{t("project.slideSummary")}:</strong> {slideReviewItems.find(s => s.id === activeSlideId)?.summary}</p>
-                          {slideReviewItems.find(s => s.id === activeSlideId)?.issues.length ? (
-                            <div className="slide-issues">
-                              <strong>{t("project.issuesFound")}:</strong>
-                              <ul>{slideReviewItems.find(s => s.id === activeSlideId)?.issues.map((issue, i) => <li key={i}>{issue}</li>)}</ul>
+                          <div style={{ marginBottom: "12px" }}>
+                            <strong style={{ display: "block", marginBottom: "6px" }}>{t("project.slideSummary")}</strong>
+                            <p style={{ margin: 0, color: "#334155", lineHeight: 1.6 }}>{activeSlide.summary || "—"}</p>
+                          </div>
+                          {activeSlide.issues.length ? (
+                            <div className="slide-issues" style={{ marginBottom: "12px" }}>
+                              <strong style={{ display: "block", marginBottom: "6px" }}>{t("project.issuesFound")}</strong>
+                              <ul style={{ margin: 0, paddingLeft: "18px", color: "#b91c1c" }}>
+                                {activeSlide.issues.map((issue, i) => <li key={i}>{issue}</li>)}
+                              </ul>
                             </div>
                           ) : null}
-                          <p><strong>{t("project.suggestions")}:</strong> {slideReviewItems.find(s => s.id === activeSlideId)?.suggestions}</p>
+                          <div>
+                            <strong style={{ display: "block", marginBottom: "6px" }}>{t("project.suggestions")}</strong>
+                            <p style={{ margin: 0, color: "#334155", lineHeight: 1.6 }}>{activeSlide.suggestions || "—"}</p>
+                          </div>
                         </div>
                       </div>
                     ) : <EmptyState title="Select a slide to see details" compact />}

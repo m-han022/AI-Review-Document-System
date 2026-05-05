@@ -4,6 +4,9 @@ import { diffLines } from "diff";
 
 import {
   bootstrapEvaluationSet,
+  createMgmtPolicy,
+  createMgmtPrompt,
+  createMgmtRubric,
   createEvaluationSet,
   getActiveEvaluationSet,
   getRequiredRules,
@@ -20,6 +23,16 @@ import { useTranslation } from "../LanguageSelector";
 
 const LEVELS = ["low", "medium", "high"] as const;
 type ConfigTab = "sets" | "create" | "compare";
+
+function normalizeBootstrapError(raw: string, lang: "vi" | "ja"): string {
+  const lower = (raw || "").toLowerCase();
+  if (lower.includes("cannot bootstrap")) {
+    return lang === "ja"
+      ? "初期設定の自動作成に失敗しました。しばらく待って再読み込みしてください。"
+      : "Không thể tự khởi tạo cấu hình mặc định. Vui lòng tải lại trang sau vài giây.";
+  }
+  return raw;
+}
 
 export default function AIConfigurationConsole() {
   const { lang } = useTranslation();
@@ -86,7 +99,7 @@ export default function AIConfigurationConsole() {
         loadFailed: "Không thể tải dữ liệu cấu hình",
         title: "AI Configuration Console",
         subtitle: "Vận hành theo Evaluation Set để giảm độ phức tạp.",
-        modeNote: "Evaluation Set mode: quản lý theo bộ (Rubric + Prompt + Policy + Required Rules), không sửa trực tiếp version cũ.",
+        modeNote: "Evaluation Set mode: quản lý theo bộ (Khung tiêu chí chấm điểm + Hướng dẫn phản hồi AI + Nguyên tắc đánh giá + Quy tắc bắt buộc), không sửa trực tiếp version cũ.",
         tabSets: "Evaluation Sets",
         tabCreate: "Tạo bộ mới",
         tabCompare: "So sánh bộ",
@@ -115,11 +128,11 @@ export default function AIConfigurationConsole() {
         step: "Bước",
         setName: "Tên set",
         docType: "Loại tài liệu",
-        promptLevel: "Mức prompt",
-        changeRubric: "Đổi Rubric",
-        changePrompt: "Đổi Prompt",
-        changePolicy: "Đổi Policy",
-        changeRules: "Đổi Required Rules",
+        promptLevel: "Mức độ đánh giá",
+        changeRubric: "Đổi Khung tiêu chí chấm điểm",
+        changePrompt: "Đổi Hướng dẫn phản hồi AI",
+        changePolicy: "Đổi Nguyên tắc đánh giá",
+        changeRules: "Đổi Quy tắc bắt buộc",
         noEffectiveChange: "Không có thay đổi hiệu lực. Hệ thống sẽ reuse version hiện có.",
         cancel: "Hủy",
         review: "Xem lại",
@@ -163,6 +176,20 @@ export default function AIConfigurationConsole() {
   const [newPromptContent, setNewPromptContent] = useState("");
   const [newPolicyContent, setNewPolicyContent] = useState("");
   const [newRequiredRulesContent, setNewRequiredRulesContent] = useState("");
+  const [manualCriteria, setManualCriteria] = useState<Array<{ key: string; max_score: number; label_vi: string; label_ja: string }>>([
+    { key: "review_tong_the", max_score: 25, label_vi: "Đánh giá tổng thể", label_ja: "総合評価" },
+    { key: "diem_tot", max_score: 25, label_vi: "Điểm tốt", label_ja: "良い点" },
+    { key: "diem_xau", max_score: 30, label_vi: "Điểm cần cải thiện", label_ja: "改善点" },
+    { key: "chinh_sach", max_score: 20, label_vi: "Chính sách cải thiện", label_ja: "改善方針" },
+  ]);
+
+  const nextVersion = (versions: string[]) => {
+    const nums = versions
+      .map((v) => Number((v || "").replace(/^v/i, "")))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    const max = nums.length ? Math.max(...nums) : 0;
+    return `v${max + 1}`;
+  };
 
   const { data: rubrics = [], isLoading: loadingRubrics, error: rubricsError } = useQuery({
     queryKey: ["mgmt-rubrics"],
@@ -294,7 +321,99 @@ export default function AIConfigurationConsole() {
       ]);
     },
     onError: (error) => {
-      setMessage({ type: "error", text: error instanceof Error ? error.message : ui.bootstrapFailed });
+      const raw = error instanceof Error ? error.message : ui.bootstrapFailed;
+      setMessage({
+        type: "error",
+        text: normalizeBootstrapError(raw, lang === "ja" ? "ja" : "vi"),
+      });
+    },
+  });
+
+  const createFirstSetMutation = useMutation({
+    mutationFn: async () => {
+      const scopeRubrics = rubrics.filter((r) => r.document_type === documentType);
+      const activeRubric = scopeRubrics.find((r) => r.status === "active") || scopeRubrics[0];
+      if (!activeRubric) throw new Error(lang === "ja" ? "Rubric が存在しません。" : "Chưa có khung tiêu chí chấm điểm cho loại tài liệu này.");
+      if (!newPromptContent.trim()) throw new Error(lang === "ja" ? "Prompt 内容を入力してください。" : "Vui lòng nhập hướng dẫn phản hồi AI.");
+      if (!newPolicyContent.trim()) throw new Error(lang === "ja" ? "Policy 内容を入力してください。" : "Vui lòng nhập nguyên tắc đánh giá.");
+
+      if (changeRubric && newRubricContent.trim()) {
+        const fallbackManual = manualCriteria
+          .filter((item) => item.key.trim())
+          .map((item) => ({
+            key: item.key.trim(),
+            max_score: Number(item.max_score) || 0,
+            labels: {
+              vi: item.label_vi?.trim() || item.key.trim(),
+              ja: item.label_ja?.trim() || item.key.trim(),
+            },
+          }));
+        const criteriaRows = (((activeRubric as any).criteria || []) as Array<{ key: string; max_score: number; labels?: Record<string, string> }>)
+          .filter((row) => row && row.key)
+          .length
+          ? ((activeRubric as any).criteria || []) as Array<{ key: string; max_score: number; labels?: Record<string, string> }>
+          : fallbackManual;
+        if (!criteriaRows.length) {
+          throw new Error(
+            lang === "ja"
+              ? "Rubric v1 をゼロから作成するには criteria 定義が必要です。"
+              : "Để tạo khung tiêu chí chấm điểm v1 từ đầu cần có danh sách tiêu chí."
+          );
+        }
+        const rubricVersions = scopeRubrics.map((r) => r.version);
+        const rubricVersion = nextVersion(rubricVersions);
+        await createMgmtRubric({
+          document_type: documentType,
+          version: rubricVersion,
+          prompt: { vi: newRubricContent.trim() },
+          criteria: criteriaRows.map((c) => ({
+            key: c.key,
+            max_score: c.max_score,
+            labels: c.labels || { vi: c.key, ja: c.key },
+          })),
+          activate: true,
+        });
+      }
+
+      const promptVersions = prompts
+        .filter((p) => p.document_type === documentType && p.level === level)
+        .map((p) => p.version);
+      const policyVersions = policies.filter((p) => p.level === level).map((p) => p.version);
+
+      await createMgmtPrompt({
+        document_type: documentType,
+        level,
+        version: nextVersion(promptVersions),
+        content: newPromptContent.trim(),
+        activate: true,
+      });
+      await createMgmtPolicy({
+        level,
+        version: nextVersion(policyVersions),
+        content: newPolicyContent.trim(),
+        activate: true,
+      });
+
+      return bootstrapEvaluationSet({
+        document_type: documentType,
+        level,
+        name: setName.trim() || `${documentType}-${level}-set-v1`,
+      });
+    },
+    onSuccess: async () => {
+      setCreateOpen(false);
+      setMessage({ type: "success", text: ui.bootstrapSuccess });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["mgmt-evaluation-sets", documentType, level] }),
+        queryClient.invalidateQueries({ queryKey: ["mgmt-evaluation-set-active", documentType, level] }),
+        queryClient.invalidateQueries({ queryKey: ["mgmt-rubrics"] }),
+        queryClient.invalidateQueries({ queryKey: ["mgmt-prompts"] }),
+        queryClient.invalidateQueries({ queryKey: ["mgmt-policies"] }),
+      ]);
+      setActiveTab("sets");
+    },
+    onError: (error) => {
+      setMessage({ type: "error", text: error instanceof Error ? error.message : ui.createFailed });
     },
   });
 
@@ -314,12 +433,21 @@ export default function AIConfigurationConsole() {
     setActiveTab("create");
   };
 
-  useEffect(() => {
-    // Enforce onboarding flow: no active set => user must bootstrap in "sets" tab first.
-    if (!hasCurrentSet && activeTab !== "sets") {
-      setActiveTab("sets");
-    }
-  }, [hasCurrentSet, activeTab]);
+  const openCreateFromScratch = () => {
+    setActiveTab("create");
+    setCreateOpen(true);
+    setSetName(`${documentType} ${level} set v1`);
+    setCreateStep(1);
+    setChangeRubric(false);
+    setChangePrompt(true);
+    setChangePolicy(true);
+    setChangeRequiredRules(false);
+    const activeRubric = rubrics.find((r) => r.document_type === documentType && r.status === "active") || rubrics.find((r) => r.document_type === documentType);
+    setNewRubricContent(activeRubric?.prompt?.vi || activeRubric?.prompt?.ja || "");
+    setNewPromptContent("");
+    setNewPolicyContent("");
+    setNewRequiredRulesContent((requiredRulesData?.rules || []).join("\n"));
+  };
 
   useEffect(() => {
     if (!evaluationSets.length) {
@@ -376,12 +504,14 @@ export default function AIConfigurationConsole() {
             <button
               className={activeTab === "create" ? "btn-primary btn-primary--compact" : "btn-secondary btn-secondary--compact"}
               onClick={() => {
-                setActiveTab("create");
-                setCreateOpen(true);
-                if (hasCurrentSet) openCreateFromCurrent();
+                if (hasCurrentSet) {
+                  setActiveTab("create");
+                  setCreateOpen(true);
+                  openCreateFromCurrent();
+                } else {
+                  openCreateFromScratch();
+                }
               }}
-              disabled={!hasCurrentSet}
-              title={!hasCurrentSet ? ui.noActiveSetTooltip : undefined}
             >
               {ui.tabCreate}
             </button>
@@ -419,10 +549,9 @@ export default function AIConfigurationConsole() {
                 {!activeDetails ? (
                   <button
                     className="btn-primary btn-primary--compact"
-                    onClick={() => bootstrapSetMutation.mutate()}
-                    disabled={bootstrapSetMutation.isPending}
+                    onClick={openCreateFromScratch}
                   >
-                    {bootstrapSetMutation.isPending ? ui.bootstrapping : ui.bootstrapScope}
+                    {ui.bootstrapScope}
                   </button>
                 ) : null}
               </div>
@@ -476,10 +605,10 @@ export default function AIConfigurationConsole() {
                             ) : null}
                           </div>
                           <div style={{ fontSize: 12, color: "#64748b" }}>
-                            <strong>Rubric:</strong> {details?.rubric?.version || "#"+setItem.rubric_version_id} |{" "}
-                            <strong>Prompt:</strong> {details?.prompt?.version || "#"+setItem.prompt_version_id} |{" "}
-                            <strong>Policy:</strong> {details?.policy?.version || "#"+setItem.policy_version_id} |{" "}
-                            <strong>Required Rules:</strong> {setItem.required_rules_version || "system-rules-v1"} ({(setItem.required_rule_hash || "-").slice(0, 12)}...)
+                            <strong>Khung tiêu chí:</strong> {details?.rubric?.version || "#"+setItem.rubric_version_id} |{" "}
+                            <strong>Hướng dẫn AI:</strong> {details?.prompt?.version || "#"+setItem.prompt_version_id} |{" "}
+                            <strong>Nguyên tắc:</strong> {details?.policy?.version || "#"+setItem.policy_version_id} |{" "}
+                            <strong>Quy tắc bắt buộc:</strong> {setItem.required_rules_version || "system-rules-v1"} ({(setItem.required_rule_hash || "-").slice(0, 12)}...)
                           </div>
                         </button>
                       );
@@ -495,12 +624,12 @@ export default function AIConfigurationConsole() {
                         <div><strong>Name:</strong> {selectedSet.name}</div>
                         <div><strong>Status:</strong> {selectedSet.status}</div>
                         <div><strong>{ui.documentTypeLabel}:</strong> {selectedSet.document_type}</div>
-                        <div><strong>Level:</strong> {selectedSet.level}</div>
-                        <div><strong>Rubric:</strong> {selectedSet.rubric?.version || "-"}</div>
-                        <div><strong>Prompt:</strong> {selectedSet.prompt?.version || "-"}</div>
-                        <div><strong>Policy:</strong> {selectedSet.policy?.version || "-"}</div>
-                        <div><strong>Rules version:</strong> {selectedSet.required_rules_version}</div>
-                        <div><strong>Rules hash:</strong> {selectedSet.required_rule_hash}</div>
+                        <div><strong>Mức độ đánh giá:</strong> {selectedSet.level}</div>
+                        <div><strong>Khung tiêu chí chấm điểm:</strong> {selectedSet.rubric?.version || "-"}</div>
+                        <div><strong>Hướng dẫn phản hồi AI:</strong> {selectedSet.prompt?.version || "-"}</div>
+                        <div><strong>Nguyên tắc đánh giá:</strong> {selectedSet.policy?.version || "-"}</div>
+                        <div><strong>Phiên bản quy tắc bắt buộc:</strong> {selectedSet.required_rules_version}</div>
+                        <div><strong>Mã quy tắc bắt buộc:</strong> {selectedSet.required_rule_hash}</div>
                       </div>
                       <div style={{ marginTop: 12 }}>
                         <strong>{ui.history}</strong>
@@ -547,10 +676,10 @@ export default function AIConfigurationConsole() {
               </div>
               {compareSummary ? (
                 <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "repeat(4,minmax(100px,1fr))", gap: 8, fontSize: 12 }}>
-                  <div><strong>Rubric:</strong> {compareSummary.rubric === "changed" ? ui.changed : ui.unchanged}</div>
-                  <div><strong>Prompt:</strong> {compareSummary.prompt === "changed" ? ui.changed : ui.unchanged}</div>
-                  <div><strong>Policy:</strong> {compareSummary.policy === "changed" ? ui.changed : ui.unchanged}</div>
-                  <div><strong>Rules:</strong> {compareSummary.rules === "changed" ? ui.changed : ui.unchanged}</div>
+                  <div><strong>Khung tiêu chí:</strong> {compareSummary.rubric === "changed" ? ui.changed : ui.unchanged}</div>
+                  <div><strong>Hướng dẫn AI:</strong> {compareSummary.prompt === "changed" ? ui.changed : ui.unchanged}</div>
+                  <div><strong>Nguyên tắc:</strong> {compareSummary.policy === "changed" ? ui.changed : ui.unchanged}</div>
+                  <div><strong>Quy tắc bắt buộc:</strong> {compareSummary.rules === "changed" ? ui.changed : ui.unchanged}</div>
                 </div>
               ) : null}
             </SectionBlock.Body>
@@ -572,7 +701,63 @@ export default function AIConfigurationConsole() {
                 </div>
                 <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
                   <label style={{ display: "block" }}><input type="checkbox" checked={changeRubric} onChange={(event) => setChangeRubric(event.target.checked)} /> {ui.changeRubric}</label>
-                  {changeRubric ? <textarea value={newRubricContent} onChange={(event) => setNewRubricContent(event.target.value)} rows={5} style={{ width: "100%", marginBottom: 8 }} /> : null}
+                  {changeRubric ? (
+                    <>
+                      <textarea value={newRubricContent} onChange={(event) => setNewRubricContent(event.target.value)} rows={5} style={{ width: "100%", marginBottom: 8 }} />
+                      <div style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: 8, background: "#f8fafc", marginBottom: 8 }}>
+                        <div style={{ fontSize: 12, color: "#475569", marginBottom: 6 }}>
+                          {lang === "ja" ? "Rubric criteria（初期作成用）" : "Tiêu chí chấm điểm (cho tạo mới từ đầu)"}
+                        </div>
+                        <div style={{ display: "grid", gap: 6 }}>
+                          {manualCriteria.map((row, idx) => (
+                            <div key={`criterion-${idx}`} style={{ display: "grid", gridTemplateColumns: "1fr 100px 1fr 1fr auto", gap: 6, alignItems: "center" }}>
+                              <input
+                                value={row.key}
+                                onChange={(event) => setManualCriteria((prev) => prev.map((it, i) => i === idx ? { ...it, key: event.target.value } : it))}
+                                placeholder="key"
+                              />
+                              <input
+                                type="number"
+                                value={row.max_score}
+                                onChange={(event) => setManualCriteria((prev) => prev.map((it, i) => i === idx ? { ...it, max_score: Number(event.target.value) || 0 } : it))}
+                                placeholder="max"
+                              />
+                              <input
+                                value={row.label_vi}
+                                onChange={(event) => setManualCriteria((prev) => prev.map((it, i) => i === idx ? { ...it, label_vi: event.target.value } : it))}
+                                placeholder="label vi"
+                              />
+                              <input
+                                value={row.label_ja}
+                                onChange={(event) => setManualCriteria((prev) => prev.map((it, i) => i === idx ? { ...it, label_ja: event.target.value } : it))}
+                                placeholder="label ja"
+                              />
+                              <button
+                                type="button"
+                                className="btn-secondary btn-secondary--compact"
+                                onClick={() => setManualCriteria((prev) => prev.filter((_, i) => i !== idx))}
+                                disabled={manualCriteria.length <= 1}
+                              >
+                                -
+                              </button>
+                            </div>
+                          ))}
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#64748b" }}>
+                            <span>
+                              {(lang === "ja" ? "合計点: " : "Tổng điểm: ") + manualCriteria.reduce((sum, item) => sum + (Number(item.max_score) || 0), 0)}
+                            </span>
+                            <button
+                              type="button"
+                              className="btn-secondary btn-secondary--compact"
+                              onClick={() => setManualCriteria((prev) => [...prev, { key: "", max_score: 0, label_vi: "", label_ja: "" }])}
+                            >
+                              {lang === "ja" ? "+ 追加" : "+ Thêm tiêu chí"}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  ) : null}
                   <label style={{ display: "block" }}><input type="checkbox" checked={changePrompt} onChange={(event) => setChangePrompt(event.target.checked)} /> {ui.changePrompt}</label>
                   {changePrompt ? <textarea value={newPromptContent} onChange={(event) => setNewPromptContent(event.target.value)} rows={5} style={{ width: "100%", marginBottom: 8 }} /> : null}
                   <label style={{ display: "block" }}><input type="checkbox" checked={changePolicy} onChange={(event) => setChangePolicy(event.target.checked)} /> {ui.changePolicy}</label>
@@ -587,7 +772,7 @@ export default function AIConfigurationConsole() {
                 ) : null}
                 <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
                   <button className="btn-secondary btn-secondary--compact" onClick={() => { setCreateOpen(false); setActiveTab("sets"); }}>{ui.cancel}</button>
-                  <button className="btn-primary btn-primary--compact" disabled={!setName.trim()} onClick={() => setCreateStep(2)}>{ui.review}</button>
+                  <button className="btn-primary btn-primary--compact" disabled={!setName.trim() || (!hasCurrentSet && (!newPromptContent.trim() || !newPolicyContent.trim()))} onClick={() => setCreateStep(2)}>{ui.review}</button>
                 </div>
               </>
             ) : null}
@@ -595,10 +780,10 @@ export default function AIConfigurationConsole() {
             {createStep === 2 ? (
               <>
                 <div style={{ display: "grid", gap: 6, fontSize: 13 }}>
-                  <div><strong>Rubric:</strong> {effectiveRubricChange ? ui.newVersion : `${ui.reuse} ${activeDetails?.rubric?.version || "-"}`}</div>
-                  <div><strong>Prompt:</strong> {effectivePromptChange ? ui.newVersion : `${ui.reuse} ${activeDetails?.prompt?.version || "-"}`}</div>
-                  <div><strong>Policy:</strong> {effectivePolicyChange ? ui.newVersion : `${ui.reuse} ${activeDetails?.policy?.version || "-"}`}</div>
-                  <div><strong>Required Rules:</strong> {effectiveRequiredRulesChange ? ui.newVersion : `${activeDetails?.required_rules_version || "system-rules-v1"} (${(activeDetails?.required_rule_hash || "-").slice(0, 16)}...)`}</div>
+                  <div><strong>Khung tiêu chí chấm điểm:</strong> {effectiveRubricChange ? ui.newVersion : `${ui.reuse} ${activeDetails?.rubric?.version || "-"}`}</div>
+                  <div><strong>Hướng dẫn phản hồi AI:</strong> {effectivePromptChange ? ui.newVersion : `${ui.reuse} ${activeDetails?.prompt?.version || "-"}`}</div>
+                  <div><strong>Nguyên tắc đánh giá:</strong> {effectivePolicyChange ? ui.newVersion : `${ui.reuse} ${activeDetails?.policy?.version || "-"}`}</div>
+                  <div><strong>Quy tắc bắt buộc:</strong> {effectiveRequiredRulesChange ? ui.newVersion : `${activeDetails?.required_rules_version || "system-rules-v1"} (${(activeDetails?.required_rule_hash || "-").slice(0, 16)}...)`}</div>
                   <div><strong>Set Name:</strong> {setName}</div>
                 </div>
                 <div style={{ marginTop: 8, color: "#475569", fontSize: 12 }}>
@@ -606,10 +791,24 @@ export default function AIConfigurationConsole() {
                 </div>
                 <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
                   <button className="btn-secondary btn-secondary--compact" onClick={() => setCreateStep(1)}>{ui.back}</button>
-                  <button className="btn-secondary btn-secondary--compact" disabled={createSetMutation.isPending} onClick={() => createSetMutation.mutate(false)}>
-                    {createSetMutation.isPending ? ui.saving : ui.saveArchived}
+                  <button
+                    className="btn-secondary btn-secondary--compact"
+                    disabled={createSetMutation.isPending || createFirstSetMutation.isPending || !hasCurrentSet}
+                    onClick={() => createSetMutation.mutate(false)}
+                  >
+                    {(createSetMutation.isPending || createFirstSetMutation.isPending) ? ui.saving : ui.saveArchived}
                   </button>
-                  <button className="btn-primary btn-primary--compact" disabled={createSetMutation.isPending} onClick={() => setActivateConfirmOpen(true)}>
+                  <button
+                    className="btn-primary btn-primary--compact"
+                    disabled={createSetMutation.isPending || createFirstSetMutation.isPending}
+                    onClick={() => {
+                      if (hasCurrentSet) {
+                        setActivateConfirmOpen(true);
+                      } else {
+                        createFirstSetMutation.mutate();
+                      }
+                    }}
+                  >
                     {ui.saveAndActivate}
                   </button>
                 </div>
@@ -649,11 +848,11 @@ function renderSet(setItem: {
   return [
     `name: ${setItem.name}`,
     `status: ${setItem.status}`,
-    `level: ${setItem.level}`,
-    `rubric: ${setItem.rubric?.version || "-"}`,
-    `prompt: ${setItem.prompt?.version || "-"}`,
-    `policy: ${setItem.policy?.version || "-"}`,
-    `required_rule_hash: ${setItem.required_rule_hash}`,
+    `muc_do_danh_gia: ${setItem.level}`,
+    `khung_tieu_chi_cham_diem: ${setItem.rubric?.version || "-"}`,
+    `huong_dan_phan_hoi_ai: ${setItem.prompt?.version || "-"}`,
+    `nguyen_tac_danh_gia: ${setItem.policy?.version || "-"}`,
+    `ma_quy_tac_bat_buoc: ${setItem.required_rule_hash}`,
     "",
     "prompt_content:",
     setItem.prompt?.content || "-",

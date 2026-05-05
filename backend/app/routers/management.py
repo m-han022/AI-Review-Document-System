@@ -782,6 +782,7 @@ async def bootstrap_evaluation_set(payload: EvaluationSetBootstrapIn, session: S
     policy = session.exec(
         select(EvaluationPolicy).where(EvaluationPolicy.level == lvl, EvaluationPolicy.status == "active")
     ).first()
+
     if not rubric or not prompt or not policy:
         raise HTTPException(status_code=400, detail="Cannot bootstrap: missing active rubric/prompt/policy for scope")
 

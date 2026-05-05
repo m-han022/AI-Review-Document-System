@@ -736,7 +736,8 @@ class SubmissionStore:
                 document_version=version.document_version,
                 rubric_version=result_data["rubric_version"],
                 prompt_level=result_data["prompt_level"],
-                content_hash=version.content_hash
+                content_hash=version.content_hash,
+                evaluation_set_id=result_data["evaluation_set_id"],
             )
             
             grading_service._save_grading_results(run, result_data)

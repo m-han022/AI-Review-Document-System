@@ -280,6 +280,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
     documentType &&
       uploadedProjectId &&
       uploadState === "uploaded" &&
+      selectedEvaluationSetId &&
       !reviewing 
   );
   const { data: evaluationSetsData } = useQuery({

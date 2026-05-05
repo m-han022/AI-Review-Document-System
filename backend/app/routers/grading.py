@@ -1,15 +1,14 @@
 from datetime import datetime, timezone
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Depends
 from app.storage import store
-from app.models import GradeResponse, GradeRequest, SubmissionDocumentVersion, Submission, EvaluationSet, Rubric, PromptVersion, EvaluationPolicy
+from app.models import GradeResponse, GradeRequest, SubmissionDocumentVersion, Submission, EvaluationSet
 from app.database import engine, get_session
 from app.config import settings
 from app.tasks import grade_document_version_task
 from app.repositories.submission_repository import SubmissionRepository
 from app.repositories.grading_repository import GradingRepository
 from app.services.grading_service import GradingService
-from app.services.prompt_composer import get_active_required_rule_set
-from app.services.prompt_policy import normalize_prompt_level, _now, get_active_policy, get_active_prompt_version
+from app.services.prompt_policy import normalize_prompt_level
 from sqlmodel import Session, select
 
 router = APIRouter()
@@ -19,68 +18,15 @@ def get_grading_service(session: Session = Depends(get_session)) -> GradingServi
     grading_repo = GradingRepository(session)
     return GradingService(sub_repo, grading_repo)
 
-def _archive_active_sets(session: Session, document_type: str, level: str) -> None:
-    rows = session.exec(
-        select(EvaluationSet).where(
-            EvaluationSet.document_type == document_type,
-            EvaluationSet.level == level,
-            EvaluationSet.status == "active",
-        )
-    ).all()
-    for row in rows:
-        row.status = "archived"
-
 def _ensure_active_evaluation_set(session: Session, document_type: str, level: str) -> EvaluationSet | None:
     lvl = normalize_prompt_level(level)
-    active_set = session.exec(
+    return session.exec(
         select(EvaluationSet).where(
             EvaluationSet.document_type == document_type,
             EvaluationSet.level == lvl,
             EvaluationSet.status == "active",
         )
     ).first()
-    if active_set:
-        return active_set
-
-    rubric = session.exec(
-        select(Rubric).where(Rubric.document_type == document_type, Rubric.status == "active")
-    ).first()
-    if not rubric:
-        # Backward-compatible fallback: allow grading to continue without evaluation set binding
-        # if this scope has not been configured yet.
-        return None
-
-    prompt = session.exec(
-        select(PromptVersion).where(
-            PromptVersion.document_type == document_type,
-            PromptVersion.level == lvl,
-            PromptVersion.status == "active",
-        )
-    ).first() or get_active_prompt_version(document_type, lvl)
-    policy = session.exec(
-        select(EvaluationPolicy).where(EvaluationPolicy.level == lvl, EvaluationPolicy.status == "active")
-    ).first() or get_active_policy(lvl)
-
-    rule_set = get_active_required_rule_set(session)
-    _archive_active_sets(session, document_type, lvl)
-    created = EvaluationSet(
-        name=f"{document_type}-{lvl}-set-auto",
-        document_type=document_type,
-        level=lvl,
-        rubric_version_id=rubric.id or 0,
-        prompt_version_id=prompt.id or 0,
-        policy_version_id=policy.id or 0,
-        required_rule_set_id=rule_set.id,
-        required_rules_version=rule_set.version,
-        required_rule_hash=rule_set.hash,
-        version_label=f"{document_type}-{lvl}-set-auto",
-        status="active",
-        created_at=_now(),
-    )
-    session.add(created)
-    session.commit()
-    session.refresh(created)
-    return created
 
 async def _perform_grading(
     service: GradingService,
@@ -131,6 +77,16 @@ async def _perform_grading(
             )
             evaluation_set_id = auto_set.id if auto_set else None
 
+        if evaluation_set_id is None:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"evaluation_set_id is required for document_type '{resolved_document_type}' "
+                    f"and level '{normalize_prompt_level(prompt_level)}'. "
+                    "Please create/activate an evaluation set first."
+                ),
+            )
+
         # 2. Check if we should use Celery
         if settings.use_celery:
             # Create a PENDING run record first
@@ -149,7 +105,8 @@ async def _perform_grading(
                 document_version=version.document_version,
                 rubric_version=rubric_version or "latest", # Will be resolved in task
                 prompt_level=prompt_level,
-                content_hash=version.content_hash
+                content_hash=version.content_hash,
+                evaluation_set_id=evaluation_set_id,
             )
             
             # Dispatch Celery task

@@ -77,6 +77,7 @@ class GradingRepository:
                 GradingRun.gemini_model == signature.get("gemini_model"),
                 GradingRun.grading_schema_version == signature.get("grading_schema_version"),
                 GradingRun.project_description_hash == signature.get("project_description_hash"),
+                GradingRun.evaluation_set_id == signature.get("evaluation_set_id"),
             )
             .order_by(col(GradingRun.graded_at).desc(), col(GradingRun.id).desc())
         )
