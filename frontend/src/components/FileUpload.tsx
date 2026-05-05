@@ -1,12 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { gradeSubmission, uploadFile, listProjects, listEvaluationSets, getEvaluationSetDetail } from "../api/client";
-import { getActiveRubricConfig } from "../constants/gradingCriteria";
+import {
+  gradeSubmission,
+  uploadFile,
+  listProjects,
+  listEvaluationSets,
+  getEvaluationSetDetail,
+  listProjectDocuments,
+  listDocumentVersions,
+} from "../api/client";
 import { DOCUMENT_TYPE_OPTIONS, type DocumentType } from "../constants/documentTypes";
-import { useRubricList } from "../hooks/useRubrics";
 import { projectsQueryKey } from "../query";
 import type { EvaluationSet, GradeResponse, LanguageCode } from "../types";
 import { useTranslation } from "./LanguageSelector";
+import ProjectCreateDialog from "./project/ProjectCreateDialog";
+import ConfirmDialog from "./ui/ConfirmDialog";
 import {
   BookOpenIcon,
   BugIcon,
@@ -16,7 +24,7 @@ import {
   UploadCloudIcon,
 } from "./ui/Icon";
 import { PageHeader } from "./ui/PageHeader";
-import { ErrorState, FilePreview, StatusBadge, SuccessState, Tooltip } from "./ui/States";
+import { EmptyState, ErrorState, FilePreview, StatusBadge, SuccessState, Tooltip } from "./ui/States";
 
 const ACCEPTED_EXTENSIONS = [".pdf", ".pptx"];
 const MAX_FILE_SIZE = 100 * 1024 * 1024;
@@ -189,6 +197,14 @@ function formatFileSize(size: number | null) {
   return `${Math.max(1, Math.round(size / 1024))}KB`;
 }
 
+async function sha256Hex(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  const digest = await crypto.subtle.digest("SHA-256", buffer);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 function isAcceptedFile(file: File) {
   const lowerName = file.name.toLowerCase();
   return ACCEPTED_EXTENSIONS.some((extension) => lowerName.endsWith(extension));
@@ -213,6 +229,23 @@ function getStepIndex(documentType: DocumentType | null, uploadState: UploadStat
   return 0;
 }
 
+function isConfigurationError(message: string): boolean {
+  const raw = (message || "").toLowerCase();
+  return (
+    raw.includes("evaluation set") ||
+    raw.includes("bộ cấu hình đánh giá") ||
+    raw.includes("評価セット") ||
+    raw.includes("evaluation_set_id")
+  );
+}
+
+function classifyReviewError(message: string, lang: LanguageCode): string {
+  if (isConfigurationError(message)) {
+    return lang === "ja" ? `設定エラー: ${message}` : `Lỗi cấu hình: ${message}`;
+  }
+  return lang === "ja" ? `レビューエラー: ${message}` : `Lỗi review: ${message}`;
+}
+
 export default function FileUpload({ onReviewComplete }: FileUploadProps) {
   const [documentType, setDocumentType] = useState<DocumentType | null>(null);
   const [selectedEvaluationSetId, setSelectedEvaluationSetId] = useState<number | null>(null);
@@ -227,7 +260,11 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
   const [forceRegrade, setForceRegrade] = useState(false);
   const [processingStep, setProcessingStep] = useState<ProcessingStep>("read");
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [reviewErrorKind, setReviewErrorKind] = useState<"config" | "runtime" | null>(null);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+  const [showCreateProjectDialog, setShowCreateProjectDialog] = useState(false);
+  const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
+  const [pendingDuplicateFile, setPendingDuplicateFile] = useState<File | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{
     project?: string;
     file?: string;
@@ -237,30 +274,13 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
   const queryClient = useQueryClient();
   const { lang, t } = useTranslation();
   const copy = UPLOAD_COPY[lang] ?? UPLOAD_COPY.vi;
-  const rubrics = useRubricList();
   const effectiveDocumentType = documentType ?? "project-review";
-  const criteriaConfig = useMemo(
-    () => getActiveRubricConfig(rubrics, effectiveDocumentType, lang),
-    [effectiveDocumentType, lang, rubrics],
-  );
-  const hasActiveCriteria = criteriaConfig.order.length > 0;
-  const selectedCriteriaPreview = useMemo(
-    () =>
-      criteriaConfig.order.map((criterionKey) => ({
-        key: criterionKey,
-        label: t(`upload.criteria.${criterionKey}`),
-        maxScore: criteriaConfig.maxScores[criterionKey],
-      })),
-    [criteriaConfig, t],
-  );
   const activeStep = getStepIndex(documentType, uploadState, reviewing);
   const canStartReview = Boolean(
     documentType &&
       uploadedProjectId &&
-      selectedEvaluationSetId &&
       uploadState === "uploaded" &&
-      !reviewing &&
-      hasActiveCriteria,
+      !reviewing 
   );
   const { data: evaluationSetsData } = useQuery({
     queryKey: ["upload-evaluation-sets", effectiveDocumentType],
@@ -278,6 +298,14 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
     queryFn: () => getEvaluationSetDetail(selectedEvaluationSetId as number),
     enabled: showAdvancedOptions && typeof selectedEvaluationSetId === "number",
   });
+  const selectedCriteriaPreview = useMemo(() => {
+    const raw = selectedEvaluationSetDetail?.criteria ?? [];
+    return raw.map((item) => ({
+      key: item.key,
+      label: lang === "ja" ? item.label_ja || item.key : item.label_vi || item.key,
+      maxScore: item.max_score,
+    }));
+  }, [selectedEvaluationSetDetail, lang]);
 
   useEffect(() => {
     if (!documentType) {
@@ -339,6 +367,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
     setUploadState("idle");
     setUploadProgress(0);
     setMessage(null);
+    setReviewErrorKind(null);
     setFieldErrors({});
     resetInput();
   };
@@ -349,7 +378,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
     }
   };
 
-  const uploadSelectedFile = async (file: File) => {
+  const uploadSelectedFile = async (file: File, skipDuplicateCheck: boolean = false) => {
     setFieldErrors({});
     if (!documentType) {
       setMessage({ text: copy.disabledHelper, type: "error" });
@@ -372,9 +401,43 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
 
     setSelectedFile(file);
     setUploadedProjectId(null);
+    setMessage(null);
+
+    if (!selectedExistingProjectId) {
+      setUploadState("error");
+      setFieldErrors({ project: copy.projectRequired });
+      return;
+    }
+
+    const uploadMetadata = resolveUploadMetadata(file);
+    if (!skipDuplicateCheck) {
+      try {
+        const docs = await listProjectDocuments(selectedExistingProjectId);
+        const matchedDoc = docs.find(
+          (d) =>
+            d.document_type === documentType &&
+            d.document_name.trim().toLowerCase() === uploadMetadata.documentName.trim().toLowerCase(),
+        );
+        if (matchedDoc) {
+          const versions = await listDocumentVersions(matchedDoc.document_id);
+          const latestVersion = versions.find((v) => v.is_latest) ?? versions[0];
+          if (latestVersion?.content_hash) {
+            const newFileHash = await sha256Hex(file);
+            if (newFileHash === latestVersion.content_hash) {
+              setPendingDuplicateFile(file);
+              setShowDuplicateConfirm(true);
+              setUploadState("idle");
+              return;
+            }
+          }
+        }
+      } catch {
+        // Non-blocking UX check: if hash pre-check fails, continue upload normally.
+      }
+    }
+
     setUploadState("uploading");
     setUploadProgress(8);
-    setMessage(null);
 
     const timer = window.setInterval(() => {
       setUploadProgress((current) => Math.min(92, current + 14));
@@ -382,16 +445,9 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
 
     try {
       const formData = new FormData();
-      const uploadMetadata = resolveUploadMetadata(file);
       formData.append("file", file);
       formData.append("language", lang);
-      
-      if (!selectedExistingProjectId) {
-        setUploadState("error");
-        setFieldErrors({ project: copy.projectRequired });
-        window.clearInterval(timer);
-        return;
-      }
+
       formData.append("project_id", selectedExistingProjectId);
       formData.append("project_name", uploadMetadata.projectName);
       formData.append("document_type", documentType);
@@ -428,15 +484,6 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
 
   const handleReview = async () => {
     if (!uploadedProjectId || !documentType) return;
-    if (!hasActiveCriteria) {
-      setFieldErrors({
-        rubric:
-          lang === "ja"
-            ? "Rubric active version を設定してください。"
-            : "Vui lòng bật rubric active trước khi review.",
-      });
-      return;
-    }
     setReviewing(true);
     setProcessingStep("read");
     setMessage(null);
@@ -446,12 +493,14 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
       const result = (await reviewMutation.mutateAsync({
         projectId: uploadedProjectId,
         force: forceRegrade,
-        evaluationSetId: selectedEvaluationSetId,
       })) as GradeResponse;
       setMessage({ text: `${copy.success}: ${result.score}/100`, type: "success" });
+      setReviewErrorKind(null);
       onReviewComplete?.(result.project_id);
     } catch (err) {
-      setMessage({ text: err instanceof Error ? err.message : t("submissions.gradingFailed"), type: "error" });
+      const rawMessage = err instanceof Error ? err.message : t("submissions.gradingFailed");
+      setReviewErrorKind(isConfigurationError(rawMessage) ? "config" : "runtime");
+      setMessage({ text: classifyReviewError(rawMessage, lang), type: "error" });
     } finally {
       setReviewing(false);
     }
@@ -459,6 +508,23 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
 
   const retryUpload = async () => {
     if (selectedFile) await uploadSelectedFile(selectedFile);
+  };
+
+  const handleConfirmDuplicateUpload = async () => {
+    const file = pendingDuplicateFile;
+    setShowDuplicateConfirm(false);
+    setPendingDuplicateFile(null);
+    if (file) {
+      await uploadSelectedFile(file, true);
+    }
+  };
+
+  const handleCancelDuplicateUpload = () => {
+    setShowDuplicateConfirm(false);
+    setPendingDuplicateFile(null);
+    setUploadState("idle");
+    setMessage(null);
+    resetInput();
   };
 
   return (
@@ -534,6 +600,16 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
 
               <div className="prod-field" style={{ marginBottom: '20px', padding: '0 24px' }}>
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>{lang === 'ja' ? 'プロジェクト選択' : 'Chọn dự án'}</label>
+                <div style={{ marginBottom: "8px" }}>
+                  <button
+                    type="button"
+                    className="btn-secondary btn-secondary--compact"
+                    onClick={() => setShowCreateProjectDialog(true)}
+                    disabled={uploadState === "uploading" || reviewing}
+                  >
+                    {lang === "ja" ? "+ Create Project" : "+ Tạo dự án mới"}
+                  </button>
+                </div>
                 <select 
                   className="prod-select" 
                   style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
@@ -554,6 +630,26 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                 </select>
                 {fieldErrors.project ? (
                   <p style={{ marginTop: "8px", color: "#dc2626", fontSize: "12px" }}>{fieldErrors.project}</p>
+                ) : null}
+                {projects.length === 0 ? (
+                  <div style={{ marginTop: "12px" }}>
+                    <EmptyState
+                      title={lang === "ja" ? "No available project" : "Chưa có dự án khả dụng"}
+                      description={lang === "ja" ? "Create a project before upload." : "Vui lòng tạo dự án trước khi upload."}
+                      tone="warning"
+                      compact
+                      action={
+                        <button
+                          type="button"
+                          className="prod-button"
+                          onClick={() => setShowCreateProjectDialog(true)}
+                          disabled={uploadState === "uploading" || reviewing}
+                        >
+                          {lang === "ja" ? "Create Project" : "Tạo dự án"}
+                        </button>
+                      }
+                    />
+                  </div>
                 ) : null}
                 {selectedExistingProject && (
                   <div style={{ marginTop: '12px', padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
@@ -678,28 +774,20 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                   {!canStartReview ? <p>{copy.disabledHelper}</p> : null}
                   {documentType && !selectedEvaluationSetId ? (
                     <ErrorState
-                      title={lang === "ja" ? "Evaluation Set が未選択です" : "Chưa chọn Evaluation Set"}
+                      title={lang === "ja" ? "Evaluation Set が未設定です" : "Chưa có bộ đánh giá khả dụng"}
                       description={
                         lang === "ja"
-                          ? "先にこの資料タイプの Evaluation Set を選択してください。"
-                          : "Vui lòng chọn Evaluation Set trước khi chạy review."
+                          ? "先に「Bộ cấu hình đánh giá AI」で最初のセットを作成してください。"
+                          : "Vui lòng vào \"Bộ cấu hình đánh giá AI\" và bấm \"Tạo bộ đầu tiên\"."
                       }
                       compact
                     />
                   ) : null}
-                  {documentType && !hasActiveCriteria ? (
-                    <ErrorState
-                      title={lang === "ja" ? "有効な評価基準が見つかりません" : "Không tìm thấy tiêu chuẩn đánh giá đang active"}
-                      description={lang === "ja" ? "Rubric management で active version を設定してください。" : "Vui lòng vào Rubric Management để bật một version active cho loại tài liệu này."}
-                      compact
-                    />
-                  ) : null}
-                  {fieldErrors.rubric ? (
-                    <ErrorState title={lang === "ja" ? "Rubric 設定エラー" : "Lỗi cấu hình rubric"} description={fieldErrors.rubric} compact />
-                  ) : null}
                   {message && uploadState !== "error" ? (
                     message.type === "success" ? (
                       <SuccessState title={message.text} compact />
+                    ) : reviewErrorKind === "config" ? (
+                      <EmptyState title={message.text} tone="warning" compact />
                     ) : (
                       <ErrorState title={message.text} compact />
                     )
@@ -739,30 +827,35 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
               <div className="prod-options-stack">
                 <div className="prod-option-summary">
                   <div>
-                    <span>Evaluation Set</span>
-                    <strong>{selectedEvaluationSet?.name ?? "—"}</strong>
+                    <span>{lang === "ja" ? "使用中の評価セット" : "Bộ đánh giá đang dùng"}</span>
+                    <strong>
+                      {selectedEvaluationSet
+                        ? `[Auto] ${selectedEvaluationSet.name}`
+                        : (lang === "ja" ? "[Auto] 未設定" : "[Auto] Chưa thiết lập")}
+                    </strong>
                   </div>
                 </div>
-                <label className="prod-field">
-                  <span>{lang === "ja" ? "Evaluation Set 一覧" : "Danh sách Evaluation Set"}</span>
-                  <select
-                    value={selectedEvaluationSetId ? String(selectedEvaluationSetId) : ""}
-                    onChange={(event) => setSelectedEvaluationSetId(event.target.value ? Number(event.target.value) : null)}
-                    disabled={uploadState === "uploading" || reviewing}
-                  >
-                    {!scopedEvaluationSets.length ? (
-                      <option value="">{lang === "ja" ? "利用可能なセットなし" : "Không có set khả dụng"}</option>
-                    ) : null}
-                    {scopedEvaluationSets.map((setItem) => (
-                      <option key={setItem.id} value={setItem.id}>
-                        {setItem.name} • {setItem.level} • {setItem.status}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <div className="prod-field">
+                  <small style={{ color: "#64748b" }}>
+                    {lang === "ja"
+                      ? "システムが最新の active 設定を自動選択します。"
+                      : "Hệ thống tự động áp dụng cấu hình active mới nhất."}
+                  </small>
+                </div>
+                {!selectedEvaluationSet ? (
+                  <ErrorState
+                    title={lang === "ja" ? "評価セットが未設定です" : "Chưa có bộ đánh giá"}
+                    description={
+                      lang === "ja"
+                        ? "「Bộ cấu hình đánh giá AI」で「最初のセットを作成」を実行してください。"
+                        : "Vui lòng vào \"Bộ cấu hình đánh giá AI\" và bấm \"Tạo bộ đầu tiên\"."
+                    }
+                    compact
+                  />
+                ) : null}
 
                 <div className="prod-criteria-list">
-                  {hasActiveCriteria ? (
+                  {selectedCriteriaPreview.length > 0 ? (
                     selectedCriteriaPreview.map((criterion) => (
                       <article key={criterion.key}>
                         <ShieldCheckIcon size="sm" />
@@ -773,7 +866,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                   ) : (
                     <article>
                       <ShieldCheckIcon size="sm" />
-                      <span>{lang === "ja" ? "Rubric active version が未設定です" : "Chưa có rubric active cho loại tài liệu này"}</span>
+                      <span>{lang === "ja" ? "選択した Evaluation Set の基準がありません" : "Evaluation Set được chọn chưa có danh sách tiêu chí"}</span>
                     </article>
                   )}
                 </div>
@@ -831,6 +924,35 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
           </aside>
         </div>
       </div>
+      <ProjectCreateDialog
+        open={showCreateProjectDialog}
+        onClose={() => setShowCreateProjectDialog(false)}
+        onCreated={(project) => {
+          setSelectedExistingProjectId(project.project_id);
+          setProjectDescription(project.project_description || "");
+          setFieldErrors((prev) => ({ ...prev, project: undefined }));
+        }}
+      />
+      <ConfirmDialog
+        open={showDuplicateConfirm}
+        title={lang === "ja" ? "同一内容の確認" : "Xác nhận nội dung trùng"}
+        description={
+          lang === "ja"
+            ? "前回のバージョンと同じ内容です。新しいバージョンを作成しますか？"
+            : "Nội dung giống version trước. Bạn vẫn muốn tạo version mới không?"
+        }
+        details={
+          pendingDuplicateFile
+            ? [pendingDuplicateFile.name, documentType ? DOCUMENT_CARD_COPY[lang][documentType].title : ""].filter(Boolean)
+            : undefined
+        }
+        confirmLabel={lang === "ja" ? "新バージョンを作成" : "Tạo version mới"}
+        cancelLabel={lang === "ja" ? "キャンセル" : "Hủy"}
+        onConfirm={() => {
+          void handleConfirmDuplicateUpload();
+        }}
+        onCancel={handleCancelDuplicateUpload}
+      />
     </section>
   );
 }

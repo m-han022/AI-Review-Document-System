@@ -102,6 +102,9 @@ class GradingService:
                 raise ValueError(f"Grading run not found: {existing_run_id}")
             # Ensure the run metadata matches (idempotency check)
             run.status = "PENDING"
+            # Defensive cleanup: if this run is retried/redelivered, child rows may already exist.
+            # Clear them now to avoid UNIQUE(grading_run_id, criterion_key) conflicts.
+            self.grading_repo.clear_run_children(run.id or 0)
             self.grading_repo.add(run)
             self.grading_repo.commit()
         else:
@@ -154,6 +157,8 @@ class GradingService:
             return result_data
 
         except Exception as e:
+            # A failed flush/commit leaves Session in failed state; rollback before any extra writes.
+            self.grading_repo.rollback()
             self.update_status(run.id, "FAILED", str(e))
             # Even on failure, we want to track this as the latest run for the project
             submission.latest_grading_run_id = run.id
@@ -162,6 +167,8 @@ class GradingService:
             raise
 
     def _save_grading_results(self, run: GradingRun, result_data: dict[str, Any]):
+        # Idempotency safety: always clear prior child rows before inserting fresh results.
+        self.grading_repo.clear_run_children(run.id or 0)
         run.score = result_data["score"]
         run.total_score = result_data["total_score"]
         run.rubric_hash = result_data["rubric_hash"]
@@ -193,7 +200,8 @@ class GradingService:
         from app.services.grading_engine import _get_criteria_config
         _, max_scores = _get_criteria_config(result_data.get("document_type"), result_data["rubric_version"])
 
-        for key, score in scores.items():
+        # Defensive dedupe by criterion_key for idempotency safety.
+        for key, score in dict(scores.items()).items():
             criterion = GradingCriteriaResult(
                 grading_run_id=run.id,
                 criterion_key=key,

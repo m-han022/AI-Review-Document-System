@@ -101,6 +101,7 @@ class EvaluationSetDetailOut(EvaluationSetOut):
     prompt_hash: str
     policy_version: str
     policy_hash: str
+    criteria: list[dict[str, Any]] = []
 
 class EvaluationSetCreateIn(BaseModel):
     base_set_id: int
@@ -162,6 +163,21 @@ def _evaluation_set_detail(session: Session, row: EvaluationSet) -> EvaluationSe
     policy = session.get(EvaluationPolicy, row.policy_version_id)
     if not rubric or not prompt or not policy:
         raise HTTPException(status_code=500, detail="Evaluation set has missing component reference")
+    criteria_rows = session.exec(
+        select(RubricCriterionRecord)
+        .where(RubricCriterionRecord.rubric_id == rubric.id)
+        .order_by(RubricCriterionRecord.sort_order.asc(), RubricCriterionRecord.id.asc())
+    ).all()
+    criteria = [
+        {
+            "key": item.key,
+            "max_score": item.max_score,
+            "label_vi": item.label_vi,
+            "label_ja": item.label_ja,
+            "sort_order": item.sort_order,
+        }
+        for item in criteria_rows
+    ]
     rubric_hash = stable_hash({"prompt": rubric.prompt})
     return EvaluationSetDetailOut(
         **row.model_dump(),
@@ -171,6 +187,7 @@ def _evaluation_set_detail(session: Session, row: EvaluationSet) -> EvaluationSe
         prompt_hash=stable_hash(prompt.content),
         policy_version=policy.version,
         policy_hash=stable_hash(policy.content),
+        criteria=criteria,
     )
 
 

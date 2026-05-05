@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Any, Optional
-from sqlmodel import Session, col, select, func
+from sqlmodel import Session, col, select, func, delete
 from app.models import (
     GradingRun,
     GradingCriteriaResult,
@@ -94,11 +94,27 @@ class GradingRepository:
         )
         return self.session.exec(statement).first()
 
+    def clear_run_children(self, run_id: int) -> None:
+        self.session.exec(
+            delete(GradingCriteriaResult).where(GradingCriteriaResult.grading_run_id == run_id)
+        )
+        self.session.exec(
+            delete(GradingSlideReview).where(GradingSlideReview.grading_run_id == run_id)
+        )
+        # Ensure child deletions are flushed before any subsequent inserts for the same run.
+        self.session.flush()
+
     def add(self, entity: Any):
         self.session.add(entity)
 
     def commit(self):
         self.session.commit()
+
+    def rollback(self):
+        self.session.rollback()
+
+    def flush(self):
+        self.session.flush()
 
     def refresh(self, entity: Any):
         self.session.refresh(entity)

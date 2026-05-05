@@ -29,6 +29,7 @@ export interface GradingRun {
   gemini_model?: string | null;
   prompt_version?: string | null;
   prompt_level?: PromptLevel | string | null;
+  evaluation_set_id?: number | null;
   policy_version?: string | null;
   policy_hash?: string | null;
   required_rule_hash?: string | null;
@@ -395,4 +396,11 @@ export interface EvaluationSetDetail extends EvaluationSet {
   prompt_hash: string;
   policy_version: string;
   policy_hash: string;
+  criteria?: Array<{
+    key: string;
+    max_score: number;
+    label_vi: string;
+    label_ja: string;
+    sort_order?: number;
+  }>;
 }

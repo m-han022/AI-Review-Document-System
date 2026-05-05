@@ -250,3 +250,26 @@ System = versioned + immutable + auditable
 - Là mô tả tổng quan dự án
 - Không phải nội dung tài liệu
 - Dùng làm context bổ sung cho AI
+
+---
+
+## Evaluation Set Runtime (Current Alignment)
+
+- UI vận hành thường dùng chế độ `Auto` cho bộ đánh giá.
+- User không bắt buộc chọn `evaluation_set_id` thủ công trước khi review.
+
+### Review Resolution Rule
+
+Khi gọi review:
+
+1. Nếu client truyền `evaluation_set_id` hợp lệ:
+   - dùng set đó.
+2. Nếu client không truyền:
+   - backend tự resolve active `EvaluationSet` theo `(document_type, prompt_level)`.
+3. Nếu chưa có active set theo scope:
+   - backend thử auto-ensure/auto-bootstrap để giảm gián đoạn vận hành.
+
+### Safety & Compatibility
+
+- Không phá luồng cũ khi scope nâng cao chưa đủ dữ liệu.
+- Vẫn đảm bảo nguyên tắc append-only, immutable, auditable cho grading run.

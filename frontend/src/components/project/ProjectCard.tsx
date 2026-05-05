@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { 
   listProjectDocuments, 
+  listProjects,
   listDocumentVersions, 
   listVersionGradings, 
   getGradingRun,
@@ -44,11 +45,7 @@ import { formatUploadedAt } from "../submissions/utils";
 import ProjectReviewDialog from "./ProjectReviewDialog";
 import VersionComparison from "./VersionComparison";
 import {
-  ExecutiveSummaryPanel,
-  FeedbackPreviewPanel,
-  IssueHighlightsPanel,
   MetadataPanel,
-  type SummaryLine,
   type FeedbackSectionView
 } from "./ProjectReviewPanels";
 import { LoadingState, EmptyState } from "../ui/States";
@@ -117,6 +114,28 @@ function splitFeedbackLines(feedback: Record<string, string> | null, lang: Langu
     .filter(Boolean);
 }
 
+function extractCriterionSuggestionText(raw: unknown, lang: LanguageCode): string {
+  if (!raw) return "";
+  if (typeof raw === "string") return raw;
+  if (typeof raw !== "object") return "";
+
+  const bag = raw as Record<string, unknown>;
+  const fallbackLang: LanguageCode = lang === "vi" ? "ja" : "vi";
+  const primary = bag[lang] ?? bag[fallbackLang];
+
+  if (typeof primary === "string") return primary;
+  if (primary && typeof primary === "object") {
+    const nested = primary as Record<string, unknown>;
+    const nestedPrimary = nested[lang] ?? nested[fallbackLang];
+    if (typeof nestedPrimary === "string") return nestedPrimary;
+    const anyNestedString = Object.values(nested).find((v) => typeof v === "string");
+    return typeof anyNestedString === "string" ? anyNestedString : "";
+  }
+
+  const anyString = Object.values(bag).find((v) => typeof v === "string");
+  return typeof anyString === "string" ? anyString : "";
+}
+
 function splitFeedbackSections(lines: string[]): FeedbackSectionView[] {
   const sections: FeedbackSectionView[] = [];
   for (const line of lines) {
@@ -151,13 +170,6 @@ function buildSlideReviewItems(slideReviews: SlideReview[] | undefined, lang: La
     });
 }
 
-function fillTemplate(template: string, replacements: Record<string, string | number>) {
-  return Object.entries(replacements).reduce(
-    (result, [key, value]) => result.replaceAll(`{${key}}`, String(value)),
-    template,
-  );
-}
-
 export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
   const { lang, t } = useTranslation();
   const queryClient = useQueryClient();
@@ -166,7 +178,7 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
   const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null);
   const [selectedGradingId, setSelectedGradingId] = useState<number | null>(null);
   
-  const [activeTab, setActiveTab] = useState<"overview" | "slides">("overview");
+  const [activeTab, setActiveTab] = useState<"criteria" | "slides">("criteria");
   const [selectedSlideId, setSelectedSlideId] = useState<number | null>(null);
   const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
   const [promptUsedOpen, setPromptUsedOpen] = useState(false);
@@ -179,19 +191,23 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
   const [compareVersionId, setCompareVersionId] = useState<number | null>(null);
 
   // Queries
-  const { data: documents = [], isLoading: loadingDocs } = useQuery<DocumentListOut[]>({
+  const { data: documents = [], isLoading: loadingDocs, error: docsError } = useQuery<DocumentListOut[]>({
     queryKey: ["project-documents", projectId],
     queryFn: () => listProjectDocuments(projectId),
   });
+  const { data: projectList = [] } = useQuery({
+    queryKey: projectsQueryKey,
+    queryFn: () => listProjects(),
+  });
 
-  const { data: versions = [], isLoading: loadingVersions } = useQuery<VersionListOut[]>({
+  const { data: versions = [], isLoading: loadingVersions, error: versionsError } = useQuery<VersionListOut[]>({
     queryKey: ["document-versions", selectedDocumentId],
     queryFn: () => listDocumentVersions(selectedDocumentId!),
     enabled: selectedDocumentId !== null && selectedDocumentId !== undefined,
     staleTime: 0, 
   });
 
-  const { data: gradings = [], isLoading: loadingGradings } = useQuery<GradingListOut[]>({
+  const { data: gradings = [], isLoading: loadingGradings, error: gradingsError } = useQuery<GradingListOut[]>({
     queryKey: ["version-gradings", selectedVersionId],
     queryFn: () => listVersionGradings(selectedVersionId!),
     enabled: !!selectedVersionId,
@@ -206,7 +222,7 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
     }
   });
 
-  const { data: gradingDetail, isLoading: loadingDetail } = useQuery<GradingRunDetail>({
+  const { data: gradingDetail, isLoading: loadingDetail, error: detailError } = useQuery<GradingRunDetail>({
     queryKey: ["grading-detail", selectedGradingId],
     queryFn: () => getGradingRun(selectedGradingId!),
     enabled: !!selectedGradingId,
@@ -247,11 +263,22 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
   }, [selectedGradingId]);
 
   // Auto-select logic
+  const sortedDocuments = useMemo(() => {
+    return [...documents].sort((a, b) => {
+      const aCompleted = (a.latest_status || "").toLowerCase() === "completed" ? 1 : 0;
+      const bCompleted = (b.latest_status || "").toLowerCase() === "completed" ? 1 : 0;
+      if (aCompleted !== bCompleted) return bCompleted - aCompleted;
+      const aTime = new Date(a.latest_uploaded_at || 0).getTime();
+      const bTime = new Date(b.latest_uploaded_at || 0).getTime();
+      return bTime - aTime;
+    });
+  }, [documents]);
+
   useEffect(() => {
-    if (documents.length > 0 && selectedDocumentId === null) {
-      setSelectedDocumentId(documents[0].document_id);
+    if (sortedDocuments.length > 0 && selectedDocumentId === null) {
+      setSelectedDocumentId(sortedDocuments[0].document_id);
     }
-  }, [documents, selectedDocumentId]);
+  }, [sortedDocuments, selectedDocumentId]);
 
   useEffect(() => {
     if (versions.length > 0) {
@@ -285,14 +312,16 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
     }
   }, [gradings, selectedGradingId, loadingGradings]);
 
-  const currentDocument = documents.find(d => d.document_id === selectedDocumentId);
+  const currentProject = (projectList || []).find((p: any) => p.project_id === projectId);
+  const currentDocument = sortedDocuments.find(d => d.document_id === selectedDocumentId);
   const currentVersion = versions.find(v => v.document_version_id === selectedVersionId);
 
   const rerunMutation = useMutation({
     mutationFn: () => gradeSubmission({
       projectId,
       documentVersionId: selectedVersionId!,
-      force: true
+      force: true,
+      evaluationSetId: gradingDetail?.grading_run?.evaluation_set_id ?? undefined,
     }),
     onSuccess: async () => {
       setActionMessage({ tone: "success", text: lang === "ja" ? "レビューを再実行しました。" : "Đã chạy lại review." });
@@ -349,24 +378,20 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
     }));
   }, [criteriaResults, t]);
 
-  const criteriaHealth = useMemo(
-    () => orderedScores.map((item) => ({ ...item, ratio: item.max > 0 ? item.value / item.max : 0 })).sort((a, b) => a.ratio - b.ratio),
-    [orderedScores]
-  );
-  const weakestCriteria = criteriaHealth.slice(0, 3);
-
-  const executiveSummary = useMemo<SummaryLine[]>(() => {
-    const score = result?.score ?? null;
-    if (score === null) return [{ id: "not-graded", text: t("project.notGradedText") }];
-    const scoreLineKey = score >= 80 ? "project.summaryScoreHealthy" : score >= 60 ? "project.summaryScoreWatch" : "project.summaryScoreCritical";
-    return [
-      { id: "score", text: fillTemplate(t(scoreLineKey), { score }) },
-      weakestCriteria[0] ? { id: "weak", text: fillTemplate(t("project.summaryWeakCriteria"), { criterion: weakestCriteria[0].label, score: weakestCriteria[0].value, max: weakestCriteria[0].max }) } : null,
-    ].filter(Boolean) as SummaryLine[];
-  }, [result, t, weakestCriteria]);
-
   const feedbackLines = useMemo(() => splitFeedbackLines(result?.draft_feedback ?? null, lang), [result, lang]);
   const feedbackSections = useMemo(() => splitFeedbackSections(feedbackLines), [feedbackLines]);
+  const criteriaDetails = useMemo(() => {
+    return criteriaResults.map((item) => {
+      const suggestion = extractCriterionSuggestionText(item.suggestion, lang);
+      return {
+        key: item.key,
+        label: t(`upload.criteria.${item.key}`),
+        score: item.score,
+        max: item.max_score,
+        suggestion,
+      };
+    });
+  }, [criteriaResults, lang, t]);
 
   const activeSlideId = useMemo(() => {
     if (selectedSlideId !== null) return selectedSlideId;
@@ -388,6 +413,9 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
   ], [currentDocument, currentVersion, result, gradingDetail, lang]);
 
   if (loadingDocs) return <LoadingState title="Loading documents..." />;
+  if (docsError) {
+    return <EmptyState title="Cannot load project documents" description={docsError instanceof Error ? docsError.message : "Unknown error"} />;
+  }
 
   return (
     <div className="project-workspace-container">
@@ -413,7 +441,7 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
               )}
             </div>
           </div>
-          <h2>{currentDocument?.document_name || "Project Details"}</h2>
+          <h2>{currentProject?.project_name || projectId}</h2>
         </div>
 
         <div className="project-header-navigation">
@@ -440,12 +468,16 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
                   return;
                 }
                 const preview = await previewFinalPrompt(currentDocument?.document_type || "project-review", result?.prompt_level || "medium");
-                setPromptUsedText(preview.full_prompt_preview);
+                setPromptUsedText(
+                  `[Reconstructed preview - active configuration]\n` +
+                  `This is not the exact historical snapshot for run #${result?.id ?? "N/A"}.\n\n` +
+                  preview.full_prompt_preview
+                );
                 setPromptUsedOpen(true);
               } catch (error) {
                 setActionMessage({
                   tone: "danger",
-                  text: error instanceof Error ? error.message : "Cannot load prompt preview",
+                  text: error instanceof Error ? error.message : t("project.promptPreviewLoadFailed"),
                 });
               }
             }}
@@ -479,8 +511,12 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
               }}
               style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #e2e8f0' }}
             >
-              <option value="">Select document...</option>
-              {documents.map(d => <option key={d.document_id} value={d.document_id}>{d.document_name} ({t(getDocumentTypeKey(d.document_type))})</option>)}
+              <option value="">{t("project.selectDocument")}</option>
+              {sortedDocuments.map(d => (
+                <option key={d.document_id} value={d.document_id}>
+                  {d.document_name} ({t(getDocumentTypeKey(d.document_type))}) {d.latest_version ? `• ${d.latest_version}` : ""}
+                </option>
+              ))}
             </select>
           </SectionBlock.Body>
         </SectionBlock>
@@ -500,7 +536,7 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
                   disabled={!selectedDocumentId}
                   style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #e2e8f0' }}
                 >
-                  <option value="">Select version...</option>
+                  <option value="">{t("project.selectVersion")}</option>
                   {versions.map(v => <option key={v.document_version_id} value={v.document_version_id}>{v.version} {v.is_latest ? "(Latest)" : ""}</option>)}
                 </select>
               </SectionBlock.Body>
@@ -536,7 +572,7 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
                   disabled={!selectedDocumentId || loadingVersions}
                   style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #e2e8f0' }}
                 >
-                  <option value="">Select version...</option>
+                  <option value="">{t("project.selectVersion")}</option>
                   {versions.map(v => <option key={v.document_version_id} value={v.document_version_id}>{v.version}</option>)}
                 </select>
               </SectionBlock.Body>
@@ -551,7 +587,7 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
                   disabled={!selectedDocumentId || loadingVersions}
                   style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #e2e8f0' }}
                 >
-                  <option value="">Select version...</option>
+                  <option value="">{t("project.selectVersion")}</option>
                   {versions.map(v => <option key={v.document_version_id} value={v.document_version_id}>{v.version}</option>)}
                 </select>
               </SectionBlock.Body>
@@ -560,60 +596,58 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
         )}
       </div>
 
-      {loadingDetail || loadingComparison ? (
+      {(loadingDetail || loadingComparison || loadingVersions || loadingGradings) ? (
         <LoadingState title="Fetching details..." />
+      ) : (versionsError || gradingsError || detailError) ? (
+        <EmptyState
+          title="Cannot load review detail"
+          description={
+            (detailError instanceof Error && detailError.message)
+            || (gradingsError instanceof Error && gradingsError.message)
+            || (versionsError instanceof Error && versionsError.message)
+            || "Unknown error"
+          }
+        />
       ) : comparisonMode ? (
         comparisonData ? <VersionComparison data={comparisonData} /> : <EmptyState title={t("compare.selectVersions")} />
       ) : result ? (
         <div className="project-detail-layout">
           <div className="project-detail-main">
             <div className="project-tab-nav">
-              <button className={`project-tab-btn ${activeTab === "overview" ? "is-active" : ""}`} onClick={() => setActiveTab("overview")}>
-                {t("project.tabOverview")}
+              <button className={`project-tab-btn ${activeTab === "criteria" ? "is-active" : ""}`} onClick={() => setActiveTab("criteria")}>
+                {t("project.tabCriteria")}
               </button>
               <button className={`project-tab-btn ${activeTab === "slides" ? "is-active" : ""}`} onClick={() => setActiveTab("slides")}>
-                {t("project.tabSlides")}
+                {t("project.tabSlidesResult")}
                 {ngSlideCount > 0 && <Badge tone="danger">{ngSlideCount}</Badge>}
               </button>
             </div>
 
-            {activeTab === "overview" ? (
+            {activeTab === "criteria" ? (
               <div className="project-tab-content">
-                <div className="project-overview-grid">
-                  <ExecutiveSummaryPanel 
-                    title={t("project.executiveSummary") || "Executive Summary"}
-                    subtitle={t("project.executiveSummarySubtitle") || "Overview of project quality"}
-                    items={executiveSummary} 
-                  />
-                  <IssueHighlightsPanel 
-                    title={t("project.issueHighlights") || "Issue Highlights"}
-                    subtitle={t("project.issueHighlightsSubtitle") || "Key issues identified"}
-                    items={slideReviewItems.filter(s => s.status === "NG").slice(0, 3).map(s => ({
-                      title: s.displayTitle,
-                      detail: s.issues[0] || s.summary,
-                      tone: "danger"
-                    }))} 
-                  />
-                </div>
-
                 <SectionBlock>
-                  <SectionBlock.Header title={t("project.criteriaScores")} />
+                  <SectionBlock.Header title={t("project.criteriaDetailTitle")} />
                   <SectionBlock.Body>
                     <div style={{ height: "300px" }}>
                       <Suspense fallback={chartFallback}>
                         <CriteriaScoreChart data={orderedScores} />
                       </Suspense>
                     </div>
+                    <div style={{ marginTop: "16px", display: "grid", gap: "12px" }}>
+                      {criteriaDetails.map((item) => (
+                        <article key={item.key} style={{ border: "1px solid #e2e8f0", borderRadius: "10px", padding: "12px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                            <strong>{item.label}</strong>
+                            <span>{item.score}/{item.max}</span>
+                          </div>
+                          <p style={{ margin: 0, color: "#475569", whiteSpace: "pre-wrap" }}>
+                            {item.suggestion || t("project.noDetailedComment")}
+                          </p>
+                        </article>
+                      ))}
+                    </div>
                   </SectionBlock.Body>
                 </SectionBlock>
-
-                <FeedbackPreviewPanel 
-                  title={t("project.feedbackPreview") || "Feedback Preview"}
-                  sections={feedbackSections}
-                  emptyText={t("project.noFeedback") || "No feedback available"}
-                  detailLabel={t("project.viewFullFeedback") || "View Full"}
-                  onOpenDetail={() => setSummaryDialogOpen(true)}
-                />
               </div>
             ) : (
               <div className="project-tab-content">
@@ -653,7 +687,7 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
           </aside>
         </div>
       ) : (
-        <EmptyState title="No grading data found" description="Please select or run a grading process." />
+        <EmptyState title={t("project.noGradingDataTitle")} description={t("project.noGradingDataDesc")} />
       )}
 
       {summaryDialogOpen && (

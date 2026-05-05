@@ -40,7 +40,12 @@ type ApiMessageKey =
   | "fetchRubricsFailed"
   | "fetchSubmissionsFailed"
   | "gradeAllFailed"
+  | "gradingTimeout"
   | "gradingFailed"
+  | "evaluationSetRequired"
+  | "evaluationSetInvalid"
+  | "evaluationSetInactive"
+  | "evaluationSetScopeMismatch"
   | "saveRubricFailed"
   | "uploadFailed";
 
@@ -56,7 +61,12 @@ const apiMessages: Record<"vi" | "ja", Record<ApiMessageKey, string>> = {
     fetchRubricsFailed: "Không thể tải tiêu chuẩn đánh giá.",
     fetchSubmissionsFailed: "Không thể tải danh sách dự án.",
     gradeAllFailed: "Review hàng loạt thất bại.",
+    gradingTimeout: "Review quá thời gian chờ. Vui lòng thử lại hoặc bật chế độ chạy nền (Celery).",
     gradingFailed: "Review thất bại.",
+    evaluationSetRequired: "Vui lòng chọn Bộ cấu hình đánh giá trước khi review.",
+    evaluationSetInvalid: "Bộ cấu hình đánh giá không hợp lệ.",
+    evaluationSetInactive: "Bộ cấu hình đánh giá đã archived hoặc chưa active.",
+    evaluationSetScopeMismatch: "Bộ cấu hình đánh giá không khớp với loại tài liệu đã chọn.",
     saveRubricFailed: "Lưu tiêu chuẩn thất bại.",
     uploadFailed: "Tải file thất bại.",
   },
@@ -71,7 +81,12 @@ const apiMessages: Record<"vi" | "ja", Record<ApiMessageKey, string>> = {
     fetchRubricsFailed: "評価基準を読み込めませんでした。",
     fetchSubmissionsFailed: "プロジェクト一覧を読み込めませんでした。",
     gradeAllFailed: "一括レビューに失敗しました。",
+    gradingTimeout: "レビュー処理がタイムアウトしました。再試行するか、Celery バックグラウンド実行を有効化してください。",
     gradingFailed: "レビューに失敗しました。",
+    evaluationSetRequired: "レビュー前に評価セットを選択してください。",
+    evaluationSetInvalid: "評価セットが無効です。",
+    evaluationSetInactive: "評価セットが archived か、active ではありません。",
+    evaluationSetScopeMismatch: "選択した資料タイプと評価セットのスコープが一致しません。",
     saveRubricFailed: "評価基準の保存に失敗しました。",
     uploadFailed: "ファイルのアップロードに失敗しました。",
   },
@@ -245,10 +260,78 @@ interface GradeSubmissionParams {
   evaluationSetId?: number | null;
 }
 
+function mapGradeErrorDetail(detail: string): string {
+  const normalized = (detail || "").toLowerCase();
+  if (normalized.includes("evaluation_set_id is required")) return apiMessage("evaluationSetRequired");
+  if (normalized.includes("status must be active")) return apiMessage("evaluationSetInactive");
+  if (normalized.includes("document_type mismatch")) return apiMessage("evaluationSetScopeMismatch");
+  if (normalized.includes("invalid evaluation_set_id")) return apiMessage("evaluationSetInvalid");
+  return detail || apiMessage("gradingFailed");
+}
+
 interface GradeAllParams {
   force?: boolean;
   rubricVersion?: string | null;
   promptLevel?: PromptLevel | string | null;
+}
+
+export async function createProject(payload: {
+  project_id: string;
+  project_name: string;
+  project_description?: string;
+}): Promise<Project> {
+  const res = await fetch(`${API_BASE_URL}/projects`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const text = await res.text();
+  let body: any = null;
+  if (text) {
+    try {
+      body = JSON.parse(text);
+    } catch {
+      body = text;
+    }
+  }
+  if (!res.ok) {
+    const detail =
+      (body && typeof body === "object" && "detail" in body ? String(body.detail) : null) ||
+      (typeof body === "string" ? body : null) ||
+      `Failed to create project (HTTP ${res.status})`;
+    throw new Error(detail);
+  }
+  if (body && typeof body === "object") return body as Project;
+  throw new Error("Create project succeeded but response body is empty");
+}
+
+export async function updateProject(
+  projectId: string,
+  payload: { project_name: string; project_description?: string }
+): Promise<Project> {
+  const res = await fetch(`${API_BASE_URL}/projects/${encodeURIComponent(projectId)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const text = await res.text();
+  let body: any = null;
+  if (text) {
+    try {
+      body = JSON.parse(text);
+    } catch {
+      body = text;
+    }
+  }
+  if (!res.ok) {
+    const detail =
+      (body && typeof body === "object" && "detail" in body ? String(body.detail) : null) ||
+      (typeof body === "string" ? body : null) ||
+      `Failed to update project (HTTP ${res.status})`;
+    throw new Error(detail);
+  }
+  if (body && typeof body === "object") return body as Project;
+  throw new Error("Update project succeeded but response body is empty");
 }
 
 export async function gradeSubmission({
@@ -259,6 +342,8 @@ export async function gradeSubmission({
   promptLevel = null,
   evaluationSetId = null,
 }: GradeSubmissionParams) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 45000);
   const params = new URLSearchParams({
     language: currentLanguage,
   });
@@ -278,14 +363,27 @@ export async function gradeSubmission({
     params.set("evaluation_set_id", String(evaluationSetId));
   }
 
-  const res = await fetch(`${API_BASE_URL}/grade/${projectId}?${params.toString()}`, {
-    method: 'POST',
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || apiMessage("gradingFailed"));
+  try {
+    const res = await fetch(`${API_BASE_URL}/grade/${projectId}?${params.toString()}`, {
+      method: 'POST',
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(mapGradeErrorDetail(err.detail || ""));
+    }
+    return res.json();
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(apiMessage("gradingTimeout"));
+    }
+    if (error instanceof Error && error.message.includes("Failed to fetch")) {
+      throw new Error(apiMessage("cannotConnect"));
+    }
+    throw error;
   }
-  return res.json();
 }
 
 export async function gradeAll({ force = false, rubricVersion = null, promptLevel = null }: GradeAllParams = {}) {

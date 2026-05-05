@@ -339,3 +339,13 @@ Không overwrite
 - filename chỉ dùng để validate/gợi ý
 - project_id parse từ filename phải match project đã chọn
 - không tạo project ngầm
+
+## Evaluation Set Runtime Behavior (Current)
+
+- Frontend upload/review đang chạy theo chế độ `Auto` cho bộ đánh giá.
+- User không bắt buộc chọn `evaluation_set_id` thủ công trước khi bấm review.
+- Backend khi nhận review sẽ:
+  - ưu tiên dùng `evaluation_set_id` nếu client truyền và hợp lệ.
+  - nếu không truyền, tự resolve `active EvaluationSet` theo `(document_type, prompt_level)`.
+  - nếu chưa có `active EvaluationSet`, thử auto-ensure/auto-bootstrap theo scope.
+- Mục tiêu vận hành: giảm thao tác cho user thường, vẫn giữ audit trail và backward compatibility.

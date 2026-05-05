@@ -150,6 +150,27 @@ System = Versioned + Immutable + Auditable + Async (Production)
 
 ---
 
+# 🔄 Runtime Behavior (Current)
+
+## Review Flow (Auto Mode)
+
+- Ở màn Upload, hệ thống hiển thị bộ đánh giá theo chế độ `[Auto]`.
+- User vận hành thường không cần chọn `Evaluation Set` thủ công để chạy review.
+- Backend sẽ tự resolve bộ đánh giá active phù hợp theo `(document_type, prompt_level)`.
+
+## Evaluation Set Auto-Ensure
+
+- Nếu request review không truyền `evaluation_set_id`, backend sẽ tự tìm active set theo scope.
+- Nếu chưa có active set, backend thử auto-ensure theo scope hiện tại để giảm gián đoạn vận hành.
+- Nếu scope chưa đủ cấu hình nâng cao, hệ thống vẫn ưu tiên backward-compatible behavior để không phá luồng review cũ.
+
+## Auditability
+
+- Mỗi lần chấm vẫn tạo `GradingRun` mới.
+- Metadata cấu hình thực tế dùng để chấm vẫn được lưu trong `GradingRun` (khi có).
+
+---
+
 # 🔁 Legacy API Mapping
 
 Các API cũ vẫn được giữ để tương thích ngược, nhưng phải map sang flow mới:
