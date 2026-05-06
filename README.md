@@ -131,6 +131,91 @@ pytest
 * `POST /api/upload`: Upload tài liệu mới (tạo Version mới)
 * `POST /api/grade`: Bắt đầu chấm điểm (Nếu dùng Celery sẽ trả về PENDING ngay)
 * `GET /versions/{id}/gradings`: Lấy lịch sử chấm điểm
+* `GET /api/audit/export`: Export danh sách audit run (CSV, read-only)
+* `GET /api/documents/{document_id}/versions/diff/export`: Export version diff (CSV, read-only)
+
+---
+
+# 📄 CSV Export Columns
+
+## 1) Audit Export CSV
+
+Endpoint: `GET /api/audit/export`
+
+| Column | Meaning |
+| :--- | :--- |
+| `project_id` | Mã project |
+| `document_id` | ID document |
+| `document_version_id` | ID version tài liệu |
+| `grading_run_id` | ID grading run |
+| `score` | Điểm tổng (ưu tiên `total_score`, fallback `score`) |
+| `status` | Trạng thái run (`PENDING/EXTRACTING/GRADING/COMPLETED/FAILED`) |
+| `prompt_level` | Mức đánh giá (`low/medium/high`) |
+| `evaluation_set_id` | ID bộ tiêu chuẩn chấm đã dùng |
+| `graded_at` | Thời điểm chấm (ISO datetime) |
+
+## 2) Version Diff Export CSV
+
+Endpoint: `GET /api/documents/{document_id}/versions/diff/export`
+
+| Column | Meaning |
+| :--- | :--- |
+| `row_type` | Loại dòng: `summary` / `criteria` / `warning` |
+| `document_id` | ID document |
+| `version_a_id` | ID version A |
+| `version_b_id` | ID version B |
+| `run_a_id` | ID run dùng cho version A |
+| `run_b_id` | ID run dùng cho version B |
+| `score_a` | Điểm version A (dòng `summary`) |
+| `score_b` | Điểm version B (dòng `summary`) |
+| `score_delta` | Chênh lệch điểm (dòng `summary`) |
+| `score_direction` | Hướng thay đổi điểm: `up/down/same` (dòng `summary`) |
+| `prompt_level_changed` | Có đổi mức đánh giá hay không (dòng `summary`) |
+| `evaluation_set_changed` | Có đổi bộ tiêu chuẩn hay không (dòng `summary`) |
+| `same_evaluation_context` | Có cùng ngữ cảnh đánh giá hay không (dòng `summary`) |
+| `criterion_key` | Mã tiêu chí (dòng `criteria`) |
+| `criterion_a` | Điểm tiêu chí ở version A (dòng `criteria`) |
+| `criterion_b` | Điểm tiêu chí ở version B (dòng `criteria`) |
+| `criterion_delta` | Chênh lệch theo tiêu chí (dòng `criteria`) |
+| `criterion_direction` | Hướng thay đổi theo tiêu chí: `up/down/same` (dòng `criteria`) |
+| `warning` | Cảnh báo context compare (dòng `warning`) |
+
+---
+
+# 🧾 API Export Documentation
+
+## `GET /api/audit/export`
+
+Query params:
+
+* `project_id` (required)
+* `document_id` (optional)
+* `version_id` (optional)
+* `format` = `csv` (initial)
+* `status` (optional)
+* `from_time` (optional, ISO datetime)
+* `to_time` (optional, ISO datetime)
+
+Behavior:
+
+* Read-only, không mutation.
+* Streaming CSV response để tránh memory spike.
+* Backend paginate nội bộ khi đọc dữ liệu lớn.
+
+## `GET /api/documents/{document_id}/versions/diff/export`
+
+Query params:
+
+* `version_id_a` (required)
+* `version_id_b` (required)
+* `run_id_a` (optional)
+* `run_id_b` (optional)
+
+Behavior:
+
+* Read-only, không mutation.
+* Export đúng structured diff (không dùng raw LLM text).
+* CSV gồm `summary + criteria + warning`.
 
 ---
 
@@ -184,3 +269,49 @@ Quy tắc bắt buộc:
 * Upload legacy vẫn phải gắn với `project_id` đã tồn tại.
 * Không auto-create project từ upload/filename.
 * Grading legacy endpoint vẫn chấm theo `document_version` (không chấm trực tiếp project).
+
+---
+
+# ⚙️ Evaluation Set Operation (Current)
+
+## Scope Rule
+
+- 1 scope = `(document_type + prompt_level)`.
+- Mỗi scope chỉ có 1 `active Evaluation Set` dùng cho các lần chấm mới.
+
+## Auto Runtime
+
+- Ở màn Upload, user vận hành thường không bắt buộc chọn `evaluation_set_id` thủ công.
+- Backend sẽ tự resolve bộ active theo `(document_type, prompt_level)`.
+- Nếu chưa có active set, backend thử auto-ensure theo scope để giảm gián đoạn vận hành.
+
+## Audit Rule
+
+- Mỗi `GradingRun` vẫn lưu metadata cấu hình đã dùng (khi có) để truy vết/audit.
+
+---
+
+# 🧭 Quick Start (Business Flow)
+
+1. Tạo Project.
+2. Chọn loại tài liệu + mức độ đánh giá.
+3. Upload tài liệu vào Project đã có.
+4. Bấm review và xem kết quả chi tiết.
+5. Nếu cần thay chuẩn chấm, tạo bộ tiêu chuẩn mới từ bộ hiện tại và kích hoạt.
+
+---
+
+# ✅ UAT / Release Gate
+
+- Checklist tổng: `JAPANESE_READY_CHECKLIST.md`
+- UAT nhanh 30 phút: `UAT_30_MIN.md`
+- Biên bản UAT kỹ thuật hiện tại: `UAT_RESULT_2026-05-06.md`
+- Chốt phát hành: `GO_NO_GO_FINAL.md`
+
+---
+
+# ⚙️ Operations / Phase 5 Readiness
+
+- Runbook vận hành: `PHASE5_RUNBOOK.md`
+- Soak test checklist: `PHASE5_SOAK_TEST_CHECKLIST.md`
+- Game-day checklist: `PHASE5_GAME_DAY_CHECKLIST.md`

@@ -273,3 +273,32 @@ Khi gọi review:
 
 - Không phá luồng cũ khi scope nâng cao chưa đủ dữ liệu.
 - Vẫn đảm bảo nguyên tắc append-only, immutable, auditable cho grading run.
+
+---
+
+## UI/UX Acceptance (Current)
+
+### Terminology
+
+- Màn hình nghiệp vụ phải ưu tiên thuật ngữ dễ hiểu cho user:
+  - `Bộ tiêu chuẩn chấm`
+  - `Khung tiêu chí chấm điểm`
+  - `Hướng dẫn phản hồi AI`
+  - `Nguyên tắc đánh giá`
+  - `Quy tắc bắt buộc`
+- Tránh lộ jargon kỹ thuật ở lớp hiển thị chính (vẫn giữ metadata cho audit).
+
+### Prompt Level Definition
+
+- `low / medium / high` là mức độ đánh giá (độ nghiêm, độ sâu phản hồi), không phải mức chất lượng tài liệu.
+
+### Layout & Visual Consistency
+
+- Shell layout (`sidebar / topbar / header`) phải nhất quán ở các màn chính.
+- Typography, spacing, trạng thái màu (`success / warning / danger`) phải đồng bộ.
+- Không có lỗi font/encoding khi chuyển VI/JA.
+
+### Upload UX Requirement
+
+- Trước khi review, màn Upload phải hiển thị rõ bộ tiêu chuẩn đang áp dụng theo scope hiện tại.
+- Nếu điều kiện chưa sẵn sàng (project chưa chọn/cấu hình chưa sẵn), nút hành động phải khóa kèm lý do rõ.

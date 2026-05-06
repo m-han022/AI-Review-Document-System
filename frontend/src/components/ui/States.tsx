@@ -60,6 +60,29 @@ export function LoadingState({ title, description }: Pick<StatePanelProps, "titl
   );
 }
 
+interface SkeletonTableProps {
+  rows?: number;
+  cols?: number;
+}
+
+export function SkeletonTable({ rows = 4, cols = 4 }: SkeletonTableProps) {
+  return (
+    <div className="ui-skeleton-table" aria-hidden="true">
+      {Array.from({ length: rows }).map((_, rowIdx) => (
+        <div
+          key={`row-${rowIdx}`}
+          className="ui-skeleton-table__row"
+          style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+        >
+          {Array.from({ length: cols }).map((__, colIdx) => (
+            <span key={`cell-${rowIdx}-${colIdx}`} className="ui-skeleton-table__cell" />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function ErrorState(props: StatePanelProps) {
   return <StatePanel {...props} tone="danger" />;
 }

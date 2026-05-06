@@ -482,6 +482,54 @@ class VersionComparisonOut(BaseModel):
     insights: list[str] = []
 
 
+class VersionDiffScoreOut(BaseModel):
+    a_score: Optional[float] = None
+    b_score: Optional[float] = None
+    delta: float = 0.0
+    direction: Literal["up", "down", "same"] = "same"
+
+
+class VersionDiffCriteriaOut(BaseModel):
+    criterion_key: str
+    a: Optional[float] = None
+    b: Optional[float] = None
+    delta: float = 0.0
+    direction: Literal["up", "down", "same"] = "same"
+
+
+class VersionDiffRunRefOut(BaseModel):
+    id: int
+    status: str
+    graded_at: Optional[str] = None
+
+
+class VersionDiffVersionRefOut(BaseModel):
+    id: int
+    label: str
+
+
+class VersionDiffMetaOut(BaseModel):
+    prompt_level_changed: bool
+    evaluation_set_changed: bool
+
+
+class VersionDiffValidityOut(BaseModel):
+    same_evaluation_context: bool
+    warnings: list[str] = []
+
+
+class VersionDiffOut(BaseModel):
+    document_id: int
+    version_a: VersionDiffVersionRefOut
+    version_b: VersionDiffVersionRefOut
+    run_a: VersionDiffRunRefOut
+    run_b: VersionDiffRunRefOut
+    score_diff: VersionDiffScoreOut
+    criteria_diff: list[VersionDiffCriteriaOut]
+    meta_diff: VersionDiffMetaOut
+    comparison_validity: VersionDiffValidityOut
+
+
 class SubmissionListResponse(BaseModel):
     submissions: list[SubmissionOut]
     total: int

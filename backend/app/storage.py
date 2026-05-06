@@ -29,6 +29,13 @@ from app.models import (
     SubmissionOut,
     VersionComparisonOut,
     CriteriaDeltaOut,
+    VersionDiffOut,
+    VersionDiffVersionRefOut,
+    VersionDiffRunRefOut,
+    VersionDiffScoreOut,
+    VersionDiffCriteriaOut,
+    VersionDiffMetaOut,
+    VersionDiffValidityOut,
 )
 from app.services.issue_analytics import issue_breakdown, issue_count
 from app.repositories.submission_repository import SubmissionRepository
@@ -592,6 +599,121 @@ class SubmissionStore:
                 ok_slide_delta=ok_delta,
                 ng_slide_delta=ng_delta,
                 insights=insights
+            )
+
+    def diff_versions(
+        self,
+        document_id: int,
+        version_id_a: int,
+        version_id_b: int,
+        run_id_a: int | None = None,
+        run_id_b: int | None = None,
+    ) -> VersionDiffOut:
+        with Session(engine) as session:
+            doc = session.get(SubmissionDocument, document_id)
+            if not doc:
+                raise ValueError("DOCUMENT_NOT_FOUND")
+
+            v_a = session.get(SubmissionDocumentVersion, version_id_a)
+            v_b = session.get(SubmissionDocumentVersion, version_id_b)
+            if not v_a or not v_b:
+                raise ValueError("VERSION_NOT_FOUND")
+            if v_a.document_id != document_id or v_b.document_id != document_id:
+                raise ValueError("VERSION_DOCUMENT_MISMATCH")
+            if v_a.document_id != v_b.document_id:
+                raise ValueError("VERSION_DIFFERENT_DOCUMENT")
+
+            def _resolve_run(version_id: int, run_id: int | None):
+                if run_id is not None:
+                    run = session.get(GradingRun, run_id)
+                    if not run:
+                        raise ValueError("RUN_NOT_FOUND")
+                    if run.document_version_id != version_id:
+                        raise ValueError("RUN_VERSION_MISMATCH")
+                    return run
+                run = session.exec(
+                    select(GradingRun)
+                    .where(
+                        GradingRun.document_version_id == version_id,
+                        func.upper(GradingRun.status) == "COMPLETED",
+                    )
+                    .order_by(col(GradingRun.graded_at).desc(), col(GradingRun.id).desc())
+                ).first()
+                if not run:
+                    raise ValueError("NO_COMPLETED_RUN")
+                return run
+
+            run_a = _resolve_run(version_id_a, run_id_a)
+            run_b = _resolve_run(version_id_b, run_id_b)
+
+            criteria_a_rows = session.exec(
+                select(GradingCriteriaResult).where(GradingCriteriaResult.grading_run_id == run_a.id)
+            ).all()
+            criteria_b_rows = session.exec(
+                select(GradingCriteriaResult).where(GradingCriteriaResult.grading_run_id == run_b.id)
+            ).all()
+            criteria_a = {row.criterion_key: float(row.score) for row in criteria_a_rows}
+            criteria_b = {row.criterion_key: float(row.score) for row in criteria_b_rows}
+            all_keys = sorted(set(criteria_a.keys()) | set(criteria_b.keys()))
+
+            criteria_diff: list[VersionDiffCriteriaOut] = []
+            for key in all_keys:
+                a_score = criteria_a.get(key)
+                b_score = criteria_b.get(key)
+                delta = float((b_score or 0.0) - (a_score or 0.0))
+                direction: str = "same"
+                if delta > 0:
+                    direction = "up"
+                elif delta < 0:
+                    direction = "down"
+                criteria_diff.append(
+                    VersionDiffCriteriaOut(
+                        criterion_key=key,
+                        a=a_score,
+                        b=b_score,
+                        delta=delta,
+                        direction=direction,  # type: ignore[arg-type]
+                    )
+                )
+
+            score_a = float(run_a.total_score if run_a.total_score is not None else (run_a.score or 0))
+            score_b = float(run_b.total_score if run_b.total_score is not None else (run_b.score or 0))
+            score_delta = score_b - score_a
+            score_direction: str = "same"
+            if score_delta > 0:
+                score_direction = "up"
+            elif score_delta < 0:
+                score_direction = "down"
+
+            prompt_level_changed = (run_a.prompt_level or "") != (run_b.prompt_level or "")
+            evaluation_set_changed = (run_a.evaluation_set_id or 0) != (run_b.evaluation_set_id or 0)
+            warnings: list[str] = []
+            if evaluation_set_changed:
+                warnings.append("evaluation_set_changed")
+            if prompt_level_changed:
+                warnings.append("prompt_level_changed")
+
+            return VersionDiffOut(
+                document_id=document_id,
+                version_a=VersionDiffVersionRefOut(id=v_a.id or 0, label=v_a.document_version),
+                version_b=VersionDiffVersionRefOut(id=v_b.id or 0, label=v_b.document_version),
+                run_a=VersionDiffRunRefOut(id=run_a.id or 0, status=run_a.status, graded_at=run_a.graded_at),
+                run_b=VersionDiffRunRefOut(id=run_b.id or 0, status=run_b.status, graded_at=run_b.graded_at),
+                score_diff=VersionDiffScoreOut(
+                    a_score=score_a,
+                    b_score=score_b,
+                    delta=score_delta,
+                    direction=score_direction,  # type: ignore[arg-type]
+                ),
+                criteria_diff=criteria_diff,
+                meta_diff=VersionDiffMetaOut(
+                    prompt_level_changed=prompt_level_changed,
+                    evaluation_set_changed=evaluation_set_changed,
+                ),
+                comparison_validity=VersionDiffValidityOut(
+                    same_evaluation_context=(not prompt_level_changed and not evaluation_set_changed),
+                    warnings=warnings,
+                ),
             )
 
     def list_grading_runs(self, project_id: str) -> list[GradingRunHistoryOut]:

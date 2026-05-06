@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Depends
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Depends, Request
 from app.storage import store
 from app.models import GradeResponse, GradeRequest, SubmissionDocumentVersion, Submission, EvaluationSet
 from app.database import engine, get_session
@@ -9,6 +9,8 @@ from app.repositories.submission_repository import SubmissionRepository
 from app.repositories.grading_repository import GradingRepository
 from app.services.grading_service import GradingService
 from app.services.prompt_policy import normalize_prompt_level
+from app.metrics import inc_counter
+from app.observability import log_error, log_event
 from sqlmodel import Session, select
 
 router = APIRouter()
@@ -30,6 +32,7 @@ def _ensure_active_evaluation_set(session: Session, document_type: str, level: s
 
 async def _perform_grading(
     service: GradingService,
+    request: Request,
     project_id: str,
     document_version_id: int | None = None,
     prompt_level: str = "medium",
@@ -37,6 +40,15 @@ async def _perform_grading(
     evaluation_set_id: int | None = None,
     force: bool = False,
 ) -> GradeResponse:
+    req_id = request.headers.get("X-Request-ID")
+    log_event(
+        "grading_request_received",
+        project_id=project_id,
+        document_version_id=document_version_id,
+        prompt_level=prompt_level,
+        evaluation_set_id=evaluation_set_id,
+        force=force,
+    )
     # 1. Resolve document_version_id if not provided
     if document_version_id is None:
         version = service.submission_repo.get_latest_document_version_by_project(project_id) # I need to add this method or use store
@@ -97,6 +109,38 @@ async def _perform_grading(
             version = service.submission_repo.get_document_version_by_id(document_version_id)
             if not version:
                 raise HTTPException(status_code=404, detail=f"Version not found: {document_version_id}")
+
+            existing_run = service.grading_repo.find_active_grading_run(
+                document_version_id=version.id,
+                prompt_level=prompt_level,
+                evaluation_set_id=evaluation_set_id,
+            )
+            if existing_run:
+                inc_counter(
+                    "grading_run_reused_total",
+                    document_type=resolved_document_type,
+                    prompt_level=prompt_level,
+                    status=(existing_run.status or "PENDING"),
+                )
+                log_event(
+                    "grading_run_reused",
+                    project_id=project_id,
+                    document_version_id=version.id,
+                    grading_run_id=existing_run.id,
+                    reason="active_run_exists",
+                    evaluation_set_id=evaluation_set_id,
+                )
+                return GradeResponse(
+                    project_id=project_id,
+                    project_name=submission.project_name,
+                    run_id=existing_run.id,
+                    status=existing_run.status,
+                    document_version_id=version.id,
+                    document_version=version.document_version,
+                    prompt_level=prompt_level,
+                    evaluation_set_id=evaluation_set_id,
+                    language=submission.language,
+                )
             
             # Create run in PENDING status
             run = service.create_pending_run(
@@ -117,7 +161,16 @@ async def _perform_grading(
                 prompt_level=prompt_level,
                 rubric_version=rubric_version,
                 evaluation_set_id=evaluation_set_id,
-                force=force
+                force=force,
+                request_id=req_id,
+            )
+            log_event(
+                "grading_run_created",
+                project_id=project_id,
+                document_version_id=version.id,
+                grading_run_id=run.id,
+                status="PENDING",
+                evaluation_set_id=evaluation_set_id,
             )
             
             return GradeResponse(
@@ -176,10 +229,24 @@ async def _perform_grading(
             language=submission_record.language,
         )
     except ValueError as e:
+        log_error(
+            "grading_validation_failed",
+            error_code="GRADING_VALIDATION_FAILED",
+            project_id=project_id,
+            document_version_id=document_version_id,
+            detail=str(e),
+        )
         raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
+        log_error(
+            "grading_failed",
+            error_code="GRADING_FAILED",
+            project_id=project_id,
+            document_version_id=document_version_id,
+            detail=str(e),
+        )
         raise HTTPException(
             status_code=502,
             detail=f"Grading failed: {str(e)}",
@@ -187,6 +254,7 @@ async def _perform_grading(
 
 @router.post("/grade/{project_id}", response_model=GradeResponse)
 async def grade_single(
+    request: Request,
     project_id: str,
     force: bool = Query(default=False),
     rubric_version: str | None = Query(default=None),
@@ -199,6 +267,7 @@ async def grade_single(
     # Even on this endpoint, grading is always executed against a concrete document_version.
     return await _perform_grading(
         service=service,
+        request=request,
         project_id=project_id,
         document_version_id=document_version_id,
         prompt_level=prompt_level,
@@ -209,11 +278,12 @@ async def grade_single(
 
 @router.post("/grade", response_model=GradeResponse)
 async def grade_version(
-    request: GradeRequest,
+    request: Request,
+    payload: GradeRequest,
     service: GradingService = Depends(get_grading_service),
 ):
     # Resolve project_id from version_id
-    version = service.submission_repo.get_document_version_by_id(request.document_version_id)
+    version = service.submission_repo.get_document_version_by_id(payload.document_version_id)
     if not version:
         raise HTTPException(status_code=404, detail="Document version not found")
     submission = service.submission_repo.get_submission_by_id(version.submission_id)
@@ -222,12 +292,13 @@ async def grade_version(
         
     return await _perform_grading(
         service=service,
+        request=request,
         project_id=submission.project_id,
-        document_version_id=request.document_version_id,
-        prompt_level=request.prompt_level,
-        rubric_version=request.rubric_version,
-        evaluation_set_id=request.evaluation_set_id,
-        force=request.force
+        document_version_id=payload.document_version_id,
+        prompt_level=payload.prompt_level,
+        rubric_version=payload.rubric_version,
+        evaluation_set_id=payload.evaluation_set_id,
+        force=payload.force
     )
 
 # Keeping grade-all and other routes same for now but they should eventually use the service too

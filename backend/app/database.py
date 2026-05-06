@@ -327,6 +327,19 @@ def _seed_required_rule_sets() -> None:
             session.commit()
 
 
+def _ensure_gradingrun_active_unique_index() -> None:
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_gradingrun_active_eval_context
+                ON gradingrun (document_version_id, evaluation_set_id, lower(prompt_level))
+                WHERE status IN ('PENDING','EXTRACTING','GRADING')
+                """
+            )
+        )
+
+
 def create_db_and_tables():
     import app.models  # noqa: F401
 
@@ -337,6 +350,7 @@ def create_db_and_tables():
         _migrate_document_versions()
         _rebuild_document_version_table_if_needed()
         _seed_required_rule_sets()
+        _ensure_gradingrun_active_unique_index()
     from app.rubric import seed_rubrics_from_files
 
     seed_rubrics_from_files()

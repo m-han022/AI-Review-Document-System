@@ -16,6 +16,7 @@ import type {
   VersionListOut,
   GradingListOut,
   VersionComparison,
+  VersionDiffOut,
   MgmtRubric,
   MgmtPrompt,
   MgmtPolicy,
@@ -23,6 +24,7 @@ import type {
   FinalPromptPreviewResponse,
   EvaluationSet,
   EvaluationSetDetail,
+  AuditRunsFilter,
 } from "../types";
 
 // Language setting
@@ -48,6 +50,42 @@ type ApiMessageKey =
   | "evaluationSetScopeMismatch"
   | "saveRubricFailed"
   | "uploadFailed";
+
+export type ApiErrorCode =
+  | "NETWORK_UNREACHABLE"
+  | "REQUEST_TIMEOUT"
+  | "UPLOAD_FAILED"
+  | "GRADING_FAILED"
+  | "EVALUATION_SET_REQUIRED"
+  | "EVALUATION_SET_INVALID"
+  | "EVALUATION_SET_INACTIVE"
+  | "EVALUATION_SET_SCOPE_MISMATCH"
+  | "PROJECT_FETCH_FAILED"
+  | "DOCUMENT_FETCH_FAILED"
+  | "VERSION_FETCH_FAILED"
+  | "GRADING_FETCH_FAILED"
+  | "EVALUATION_SET_FETCH_FAILED"
+  | "EVALUATION_SET_CREATE_FAILED"
+  | "EVALUATION_SET_BOOTSTRAP_FAILED"
+  | "UNKNOWN_ERROR";
+
+export class ApiClientError extends Error {
+  code: ApiErrorCode;
+  status?: number;
+  detail?: string;
+
+  constructor(code: ApiErrorCode, message: string, status?: number, detail?: string) {
+    super(message);
+    this.name = "ApiClientError";
+    this.code = code;
+    this.status = status;
+    this.detail = detail;
+  }
+}
+
+function createApiError(code: ApiErrorCode, message: string, status?: number, detail?: string): ApiClientError {
+  return new ApiClientError(code, message, status, detail);
+}
 
 const apiMessages: Record<"vi" | "ja", Record<ApiMessageKey, string>> = {
   vi: {
@@ -150,6 +188,62 @@ export async function getGradingRunDetail(runId: number): Promise<GradingRunDeta
   return res.json();
 }
 
+export async function listAuditRuns(filters: AuditRunsFilter = {}): Promise<GradingRunHistory[]> {
+  const params = new URLSearchParams();
+  if (filters.project_id) params.set("project_id", filters.project_id);
+  if (typeof filters.document_id === "number") params.set("document_id", String(filters.document_id));
+  if (typeof filters.document_version_id === "number") params.set("document_version_id", String(filters.document_version_id));
+  if (filters.status) params.set("status", filters.status);
+  if (filters.from_time) params.set("from_time", filters.from_time);
+  if (filters.to_time) params.set("to_time", filters.to_time);
+  params.set("limit", String(filters.limit ?? 50));
+  params.set("offset", String(filters.offset ?? 0));
+
+  const res = await fetch(`${API_BASE_URL}/audit/runs?${params.toString()}`);
+  if (!res.ok) {
+    throw createApiError("GRADING_FETCH_FAILED", apiMessage("fetchSubmissionsFailed"), res.status, res.statusText);
+  }
+  return res.json();
+}
+
+export async function getAuditRunDetail(runId: number): Promise<GradingRunDetail> {
+  const res = await fetch(`${API_BASE_URL}/audit/runs/${runId}`);
+  if (!res.ok) {
+    throw createApiError("GRADING_FETCH_FAILED", apiMessage("fetchSubmissionsFailed"), res.status, res.statusText);
+  }
+  return res.json();
+}
+
+export async function exportAuditRunsCsv(filters: {
+  project_id: string;
+  document_id?: number;
+  version_id?: number;
+  status?: string;
+  from_time?: string;
+  to_time?: string;
+}): Promise<{ blob: Blob; filename: string }> {
+  const params = new URLSearchParams({
+    project_id: filters.project_id,
+    format: "csv",
+  });
+  if (typeof filters.document_id === "number") params.set("document_id", String(filters.document_id));
+  if (typeof filters.version_id === "number") params.set("version_id", String(filters.version_id));
+  if (filters.status) params.set("status", filters.status);
+  if (filters.from_time) params.set("from_time", filters.from_time);
+  if (filters.to_time) params.set("to_time", filters.to_time);
+
+  const response = await fetch(`${API_BASE_URL}/audit/export?${params.toString()}`);
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: response.statusText }));
+    throw new Error(error.detail || apiMessage("exportSubmissionsFailed"));
+  }
+  const blob = await response.blob();
+  const contentDisposition = response.headers.get("Content-Disposition") || "";
+  const match = contentDisposition.match(/filename="([^"]+)"/i);
+  const filename = match?.[1] || "audit_export.csv";
+  return { blob, filename };
+}
+
 // New Hierarchical API methods
 export async function listProjects(limit: number = 100, offset: number = 0): Promise<Project[]> {
   const params = new URLSearchParams({
@@ -174,7 +268,7 @@ export async function listProjectDocuments(projectId: string): Promise<DocumentL
   const res = await fetch(url);
   if (!res.ok) {
     console.error(`[API] Fetch project documents failed: ${res.status} at ${url}`);
-    throw new Error(`${apiMessage("fetchSubmissionsFailed")} ${res.statusText}`);
+    throw createApiError("DOCUMENT_FETCH_FAILED", apiMessage("fetchSubmissionsFailed"), res.status, res.statusText);
   }
   return res.json();
 }
@@ -184,7 +278,7 @@ export async function listDocumentVersions(documentId: number): Promise<VersionL
   const res = await fetch(url);
   if (!res.ok) {
     console.error(`[API] Fetch versions failed: ${res.status} at ${url}`);
-    throw new Error(`${apiMessage("fetchSubmissionsFailed")} ${res.statusText}`);
+    throw createApiError("VERSION_FETCH_FAILED", apiMessage("fetchSubmissionsFailed"), res.status, res.statusText);
   }
   return res.json();
 }
@@ -194,7 +288,7 @@ export async function listVersionGradings(documentVersionId: number): Promise<Gr
   const res = await fetch(url);
   if (!res.ok) {
     console.error(`[API] Fetch gradings failed: ${res.status} at ${url}`);
-    throw new Error(`${apiMessage("fetchSubmissionsFailed")} ${res.statusText}`);
+    throw createApiError("GRADING_FETCH_FAILED", apiMessage("fetchSubmissionsFailed"), res.status, res.statusText);
   }
   return res.json();
 }
@@ -236,16 +330,16 @@ export async function uploadFile(formData: FormData) {
     
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: res.statusText }));
-      throw new Error(err.detail || apiMessage("uploadFailed"));
+      throw createApiError("UPLOAD_FAILED", apiMessage("uploadFailed"), res.status, err.detail || res.statusText);
     }
     return res.json();
   } catch (error) {
     clearTimeout(timeoutId);
     if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error(apiMessage("connectionTimeout"));
+      throw createApiError("REQUEST_TIMEOUT", apiMessage("connectionTimeout"));
     }
     if (error instanceof Error && error.message.includes('Failed to fetch')) {
-      throw new Error(apiMessage("cannotConnect"));
+      throw createApiError("NETWORK_UNREACHABLE", apiMessage("cannotConnect"));
     }
     throw error;
   }
@@ -260,13 +354,13 @@ interface GradeSubmissionParams {
   evaluationSetId?: number | null;
 }
 
-function mapGradeErrorDetail(detail: string): string {
+function mapGradeErrorDetail(detail: string): ApiErrorCode {
   const normalized = (detail || "").toLowerCase();
-  if (normalized.includes("evaluation_set_id is required")) return apiMessage("evaluationSetRequired");
-  if (normalized.includes("status must be active")) return apiMessage("evaluationSetInactive");
-  if (normalized.includes("document_type mismatch")) return apiMessage("evaluationSetScopeMismatch");
-  if (normalized.includes("invalid evaluation_set_id")) return apiMessage("evaluationSetInvalid");
-  return detail || apiMessage("gradingFailed");
+  if (normalized.includes("evaluation_set_id is required")) return "EVALUATION_SET_REQUIRED";
+  if (normalized.includes("status must be active")) return "EVALUATION_SET_INACTIVE";
+  if (normalized.includes("document_type mismatch")) return "EVALUATION_SET_SCOPE_MISMATCH";
+  if (normalized.includes("invalid evaluation_set_id")) return "EVALUATION_SET_INVALID";
+  return "GRADING_FAILED";
 }
 
 interface GradeAllParams {
@@ -371,16 +465,17 @@ export async function gradeSubmission({
     clearTimeout(timeoutId);
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: res.statusText }));
-      throw new Error(mapGradeErrorDetail(err.detail || ""));
+      const code = mapGradeErrorDetail(err.detail || "");
+      throw createApiError(code, apiMessage("gradingFailed"), res.status, err.detail || res.statusText);
     }
     return res.json();
   } catch (error) {
     clearTimeout(timeoutId);
     if (error instanceof Error && error.name === "AbortError") {
-      throw new Error(apiMessage("gradingTimeout"));
+      throw createApiError("REQUEST_TIMEOUT", apiMessage("gradingTimeout"));
     }
     if (error instanceof Error && error.message.includes("Failed to fetch")) {
-      throw new Error(apiMessage("cannotConnect"));
+      throw createApiError("NETWORK_UNREACHABLE", apiMessage("cannotConnect"));
     }
     throw error;
   }
@@ -590,6 +685,52 @@ export async function activateMgmtRubric(id: number): Promise<MgmtRubric> {
   return res.json();
 }
 
+export async function getVersionDiff(params: {
+  document_id: number;
+  version_id_a: number;
+  version_id_b: number;
+  run_id_a?: number;
+  run_id_b?: number;
+}): Promise<VersionDiffOut> {
+  const query = new URLSearchParams({
+    version_id_a: String(params.version_id_a),
+    version_id_b: String(params.version_id_b),
+  });
+  if (typeof params.run_id_a === "number") query.set("run_id_a", String(params.run_id_a));
+  if (typeof params.run_id_b === "number") query.set("run_id_b", String(params.run_id_b));
+  const res = await fetch(`${API_BASE_URL}/documents/${params.document_id}/versions/diff?${query.toString()}`);
+  if (!res.ok) {
+    throw createApiError("GRADING_FETCH_FAILED", apiMessage("fetchSubmissionsFailed"), res.status, res.statusText);
+  }
+  return res.json();
+}
+
+export async function exportVersionDiffCsv(params: {
+  document_id: number;
+  version_id_a: number;
+  version_id_b: number;
+  run_id_a?: number;
+  run_id_b?: number;
+}): Promise<{ blob: Blob; filename: string }> {
+  const query = new URLSearchParams({
+    version_id_a: String(params.version_id_a),
+    version_id_b: String(params.version_id_b),
+  });
+  if (typeof params.run_id_a === "number") query.set("run_id_a", String(params.run_id_a));
+  if (typeof params.run_id_b === "number") query.set("run_id_b", String(params.run_id_b));
+
+  const response = await fetch(`${API_BASE_URL}/documents/${params.document_id}/versions/diff/export?${query.toString()}`);
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: response.statusText }));
+    throw new Error(error.detail || apiMessage("exportSubmissionsFailed"));
+  }
+  const blob = await response.blob();
+  const contentDisposition = response.headers.get("Content-Disposition") || "";
+  const match = contentDisposition.match(/filename="([^"]+)"/i);
+  const filename = match?.[1] || "version_diff_export.csv";
+  return { blob, filename };
+}
+
 export async function listMgmtPrompts(documentType?: string, level?: string): Promise<MgmtPrompt[]> {
   const params = new URLSearchParams();
   if (documentType) params.set("document_type", documentType);
@@ -708,20 +849,20 @@ export async function listEvaluationSets(documentType?: string, level?: string):
   if (documentType) params.set("document_type", documentType);
   if (level) params.set("level", level);
   const res = await fetch(`${API_BASE_URL}/mgmt/evaluation-sets?${params.toString()}`);
-  if (!res.ok) throw new Error(`Failed to fetch evaluation sets: ${res.statusText}`);
+  if (!res.ok) throw createApiError("EVALUATION_SET_FETCH_FAILED", "Failed to fetch evaluation sets", res.status, res.statusText);
   return res.json();
 }
 
 export async function getActiveEvaluationSet(documentType: string, level: string): Promise<EvaluationSet> {
   const params = new URLSearchParams({ document_type: documentType, level });
   const res = await fetch(`${API_BASE_URL}/mgmt/evaluation-sets/active?${params.toString()}`);
-  if (!res.ok) throw new Error(`Failed to fetch active evaluation set: ${res.statusText}`);
+  if (!res.ok) throw createApiError("EVALUATION_SET_FETCH_FAILED", "Failed to fetch active evaluation set", res.status, res.statusText);
   return res.json();
 }
 
 export async function getEvaluationSetDetail(id: number): Promise<EvaluationSetDetail> {
   const res = await fetch(`${API_BASE_URL}/mgmt/evaluation-sets/by-id/${id}`);
-  if (!res.ok) throw new Error(`Failed to fetch evaluation set detail: ${res.statusText}`);
+  if (!res.ok) throw createApiError("EVALUATION_SET_FETCH_FAILED", "Failed to fetch evaluation set detail", res.status, res.statusText);
   return res.json();
 }
 
@@ -738,7 +879,7 @@ export async function createEvaluationSet(payload: {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || "Failed to create evaluation set");
+    throw createApiError("EVALUATION_SET_CREATE_FAILED", "Failed to create evaluation set", res.status, err.detail || res.statusText);
   }
   return res.json();
 }
@@ -761,7 +902,7 @@ export async function bootstrapEvaluationSet(payload: {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || "Failed to bootstrap evaluation set");
+    throw createApiError("EVALUATION_SET_BOOTSTRAP_FAILED", "Failed to bootstrap evaluation set", res.status, err.detail || res.statusText);
   }
   return res.json();
 }

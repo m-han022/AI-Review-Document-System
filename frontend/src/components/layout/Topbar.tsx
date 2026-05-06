@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+﻿import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 import { aiReviewAssets } from "../../assets/aiReviewAssets";
+import { getLanguageLabel } from "../../constants/uiLabels";
 import { UI_THEME_STORAGE_KEY } from "../../config";
 import type { LanguageCode } from "../../types";
 import { LanguageSelector, useTranslation } from "../LanguageSelector";
@@ -36,21 +37,13 @@ export default function Topbar({
   const isMinimal = !subtitle && !breadcrumb?.length && !rightBadge && hideActions;
 
   const languageOptions: { code: LanguageCode; label: string }[] =
-    lang === "ja"
-      ? [
-          { code: "ja", label: "日本語" },
-          { code: "vi", label: "ベトナム語" },
-        ]
-      : [
-          { code: "ja", label: "Tiếng Nhật" },
-          { code: "vi", label: "Tiếng Việt" },
-        ];
+    (["ja", "vi"] as LanguageCode[]).map((code) => ({ code, label: getLanguageLabel(code, lang) }));
 
   const currentLanguageLabel = languageOptions.find((item) => item.code === lang)?.label ?? "日本語";
   const searchLabel = lang === "ja" ? "ドキュメント検索" : "Tìm kiếm tài liệu";
   const searchPlaceholder =
     lang === "ja"
-      ? "ドキュメント名、キーワード、プロジェクトを検索..."
+      ? "ドキュメント名、キーワード、プロジェクトで検索..."
       : "Tìm theo tên tài liệu, từ khóa, dự án...";
   const reportLabel = lang === "ja" ? "レポート出力" : "Xuất báo cáo";
 
@@ -199,3 +192,4 @@ export default function Topbar({
     </header>
   );
 }
+

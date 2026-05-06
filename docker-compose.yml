@@ -11,12 +11,22 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ai_user -d ai_review"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   redis:
     image: redis:7-alpine
     container_name: ai_review_redis
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   backend:
     build:
@@ -24,8 +34,10 @@ services:
       dockerfile: Dockerfile
     container_name: ai_review_backend
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     env_file:
       - backend/.env
     environment:
@@ -39,6 +51,13 @@ services:
       - ./backend/uploads:/app/uploads
       - ./backend/data:/app/data
       - ./backend/tests:/app/tests
+    command: ["/app/scripts/backend_entrypoint.sh"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
 
   worker:
     build:
@@ -46,8 +65,12 @@ services:
       dockerfile: Dockerfile
     container_name: ai_review_worker
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
     env_file:
       - backend/.env
     environment:
@@ -55,7 +78,7 @@ services:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/1
       - USE_CELERY=true
-    command: celery -A app.celery_app worker --loglevel=info --pool=solo
+    command: ["/app/scripts/worker_entrypoint.sh"]
     volumes:
       - ./backend/uploads:/app/uploads
       - ./backend/data:/app/data

@@ -220,6 +220,176 @@ def test_document_summary_returns_document_id_for_hierarchical_flow(client: Test
     assert isinstance(payload[0]["document_id"], int)
 
 
+def test_audit_runs_list_with_filters(client: TestClient):
+    project_id = "P200"
+    client.post("/api/projects", json={"project_id": project_id, "project_name": "Audit Test"})
+    files = {"file": ("P200_Doc.pdf", b"content", "application/pdf")}
+    upload_res = client.post(
+        "/api/upload",
+        files=files,
+        data={"language": "ja", "project_id": project_id, "document_name": "Doc A"},
+    )
+    assert upload_res.status_code == 200
+    version_id = upload_res.json()["document_version_id"]
+    _ensure_manual_eval_set(client)
+
+    grade_res = client.post("/api/grade", json={"document_version_id": version_id, "prompt_level": "medium"})
+    assert grade_res.status_code == 200
+    run_id = grade_res.json()["run_id"]
+
+    list_res = client.get(
+        f"/api/audit/runs?project_id={project_id}&document_version_id={version_id}&status=COMPLETED&limit=10&offset=0"
+    )
+    assert list_res.status_code == 200
+    rows = list_res.json()
+    assert isinstance(rows, list)
+    assert any(int(row["id"]) == int(run_id) for row in rows)
+
+
+def test_audit_run_detail_endpoint(client: TestClient):
+    project_id = "P201"
+    client.post("/api/projects", json={"project_id": project_id, "project_name": "Audit Detail Test"})
+    files = {"file": ("P201_Doc.pdf", b"content", "application/pdf")}
+    upload_res = client.post(
+        "/api/upload",
+        files=files,
+        data={"language": "ja", "project_id": project_id, "document_name": "Doc A"},
+    )
+    assert upload_res.status_code == 200
+    version_id = upload_res.json()["document_version_id"]
+    _ensure_manual_eval_set(client)
+
+    grade_res = client.post("/api/grade", json={"document_version_id": version_id, "prompt_level": "medium"})
+    assert grade_res.status_code == 200
+    run_id = grade_res.json()["run_id"]
+
+    detail_res = client.get(f"/api/audit/runs/{run_id}")
+    assert detail_res.status_code == 200
+    payload = detail_res.json()
+    assert int(payload["grading_run"]["id"]) == int(run_id)
+
+
+def test_audit_runs_reject_invalid_status(client: TestClient):
+    res = client.get("/api/audit/runs?status=INVALID_STATUS")
+    assert res.status_code == 422
+    body = res.json()
+    assert body["detail"]["error_code"] == "AUDIT_INVALID_STATUS"
+
+
+def test_audit_runs_reject_invalid_time(client: TestClient):
+    res = client.get("/api/audit/runs?from_time=not-a-time")
+    assert res.status_code == 422
+    body = res.json()
+    assert body["detail"]["error_code"] == "AUDIT_INVALID_TIME_RANGE"
+
+
+def test_audit_runs_reject_time_range_inversion(client: TestClient):
+    res = client.get("/api/audit/runs?from_time=2026-01-02T00:00:00Z&to_time=2026-01-01T00:00:00Z")
+    assert res.status_code == 422
+    body = res.json()
+    assert body["detail"]["error_code"] == "AUDIT_INVALID_TIME_RANGE"
+
+
+def test_version_diff_latest_completed_runs(client: TestClient):
+    project_id = "P300"
+    client.post("/api/projects", json={"project_id": project_id, "project_name": "Diff Latest"})
+    files = {"file": ("P300_Doc.pdf", b"content", "application/pdf")}
+    up1 = client.post("/api/upload", files=files, data={"language": "ja", "project_id": project_id, "document_name": "Doc A"})
+    up2 = client.post("/api/upload", files=files, data={"language": "ja", "project_id": project_id, "document_name": "Doc A"})
+    assert up1.status_code == 200 and up2.status_code == 200
+    v1 = up1.json()["document_version_id"]
+    v2 = up2.json()["document_version_id"]
+    document_id = up1.json()["document_id"]
+    _ensure_manual_eval_set(client)
+    client.post("/api/grade", json={"document_version_id": v1, "prompt_level": "medium"})
+    client.post("/api/grade", json={"document_version_id": v2, "prompt_level": "medium"})
+
+    res = client.get(f"/api/documents/{document_id}/versions/diff?version_id_a={v1}&version_id_b={v2}")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["document_id"] == document_id
+    assert body["version_a"]["id"] == v1
+    assert body["version_b"]["id"] == v2
+    assert "score_diff" in body
+    assert isinstance(body["criteria_diff"], list)
+
+
+def test_version_diff_with_explicit_run_ids(client: TestClient):
+    project_id = "P301"
+    client.post("/api/projects", json={"project_id": project_id, "project_name": "Diff Explicit"})
+    files = {"file": ("P301_Doc.pdf", b"content", "application/pdf")}
+    up1 = client.post("/api/upload", files=files, data={"language": "ja", "project_id": project_id, "document_name": "Doc A"})
+    up2 = client.post("/api/upload", files=files, data={"language": "ja", "project_id": project_id, "document_name": "Doc A"})
+    v1 = up1.json()["document_version_id"]
+    v2 = up2.json()["document_version_id"]
+    document_id = up1.json()["document_id"]
+    _ensure_manual_eval_set(client)
+    run1 = client.post("/api/grade", json={"document_version_id": v1, "prompt_level": "medium"}).json()["run_id"]
+    run2 = client.post("/api/grade", json={"document_version_id": v2, "prompt_level": "medium"}).json()["run_id"]
+
+    res = client.get(
+        f"/api/documents/{document_id}/versions/diff?version_id_a={v1}&version_id_b={v2}&run_id_a={run1}&run_id_b={run2}"
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["run_a"]["id"] == run1
+    assert body["run_b"]["id"] == run2
+
+
+def test_version_diff_reject_versions_from_different_document(client: TestClient):
+    project_id = "P302"
+    client.post("/api/projects", json={"project_id": project_id, "project_name": "Diff Mismatch"})
+    files = {"file": ("P302_Doc.pdf", b"content", "application/pdf")}
+    up_a = client.post("/api/upload", files=files, data={"language": "ja", "project_id": project_id, "document_name": "Doc A"})
+    up_b = client.post("/api/upload", files=files, data={"language": "ja", "project_id": project_id, "document_name": "Doc B"})
+    doc_a = up_a.json()["document_id"]
+    v_a = up_a.json()["document_version_id"]
+    v_b = up_b.json()["document_version_id"]
+
+    res = client.get(f"/api/documents/{doc_a}/versions/diff?version_id_a={v_a}&version_id_b={v_b}")
+    assert res.status_code == 422
+    assert res.json()["detail"]["error_code"] in {"VERSION_DOCUMENT_MISMATCH", "VERSION_DIFFERENT_DOCUMENT"}
+
+
+def test_version_diff_reject_missing_completed_run(client: TestClient):
+    project_id = "P303"
+    client.post("/api/projects", json={"project_id": project_id, "project_name": "Diff Missing Run"})
+    files = {"file": ("P303_Doc.pdf", b"content", "application/pdf")}
+    up1 = client.post("/api/upload", files=files, data={"language": "ja", "project_id": project_id, "document_name": "Doc A"})
+    up2 = client.post("/api/upload", files=files, data={"language": "ja", "project_id": project_id, "document_name": "Doc A"})
+    v1 = up1.json()["document_version_id"]
+    v2 = up2.json()["document_version_id"]
+    document_id = up1.json()["document_id"]
+    _ensure_manual_eval_set(client)
+    client.post("/api/grade", json={"document_version_id": v1, "prompt_level": "medium"})
+
+    res = client.get(f"/api/documents/{document_id}/versions/diff?version_id_a={v1}&version_id_b={v2}")
+    assert res.status_code == 422
+    assert res.json()["detail"]["error_code"] == "NO_COMPLETED_RUN"
+
+
+def test_version_diff_warning_on_context_change(client: TestClient):
+    project_id = "P304"
+    client.post("/api/projects", json={"project_id": project_id, "project_name": "Diff Warning"})
+    files = {"file": ("P304_Doc.pdf", b"content", "application/pdf")}
+    up1 = client.post("/api/upload", files=files, data={"language": "ja", "project_id": project_id, "document_name": "Doc A"})
+    up2 = client.post("/api/upload", files=files, data={"language": "ja", "project_id": project_id, "document_name": "Doc A"})
+    v1 = up1.json()["document_version_id"]
+    v2 = up2.json()["document_version_id"]
+    document_id = up1.json()["document_id"]
+    _ensure_manual_eval_set(client)
+    _ensure_manual_eval_set(client, level="high")
+    client.post("/api/grade", json={"document_version_id": v1, "prompt_level": "medium"})
+    client.post("/api/grade", json={"document_version_id": v2, "prompt_level": "high"})
+
+    res = client.get(f"/api/documents/{document_id}/versions/diff?version_id_a={v1}&version_id_b={v2}")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["meta_diff"]["prompt_level_changed"] is True or body["meta_diff"]["evaluation_set_changed"] is True
+    assert body["comparison_validity"]["same_evaluation_context"] is False
+    assert isinstance(body["comparison_validity"]["warnings"], list)
+
+
 def test_versions_and_gradings_hierarchical_contract(client: TestClient):
     client.post("/api/projects", json={"project_id": "P103", "project_name": "Contract Test"})
     files = {"file": ("P103_Doc.pdf", b"content", "application/pdf")}
@@ -329,3 +499,48 @@ def test_grading_run_stores_exact_final_prompt_snapshot(client: TestClient):
     detail_2 = client.get(f"/api/grading-runs/{run_id_2}")
     assert detail_2.status_code == 200
     assert detail_2.json()["grading_run"].get("final_prompt_snapshot") == snapshot
+
+
+def test_audit_export_csv(client: TestClient):
+    project_id = "P400"
+    client.post("/api/projects", json={"project_id": project_id, "project_name": "Audit Export"})
+    files = {"file": ("P400_Doc.pdf", b"content", "application/pdf")}
+    upload_res = client.post("/api/upload", files=files, data={"language": "ja", "project_id": project_id, "document_name": "Doc A"})
+    assert upload_res.status_code == 200
+    version_id = upload_res.json()["document_version_id"]
+    _ensure_manual_eval_set(client)
+    grade_res = client.post("/api/grade", json={"document_version_id": version_id, "prompt_level": "medium"})
+    assert grade_res.status_code == 200
+
+    res = client.get(f"/api/audit/export?project_id={project_id}&format=csv")
+    assert res.status_code == 200
+    assert "text/csv" in (res.headers.get("content-type") or "")
+    assert "attachment; filename=" in (res.headers.get("content-disposition") or "")
+    body = res.text
+    assert "grading_run_id" in body
+    assert project_id in body
+
+
+def test_version_diff_export_csv(client: TestClient):
+    project_id = "P401"
+    client.post("/api/projects", json={"project_id": project_id, "project_name": "Diff Export"})
+    files = {"file": ("P401_Doc.pdf", b"content", "application/pdf")}
+    up1 = client.post("/api/upload", files=files, data={"language": "ja", "project_id": project_id, "document_name": "Doc A"})
+    up2 = client.post("/api/upload", files=files, data={"language": "ja", "project_id": project_id, "document_name": "Doc A"})
+    assert up1.status_code == 200 and up2.status_code == 200
+    v1 = up1.json()["document_version_id"]
+    v2 = up2.json()["document_version_id"]
+    document_id = up1.json()["document_id"]
+    _ensure_manual_eval_set(client)
+    _ensure_manual_eval_set(client, level="high")
+    client.post("/api/grade", json={"document_version_id": v1, "prompt_level": "medium"})
+    client.post("/api/grade", json={"document_version_id": v2, "prompt_level": "high"})
+
+    res = client.get(f"/api/documents/{document_id}/versions/diff/export?version_id_a={v1}&version_id_b={v2}")
+    assert res.status_code == 200
+    assert "text/csv" in (res.headers.get("content-type") or "")
+    assert "attachment; filename=" in (res.headers.get("content-disposition") or "")
+    body = res.text
+    assert "row_type" in body
+    assert "summary" in body
+    assert "criteria" in body

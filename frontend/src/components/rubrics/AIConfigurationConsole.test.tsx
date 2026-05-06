@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import AIConfigurationConsole from "./AIConfigurationConsole";
 import * as client from "../../api/client";
+import { LanguageProvider } from "../LanguageSelector";
 
 vi.mock("../../api/client", async () => {
   const actual = await vi.importActual<typeof client>("../../api/client");
@@ -25,9 +26,11 @@ function renderWithQueryClient() {
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <QueryClientProvider client={queryClient}>
-      <AIConfigurationConsole />
-    </QueryClientProvider>,
+    <LanguageProvider>
+      <QueryClientProvider client={queryClient}>
+        <AIConfigurationConsole />
+      </QueryClientProvider>
+    </LanguageProvider>,
   );
 }
 
@@ -151,7 +154,7 @@ describe("AIConfigurationConsole", () => {
   it("renders console and loads core sections", async () => {
     renderWithQueryClient();
     expect(await screen.findByText("AI Configuration Console")).toBeInTheDocument();
-    expect(screen.getByText("Evaluation Set List")).toBeInTheDocument();
+    expect(screen.getByText("採点セット一覧")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Compare Sets" })).toBeInTheDocument();
   });
 
@@ -163,7 +166,7 @@ describe("AIConfigurationConsole", () => {
 
   it("creates new set from current", async () => {
     renderWithQueryClient();
-    fireEvent.click(await screen.findByRole("button", { name: "Create New Set from Current" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Create from current set" }));
     expect(await screen.findByText("Create New Evaluation Set")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Review" }));
     fireEvent.click(screen.getByRole("button", { name: "Save and Activate" }));
@@ -182,7 +185,7 @@ describe("AIConfigurationConsole", () => {
     const compareRight = selects[selects.length - 1];
     fireEvent.change(compareLeft, { target: { value: "100" } });
     fireEvent.change(compareRight, { target: { value: "101" } });
-    expect(await screen.findByText("Diff Highlight")).toBeInTheDocument();
-    expect(screen.getByText("changed")).toBeInTheDocument();
+    expect(await screen.findByText("差分表示")).toBeInTheDocument();
+    expect(screen.getByText("変更あり")).toBeInTheDocument();
   });
 });

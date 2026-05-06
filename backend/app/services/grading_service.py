@@ -1,8 +1,10 @@
 from __future__ import annotations
 import json
+import time
 from datetime import datetime, timezone
 from typing import Any, Optional
 
+from sqlalchemy.exc import IntegrityError
 from app.models import (
     GradingRun,
     GradingCriteriaResult,
@@ -12,7 +14,18 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 from app.repositories.submission_repository import SubmissionRepository
 from app.repositories.grading_repository import GradingRepository
 from app.services.grading_engine import build_grading_signature, grade_submission, GRADING_SCHEMA_VERSION
+from app.services.distributed_lock import grading_lock
 from app.services.issue_analytics import issue_breakdown
+from app.metrics import inc_counter, observe_duration_seconds
+from app.observability import log_error, log_event
+
+ALLOWED_STATUS_TRANSITIONS: dict[str, set[str]] = {
+    "PENDING": {"EXTRACTING", "FAILED"},
+    "EXTRACTING": {"GRADING", "FAILED"},
+    "GRADING": {"COMPLETED", "FAILED"},
+    "COMPLETED": set(),
+    "FAILED": set(),
+}
 
 class GradingService:
     def __init__(
@@ -22,6 +35,13 @@ class GradingService:
     ):
         self.submission_repo = submission_repo
         self.grading_repo = grading_repo
+
+    def _resolve_document_type(self, document_version_id: int) -> str:
+        version = self.submission_repo.get_document_version_by_id(document_version_id)
+        if not version:
+            return "unknown"
+        doc = self.submission_repo.get_document_for_version(version)
+        return (doc.document_type if doc and doc.document_type else "project-review")
 
     def create_pending_run(
         self, 
@@ -33,25 +53,114 @@ class GradingService:
         content_hash: str,
         evaluation_set_id: int,
     ) -> GradingRun:
-        run = GradingRun(
-            submission_id=submission_id,
-            document_version_id=document_version_id,
-            document_version=document_version,
-            rubric_version=rubric_version,
-            prompt_level=prompt_level,
-            content_hash=content_hash,
-            evaluation_set_id=evaluation_set_id,
-            status="PENDING",
-            started_at=datetime.now(timezone.utc).isoformat(),
+        normalized_level = (prompt_level or "").strip().lower()
+        lock_key = (
+            f"grading:active:"
+            f"{document_version_id}:{evaluation_set_id}:{normalized_level}"
         )
-        self.grading_repo.add(run)
-        self.grading_repo.commit()
-        self.grading_repo.refresh(run)
-        return run
+        with grading_lock(lock_key) as lock_acquired:
+            if not lock_acquired:
+                log_event(
+                    "grading_lock_not_acquired",
+                    submission_id=submission_id,
+                    document_version_id=document_version_id,
+                    evaluation_set_id=evaluation_set_id,
+                )
+            existing_run = self.grading_repo.find_active_grading_run(
+                document_version_id=document_version_id,
+                prompt_level=prompt_level,
+                evaluation_set_id=evaluation_set_id,
+            )
+            if existing_run:
+                inc_counter(
+                    "grading_run_reused_total",
+                    document_type=self._resolve_document_type(document_version_id),
+                    prompt_level=prompt_level,
+                    status=(existing_run.status or "PENDING"),
+                )
+                log_event(
+                    "grading_run_reused",
+                    submission_id=submission_id,
+                    document_version_id=document_version_id,
+                    grading_run_id=existing_run.id,
+                    reason="active_run_exists",
+                    evaluation_set_id=evaluation_set_id,
+                )
+                return existing_run
+
+            run = GradingRun(
+                submission_id=submission_id,
+                document_version_id=document_version_id,
+                document_version=document_version,
+                rubric_version=rubric_version,
+                prompt_level=prompt_level,
+                content_hash=content_hash,
+                evaluation_set_id=evaluation_set_id,
+                status="PENDING",
+                started_at=datetime.now(timezone.utc).isoformat(),
+            )
+            try:
+                self.grading_repo.add(run)
+                self.grading_repo.commit()
+                self.grading_repo.refresh(run)
+            except IntegrityError:
+                # Concurrent insert won the race at DB level unique index.
+                self.grading_repo.rollback()
+                existing_after_race = self.grading_repo.find_active_grading_run(
+                    document_version_id=document_version_id,
+                    prompt_level=prompt_level,
+                    evaluation_set_id=evaluation_set_id,
+                )
+                if existing_after_race:
+                    inc_counter(
+                        "grading_run_reused_total",
+                        document_type=self._resolve_document_type(document_version_id),
+                        prompt_level=prompt_level,
+                        status=(existing_after_race.status or "PENDING"),
+                    )
+                    log_event(
+                        "grading_run_reused",
+                        submission_id=submission_id,
+                        document_version_id=document_version_id,
+                        grading_run_id=existing_after_race.id,
+                        reason="db_unique_conflict",
+                        evaluation_set_id=evaluation_set_id,
+                    )
+                    return existing_after_race
+                raise
+
+            log_event(
+                "grading_run_created",
+                submission_id=submission_id,
+                document_version_id=document_version_id,
+                grading_run_id=run.id,
+                status="PENDING",
+                evaluation_set_id=evaluation_set_id,
+            )
+            inc_counter(
+                "grading_run_created_total",
+                document_type=self._resolve_document_type(document_version_id),
+                prompt_level=prompt_level,
+                status="PENDING",
+            )
+            return run
 
     def update_status(self, run_id: int, status: str, error_message: Optional[str] = None):
         run = self.grading_repo.get_grading_run(run_id)
         if run:
+            current = (run.status or "").upper()
+            target = (status or "").upper()
+            if current and target and current != target:
+                allowed = ALLOWED_STATUS_TRANSITIONS.get(current, set())
+                if target not in allowed:
+                    log_error(
+                        "grading_status_transition_blocked",
+                        error_code="INVALID_STATUS_TRANSITION",
+                        grading_run_id=run_id,
+                        from_status=current,
+                        to_status=target,
+                    )
+                    raise ValueError(f"Invalid status transition: {current} -> {target}")
             run.status = status
             if error_message:
                 run.error_message = error_message
@@ -59,6 +168,7 @@ class GradingService:
                 run.graded_at = datetime.now(timezone.utc).isoformat()
             self.grading_repo.add(run)
             self.grading_repo.commit()
+            log_event("grading_status_updated", grading_run_id=run_id, status=status)
 
     def run_grading(
         self, 
@@ -70,6 +180,16 @@ class GradingService:
         force: bool = False,
         existing_run_id: Optional[int] = None
     ) -> dict[str, Any]:
+        started_monotonic = time.monotonic()
+        log_event(
+            "grading_run_execute",
+            project_id=project_id,
+            document_version_id=document_version_id,
+            prompt_level=prompt_level,
+            evaluation_set_id=evaluation_set_id,
+            force=force,
+            existing_run_id=existing_run_id,
+        )
         if evaluation_set_id is None:
             raise ValueError("evaluation_set_id is required for grading")
         # 1. Fetch data
@@ -104,6 +224,14 @@ class GradingService:
             run = self.grading_repo.get_grading_run(existing_run_id)
             if not run:
                 raise ValueError(f"Grading run not found: {existing_run_id}")
+            if (run.status or "").upper() == "COMPLETED":
+                log_event(
+                    "grading_run_retry_short_circuit",
+                    project_id=project_id,
+                    grading_run_id=run.id,
+                    reason="already_completed",
+                )
+                return {"status": "COMPLETED", "grading_run_id": run.id}
             # Ensure the run metadata matches (idempotency check)
             run.status = "PENDING"
             # Defensive cleanup: if this run is retried/redelivered, child rows may already exist.
@@ -152,12 +280,25 @@ class GradingService:
 
             # 6. Save results
             self._save_grading_results(run, result_data)
+            log_event(
+                "grading_results_saved",
+                project_id=project_id,
+                grading_run_id=run.id,
+                score=result_data.get("score"),
+            )
             
             # Update submission latest run
             submission.latest_grading_run_id = run.id
             submission.status = "graded"
             self.submission_repo.add(submission)
             self.submission_repo.commit()
+            observe_duration_seconds(
+                "grading_duration_seconds",
+                time.monotonic() - started_monotonic,
+                document_type=signature.get("document_type", "unknown"),
+                prompt_level=prompt_level,
+                status="COMPLETED",
+            )
 
             return result_data
 
@@ -165,6 +306,26 @@ class GradingService:
             # A failed flush/commit leaves Session in failed state; rollback before any extra writes.
             self.grading_repo.rollback()
             self.update_status(run.id, "FAILED", str(e))
+            log_error(
+                "grading_execution_failed",
+                error_code="GRADING_EXECUTION_FAILED",
+                project_id=project_id,
+                grading_run_id=run.id,
+                detail=str(e),
+            )
+            inc_counter(
+                "grading_run_failed_total",
+                document_type=signature.get("document_type", "unknown"),
+                prompt_level=prompt_level,
+                status="FAILED",
+            )
+            observe_duration_seconds(
+                "grading_duration_seconds",
+                time.monotonic() - started_monotonic,
+                document_type=signature.get("document_type", "unknown"),
+                prompt_level=prompt_level,
+                status="FAILED",
+            )
             # Even on failure, we want to track this as the latest run for the project
             submission.latest_grading_run_id = run.id
             self.submission_repo.add(submission)

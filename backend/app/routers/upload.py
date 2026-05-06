@@ -7,6 +7,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from app.config import UPLOADS_DIR
 from app.models import LanguageCode, UploadResponse
+from app.observability import log_error, log_event
 from app.services.pdf_parser import detect_language_from_text, extract_text_from_file
 from app.storage import store
 
@@ -68,6 +69,7 @@ async def upload_project(
     document_name: str | None = Form(default=None),
     project_description: str | None = Form(default=None),
 ):
+    log_event("upload_received", project_id=project_id, filename=getattr(file, "filename", None), document_type=document_type)
     if not file.filename or not file.filename.lower().endswith((".pdf", ".pptx")):
         raise HTTPException(status_code=400, detail=MESSAGES[ui_language]["pdf_only"])
 
@@ -125,6 +127,14 @@ async def upload_project(
             content_hash=hashlib.md5(extracted_text.encode()).hexdigest(),
             uploaded_at=datetime.now(timezone.utc).isoformat(),
         )
+        log_event(
+            "document_version_created",
+            project_id=resolved_project_id,
+            document_id=submission.latest_document_id,
+            document_version_id=submission.latest_document_version_id,
+            document_version=submission.latest_document_version,
+            document_type=submission.document_type,
+        )
 
         return UploadResponse(
             project_id=resolved_project_id,
@@ -143,9 +153,11 @@ async def upload_project(
         raise
     except ValueError as exc:
         _cleanup_uploaded_file(save_path)
+        log_error("upload_validation_failed", error_code="UPLOAD_VALIDATION_FAILED", project_id=resolved_project_id, detail=str(exc))
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         _cleanup_uploaded_file(save_path)
+        log_error("upload_failed", error_code="UPLOAD_FAILED", project_id=resolved_project_id, detail=str(exc))
         raise HTTPException(status_code=500, detail=f"{MESSAGES[ui_language]['upload_failed']} {str(exc)}") from exc
     finally:
         await file.close()

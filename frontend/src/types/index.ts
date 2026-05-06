@@ -76,6 +76,17 @@ export interface GradingRunHistory {
   issue_count: number;
 }
 
+export interface AuditRunsFilter {
+  project_id?: string;
+  document_id?: number;
+  document_version_id?: number;
+  status?: string;
+  from_time?: string;
+  to_time?: string;
+  limit?: number;
+  offset?: number;
+}
+
 export interface Project {
   project_id: string;
   project_name: string;
@@ -199,6 +210,54 @@ export interface VersionComparison {
   ok_slide_delta: number;
   ng_slide_delta: number;
   insights: string[];
+}
+
+export interface VersionDiffScore {
+  a_score: number | null;
+  b_score: number | null;
+  delta: number;
+  direction: "up" | "down" | "same";
+}
+
+export interface VersionDiffCriteria {
+  criterion_key: string;
+  a: number | null;
+  b: number | null;
+  delta: number;
+  direction: "up" | "down" | "same";
+}
+
+export interface VersionDiffMeta {
+  prompt_level_changed: boolean;
+  evaluation_set_changed: boolean;
+}
+
+export interface VersionDiffValidity {
+  same_evaluation_context: boolean;
+  warnings: string[];
+}
+
+export interface VersionDiffRunRef {
+  id: number;
+  status: string;
+  graded_at?: string | null;
+}
+
+export interface VersionDiffVersionRef {
+  id: number;
+  label: string;
+}
+
+export interface VersionDiffOut {
+  document_id: number;
+  version_a: VersionDiffVersionRef;
+  version_b: VersionDiffVersionRef;
+  run_a: VersionDiffRunRef;
+  run_b: VersionDiffRunRef;
+  score_diff: VersionDiffScore;
+  criteria_diff: VersionDiffCriteria[];
+  meta_diff: VersionDiffMeta;
+  comparison_validity: VersionDiffValidity;
 }
 
 export interface UploadResponse {

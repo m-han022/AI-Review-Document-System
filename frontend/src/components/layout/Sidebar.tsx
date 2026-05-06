@@ -8,6 +8,7 @@ export type WorkspaceView =
   | "dashboard"
   | "upload"
   | "reviews"
+  | "diff"
   | "report"
   | "rubrics"
   | "workflow"
@@ -24,6 +25,7 @@ type NavItemKey =
   | "navDashboard"
   | "navUpload"
   | "navAllReviews"
+  | "navVersionDiff"
   | "navReport"
   | "navRubrics"
   | "navWorkflow"
@@ -40,6 +42,7 @@ const navKeyMap: Record<NavItemKey, string> = {
   navDashboard: "nav.dashboard",
   navUpload: "nav.upload",
   navAllReviews: "nav.allReviews",
+  navVersionDiff: "nav.versionDiff",
   navReport: "nav.qualityReport",
   navRubrics: "nav.rubrics",
   navWorkflow: "nav.approvalWorkflow",
@@ -55,6 +58,7 @@ export default function Sidebar({ activeView, onChangeView }: SidebarProps) {
     { key: "navDashboard", view: "dashboard", iconSrc: aiReviewAssets.sidebarIcons.dashboard },
     { key: "navUpload", view: "upload", iconSrc: aiReviewAssets.sidebarIcons.document },
     { key: "navAllReviews", view: "reviews", iconSrc: aiReviewAssets.sidebarIcons.reviewHistory },
+    { key: "navVersionDiff", view: "diff", iconSrc: aiReviewAssets.sidebarIcons.compare },
     { key: "navReport", view: "report", iconSrc: aiReviewAssets.sidebarIcons.qualityReport },
     { key: "navRubrics", view: "rubrics", iconSrc: aiReviewAssets.sidebarIcons.compare },
     { key: "navWorkflow", view: "workflow", iconSrc: aiReviewAssets.sidebarIcons.workflow },

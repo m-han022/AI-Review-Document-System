@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { diffLines } from "diff";
 
 import {
+  ApiClientError,
   bootstrapEvaluationSet,
   createMgmtPolicy,
   createMgmtPrompt,
@@ -15,6 +16,9 @@ import {
   listMgmtPrompts,
   listMgmtRubrics,
 } from "../../api/client";
+import { AI_CONFIG_COPY } from "../../constants/aiConfigCopy";
+import { getDocumentTypeLabel, getLevelLabel } from "../../constants/uiLabels";
+import { mapErrorCodeToI18nKey } from "../../locales/errorMapping";
 import type { EvaluationSet, MgmtPolicy, MgmtPrompt, MgmtRubric } from "../../types";
 import ConfirmDialog from "../ui/ConfirmDialog";
 import SectionBlock from "../ui/SectionBlock";
@@ -23,147 +27,17 @@ import { useTranslation } from "../LanguageSelector";
 
 const LEVELS = ["low", "medium", "high"] as const;
 type ConfigTab = "sets" | "create" | "compare";
-const DOCUMENT_TYPE_LABELS: Record<string, { vi: string; ja: string }> = {
-  "project-review": { vi: "Tài liệu nhìn nhận dự án", ja: "プロジェクト振り返り資料" },
-  "bug-analysis": { vi: "Tài liệu phân tích bug", ja: "バグ分析資料" },
-  "qa-review": { vi: "Tài liệu QA", ja: "QA資料" },
-  "explanation-review": { vi: "Tài liệu giải thích", ja: "解説資料" },
-};
-const LEVEL_LABELS: Record<(typeof LEVELS)[number], { vi: string; ja: string }> = {
-  low: { vi: "Thấp", ja: "低" },
-  medium: { vi: "Vừa", ja: "中" },
-  high: { vi: "Cao", ja: "高" },
-};
-
-function normalizeBootstrapError(raw: string, lang: "vi" | "ja"): string {
-  const lower = (raw || "").toLowerCase();
-  if (lower.includes("cannot bootstrap")) {
-    return lang === "ja"
-      ? "Cannot auto-bootstrap default configuration. Please reload in a few seconds."
-      : "Không thể tự khởi tạo cấu hình mặc định. Vui lòng tải lại trang sau vài giây.";
-  }
-  return raw;
-}
 
 export default function AIConfigurationConsole() {
-  const { lang } = useTranslation();
-  const ui = lang === "ja"
-    ? {
-        loading: "Loading AI Configuration Console...",
-        loadFailed: "Failed to load configuration data",
-        title: "AI Configuration Console",
-        subtitle: "Operate by Evaluation Set to reduce complexity.",
-        modeNote: "Evaluation Set mode: manage Rubric + Prompt + Policy + Required Rules as one set.",
-        tabSets: "Evaluation Sets",
-        tabCreate: "Create New Set",
-        tabCompare: "Compare Sets",
-        noActiveSetTooltip: "Create an initial set in the Evaluation Sets tab first.",
-        sectionSetList: "Evaluation Set List",
-        sectionSetListSub: "Show active/archived sets in current scope. Click an item for details.",
-        noActiveSet: "No active Evaluation Set in this scope.",
-        noActiveSetHelp: "Click \"Create first set\" to make grading ready.",
-        createFromCurrent: "Create from current set",
-        bootstrapScope: "Create first set",
-        bootstrapping: "Bootstrapping...",
-        searchPlaceholder: "Search by set name / version label",
-        noSet: "No evaluation set.",
-        selected: "Selected",
-        setDetail: "Set Detail",
-        history: "History",
-        selectFromList: "Select an Evaluation Set from the list.",
-        compareTitle: "Compare Sets",
-        compareSub: "Side-by-side comparison for audit.",
-        leftSet: "Left set",
-        rightSet: "Right set",
-        diff: "Diff Highlight",
-        changed: "changed",
-        unchanged: "unchanged",
-        createTitle: "Create New Evaluation Set",
-        step: "Step",
-        setName: "Set name",
-        docType: "Document type",
-        promptLevel: "Evaluation level",
-        changeRubric: "Change Rubric",
-        changePrompt: "Change Prompt",
-        changePolicy: "Change Policy",
-        changeRules: "Change Required Rules",
-        noEffectiveChange: "No effective change. Existing versions will be reused.",
-        cancel: "Cancel",
-        review: "Review",
-        back: "Back",
-        saveArchived: "Save (Archived)",
-        saveAndActivate: "Save and Activate",
-        saving: "Saving...",
-        reviewHint: "Only changed components create new immutable versions.",
-        newVersion: "Create new version",
-        reuse: "Reuse",
-        documentTypeLabel: "Document type",
-        createSuccess: "Created and activated new Evaluation Set.",
-        bootstrapSuccess: "Created first Evaluation Set.",
-        createFailed: "Failed to create set",
-        bootstrapFailed: "Failed to bootstrap first set",
-        activationTitle: "Confirm Activation",
-        activationDesc: "This set will be used for new gradings only. Existing results stay unchanged.",
-      }
-    : {
-        loading: "Đang tải AI Configuration Console...",
-        loadFailed: "Không thể tải dữ liệu cấu hình",
-        title: "Thiết lập tiêu chuẩn chấm AI",
-        subtitle: "Tạo và quản lý bộ tiêu chuẩn chấm để các lần review mới áp dụng đúng cấu hình bạn chọn.",
-        scopeDocumentType: "Loại tài liệu",
-        scopeLevel: "Mức độ đánh giá",
-        modeNote: "Mỗi bộ gồm 4 phần và được version hóa; xem “Hướng dẫn nhanh cách chấm” để biết chi tiết.",
-        tabSets: "Bộ tiêu chuẩn chấm",
-        tabCreate: "Tạo bộ mới",
-        tabCompare: "So sánh bộ",
-        noActiveSetTooltip: "Hãy tạo bộ khởi tạo ở tab Bộ tiêu chuẩn chấm trước.",
-        sectionSetList: "Danh sách Bộ tiêu chuẩn chấm",
-        sectionSetListSub: "Hiển thị active/archived trong scope hiện tại. Chọn item để xem chi tiết.",
-        noActiveSet: "Chưa có Bộ cấu hình đánh giá cho loại tài liệu này.",
-        noActiveSetHelp: "Bấm \"Tạo bộ đầu tiên\" để hệ thống sẵn sàng chấm.",
-        createFromCurrent: "Tạo mới từ bộ hiện tại",
-        bootstrapScope: "Tạo bộ đầu tiên",
-        bootstrapping: "Đang khởi tạo...",
-        searchPlaceholder: "Tìm theo tên set / version label",
-        noSet: "Không có bộ tiêu chuẩn chấm.",
-        selected: "Đang chọn",
-        setDetail: "Bộ đang chọn",
-        history: "Lịch sử",
-        selectFromList: "Chọn một Bộ tiêu chuẩn chấm từ danh sách.",
-        compareTitle: "So sánh bộ",
-        compareSub: "So sánh song song để kiểm tra/audit.",
-        leftSet: "Bộ trái",
-        rightSet: "Bộ phải",
-        diff: "Diff Highlight",
-        changed: "changed",
-        unchanged: "unchanged",
-        createTitle: "Tạo Bộ tiêu chuẩn chấm mới",
-        step: "Bước",
-        setName: "Tên set",
-        docType: "Loại tài liệu",
-        promptLevel: "Mức độ đánh giá",
-        changeRubric: "Đổi Khung tiêu chí chấm điểm",
-        changePrompt: "Đổi Hướng dẫn phản hồi AI",
-        changePolicy: "Đổi Nguyên tắc đánh giá",
-        changeRules: "Đổi Quy tắc bắt buộc",
-        noEffectiveChange: "Không có thay đổi hiệu lực. Hệ thống sẽ reuse version hiện có.",
-        cancel: "Hủy",
-        review: "Xem lại",
-        back: "Quay lại",
-        saveArchived: "Lưu (Archived)",
-        saveAndActivate: "Lưu và kích hoạt",
-        saving: "Đang lưu...",
-        reviewHint: "Chỉ thành phần thay đổi mới tạo version immutable mới.",
-        newVersion: "Tạo version mới",
-        reuse: "Reuse",
-        documentTypeLabel: "Loại tài liệu",
-        createSuccess: "Đã tạo và kích hoạt Bộ tiêu chuẩn chấm mới.",
-        bootstrapSuccess: "Đã tạo bộ cấu hình đầu tiên và sẵn sàng sử dụng.",
-        createFailed: "Tạo set thất bại",
-        bootstrapFailed: "Khởi tạo set thất bại",
-        activationTitle: "Xác nhận kích hoạt",
-        activationDesc: "Bạn đang kích hoạt set này. Các lần chấm mới sẽ dùng set này. Kết quả cũ không thay đổi.",
-      };
+  const { lang, t } = useTranslation();
+  const ui = AI_CONFIG_COPY[lang] ?? AI_CONFIG_COPY.vi;
+
+  const mapConfigErrorMessage = (error: unknown): string => {
+    if (error instanceof ApiClientError) {
+      return t(mapErrorCodeToI18nKey(error.code));
+    }
+    return t("api.unexpectedError");
+  };
   const queryClient = useQueryClient();
   const [documentType, setDocumentType] = useState("project-review");
   const [level, setLevel] = useState("medium");
@@ -317,6 +191,63 @@ export default function AIConfigurationConsole() {
       ?
     </span>
   );
+  const guide = {
+    partTitle: t("biz.evaluationGuide.partTitle"),
+    partItems: [
+      t("biz.evaluationGuide.partItem1"),
+      t("biz.evaluationGuide.partItem2"),
+      t("biz.evaluationGuide.partItem3"),
+      t("biz.evaluationGuide.partItem4"),
+      t("biz.evaluationGuide.partItem5"),
+    ],
+    factorsTitle: t("biz.evaluationGuide.factorsTitle"),
+    factorsItems: [
+      t("biz.evaluationGuide.factorsItem1"),
+      t("biz.evaluationGuide.factorsItem2"),
+      t("biz.evaluationGuide.factorsItem3"),
+      t("biz.evaluationGuide.factorsItem4"),
+      t("biz.evaluationGuide.factorsItem5"),
+    ],
+    whenNewTitle: t("biz.evaluationGuide.whenNewTitle"),
+    whenNewItems: [
+      t("biz.evaluationGuide.whenNewItem1"),
+      t("biz.evaluationGuide.whenNewItem2"),
+      t("biz.evaluationGuide.whenNewItem3"),
+    ],
+    whenNotNewTitle: t("biz.evaluationGuide.whenNotNewTitle"),
+    whenNotNewItems: [
+      t("biz.evaluationGuide.whenNotNewItem1"),
+      t("biz.evaluationGuide.whenNotNewItem2"),
+    ],
+    impactTitle: t("biz.evaluationGuide.impactTitle"),
+    impactItems: [
+      t("biz.evaluationGuide.impactItem1"),
+      t("biz.evaluationGuide.impactItem2"),
+    ],
+    checklistTitle: t("biz.evaluationGuide.checklistTitle"),
+    checklistItems: [
+      t("biz.evaluationGuide.checklistItem1"),
+      t("biz.evaluationGuide.checklistItem2"),
+      t("biz.evaluationGuide.checklistItem3"),
+      t("biz.evaluationGuide.checklistItem4"),
+    ],
+    definitionTitle: t("biz.evaluationGuide.definitionTitle"),
+    definitionItems: [
+      t("biz.evaluationGuide.definitionItem1"),
+      t("biz.evaluationGuide.definitionItem2"),
+      t("biz.evaluationGuide.definitionItem3"),
+      t("biz.evaluationGuide.definitionItem4"),
+      t("biz.evaluationGuide.definitionItem5"),
+    ],
+    examplesTitle: t("biz.evaluationGuide.examplesTitle"),
+    examplesItems: [
+      t("biz.evaluationGuide.examplesItem1"),
+      t("biz.evaluationGuide.examplesItem2"),
+      t("biz.evaluationGuide.examplesItem3"),
+      t("biz.evaluationGuide.examplesItem4"),
+      t("biz.evaluationGuide.examplesItem5"),
+    ],
+  };
 
   const createSetMutation = useMutation({
     mutationFn: (activate: boolean) => {
@@ -345,34 +276,16 @@ export default function AIConfigurationConsole() {
       ]);
     },
     onError: (error) => {
-      setMessage({ type: "error", text: error instanceof Error ? error.message : ui.createFailed });
+      setMessage({ type: "error", text: mapConfigErrorMessage(error) });
     },
   });
-  const bootstrapSetMutation = useMutation({
-    mutationFn: () => bootstrapEvaluationSet({ document_type: documentType, level }),
-    onSuccess: async () => {
-      setMessage({ type: "success", text: ui.bootstrapSuccess });
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["mgmt-evaluation-sets", documentType, level] }),
-        queryClient.invalidateQueries({ queryKey: ["mgmt-evaluation-set-active", documentType, level] }),
-      ]);
-    },
-    onError: (error) => {
-      const raw = error instanceof Error ? error.message : ui.bootstrapFailed;
-      setMessage({
-        type: "error",
-        text: normalizeBootstrapError(raw, lang === "ja" ? "ja" : "vi"),
-      });
-    },
-  });
-
   const createFirstSetMutation = useMutation({
     mutationFn: async () => {
       const scopeRubrics = rubrics.filter((r) => r.document_type === documentType);
       const activeRubric = scopeRubrics.find((r) => r.status === "active") || scopeRubrics[0];
-      if (!activeRubric) throw new Error(lang === "ja" ? "Rubric not found for this document type." : "Chưa có khung tiêu chí chấm điểm cho loại tài liệu này.");
-      if (!newPromptContent.trim()) throw new Error(lang === "ja" ? "Please enter prompt content." : "Vui lòng nhập hướng dẫn phản hồi AI.");
-      if (!newPolicyContent.trim()) throw new Error(lang === "ja" ? "Please enter policy content." : "Vui lòng nhập nguyên tắc đánh giá.");
+      if (!activeRubric) throw new Error(ui.rubricNotFound);
+      if (!newPromptContent.trim()) throw new Error(ui.promptRequired);
+      if (!newPolicyContent.trim()) throw new Error(ui.policyRequired);
 
       if (changeRubric && newRubricContent.trim()) {
         const fallbackManual = manualCriteria
@@ -391,11 +304,7 @@ export default function AIConfigurationConsole() {
           ? ((activeRubric as any).criteria || []) as Array<{ key: string; max_score: number; labels?: Record<string, string> }>
           : fallbackManual;
         if (!criteriaRows.length) {
-          throw new Error(
-            lang === "ja"
-              ? "To create Rubric v1 from scratch, criteria definitions are required."
-              : "Để tạo khung tiêu chí chấm điểm v1 từ đầu cần có danh sách tiêu chí."
-          );
+          throw new Error(ui.criteriaRequired);
         }
         const rubricVersions = scopeRubrics.map((r) => r.version);
         const rubricVersion = nextVersion(rubricVersions);
@@ -450,7 +359,7 @@ export default function AIConfigurationConsole() {
       setActiveTab("sets");
     },
     onError: (error) => {
-      setMessage({ type: "error", text: error instanceof Error ? error.message : ui.createFailed });
+      setMessage({ type: "error", text: mapConfigErrorMessage(error) });
     },
   });
 
@@ -528,8 +437,7 @@ export default function AIConfigurationConsole() {
               <label style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>{ui.scopeDocumentType || "Document type"}</label>
               <select value={documentType} onChange={(event) => setDocumentType(event.target.value)}>
                 {documentTypes.map((item) => {
-                  const label = DOCUMENT_TYPE_LABELS[item];
-                  const local = label ? (lang === "ja" ? label.ja : label.vi) : item;
+                  const local = getDocumentTypeLabel(item, lang);
                   return <option key={item} value={item}>{`${local} (${item})`}</option>;
                 })}
               </select>
@@ -538,8 +446,7 @@ export default function AIConfigurationConsole() {
               <label style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>{ui.scopeLevel || "Level"}</label>
               <select value={level} onChange={(event) => setLevel(event.target.value)}>
                 {LEVELS.map((item) => {
-                  const local = lang === "ja" ? LEVEL_LABELS[item].ja : LEVEL_LABELS[item].vi;
-                  return <option key={item} value={item}>{`${local} (${item})`}</option>;
+                  return <option key={item} value={item}>{getLevelLabel(item, lang)}</option>;
                 })}
               </select>
             </div>
@@ -554,64 +461,41 @@ export default function AIConfigurationConsole() {
               onClick={() => setShowGuide((prev) => !prev)}
               style={{ margin: 8 }}
             >
-              {showGuide ? "Ẩn hướng dẫn nhanh cách chấm" : "Hướng dẫn nhanh cách chấm"}
+              {showGuide ? ui.quickGuideHide : ui.quickGuideShow}
             </button>
             {showGuide ? (
               <div style={{ padding: "0 12px 12px", color: "#334155", fontSize: 13, display: "grid", gap: 10 }}>
                 <div>
-                  <strong>Bộ cấu hình đánh giá AI gồm 5 phần</strong>
-                  <div>1. Khung tiêu chí chấm điểm: quy định chấm những gì và phân bổ điểm.</div>
-                  <div>2. Hướng dẫn phản hồi AI: quy định cách AI viết nhận xét.</div>
-                  <div>3. Nguyên tắc đánh giá: quy định mức nghiêm ngặt khi chấm.</div>
-                  <div>4. Quy tắc bắt buộc: các quy định AI luôn phải tuân thủ.</div>
-                  <div>5. Mức độ đánh giá: thấp / vừa / cao.</div>
+                  <strong>{guide.partTitle}</strong>
+                  {guide.partItems.map((item) => <div key={item}>{item}</div>)}
                 </div>
                 <div>
-                  <strong>Yếu tố khác ảnh hưởng kết quả review</strong>
-                  <div>- Nội dung tài liệu upload và phiên bản tài liệu.</div>
-                  <div>- Loại tài liệu, ngôn ngữ tài liệu.</div>
-                  <div>- Bối cảnh dự án (mô tả dự án) được dùng làm ngữ cảnh bổ sung khi AI chấm; không thay thế nội dung tài liệu.</div>
-                  <div>- Mức độ đầy đủ bằng chứng/số liệu/KPI/root cause trong chính tài liệu.</div>
-                  <div>- Model AI đang dùng và chế độ chấm mới/tái sử dụng kết quả tương đương.</div>
+                  <strong>{guide.factorsTitle}</strong>
+                  {guide.factorsItems.map((item) => <div key={item}>{item}</div>)}
                 </div>
                 <div>
-                  <strong>Khi nào cần tạo bộ mới</strong>
-                  <div>- Khi thay đổi tiêu chí chấm điểm cho loại tài liệu.</div>
-                  <div>- Khi thay đổi cách AI viết nhận xét hoặc cách diễn giải kết quả.</div>
-                  <div>- Khi cần điều chỉnh mức nghiêm ngặt đánh giá cho scope hiện tại.</div>
+                  <strong>{guide.whenNewTitle}</strong>
+                  {guide.whenNewItems.map((item) => <div key={item}>{item}</div>)}
                 </div>
                 <div>
-                  <strong>Khi nào không cần tạo bộ mới</strong>
-                  <div>- Chỉ sửa lỗi chính tả nhỏ, không thay đổi ý nghĩa chấm.</div>
-                  <div>- Tài liệu mới upload nhưng quy tắc đánh giá vẫn giống nhau.</div>
+                  <strong>{guide.whenNotNewTitle}</strong>
+                  {guide.whenNotNewItems.map((item) => <div key={item}>{item}</div>)}
                 </div>
                 <div>
-                  <strong>Ảnh hưởng sau khi kích hoạt bộ mới</strong>
-                  <div>- Chỉ các lần chấm mới sẽ dùng bộ mới.</div>
-                  <div>- Kết quả đã chấm trước đó không bị thay đổi.</div>
+                  <strong>{guide.impactTitle}</strong>
+                  {guide.impactItems.map((item) => <div key={item}>{item}</div>)}
                 </div>
                 <div>
-                  <strong>Checklist trước khi bấm Lưu và kích hoạt</strong>
-                  <div>- Đã chọn đúng loại tài liệu.</div>
-                  <div>- Đã chọn đúng mức độ đánh giá.</div>
-                  <div>- Đã xem lại nội dung thay đổi chính.</div>
-                  <div>- Đã thống nhất nội bộ (nếu có quy trình duyệt).</div>
+                  <strong>{guide.checklistTitle}</strong>
+                  {guide.checklistItems.map((item) => <div key={item}>{item}</div>)}
                 </div>
                 <div>
-                  <strong>Định nghĩa từng yếu tố trong bộ tiêu chuẩn</strong>
-                  <div>- Khung tiêu chí chấm điểm: xác định chấm những hạng mục nào và phân bổ trọng số.</div>
-                  <div>- Hướng dẫn phản hồi AI: quy định cách diễn đạt nhận xét để người đọc dễ hành động.</div>
-                  <div>- Nguyên tắc đánh giá: quy định mức nghiêm ngặt khi cho điểm và trừ điểm.</div>
-                  <div>- Quy tắc bắt buộc: các ràng buộc đầu ra AI phải luôn tuân thủ.</div>
-                  <div>- Mức độ đánh giá: low / medium / high để chọn độ sâu và độ chặt khi phản hồi.</div>
+                  <strong>{guide.definitionTitle}</strong>
+                  {guide.definitionItems.map((item) => <div key={item}>{item}</div>)}
                 </div>
                 <div>
-                  <strong>Ví dụ thay đổi và tác động</strong>
-                  <div>- Đổi Khung tiêu chí chấm điểm: điểm theo từng tiêu chí có thể thay đổi.</div>
-                  <div>- Đổi Hướng dẫn phản hồi AI: văn phong, độ chi tiết và trọng tâm nhận xét thay đổi.</div>
-                  <div>- Đổi Nguyên tắc đánh giá: mức trừ điểm và ngưỡng đạt/chưa đạt thay đổi.</div>
-                  <div>- Đổi Mức độ đánh giá: độ sâu phản hồi thay đổi theo low / medium / high.</div>
-                  <div>- Đổi Quy tắc bắt buộc: định dạng và cấu trúc kết quả trả về có thể thay đổi.</div>
+                  <strong>{guide.examplesTitle}</strong>
+                  {guide.examplesItems.map((item) => <div key={item}>{item}</div>)}
                 </div>
               </div>
             ) : null}
@@ -683,9 +567,7 @@ export default function AIConfigurationConsole() {
                   placeholder={ui.searchPlaceholder}
                 />
                 <button className="btn-secondary btn-secondary--compact" onClick={() => setShowArchived((prev) => !prev)}>
-                  {showArchived
-                    ? (lang === "ja" ? "Show active only" : "Chỉ hiện active")
-                    : (lang === "ja" ? "Show all statuses" : "Hiện tất cả trạng thái")}
+                  {showArchived ? ui.showActiveOnly : ui.showAllStatuses}
                 </button>
                 <select value={historyLimit} onChange={(event) => setHistoryLimit(Number(event.target.value))}>
                   <option value={10}>10</option>
@@ -694,13 +576,12 @@ export default function AIConfigurationConsole() {
                 </select>
               </div>
                   <div style={{ marginBottom: 8, color: "#64748b", fontSize: 12 }}>
-                    {lang === "ja"
-                      ? `${visibleHistory.length}/${filteredHistoryCount} ã‚»ãƒƒãƒˆã‚’è¡¨ç¤ºä¸­`
-                      : `Đang hiển thị ${visibleHistory.length}/${filteredHistoryCount} bộ`}
+                    {ui.historyShowing
+                      .replace("{shown}", String(visibleHistory.length))
+                      .replace("{total}", String(filteredHistoryCount))}
                   </div>
                   <div style={{ display: "grid", gap: 8 }}>
                     {visibleHistory.map((setItem) => {
-                      const details = setWithDetails(setItem);
                       const selected = selectedSetId === setItem.id;
                       return (
                         <button
@@ -726,7 +607,7 @@ export default function AIConfigurationConsole() {
                           <div style={{ fontSize: 12, color: "#64748b" }}>
                             <strong>{ui.documentTypeLabel}:</strong> {setItem.document_type} |{" "}
                             <strong>{ui.promptLevel}:</strong> {setItem.level} |{" "}
-                            <strong>Tạo lúc:</strong> {setItem.created_at}
+                            <strong>{ui.createdAt}:</strong> {setItem.created_at}
                           </div>
                         </button>
                       );
@@ -747,40 +628,40 @@ export default function AIConfigurationConsole() {
                           className="btn-secondary btn-secondary--compact"
                           onClick={() => setShowSelectedSetDetail((prev) => !prev)}
                         >
-                          {showSelectedSetDetail ? "Ẩn chi tiết" : "Xem chi tiết"}
+                          {showSelectedSetDetail ? ui.hideDetail : ui.showDetail}
                         </button>
                       </div>
                       {showSelectedSetDetail ? (
                         <>
                           <div style={{ marginBottom: 10, color: "#334155", fontSize: 12, background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8, padding: 8 }}>
-                            Bộ này chỉ để xem lại. Muốn thay đổi nội dung, hãy tạo bộ mới từ bộ hiện tại.
+                            {ui.readOnlyNotice}
                           </div>
                           <div style={{ display: "grid", gap: 6, fontSize: 13, marginBottom: 10 }}>
-                            <div><strong>Tên bộ:</strong> {selectedSet.name}</div>
-                            <div><strong>Trạng thái:</strong> {selectedSet.status}</div>
+                            <div><strong>{ui.setNameLabel}:</strong> {selectedSet.name}</div>
+                            <div><strong>{ui.statusLabel}:</strong> {selectedSet.status}</div>
                             <div><strong>{ui.documentTypeLabel}:</strong> {selectedSet.document_type}</div>
-                            <div><strong>Mức độ đánh giá:</strong> {selectedSet.level}</div>
-                            <div><strong>Khung tiêu chí chấm điểm:</strong> {selectedSet.rubric?.version || "-"}</div>
-                            <div><strong>Hướng dẫn phản hồi AI:</strong> {selectedSet.prompt?.version || "-"}</div>
-                            <div><strong>Nguyên tắc đánh giá:</strong> {selectedSet.policy?.version || "-"}</div>
-                            <div><strong>Phiên bản quy tắc bắt buộc:</strong> {selectedSet.required_rules_version}</div>
-                            <div><strong>Mã quy tắc bắt buộc:</strong> {(selectedSet.required_rule_hash || "-").slice(0, 16)}...</div>
+                            <div><strong>{ui.levelLabel}:</strong> {selectedSet.level}</div>
+                            <div><strong>{ui.rubricLabel}:</strong> {selectedSet.rubric?.version || "-"}</div>
+                            <div><strong>{ui.promptLabel}:</strong> {selectedSet.prompt?.version || "-"}</div>
+                            <div><strong>{ui.policyLabel}:</strong> {selectedSet.policy?.version || "-"}</div>
+                            <div><strong>{ui.requiredRulesVersionLabel}:</strong> {selectedSet.required_rules_version}</div>
+                            <div><strong>{ui.requiredRulesHashLabel}:</strong> {(selectedSet.required_rule_hash || "-").slice(0, 16)}...</div>
                           </div>
                           <div style={{ display: "grid", gap: 8 }}>
                             <div>
-                              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>Khung tiêu chí chấm điểm (chỉ xem)</div>
+                              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>{ui.rubricReadonly}</div>
                               <textarea value={selectedSet.rubric?.prompt?.vi || selectedSet.rubric?.prompt?.ja || ""} rows={4} readOnly style={{ width: "100%", opacity: 0.9 }} />
                             </div>
                             <div>
-                              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>Hướng dẫn phản hồi AI (chỉ xem)</div>
+                              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>{ui.promptReadonly}</div>
                               <textarea value={selectedSet.prompt?.content || ""} rows={4} readOnly style={{ width: "100%", opacity: 0.9 }} />
                             </div>
                             <div>
-                              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>Nguyên tắc đánh giá (chỉ xem)</div>
+                              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>{ui.policyReadonly}</div>
                               <textarea value={selectedSet.policy?.content || ""} rows={4} readOnly style={{ width: "100%", opacity: 0.9 }} />
                             </div>
                             <div>
-                              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>Quy tắc bắt buộc (chỉ xem)</div>
+                              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>{ui.rulesReadonly}</div>
                               <textarea value={(requiredRulesData?.rules || []).join("\n")} rows={4} readOnly style={{ width: "100%", opacity: 0.9 }} />
                             </div>
                           </div>
@@ -795,7 +676,7 @@ export default function AIConfigurationConsole() {
                             setActiveTab("create");
                           }}
                         >
-                          Tạo bộ mới từ bộ này
+                          {ui.createFromThisSet}
                         </button>
                         <button
                           type="button"
@@ -806,7 +687,7 @@ export default function AIConfigurationConsole() {
                             setActiveTab("compare");
                           }}
                         >
-                          So sánh với bộ khác
+                          {ui.compareWithOtherSet}
                         </button>
                       </div>
                       <div style={{ marginTop: 12 }}>
@@ -854,10 +735,10 @@ export default function AIConfigurationConsole() {
               </div>
               {compareSummary ? (
                 <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "repeat(4,minmax(100px,1fr))", gap: 8, fontSize: 12 }}>
-                  <div><strong>Khung tiêu chí:</strong> {compareSummary.rubric === "changed" ? ui.changed : ui.unchanged}</div>
-                  <div><strong>Hướng dẫn AI:</strong> {compareSummary.prompt === "changed" ? ui.changed : ui.unchanged}</div>
-                  <div><strong>Nguyên tắc:</strong> {compareSummary.policy === "changed" ? ui.changed : ui.unchanged}</div>
-                  <div><strong>Quy tắc bắt buộc:</strong> {compareSummary.rules === "changed" ? ui.changed : ui.unchanged}</div>
+                  <div><strong>{ui.rubricCompareLabel}:</strong> {compareSummary.rubric === "changed" ? ui.changed : ui.unchanged}</div>
+                  <div><strong>{ui.promptCompareLabel}:</strong> {compareSummary.prompt === "changed" ? ui.changed : ui.unchanged}</div>
+                  <div><strong>{ui.policyCompareLabel}:</strong> {compareSummary.policy === "changed" ? ui.changed : ui.unchanged}</div>
+                  <div><strong>{ui.rulesCompareLabel}:</strong> {compareSummary.rules === "changed" ? ui.changed : ui.unchanged}</div>
                 </div>
               ) : null}
             </SectionBlock.Body>
@@ -878,9 +759,7 @@ export default function AIConfigurationConsole() {
                   <div>
                     {ui.promptLevel}: <strong>{level}</strong>
                     {helpDot(
-                      lang === "ja"
-                        ? "Low: fast and short feedback. Medium: balanced. High: stricter and requires clearer evidence."
-                        : "Thấp: chấm nhanh, nhận xét ngắn. Vừa: cân bằng. Cao: chấm chặt hơn, yêu cầu bằng chứng rõ hơn."
+                      ui.levelHelp
                     )}
                   </div>
                 </div>
@@ -895,16 +774,14 @@ export default function AIConfigurationConsole() {
                       }
                     }}
                   >
-                    Mở hướng dẫn
+                    {ui.openGuide}
                   </button>
                 </div>
                 <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
                   <label style={{ display: "block" }}>
                     <input type="checkbox" checked={changeRubric} onChange={(event) => setChangeRubric(event.target.checked)} /> {ui.changeRubric}
                     {helpDot(
-                      lang === "ja"
-                        ? "Define what to score and score weights."
-                        : "Xác định chấm những hạng mục nào và trọng số điểm tương ứng."
+                      ui.rubricHelp
                     )}
                   </label>
                   {changeRubric ? (
@@ -912,7 +789,7 @@ export default function AIConfigurationConsole() {
                       <textarea value={newRubricContent} onChange={(event) => setNewRubricContent(event.target.value)} rows={5} style={{ width: "100%", marginBottom: 8 }} />
                       <div style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: 8, background: "#f8fafc", marginBottom: 8 }}>
                         <div style={{ fontSize: 12, color: "#475569", marginBottom: 6 }}>
-                          {lang === "ja" ? "Rubric criteria (for first set)" : "Tiêu chí chấm điểm (cho tạo mới từ đầu)"}
+                          {ui.rubricCriteriaLabel}
                         </div>
                         <div style={{ display: "grid", gap: 6 }}>
                           {manualCriteria.map((row, idx) => (
@@ -920,23 +797,23 @@ export default function AIConfigurationConsole() {
                               <input
                                 value={row.key}
                                 onChange={(event) => setManualCriteria((prev) => prev.map((it, i) => i === idx ? { ...it, key: event.target.value } : it))}
-                                placeholder="key"
+                                placeholder={ui.criterionKeyPlaceholder}
                               />
                               <input
                                 type="number"
                                 value={row.max_score}
                                 onChange={(event) => setManualCriteria((prev) => prev.map((it, i) => i === idx ? { ...it, max_score: Number(event.target.value) || 0 } : it))}
-                                placeholder="max"
+                                placeholder={ui.criterionMaxPlaceholder}
                               />
                               <input
                                 value={row.label_vi}
                                 onChange={(event) => setManualCriteria((prev) => prev.map((it, i) => i === idx ? { ...it, label_vi: event.target.value } : it))}
-                                placeholder="label vi"
+                                placeholder={ui.criterionLabelViPlaceholder}
                               />
                               <input
                                 value={row.label_ja}
                                 onChange={(event) => setManualCriteria((prev) => prev.map((it, i) => i === idx ? { ...it, label_ja: event.target.value } : it))}
-                                placeholder="label ja"
+                                placeholder={ui.criterionLabelJaPlaceholder}
                               />
                               <button
                                 type="button"
@@ -950,14 +827,14 @@ export default function AIConfigurationConsole() {
                           ))}
                           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#64748b" }}>
                             <span>
-                              {(lang === "ja" ? "Total score: " : "Tổng điểm: ") + manualCriteria.reduce((sum, item) => sum + (Number(item.max_score) || 0), 0)}
+                              {ui.totalScorePrefix + manualCriteria.reduce((sum, item) => sum + (Number(item.max_score) || 0), 0)}
                             </span>
                             <button
                               type="button"
                               className="btn-secondary btn-secondary--compact"
                               onClick={() => setManualCriteria((prev) => [...prev, { key: "", max_score: 0, label_vi: "", label_ja: "" }])}
                             >
-                              {lang === "ja" ? "+ Add" : "+ Thêm tiêu chí"}
+                              {ui.addCriterion}
                             </button>
                           </div>
                         </div>
@@ -967,27 +844,21 @@ export default function AIConfigurationConsole() {
                   <label style={{ display: "block" }}>
                     <input type="checkbox" checked={changePrompt} onChange={(event) => setChangePrompt(event.target.checked)} /> {ui.changePrompt}
                     {helpDot(
-                      lang === "ja"
-                        ? "Define AI feedback style and focus."
-                        : "Quy định cách AI diễn đạt nhận xét, cấu trúc phản hồi và trọng tâm phân tích."
+                      ui.promptHelp
                     )}
                   </label>
                   {changePrompt ? <textarea value={newPromptContent} onChange={(event) => setNewPromptContent(event.target.value)} rows={5} style={{ width: "100%", marginBottom: 8 }} /> : null}
                   <label style={{ display: "block" }}>
                     <input type="checkbox" checked={changePolicy} onChange={(event) => setChangePolicy(event.target.checked)} /> {ui.changePolicy}
                     {helpDot(
-                      lang === "ja"
-                        ? "Define strictness and score deduction rules."
-                        : "Quy định mức nghiêm ngặt khi chấm và cách trừ điểm theo thiếu sót."
+                      ui.policyHelp
                     )}
                   </label>
                   {changePolicy ? <textarea value={newPolicyContent} onChange={(event) => setNewPolicyContent(event.target.value)} rows={5} style={{ width: "100%" }} /> : null}
                   <label style={{ display: "block" }}>
                     <input type="checkbox" checked={changeRequiredRules} onChange={(event) => setChangeRequiredRules(event.target.checked)} /> {ui.changeRules}
                     {helpDot(
-                      lang === "ja"
-                        ? "Mandatory output constraints AI must always follow."
-                        : "Các ràng buộc bắt buộc AI luôn phải tuân thủ (ví dụ định dạng đầu ra)."
+                      ui.rulesHelp
                     )}
                   </label>
                   {changeRequiredRules ? <textarea value={newRequiredRulesContent} onChange={(event) => setNewRequiredRulesContent(event.target.value)} rows={6} style={{ width: "100%" }} /> : null}
@@ -1007,11 +878,11 @@ export default function AIConfigurationConsole() {
             {createStep === 2 ? (
               <>
                 <div style={{ display: "grid", gap: 6, fontSize: 13 }}>
-                  <div><strong>Khung tiêu chí chấm điểm:</strong> {effectiveRubricChange ? ui.newVersion : `${ui.reuse} ${activeDetails?.rubric?.version || "-"}`}</div>
-                  <div><strong>Hướng dẫn phản hồi AI:</strong> {effectivePromptChange ? ui.newVersion : `${ui.reuse} ${activeDetails?.prompt?.version || "-"}`}</div>
-                  <div><strong>Nguyên tắc đánh giá:</strong> {effectivePolicyChange ? ui.newVersion : `${ui.reuse} ${activeDetails?.policy?.version || "-"}`}</div>
-                  <div><strong>Quy tắc bắt buộc:</strong> {effectiveRequiredRulesChange ? ui.newVersion : `${activeDetails?.required_rules_version || "system-rules-v1"} (${(activeDetails?.required_rule_hash || "-").slice(0, 16)}...)`}</div>
-                  <div><strong>Set Name:</strong> {setName}</div>
+                  <div><strong>{ui.rubricLabel}:</strong> {effectiveRubricChange ? ui.newVersion : `${ui.reuse} ${activeDetails?.rubric?.version || "-"}`}</div>
+                  <div><strong>{ui.promptLabel}:</strong> {effectivePromptChange ? ui.newVersion : `${ui.reuse} ${activeDetails?.prompt?.version || "-"}`}</div>
+                  <div><strong>{ui.policyLabel}:</strong> {effectivePolicyChange ? ui.newVersion : `${ui.reuse} ${activeDetails?.policy?.version || "-"}`}</div>
+                  <div><strong>{ui.requiredRulesVersionLabel}:</strong> {effectiveRequiredRulesChange ? ui.newVersion : `${activeDetails?.required_rules_version || "system-rules-v1"} (${(activeDetails?.required_rule_hash || "-").slice(0, 16)}...)`}</div>
+                  <div><strong>{ui.setNameSummary}:</strong> {setName}</div>
                 </div>
                 <div style={{ marginTop: 8, color: "#475569", fontSize: 12 }}>
                   {ui.reviewHint}

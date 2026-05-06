@@ -7,6 +7,8 @@ from app.models import (
     GradingSlideReview,
 )
 
+ACTIVE_GRADING_STATUSES = ("PENDING", "EXTRACTING", "GRADING")
+
 class GradingRepository:
     def __init__(self, session: Session):
         self.session = session
@@ -92,6 +94,25 @@ class GradingRepository:
                 GradingRun.graded_at != None
             )
             .order_by(col(GradingRun.graded_at).desc(), col(GradingRun.id).desc())
+        )
+        return self.session.exec(statement).first()
+
+    def find_active_grading_run(
+        self,
+        document_version_id: int,
+        prompt_level: str,
+        evaluation_set_id: int,
+    ) -> Optional[GradingRun]:
+        normalized_level = (prompt_level or "").strip().lower()
+        statement = (
+            select(GradingRun)
+            .where(
+                GradingRun.document_version_id == document_version_id,
+                GradingRun.evaluation_set_id == evaluation_set_id,
+                func.lower(GradingRun.prompt_level) == normalized_level,
+                col(GradingRun.status).in_(ACTIVE_GRADING_STATUSES),
+            )
+            .order_by(col(GradingRun.id).desc())
         )
         return self.session.exec(statement).first()
 

@@ -349,3 +349,20 @@ Không overwrite
   - nếu không truyền, tự resolve `active EvaluationSet` theo `(document_type, prompt_level)`.
   - nếu chưa có `active EvaluationSet`, thử auto-ensure/auto-bootstrap theo scope.
 - Mục tiêu vận hành: giảm thao tác cho user thường, vẫn giữ audit trail và backward compatibility.
+
+## UI Business Terms (Current)
+
+- `Evaluation Set` hiển thị trên UI là: `Bộ tiêu chuẩn chấm`.
+- `Rubric` hiển thị là: `Khung tiêu chí chấm điểm`.
+- `Prompt` hiển thị là: `Hướng dẫn phản hồi AI`.
+- `Policy` hiển thị là: `Nguyên tắc đánh giá`.
+- `Required Rules` hiển thị là: `Quy tắc bắt buộc`.
+
+## Prompt Level Meaning (Current)
+
+- `low / medium / high` là `Mức độ đánh giá` (độ nghiêm và độ sâu khi nhận xét).
+- Không dùng `low / medium / high` để đại diện chất lượng tài liệu đầu vào.
+
+## Upload UI Rule (Current)
+
+- Trước khi bấm review, UI phải hiển thị rõ bộ tiêu chuẩn đang áp dụng theo scope hiện tại.

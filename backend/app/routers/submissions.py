@@ -1,12 +1,14 @@
 from datetime import datetime
 from datetime import datetime
+import csv
+import io
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel
 from app.config import UPLOADS_DIR
-from app.models import DocumentOut, DocumentVersionOut, GradingRunDetailOut, GradingRunHistoryOut, SubmissionListResponse, SubmissionOut, ProjectCreate, ProjectUpdate, ProjectOut, VersionComparisonOut, DocumentListOut, VersionListOut, GradingListOut
+from app.models import DocumentOut, DocumentVersionOut, GradingRunDetailOut, GradingRunHistoryOut, SubmissionListResponse, SubmissionOut, ProjectCreate, ProjectUpdate, ProjectOut, VersionComparisonOut, VersionDiffOut, DocumentListOut, VersionListOut, GradingListOut
 from app.services.excel_export import build_submissions_excel
 from app.storage import store
 
@@ -231,3 +233,180 @@ async def compare_document_versions(document_id: int, base_version_id: int, comp
         return store.compare_versions(document_id, base_version_id, compare_version_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.get("/documents/{document_id}/versions/diff", response_model=VersionDiffOut, tags=["Projects"])
+async def diff_document_versions(
+    document_id: int,
+    version_id_a: int,
+    version_id_b: int,
+    run_id_a: int | None = None,
+    run_id_b: int | None = None,
+):
+    try:
+        return store.diff_versions(
+            document_id=document_id,
+            version_id_a=version_id_a,
+            version_id_b=version_id_b,
+            run_id_a=run_id_a,
+            run_id_b=run_id_b,
+        )
+    except ValueError as e:
+        code = str(e)
+        status_code = 422
+        if code in {"DOCUMENT_NOT_FOUND", "VERSION_NOT_FOUND", "RUN_NOT_FOUND"}:
+            status_code = 404
+        raise HTTPException(
+            status_code=status_code,
+            detail={"error_code": code},
+        )
+
+
+@router.get("/documents/{document_id}/versions/diff/export", tags=["Projects"])
+async def export_diff_document_versions_csv(
+    document_id: int,
+    version_id_a: int,
+    version_id_b: int,
+    run_id_a: int | None = None,
+    run_id_b: int | None = None,
+):
+    try:
+        diff = store.diff_versions(
+            document_id=document_id,
+            version_id_a=version_id_a,
+            version_id_b=version_id_b,
+            run_id_a=run_id_a,
+            run_id_b=run_id_b,
+        )
+    except ValueError as e:
+        code = str(e)
+        status_code = 422
+        if code in {"DOCUMENT_NOT_FOUND", "VERSION_NOT_FOUND", "RUN_NOT_FOUND"}:
+            status_code = 404
+        raise HTTPException(
+            status_code=status_code,
+            detail={"error_code": code},
+        )
+
+    def write_row(writer, values: list[object]):
+        writer.writerow(values)
+
+    def iter_csv():
+        output = io.StringIO()
+        writer = csv.writer(output, lineterminator="\n")
+        write_row(
+            writer,
+            [
+                "row_type",
+                "document_id",
+                "version_a_id",
+                "version_b_id",
+                "run_a_id",
+                "run_b_id",
+                "score_a",
+                "score_b",
+                "score_delta",
+                "score_direction",
+                "prompt_level_changed",
+                "evaluation_set_changed",
+                "same_evaluation_context",
+                "criterion_key",
+                "criterion_a",
+                "criterion_b",
+                "criterion_delta",
+                "criterion_direction",
+                "warning",
+            ],
+        )
+        write_row(
+            writer,
+            [
+                "summary",
+                diff.document_id,
+                diff.version_a.id,
+                diff.version_b.id,
+                diff.run_a.id,
+                diff.run_b.id,
+                diff.score_diff.a_score if diff.score_diff.a_score is not None else "",
+                diff.score_diff.b_score if diff.score_diff.b_score is not None else "",
+                diff.score_diff.delta,
+                diff.score_diff.direction,
+                diff.meta_diff.prompt_level_changed,
+                diff.meta_diff.evaluation_set_changed,
+                diff.comparison_validity.same_evaluation_context,
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+            ],
+        )
+        yield output.getvalue()
+        output.seek(0)
+        output.truncate(0)
+
+        for row in diff.criteria_diff:
+            write_row(
+                writer,
+                [
+                    "criteria",
+                    diff.document_id,
+                    diff.version_a.id,
+                    diff.version_b.id,
+                    diff.run_a.id,
+                    diff.run_b.id,
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    row.criterion_key,
+                    row.a if row.a is not None else "",
+                    row.b if row.b is not None else "",
+                    row.delta,
+                    row.direction,
+                    "",
+                ],
+            )
+            yield output.getvalue()
+            output.seek(0)
+            output.truncate(0)
+
+        for warning in diff.comparison_validity.warnings:
+            write_row(
+                writer,
+                [
+                    "warning",
+                    diff.document_id,
+                    diff.version_a.id,
+                    diff.version_b.id,
+                    diff.run_a.id,
+                    diff.run_b.id,
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    warning,
+                ],
+            )
+            yield output.getvalue()
+            output.seek(0)
+            output.truncate(0)
+
+    filename = f"version_diff_{document_id}_{version_id_a}_vs_{version_id_b}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    return StreamingResponse(
+        iter_csv(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

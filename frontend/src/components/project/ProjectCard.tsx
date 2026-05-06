@@ -48,7 +48,7 @@ import {
   MetadataPanel,
   type FeedbackSectionView
 } from "./ProjectReviewPanels";
-import { LoadingState, EmptyState } from "../ui/States";
+import { LoadingState, EmptyState, StatusBadge } from "../ui/States";
 
 const CriteriaScoreChart = lazy(() => import("./charts/CriteriaScoreChart"));
 
@@ -170,8 +170,50 @@ function buildSlideReviewItems(slideReviews: SlideReview[] | undefined, lang: La
     });
 }
 
+function phase2Text(t: (key: string) => string) {
+  return {
+    loadingDocuments: t("sm.document.loading"),
+    cannotLoadProjectDocuments: t("sm.document.error"),
+    retry: t("sm.common.retry"),
+    auditContextTitle: t("biz.audit.title"),
+    auditContextSubtitle: t("biz.audit.subtitle"),
+    project: t("sm.audit.project"),
+    document: t("sm.audit.document"),
+    version: t("sm.audit.version"),
+    gradingRun: t("sm.audit.gradingRun"),
+    evaluationSet: t("sm.audit.evaluationSet"),
+    notSelected: t("sm.common.notSelected"),
+    autoUnresolved: t("sm.evaluation.autoUnresolved"),
+    resolveMode: t("sm.evaluation.resolveMode"),
+    resolveAutoResolved: t("sm.evaluation.resolveAutoResolved"),
+    resolveAutoPending: t("sm.evaluation.resolveAutoPending"),
+    resolveReasonTitle: t("sm.evaluation.resolveReasonTitle"),
+    resolveReasonAuto: t("sm.evaluation.resolveReasonAuto"),
+    emptyDocuments: t("sm.document.empty"),
+    selectDocumentToLoadVersions: t("sm.version.selectDocumentHint"),
+    loadingVersions: t("sm.version.loading"),
+    emptyVersions: t("sm.version.empty"),
+    cannotLoadVersions: t("sm.version.error"),
+    selectVersionToLoadGradings: t("sm.grading.selectVersionHint"),
+    loadingGradings: t("sm.grading.loading"),
+    emptyGradings: t("sm.grading.empty"),
+    cannotLoadGradings: t("sm.grading.error"),
+    versionTimelineTitle: t("sm.version.timelineTitle"),
+    gradingTimelineTitle: t("sm.grading.timelineTitle"),
+    newestFirst: t("sm.common.newestFirst"),
+    noVersions: t("sm.version.noneTitle"),
+    uploadCreateV1: t("sm.version.noneDesc"),
+    noGradings: t("sm.grading.noneTitle"),
+    runReviewCreateGrading: t("sm.grading.noneDesc"),
+    loadingDetails: t("sm.detail.loading"),
+    cannotLoadDetail: t("sm.detail.error"),
+    selectSlideForDetails: t("sm.slide.select"),
+  };
+}
+
 export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
   const { lang, t } = useTranslation();
+  const m = phase2Text(t);
   const queryClient = useQueryClient();
   
   const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null);
@@ -191,7 +233,12 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
   const [compareVersionId, setCompareVersionId] = useState<number | null>(null);
 
   // Queries
-  const { data: documents = [], isLoading: loadingDocs, error: docsError } = useQuery<DocumentListOut[]>({
+  const {
+    data: documents = [],
+    isLoading: loadingDocs,
+    error: docsError,
+    refetch: refetchDocuments,
+  } = useQuery<DocumentListOut[]>({
     queryKey: ["project-documents", projectId],
     queryFn: () => listProjectDocuments(projectId),
   });
@@ -200,14 +247,24 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
     queryFn: () => listProjects(),
   });
 
-  const { data: versions = [], isLoading: loadingVersions, error: versionsError } = useQuery<VersionListOut[]>({
+  const {
+    data: versions = [],
+    isLoading: loadingVersions,
+    error: versionsError,
+    refetch: refetchVersions,
+  } = useQuery<VersionListOut[]>({
     queryKey: ["document-versions", selectedDocumentId],
     queryFn: () => listDocumentVersions(selectedDocumentId!),
     enabled: selectedDocumentId !== null && selectedDocumentId !== undefined,
     staleTime: 0, 
   });
 
-  const { data: gradings = [], isLoading: loadingGradings, error: gradingsError } = useQuery<GradingListOut[]>({
+  const {
+    data: gradings = [],
+    isLoading: loadingGradings,
+    error: gradingsError,
+    refetch: refetchGradings,
+  } = useQuery<GradingListOut[]>({
     queryKey: ["version-gradings", selectedVersionId],
     queryFn: () => listVersionGradings(selectedVersionId!),
     enabled: !!selectedVersionId,
@@ -222,7 +279,7 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
     }
   });
 
-  const { data: gradingDetail, isLoading: loadingDetail, error: detailError } = useQuery<GradingRunDetail>({
+  const { data: gradingDetail, isLoading: loadingDetail, error: detailError, refetch: refetchGradingDetail } = useQuery<GradingRunDetail>({
     queryKey: ["grading-detail", selectedGradingId],
     queryFn: () => getGradingRun(selectedGradingId!),
     enabled: !!selectedGradingId,
@@ -275,8 +332,15 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
   }, [documents]);
 
   useEffect(() => {
-    if (sortedDocuments.length > 0 && selectedDocumentId === null) {
+    if (!sortedDocuments.length) {
+      setSelectedDocumentId(null);
+      return;
+    }
+    const currentExists = sortedDocuments.some((doc) => doc.document_id === selectedDocumentId);
+    if (!currentExists) {
       setSelectedDocumentId(sortedDocuments[0].document_id);
+      setSelectedVersionId(null);
+      setSelectedGradingId(null);
     }
   }, [sortedDocuments, selectedDocumentId]);
 
@@ -315,6 +379,35 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
   const currentProject = (projectList || []).find((p: any) => p.project_id === projectId);
   const currentDocument = sortedDocuments.find(d => d.document_id === selectedDocumentId);
   const currentVersion = versions.find(v => v.document_version_id === selectedVersionId);
+  const currentGrading = gradings.find((g) => g.grading_run_id === selectedGradingId) ?? null;
+
+  const documentSelectorState = docsError
+    ? "error"
+    : loadingDocs
+      ? "loading"
+      : sortedDocuments.length
+        ? "ready"
+        : "empty";
+
+  const versionSelectorState = selectedDocumentId === null
+    ? "idle"
+    : versionsError
+      ? "error"
+      : loadingVersions
+        ? "loading"
+        : versions.length
+          ? "ready"
+          : "empty";
+
+  const gradingSelectorState = selectedVersionId === null
+    ? "idle"
+    : gradingsError
+      ? "error"
+      : loadingGradings
+        ? "loading"
+        : gradings.length
+          ? "ready"
+          : "empty";
 
   const rerunMutation = useMutation({
     mutationFn: () => gradeSubmission({
@@ -416,9 +509,15 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
     { label: "Description", value: gradingDetail?.submission?.project_description || "—" },
   ], [currentDocument, currentVersion, result, gradingDetail, lang]);
 
-  if (loadingDocs) return <LoadingState title="Loading documents..." />;
+  if (loadingDocs) return <LoadingState title={m.loadingDocuments} />;
   if (docsError) {
-    return <EmptyState title="Cannot load project documents" description={docsError instanceof Error ? docsError.message : "Unknown error"} />;
+    return (
+      <EmptyState
+        title={m.cannotLoadProjectDocuments}
+        description={docsError instanceof Error ? docsError.message : "Unknown error"}
+        action={<button className="btn-secondary btn-secondary--compact" onClick={() => void refetchDocuments()}>{m.retry}</button>}
+      />
+    );
   }
 
   return (
@@ -491,6 +590,31 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
         </div>
       </header>
 
+      <SectionBlock style={{ marginBottom: "16px" }}>
+        <SectionBlock.Header title={m.auditContextTitle} subtitle={m.auditContextSubtitle} />
+        <SectionBlock.Body>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+            <StatusBadge tone="primary">{m.project}: {currentProject?.project_id ?? projectId}</StatusBadge>
+            <StatusBadge tone="muted">{m.document}: {currentDocument?.document_name ?? m.notSelected}</StatusBadge>
+            <StatusBadge tone={currentVersion?.is_latest ? "success" : "muted"}>
+              {m.version}: {currentVersion?.version ?? m.notSelected} {currentVersion?.is_latest ? "(latest)" : ""}
+            </StatusBadge>
+            <StatusBadge tone="muted">
+              {m.gradingRun}: {currentGrading ? `#${currentGrading.grading_run_id}` : m.notSelected}
+            </StatusBadge>
+            <StatusBadge tone={result?.evaluation_set_id ? "success" : "warning"}>
+              {m.evaluationSet}: {result?.evaluation_set_id ? `#${result.evaluation_set_id}` : m.autoUnresolved}
+            </StatusBadge>
+            <StatusBadge tone="primary">
+              {m.resolveMode}: {result?.evaluation_set_id ? m.resolveAutoResolved : m.resolveAutoPending}
+            </StatusBadge>
+          </div>
+          <p style={{ marginTop: "8px", fontSize: "12px", color: "#64748b" }}>
+            {m.resolveReasonTitle}: {m.resolveReasonAuto}
+          </p>
+        </SectionBlock.Body>
+      </SectionBlock>
+
       {actionMessage && (
         <div className={`project-action-message project-action-message--${actionMessage.tone}`}>
           {actionMessage.text}
@@ -522,6 +646,11 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
                 </option>
               ))}
             </select>
+            {documentSelectorState === "empty" && (
+              <p style={{ marginTop: "8px", fontSize: "12px", color: "#64748b" }}>
+                {m.emptyDocuments}
+              </p>
+            )}
           </SectionBlock.Body>
         </SectionBlock>
 
@@ -543,6 +672,31 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
                   <option value="">{t("project.selectVersion")}</option>
                   {versions.map(v => <option key={v.document_version_id} value={v.document_version_id}>{v.version} {v.is_latest ? "(Latest)" : ""}</option>)}
                 </select>
+                {versionSelectorState === "idle" && (
+                  <p style={{ marginTop: "8px", fontSize: "12px", color: "#64748b" }}>
+                    {m.selectDocumentToLoadVersions}
+                  </p>
+                )}
+                {versionSelectorState === "loading" && (
+                  <p style={{ marginTop: "8px", fontSize: "12px", color: "#64748b" }}>
+                    {m.loadingVersions}
+                  </p>
+                )}
+                {versionSelectorState === "empty" && (
+                  <p style={{ marginTop: "8px", fontSize: "12px", color: "#64748b" }}>
+                    {m.emptyVersions}
+                  </p>
+                )}
+                {versionSelectorState === "error" && (
+                  <div style={{ marginTop: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "12px", color: "#b91c1c" }}>
+                      {m.cannotLoadVersions}
+                    </span>
+                    <button className="btn-secondary btn-secondary--compact" onClick={() => void refetchVersions()}>
+                      {m.retry}
+                    </button>
+                  </div>
+                )}
               </SectionBlock.Body>
             </SectionBlock>
 
@@ -562,6 +716,31 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
                     </option>
                   ))}
                 </select>
+                {gradingSelectorState === "idle" && (
+                  <p style={{ marginTop: "8px", fontSize: "12px", color: "#64748b" }}>
+                    {m.selectVersionToLoadGradings}
+                  </p>
+                )}
+                {gradingSelectorState === "loading" && (
+                  <p style={{ marginTop: "8px", fontSize: "12px", color: "#64748b" }}>
+                    {m.loadingGradings}
+                  </p>
+                )}
+                {gradingSelectorState === "empty" && (
+                  <p style={{ marginTop: "8px", fontSize: "12px", color: "#64748b" }}>
+                    {m.emptyGradings}
+                  </p>
+                )}
+                {gradingSelectorState === "error" && (
+                  <div style={{ marginTop: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "12px", color: "#b91c1c" }}>
+                      {m.cannotLoadGradings}
+                    </span>
+                    <button className="btn-secondary btn-secondary--compact" onClick={() => void refetchGradings()}>
+                      {m.retry}
+                    </button>
+                  </div>
+                )}
               </SectionBlock.Body>
             </SectionBlock>
           </>
@@ -600,17 +779,86 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
         )}
       </div>
 
-      {(loadingDetail || loadingComparison || loadingVersions || loadingGradings) ? (
-        <LoadingState title="Fetching details..." />
+      {!comparisonMode && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+          <SectionBlock>
+            <SectionBlock.Header title={m.versionTimelineTitle} subtitle={m.newestFirst} />
+            <SectionBlock.Body>
+              {versions.length ? (
+                <div style={{ display: "grid", gap: "8px" }}>
+                  {versions.map((v) => (
+                    <button
+                      key={v.document_version_id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedVersionId(v.document_version_id);
+                        setSelectedGradingId(null);
+                      }}
+                      className={`submission-card__button ${selectedVersionId === v.document_version_id ? "is-active" : ""}`.trim()}
+                      style={{ textAlign: "left" }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <strong>{v.version}</strong>
+                        <div style={{ display: "flex", gap: "6px" }}>
+                          {v.is_latest && <StatusBadge tone="success">latest</StatusBadge>}
+                          {v.latest_status?.toLowerCase() === "completed" && <StatusBadge tone="primary">graded</StatusBadge>}
+                        </div>
+                      </div>
+                      <small style={{ color: "#64748b" }}>{formatDateTime(v.uploaded_at, lang)}</small>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState compact title={m.noVersions} description={m.uploadCreateV1} />
+              )}
+            </SectionBlock.Body>
+          </SectionBlock>
+
+          <SectionBlock>
+            <SectionBlock.Header title={m.gradingTimelineTitle} subtitle={m.newestFirst} />
+            <SectionBlock.Body>
+              {gradings.length ? (
+                <div style={{ display: "grid", gap: "8px" }}>
+                  {gradings.map((g) => (
+                    <button
+                      key={g.grading_run_id}
+                      type="button"
+                      onClick={() => setSelectedGradingId(g.grading_run_id)}
+                      className={`submission-card__button ${selectedGradingId === g.grading_run_id ? "is-active" : ""}`.trim()}
+                      style={{ textAlign: "left" }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <strong>Run #{g.grading_run_id}</strong>
+                        <StatusBadge tone={g.status?.toLowerCase() === "completed" ? "success" : g.status?.toLowerCase() === "failed" ? "danger" : "warning"}>
+                          {g.status?.toUpperCase() ?? "PENDING"}
+                        </StatusBadge>
+                      </div>
+                      <small style={{ color: "#64748b" }}>
+                        {formatDateTime(g.created_at, lang)} {g.total_score !== null ? `• Score ${g.total_score}` : ""}
+                      </small>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState compact title={m.noGradings} description={m.runReviewCreateGrading} />
+              )}
+            </SectionBlock.Body>
+          </SectionBlock>
+        </div>
+      )}
+
+      {(loadingDetail || loadingComparison) ? (
+        <LoadingState title={m.loadingDetails} />
       ) : (versionsError || gradingsError || detailError) ? (
         <EmptyState
-          title="Cannot load review detail"
+          title={m.cannotLoadDetail}
           description={
             (detailError instanceof Error && detailError.message)
             || (gradingsError instanceof Error && gradingsError.message)
             || (versionsError instanceof Error && versionsError.message)
             || "Unknown error"
           }
+          action={<button className="btn-secondary btn-secondary--compact" onClick={() => void refetchGradingDetail()}>{m.retry}</button>}
         />
       ) : comparisonMode ? (
         comparisonData ? <VersionComparison data={comparisonData} /> : <EmptyState title={t("compare.selectVersions")} />
@@ -719,7 +967,7 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
                           </div>
                         </div>
                       </div>
-                    ) : <EmptyState title="Select a slide to see details" compact />}
+                    ) : <EmptyState title={m.selectSlideForDetails} compact />}
                   </main>
                 </div>
               </div>

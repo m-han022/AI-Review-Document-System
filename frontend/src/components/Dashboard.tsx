@@ -1,21 +1,34 @@
-import { useMemo, useState } from "react";
+import { Suspense, lazy, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { listProjects } from "../api/client";
 import { projectsQueryKey } from "../query";
 import type { Project } from "../types";
-import DashboardOverview from "./dashboard/DashboardOverview";
-import FileUpload from "./FileUpload";
 import { useTranslation } from "./LanguageSelector";
 import AppShell from "./layout/AppShell";
 import Sidebar, { type WorkspaceView } from "./layout/Sidebar";
 import Topbar from "./layout/Topbar";
-import ProjectCard from "./project/ProjectCard";
-import ReviewListOverview from "./reviews/ReviewListOverview";
-import AIConfigurationConsole from "./rubrics/AIConfigurationConsole";
-import OperationalScreen from "./workspace/OperationalScreens";
 import SectionBlock from "./ui/SectionBlock";
 import { ErrorState, LoadingState } from "./ui/States";
+
+const DashboardOverview = lazy(() => import("./dashboard/DashboardOverview"));
+const FileUpload = lazy(() => import("./FileUpload"));
+const ProjectCard = lazy(() => import("./project/ProjectCard"));
+const ReviewListOverview = lazy(() => import("./reviews/ReviewListOverview"));
+const AIConfigurationConsole = lazy(() => import("./rubrics/AIConfigurationConsole"));
+const AuditDashboard = lazy(() => import("./workspace/AuditDashboard"));
+const VersionDiffDashboard = lazy(() => import("./workspace/VersionDiffDashboard"));
+const OperationalScreen = lazy(() => import("./workspace/OperationalScreens"));
+
+function ViewFallback({ title }: { title: string }) {
+  return (
+    <SectionBlock>
+      <SectionBlock.Body>
+        <LoadingState title={title} description="Loading view..." />
+      </SectionBlock.Body>
+    </SectionBlock>
+  );
+}
 
 export default function Dashboard() {
   const { t } = useTranslation();
@@ -83,6 +96,14 @@ export default function Dashboard() {
           rightBadge: null,
           hideMain: false,
         };
+      case "diff":
+        return {
+          title: t("nav.versionDiff"),
+          subtitle: t("biz.versionDiff.subtitle"),
+          breadcrumb: [t("nav.dashboard"), t("nav.versionDiff")],
+          rightBadge: null,
+          hideMain: false,
+        };
       case "workflow":
         return {
           title: t("nav.approvalWorkflow"),
@@ -144,25 +165,29 @@ export default function Dashboard() {
       case "upload":
         return (
           <div className="workspace-stack">
-            <FileUpload
-              onReviewComplete={(projectId) => {
-                setSelectedProjectId(projectId);
-                setActiveView("detail");
-              }}
-            />
+            <Suspense fallback={<ViewFallback title={t("upload.pageTitle")} />}>
+              <FileUpload
+                onReviewComplete={(projectId) => {
+                  setSelectedProjectId(projectId);
+                  setActiveView("detail");
+                }}
+              />
+            </Suspense>
           </div>
         );
       case "reviews":
         return (
           <div className="workspace-stack">
-            <ReviewListOverview
-              projects={projects}
-              activeProjectId={selectedProject?.project_id ?? null}
-              onSelectProject={(projectId) => {
-                setSelectedProjectId(projectId);
-                setActiveView("detail");
-              }}
-            />
+            <Suspense fallback={<ViewFallback title={t("submissions.title")} />}>
+              <ReviewListOverview
+                projects={projects}
+                activeProjectId={selectedProject?.project_id ?? null}
+                onSelectProject={(projectId) => {
+                  setSelectedProjectId(projectId);
+                  setActiveView("detail");
+                }}
+              />
+            </Suspense>
           </div>
         );
       case "detail":
@@ -176,43 +201,62 @@ export default function Dashboard() {
           );
         }
         return (
-          <ProjectCard 
-            key={selectedProjectId}
-            projectId={selectedProjectId}
-            onBack={() => setActiveView("reviews")}
-          />
+          <Suspense fallback={<ViewFallback title={t("project.reviewResult")} />}>
+            <ProjectCard
+              key={selectedProjectId}
+              projectId={selectedProjectId}
+              onBack={() => setActiveView("reviews")}
+            />
+          </Suspense>
         );
       case "rubrics":
         return (
           <div className="workspace-stack">
-            <AIConfigurationConsole />
+            <Suspense fallback={<ViewFallback title={t("rubric.pageTitle")} />}>
+              <AIConfigurationConsole />
+            </Suspense>
           </div>
         );
       case "report":
+        return (
+          <Suspense fallback={<ViewFallback title={t("common.loading")} />}>
+            <AuditDashboard />
+          </Suspense>
+        );
+      case "diff":
+        return (
+          <Suspense fallback={<ViewFallback title={t("common.loading")} />}>
+            <VersionDiffDashboard />
+          </Suspense>
+        );
       case "workflow":
       case "export":
       case "settings":
         return (
-          <OperationalScreen
-            route={activeView}
-            projects={projects}
-            onOpenReviews={() => setActiveView("reviews")}
-            onOpenUpload={() => setActiveView("upload")}
-          />
+          <Suspense fallback={<ViewFallback title={t("common.loading")} />}>
+            <OperationalScreen
+              route={activeView}
+              projects={projects}
+              onOpenReviews={() => setActiveView("reviews")}
+              onOpenUpload={() => setActiveView("upload")}
+            />
+          </Suspense>
         );
       case "dashboard":
       default:
         return (
           <div className="workspace-stack workspace-stack--dashboard-reference">
-            <DashboardOverview
-              projects={projects}
-              onSelectProject={(projectId) => {
-                setSelectedProjectId(projectId);
-                setActiveView("detail");
-              }}
-              onOpenReviews={() => setActiveView("reviews")}
-              onOpenExport={() => setActiveView("export")}
-            />
+            <Suspense fallback={<ViewFallback title={t("nav.dashboard")} />}>
+              <DashboardOverview
+                projects={projects}
+                onSelectProject={(projectId) => {
+                  setSelectedProjectId(projectId);
+                  setActiveView("detail");
+                }}
+                onOpenReviews={() => setActiveView("reviews")}
+                onOpenExport={() => setActiveView("export")}
+              />
+            </Suspense>
           </div>
         );
     }
