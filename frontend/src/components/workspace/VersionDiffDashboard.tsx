@@ -265,6 +265,7 @@ export default function VersionDiffDashboard() {
             {t("sm.versionDiff.compare")}
           </button>
         </div>
+        {!canCompare ? <p className="ops-inline-hint">{t("sm.versionDiff.emptyDesc")}</p> : null}
       </section>
 
       {state.status === "loading" ? (

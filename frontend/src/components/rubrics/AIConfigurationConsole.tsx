@@ -432,9 +432,9 @@ export default function AIConfigurationConsole() {
       <SectionBlock>
         <SectionBlock.Header title={ui.title} subtitle={ui.subtitle} />
         <SectionBlock.Body>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(220px,1fr))", gap: 12, marginBottom: 16 }}>
-            <div style={{ display: "grid", gap: 6 }}>
-              <label style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>{ui.scopeDocumentType || t("sm.aiConfig.scopeDocumentType")}</label>
+          <div className="ai-config-scope-grid">
+            <div className="ai-config-scope-item">
+              <label className="ai-config-scope-label">{ui.scopeDocumentType || t("sm.aiConfig.scopeDocumentType")}</label>
               <select value={documentType} onChange={(event) => setDocumentType(event.target.value)}>
                 {documentTypes.map((item) => {
                   const local = getDocumentTypeLabel(item, lang);
@@ -442,8 +442,8 @@ export default function AIConfigurationConsole() {
                 })}
               </select>
             </div>
-            <div style={{ display: "grid", gap: 6 }}>
-              <label style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>{ui.scopeLevel || "Level"}</label>
+            <div className="ai-config-scope-item">
+              <label className="ai-config-scope-label">{ui.scopeLevel || "Level"}</label>
               <select value={level} onChange={(event) => setLevel(event.target.value)}>
                 {LEVELS.map((item) => {
                   return <option key={item} value={item}>{getLevelLabel(item, lang)}</option>;
@@ -451,20 +451,19 @@ export default function AIConfigurationConsole() {
               </select>
             </div>
           </div>
-          <div style={{ marginBottom: 12, padding: "8px 10px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#f8fafc", color: "#334155", fontSize: 13 }}>
+          <div className="ai-config-mode-note">
             {ui.modeNote}
           </div>
-          <div ref={guideRef} style={{ marginBottom: 12, border: "1px solid #dbeafe", borderRadius: 8, background: "#f8fbff" }}>
+          <div ref={guideRef} className="ai-config-guide">
             <button
               type="button"
-              className="btn-secondary btn-secondary--compact"
               onClick={() => setShowGuide((prev) => !prev)}
-              style={{ margin: 8 }}
+              className="btn-secondary btn-secondary--compact ai-config-guide__toggle"
             >
               {showGuide ? ui.quickGuideHide : ui.quickGuideShow}
             </button>
             {showGuide ? (
-              <div style={{ padding: "0 12px 12px", color: "#334155", fontSize: 13, display: "grid", gap: 10 }}>
+              <div className="ai-config-guide__content">
                 <div>
                   <strong>{guide.partTitle}</strong>
                   {guide.partItems.map((item) => <div key={item}>{item}</div>)}
@@ -500,7 +499,7 @@ export default function AIConfigurationConsole() {
               </div>
             ) : null}
           </div>
-          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+          <div className="ai-config-tabs">
             <button className={activeTab === "sets" ? "btn-primary btn-primary--compact" : "btn-secondary btn-secondary--compact"} onClick={() => setActiveTab("sets")}>
               {ui.tabSets}
             </button>
@@ -529,7 +528,7 @@ export default function AIConfigurationConsole() {
           </div>
 
           {message ? (
-            <div style={{ marginBottom: 12, padding: "8px 10px", borderRadius: 8, border: `1px solid ${message.type === "error" ? "#fecaca" : "#bbf7d0"}`, background: message.type === "error" ? "#fef2f2" : "#f0fdf4" }}>
+            <div className={`rubric-message ${message.type === "error" ? "rubric-message--error" : "rubric-message--success"}`}>
               {message.text}
             </div>
           ) : null}

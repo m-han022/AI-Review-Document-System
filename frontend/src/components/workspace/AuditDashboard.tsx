@@ -291,6 +291,7 @@ export default function AuditDashboard() {
             {isExporting ? t("submissions.exporting") : t("submissions.exportExcel")}
           </button>
         </div>
+        {!canExport ? <p className="ops-inline-hint">{t("sm.auditDashboard.projectPlaceholder")}</p> : null}
       </section>
 
       <section className="ops-card">

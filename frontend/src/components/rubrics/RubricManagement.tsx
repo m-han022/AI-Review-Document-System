@@ -115,8 +115,8 @@ function buildCriteriaDiff(
       type,
       currentMax: currentItem?.max_score ?? null,
       compareMax: compareItem?.max_score ?? null,
-      currentLabel: currentItem?.labels?.[lang] ?? currentItem?.key ?? "—",
-      compareLabel: compareItem?.labels?.[lang] ?? compareItem?.key ?? "—",
+      currentLabel: currentItem?.labels?.[lang] ?? currentItem?.key ?? "-",
+      compareLabel: compareItem?.labels?.[lang] ?? compareItem?.key ?? "-",
     };
   });
 }
@@ -166,7 +166,7 @@ export default function RubricManagement() {
   const hasPrompt = Boolean(form.prompt?.vi?.trim());
   const promptLanguage = lang;
   const promptValue = form.prompt?.[promptLanguage] || "";
-  const activeVersion = activeRubric?.version ?? "—";
+  const activeVersion = activeRubric?.version ?? t("common.noValue");
   const compareCandidates = documentRubrics.filter((rubric) => rubric.version !== form.version);
   const criteriaDiff = useMemo(
     () => buildCriteriaDiff(selectedRubric, compareRubric, lang),

@@ -465,9 +465,9 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                 </StatusBadge>
               </header>
 
-              <div className="prod-field" style={{ marginBottom: "20px", padding: "0 24px" }}>
-                <label style={{ display: "block", marginBottom: "8px", fontWeight: 600 }}>{copy.projectSelect}</label>
-                <div style={{ marginBottom: "8px" }}>
+              <div className="prod-field upload-project-select">
+                <label className="upload-project-select__label">{copy.projectSelect}</label>
+                <div className="upload-project-select__control-wrap">
                   <button
                     type="button"
                     className="btn-secondary btn-secondary--compact"
@@ -478,8 +478,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                   </button>
                 </div>
                 <select
-                  className="prod-select"
-                  style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #e2e8f0" }}
+                  className="prod-select upload-project-select__control"
                   value={selectedExistingProjectId || ""}
                   onChange={(e) => {
                     const pid = e.target.value;
@@ -496,10 +495,10 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                   ))}
                 </select>
                 {fieldErrors.project ? (
-                  <p style={{ marginTop: "8px", color: "#dc2626", fontSize: "12px" }}>{fieldErrors.project}</p>
+                  <p className="upload-project-select__error">{fieldErrors.project}</p>
                 ) : null}
                 {projects.length === 0 ? (
-                  <div style={{ marginTop: "12px" }}>
+                  <div className="upload-project-select__empty">
                     <EmptyState
                       title={copy.noProjectAvailable}
                       description={copy.createProjectBeforeUpload}
@@ -519,9 +518,9 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                   </div>
                 ) : null}
                 {selectedExistingProject && (
-                  <div style={{ marginTop: "12px", padding: "12px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-                    <strong style={{ display: "block", marginBottom: "4px", fontSize: "14px" }}>{selectedExistingProject.project_name}</strong>
-                    <p style={{ margin: 0, fontSize: "13px", color: "#64748b" }}>
+                  <div className="upload-project-select__summary">
+                    <strong className="upload-project-select__summary-title">{selectedExistingProject.project_name}</strong>
+                    <p className="upload-project-select__summary-desc">
                       {selectedExistingProject.project_description || copy.noProjectDescription}
                     </p>
                   </div>
@@ -612,11 +611,10 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                 />
               ) : null}
               
-              <div className="prod-field" style={{ marginTop: '24px' }}>
-                <span style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>{copy.projectDescription}</span>
+              <div className="prod-field upload-project-desc">
+                <span className="upload-project-desc__label">{copy.projectDescription}</span>
                 <textarea
-                  className="prod-textarea"
-                  style={{ width: '100%', minHeight: '80px', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.875rem' }}
+                  className="prod-textarea upload-project-desc__input"
                   placeholder={copy.projectDescriptionHint}
                   value={projectDescription}
                   onChange={(e) => setProjectDescription(e.target.value)}
