@@ -38,6 +38,11 @@ interface NavItem {
   iconSrc: string;
 }
 
+interface NavGroup {
+  titleKey: string;
+  items: NavItem[];
+}
+
 const navKeyMap: Record<NavItemKey, string> = {
   navDashboard: "nav.dashboard",
   navUpload: "nav.upload",
@@ -54,16 +59,34 @@ export default function Sidebar({ activeView, onChangeView }: SidebarProps) {
   const { t } = useTranslation();
   const selectedView = activeView === "detail" ? "reviews" : activeView;
 
-  const navItems: NavItem[] = [
-    { key: "navDashboard", view: "dashboard", iconSrc: aiReviewAssets.sidebarIcons.dashboard },
-    { key: "navUpload", view: "upload", iconSrc: aiReviewAssets.sidebarIcons.document },
-    { key: "navAllReviews", view: "reviews", iconSrc: aiReviewAssets.sidebarIcons.reviewHistory },
-    { key: "navVersionDiff", view: "diff", iconSrc: aiReviewAssets.sidebarIcons.compare },
-    { key: "navReport", view: "report", iconSrc: aiReviewAssets.sidebarIcons.qualityReport },
-    { key: "navRubrics", view: "rubrics", iconSrc: aiReviewAssets.sidebarIcons.compare },
-    { key: "navWorkflow", view: "workflow", iconSrc: aiReviewAssets.sidebarIcons.workflow },
-    { key: "navExport", view: "export", iconSrc: aiReviewAssets.sidebarIcons.export },
-    { key: "navSettings", view: "settings", iconSrc: aiReviewAssets.sidebarIcons.settings },
+  const navGroups: NavGroup[] = [
+    {
+      titleKey: "nav.groupMonitor",
+      items: [
+        { key: "navDashboard", view: "dashboard", iconSrc: aiReviewAssets.sidebarIcons.dashboard },
+        { key: "navAllReviews", view: "reviews", iconSrc: aiReviewAssets.sidebarIcons.reviewHistory },
+      ],
+    },
+    {
+      titleKey: "nav.groupOperate",
+      items: [
+        { key: "navUpload", view: "upload", iconSrc: aiReviewAssets.sidebarIcons.document },
+        { key: "navVersionDiff", view: "diff", iconSrc: aiReviewAssets.sidebarIcons.compare },
+        { key: "navExport", view: "export", iconSrc: aiReviewAssets.sidebarIcons.export },
+      ],
+    },
+    {
+      titleKey: "nav.groupGovern",
+      items: [
+        { key: "navReport", view: "report", iconSrc: aiReviewAssets.sidebarIcons.qualityReport },
+        { key: "navRubrics", view: "rubrics", iconSrc: aiReviewAssets.sidebarIcons.compare },
+        { key: "navWorkflow", view: "workflow", iconSrc: aiReviewAssets.sidebarIcons.workflow },
+      ],
+    },
+    {
+      titleKey: "nav.groupConfigure",
+      items: [{ key: "navSettings", view: "settings", iconSrc: aiReviewAssets.sidebarIcons.settings }],
+    },
   ];
 
   return (
@@ -73,28 +96,32 @@ export default function Sidebar({ activeView, onChangeView }: SidebarProps) {
       </div>
 
       <nav className="workspace-nav workspace-nav--v3">
-        {navItems.map((item) => {
-          const isActive = selectedView === item.view;
-
-          return (
-            <button
-              key={`${item.key}-${item.view}`}
-              type="button"
-              className={`workspace-nav__item workspace-nav__item--v3 ${isActive ? "is-active" : ""}`.trim()}
-              onClick={() => onChangeView(item.view)}
-            >
-              <span className="workspace-nav__icon">
-                <img src={item.iconSrc} alt="" aria-hidden="true" />
-              </span>
-              <span className="workspace-nav__label">{t(navKeyMap[item.key])}</span>
-              {isActive ? (
-                <span className="workspace-nav__spark" aria-hidden="true">
-                  <SparkIcon size="sm" />
-                </span>
-              ) : null}
-            </button>
-          );
-        })}
+        {navGroups.map((group) => (
+          <div key={group.titleKey} className="workspace-nav__group">
+            <p className="workspace-nav__group-title">{t(group.titleKey)}</p>
+            {group.items.map((item) => {
+              const isActive = selectedView === item.view;
+              return (
+                <button
+                  key={`${item.key}-${item.view}`}
+                  type="button"
+                  className={`workspace-nav__item workspace-nav__item--v3 ${isActive ? "is-active" : ""}`.trim()}
+                  onClick={() => onChangeView(item.view)}
+                >
+                  <span className="workspace-nav__icon">
+                    <img src={item.iconSrc} alt="" aria-hidden="true" />
+                  </span>
+                  <span className="workspace-nav__label">{t(navKeyMap[item.key])}</span>
+                  {isActive ? (
+                    <span className="workspace-nav__spark" aria-hidden="true">
+                      <SparkIcon size="sm" />
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
       <div className="workspace-sidebar__footer workspace-sidebar__footer--v3">

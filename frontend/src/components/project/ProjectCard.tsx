@@ -1,4 +1,4 @@
-import { Suspense, lazy, useMemo, useState, useEffect } from "react";
+﻿import { Suspense, lazy, useMemo, useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { 
@@ -29,6 +29,7 @@ import type {
 } from "../../types";
 import { useTranslation } from "../LanguageSelector";
 import Badge from "../ui/Badge";
+import { toBusinessStatus } from "../ui/businessStatus";
 import SectionBlock from "../ui/SectionBlock";
 import {
   ArrowLeftIcon,
@@ -116,20 +117,11 @@ function splitFeedbackLines(feedback: Record<string, string> | null, lang: Langu
 }
 
 function getStatusLabel(status: string, t: (key: string) => string): string {
-  switch (status.toLowerCase()) {
-    case "pending":
-      return t("status.pending");
-    case "extracting":
-      return t("status.extracting");
-    case "grading":
-      return t("status.grading");
-    case "completed":
-      return t("status.completed");
-    case "failed":
-      return t("status.failed");
-    default:
-      return status;
-  }
+  const mapped = toBusinessStatus(status);
+  if (mapped === "reviewReady") return t("statusBiz.reviewReady");
+  if (mapped === "attentionNeeded") return t("statusBiz.attentionNeeded");
+  if (mapped === "exporting") return t("statusBiz.exporting");
+  return t("statusBiz.processing");
 }
 
 function extractCriterionSuggestionText(raw: unknown, lang: LanguageCode): string {
@@ -244,6 +236,7 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
   const [promptUsedOpen, setPromptUsedOpen] = useState(false);
   const [promptUsedText, setPromptUsedText] = useState("");
   const [actionMessage, setActionMessage] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
+  const [showGovernanceDetails, setShowGovernanceDetails] = useState(false);
 
   // Comparison states
   const [comparisonMode, setComparisonMode] = useState(false);
@@ -435,7 +428,7 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
       evaluationSetId: gradingDetail?.grading_run?.evaluation_set_id ?? undefined,
     }),
     onSuccess: async () => {
-      setActionMessage({ tone: "success", text: lang === "ja" ? "レビューを再実行しました。" : "Đã chạy lại review." });
+      setActionMessage({ tone: "success", text: t("project.rerunSuccess") });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: projectsQueryKey }),
         queryClient.invalidateQueries({ queryKey: ["version-gradings", selectedVersionId!] }),
@@ -538,24 +531,24 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
   );
 
   const documentMeta = useMemo(() => [
-    { label: "Document", value: currentDocument?.document_name ?? "—" },
-    { label: "Version", value: currentVersion?.version ?? "—" },
-    { label: "Graded At", value: formatDateTime(result?.graded_at, lang) },
-    { label: "Score", value: result?.score !== null ? `${result?.score}/100` : "—" },
-    { label: "Rubric", value: result?.rubric_version ? `v${result.rubric_version}` : "—" },
-    { label: "Prompt", value: result?.prompt_version ? `v${result.prompt_version}` : "—" },
-    { label: "Policy", value: result?.policy_version ? `v${result.policy_version}` : "—" },
-    { label: "Level", value: result?.prompt_level ?? "—" },
-    { label: "Required Rules Hash", value: result?.required_rule_hash ?? "—" },
-    { label: "Description", value: gradingDetail?.submission?.project_description || "—" },
-  ], [currentDocument, currentVersion, result, gradingDetail, lang]);
+    { label: t("project.metaDocument"), value: currentDocument?.document_name ?? t("common.noValue") },
+    { label: t("project.metaVersion"), value: currentVersion?.version ?? t("common.noValue") },
+    { label: t("project.metaGradedAt"), value: formatDateTime(result?.graded_at, lang) },
+    { label: t("project.metaScore"), value: result?.score !== null ? `${result?.score}/100` : t("common.noValue") },
+    { label: t("project.metaRubric"), value: result?.rubric_version ? `v${result.rubric_version}` : t("common.noValue") },
+    { label: t("project.metaPrompt"), value: result?.prompt_version ? `v${result.prompt_version}` : t("common.noValue") },
+    { label: t("project.metaPolicy"), value: result?.policy_version ? `v${result.policy_version}` : t("common.noValue") },
+    { label: t("project.metaLevel"), value: result?.prompt_level ?? t("common.noValue") },
+    { label: t("project.metaRulesHash"), value: result?.required_rule_hash ?? t("common.noValue") },
+    { label: t("project.metaDescription"), value: gradingDetail?.submission?.project_description || t("common.noValue") },
+  ], [currentDocument, currentVersion, result, gradingDetail, lang, t]);
 
   if (loadingDocs) return <LoadingState title={m.loadingDocuments} />;
   if (docsError) {
     return (
       <EmptyState
         title={m.cannotLoadProjectDocuments}
-        description={docsError instanceof Error ? docsError.message : "Unknown error"}
+        description={docsError instanceof Error ? docsError.message : t("common.error")}
         action={<button className="btn-secondary btn-secondary--compact" onClick={() => void refetchDocuments()}>{m.retry}</button>}
       />
     );
@@ -591,15 +584,15 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
         <div className="project-header-navigation">
           <button className={`btn-secondary btn-secondary--compact ${comparisonMode ? 'is-active' : ''}`} onClick={() => setComparisonMode(!comparisonMode)}>
             <LayersIcon size="sm" />
-            {lang === "ja" ? "バージョン比較" : "So sánh version"}
+            {t("nav.versionDiff")}
           </button>
-          <button className="btn-secondary btn-secondary--compact" onClick={() => rerunMutation.mutate()} disabled={rerunMutation.isPending || !selectedVersionId}>
+          <button className="btn-primary btn-primary--compact" onClick={() => rerunMutation.mutate()} disabled={rerunMutation.isPending || !selectedVersionId}>
             <RefreshIcon size="sm" className={rerunMutation.isPending ? "animate-spin" : ""} />
-            {lang === "ja" ? "再レビュー" : "Re-run review"}
+            {t("project.rerunReview")}
           </button>
           <button className="btn-secondary btn-secondary--compact" onClick={() => exportMutation.mutate()} disabled={exportMutation.isPending}>
             <DownloadIcon size="sm" />
-            {lang === "ja" ? "レポート出力" : "Export report"}
+            {t("submissions.exportExcel")}
           </button>
           <button
             className="btn-secondary btn-secondary--compact"
@@ -626,35 +619,44 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
               }
             }}
           >
-            View Prompt Used
+            {t("project.viewPromptUsed")}
+          </button>
+          <button
+            className="btn-secondary btn-secondary--compact"
+            type="button"
+            onClick={() => setShowGovernanceDetails((prev) => !prev)}
+          >
+            {showGovernanceDetails ? t("project.hideGovernanceDetails") : t("project.showGovernanceDetails")}
           </button>
         </div>
       </header>
 
-      <SectionBlock style={{ marginBottom: "16px" }}>
-        <SectionBlock.Header title={m.auditContextTitle} subtitle={m.auditContextSubtitle} />
-        <SectionBlock.Body>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-            <StatusBadge tone="primary">{m.project}: {currentProject?.project_id ?? projectId}</StatusBadge>
-            <StatusBadge tone="muted">{m.document}: {currentDocument?.document_name ?? m.notSelected}</StatusBadge>
-            <StatusBadge tone={currentVersion?.is_latest ? "success" : "muted"}>
-              {m.version}: {currentVersion?.version ?? m.notSelected} {currentVersion?.is_latest ? "(latest)" : ""}
-            </StatusBadge>
-            <StatusBadge tone="muted">
-              {m.gradingRun}: {currentGrading ? `#${currentGrading.grading_run_id}` : m.notSelected}
-            </StatusBadge>
-            <StatusBadge tone={result?.evaluation_set_id ? "success" : "warning"}>
-              {m.evaluationSet}: {result?.evaluation_set_id ? `#${result.evaluation_set_id}` : m.autoUnresolved}
-            </StatusBadge>
-            <StatusBadge tone="primary">
-              {m.resolveMode}: {result?.evaluation_set_id ? m.resolveAutoResolved : m.resolveAutoPending}
-            </StatusBadge>
-          </div>
-          <p style={{ marginTop: "8px", fontSize: "12px", color: "#64748b" }}>
-            {m.resolveReasonTitle}: {m.resolveReasonAuto}
-          </p>
-        </SectionBlock.Body>
-      </SectionBlock>
+      {showGovernanceDetails ? (
+        <SectionBlock style={{ marginBottom: "16px" }}>
+          <SectionBlock.Header title={t("project.governanceDetails")} subtitle={m.auditContextSubtitle} />
+          <SectionBlock.Body>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+              <StatusBadge tone="primary">{m.project}: {currentProject?.project_id ?? projectId}</StatusBadge>
+              <StatusBadge tone="muted">{m.document}: {currentDocument?.document_name ?? m.notSelected}</StatusBadge>
+              <StatusBadge tone={currentVersion?.is_latest ? "success" : "muted"}>
+                {m.version}: {currentVersion?.version ?? m.notSelected} {currentVersion?.is_latest ? "(latest)" : ""}
+              </StatusBadge>
+              <StatusBadge tone="muted">
+                {m.gradingRun}: {currentGrading ? `#${currentGrading.grading_run_id}` : m.notSelected}
+              </StatusBadge>
+              <StatusBadge tone={result?.evaluation_set_id ? "success" : "warning"}>
+                {m.evaluationSet}: {result?.evaluation_set_id ? `#${result.evaluation_set_id}` : m.autoUnresolved}
+              </StatusBadge>
+              <StatusBadge tone="primary">
+                {m.resolveMode}: {result?.evaluation_set_id ? m.resolveAutoResolved : m.resolveAutoPending}
+              </StatusBadge>
+            </div>
+            <p style={{ marginTop: "8px", fontSize: "12px", color: "#64748b" }}>
+              {m.resolveReasonTitle}: {m.resolveReasonAuto}
+            </p>
+          </SectionBlock.Body>
+        </SectionBlock>
+      ) : null}
 
       {actionMessage && (
         <div className={`project-action-message project-action-message--${actionMessage.tone}`}>
@@ -662,7 +664,8 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
         </div>
       )}
 
-      {/* Hierarchy Selectors */}
+      {/* Hierarchy Selectors (Governance Details) */}
+      {showGovernanceDetails ? (
       <div className="hierarchy-selectors" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
         <SectionBlock>
           <SectionBlock.Header title={t("project.documents") || "Documents"} />
@@ -683,7 +686,7 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
               <option value="">{t("project.selectDocument")}</option>
               {sortedDocuments.map(d => (
                 <option key={d.document_id} value={d.document_id}>
-                  {d.document_name} ({t(getDocumentTypeKey(d.document_type))}) {d.latest_version ? `• ${d.latest_version}` : ""}
+                  {d.document_name} ({t(getDocumentTypeKey(d.document_type))}) {d.latest_version ? `â€¢ ${d.latest_version}` : ""}
                 </option>
               ))}
             </select>
@@ -711,7 +714,7 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
                   style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #e2e8f0' }}
                 >
                   <option value="">{t("project.selectVersion")}</option>
-                  {versions.map(v => <option key={v.document_version_id} value={v.document_version_id}>{v.version} {v.is_latest ? "(Latest)" : ""}</option>)}
+                  {versions.map(v => <option key={v.document_version_id} value={v.document_version_id}>{v.version} {v.is_latest ? `(${t("project.latestTag")})` : ""}</option>)}
                 </select>
                 {versionSelectorState === "idle" && (
                   <p style={{ marginTop: "8px", fontSize: "12px", color: "#64748b" }}>
@@ -742,7 +745,7 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
             </SectionBlock>
 
             <SectionBlock>
-              <SectionBlock.Header title={t("project.gradingRuns") || "Grading Runs"} />
+              <SectionBlock.Header title={t("project.reviewHistory")} />
               <SectionBlock.Body>
                 <select 
                   value={selectedGradingId || ""} 
@@ -750,10 +753,10 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
                   disabled={!selectedVersionId}
                   style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #e2e8f0' }}
                 >
-                  <option value="">Select grading...</option>
+                  <option value="">{t("project.selectReviewRun")}</option>
                   {gradings.map(g => (
                     <option key={g.grading_run_id} value={g.grading_run_id}>
-                      {formatDateTime(g.created_at, lang)} - {g.status?.toUpperCase() || "PENDING"} {g.total_score !== null ? `(Score: ${g.total_score})` : ""}
+                      {formatDateTime(g.created_at, lang)} - {getStatusLabel(g.status || "pending", t)} {g.total_score !== null ? `(Score: ${g.total_score})` : ""}
                     </option>
                   ))}
                 </select>
@@ -819,8 +822,9 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
           </>
         )}
       </div>
+      ) : null}
 
-      {!comparisonMode && (
+      {!comparisonMode && showGovernanceDetails && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
           <SectionBlock>
             <SectionBlock.Header title={m.versionTimelineTitle} subtitle={m.newestFirst} />
@@ -841,8 +845,8 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <strong>{v.version}</strong>
                         <div style={{ display: "flex", gap: "6px" }}>
-                          {v.is_latest && <StatusBadge tone="success">latest</StatusBadge>}
-                          {v.latest_status?.toLowerCase() === "completed" && <StatusBadge tone="primary">graded</StatusBadge>}
+                          {v.is_latest && <StatusBadge tone="success">{t("project.latestTag")}</StatusBadge>}
+                          {v.latest_status?.toLowerCase() === "completed" && <StatusBadge tone="primary">{t("statusBiz.reviewReady")}</StatusBadge>}
                         </div>
                       </div>
                       <small style={{ color: "#64748b" }}>{formatDateTime(v.uploaded_at, lang)}</small>
@@ -869,9 +873,9 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
                       style={{ textAlign: "left" }}
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <strong>Run #{g.grading_run_id}</strong>
+                        <strong>{t("project.runLabel", { id: g.grading_run_id })}</strong>
                         <StatusBadge tone={g.status?.toLowerCase() === "completed" ? "success" : g.status?.toLowerCase() === "failed" ? "danger" : "warning"}>
-                          {g.status?.toUpperCase() ?? "PENDING"}
+                          {getStatusLabel(g.status || "pending", t)}
                         </StatusBadge>
                       </div>
                       <small style={{ color: "#64748b" }}>
@@ -897,7 +901,7 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
             (detailError instanceof Error && detailError.message)
             || (gradingsError instanceof Error && gradingsError.message)
             || (versionsError instanceof Error && versionsError.message)
-            || "Unknown error"
+            || t("common.error")
           }
           action={<button className="btn-secondary btn-secondary--compact" onClick={() => void refetchGradingDetail()}>{m.retry}</button>}
         />
@@ -992,7 +996,7 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
                         <div className="slide-detail-body">
                           <div style={{ marginBottom: "12px" }}>
                             <strong style={{ display: "block", marginBottom: "6px" }}>{t("project.slideSummary")}</strong>
-                            <p style={{ margin: 0, color: "#334155", lineHeight: 1.6 }}>{activeSlide.summary || "—"}</p>
+                            <p style={{ margin: 0, color: "#334155", lineHeight: 1.6 }}>{activeSlide.summary || t("common.noValue")}</p>
                           </div>
                           {activeSlide.issues.length ? (
                             <div className="slide-issues" style={{ marginBottom: "12px" }}>
@@ -1004,7 +1008,7 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
                           ) : null}
                           <div>
                             <strong style={{ display: "block", marginBottom: "6px" }}>{t("project.suggestions")}</strong>
-                            <p style={{ margin: 0, color: "#334155", lineHeight: 1.6 }}>{activeSlide.suggestions || "—"}</p>
+                            <p style={{ margin: 0, color: "#334155", lineHeight: 1.6 }}>{activeSlide.suggestions || t("common.noValue")}</p>
                           </div>
                         </div>
                       </div>
@@ -1025,7 +1029,7 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
 
       {summaryDialogOpen && (
         <ProjectReviewDialog 
-          title={t("project.fullFeedback") || "Full Feedback"}
+          title={t("project.fullFeedback")}
           onClose={() => setSummaryDialogOpen(false)}
           closeLabel={t("common.close") || "Close"}
           wide
@@ -1042,15 +1046,16 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
       )}
       {promptUsedOpen && (
         <ProjectReviewDialog
-          title="Prompt Used"
+          title={t("project.viewPromptUsed")}
           onClose={() => setPromptUsedOpen(false)}
-          closeLabel={t("common.close") || "Close"}
+          closeLabel={t("common.close")}
           wide
         >
-          <pre style={{ whiteSpace: "pre-wrap", maxHeight: "60vh", overflow: "auto" }}>{promptUsedText || "N/A"}</pre>
+          <pre style={{ whiteSpace: "pre-wrap", maxHeight: "60vh", overflow: "auto" }}>{promptUsedText || t("common.noValue")}</pre>
         </ProjectReviewDialog>
       )}
     </div>
   );
 }
+
 

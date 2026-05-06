@@ -1,4 +1,4 @@
-import { API_BASE_URL, DEFAULT_UI_LANGUAGE, UI_LANGUAGE_STORAGE_KEY } from "../config";
+﻿import { API_BASE_URL, DEFAULT_UI_LANGUAGE, UI_LANGUAGE_STORAGE_KEY } from "../config";
 import { normalizeLanguage } from "../locales/utils";
 import type {
   SubmissionDocument,
@@ -906,3 +906,4 @@ export async function bootstrapEvaluationSet(payload: {
   }
   return res.json();
 }
+

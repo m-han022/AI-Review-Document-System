@@ -40,7 +40,7 @@ export default function TableToolbar({
   onCreateProject,
   variant = "full",
 }: TableToolbarProps) {
-  const { lang, t } = useTranslation();
+  const { t } = useTranslation();
   const hasSelection = selectedCount > 0;
   const isReferenceVariant = variant === "reference";
 
@@ -69,7 +69,7 @@ export default function TableToolbar({
               value={documentTypeFilter}
               onChange={(event) => onDocumentTypeFilterChange(event.target.value as DocumentType | "all")}
             >
-              <option value="all">{lang === "ja" ? "すべてのファイルタイプ" : t("dashboard.filterAllDocumentTypes")}</option>
+              <option value="all">{t("submissions.filterAllDocumentTypes")}</option>
               <option value="project-review">{t("upload.types.projectReview.label")}</option>
               <option value="bug-analysis">{t("upload.types.bugAnalysis.label")}</option>
               <option value="qa-review">{t("upload.types.qaReview.label")}</option>
@@ -80,7 +80,7 @@ export default function TableToolbar({
               value={statusFilter}
               onChange={(event) => onStatusFilterChange(event.target.value as "all" | "completed" | "pending")}
             >
-              <option value="all">{lang === "ja" ? "すべてのステータス" : t("dashboard.filterAllStatuses")}</option>
+              <option value="all">{t("submissions.filterAllStatuses")}</option>
               <option value="completed">{t("project.completed")}</option>
               <option value="pending">{t("project.pending")}</option>
             </select>
@@ -89,9 +89,9 @@ export default function TableToolbar({
               value={languageFilter}
               onChange={(event) => onLanguageFilterChange(event.target.value as LanguageCode | "all")}
             >
-              <option value="all">{lang === "ja" ? "すべての言語" : t("dashboard.filterAllLanguages")}</option>
-              <option value="ja">{lang === "ja" ? "日本語" : "Tiếng Nhật"}</option>
-              <option value="vi">{lang === "ja" ? "ベトナム語" : "Tiếng Việt"}</option>
+              <option value="all">{t("submissions.filterAllLanguages")}</option>
+              <option value="ja">日本語</option>
+              <option value="vi">Tiếng Việt</option>
             </select>
           </div>
 
@@ -102,7 +102,7 @@ export default function TableToolbar({
               disabled={isActionPending}
             >
               <PlusIcon size="md" />
-              {lang === "ja" ? "新規プロジェクト" : "Dự án mới"}
+              {t("submissions.createProjectNew")}
             </button>
             <button
               className="btn-primary btn-primary--compact"
@@ -110,7 +110,7 @@ export default function TableToolbar({
               disabled={totalCount === 0 || exporting || isActionPending}
             >
               <DownloadIcon size="md" />
-              {exporting ? t("submissions.exporting") : lang === "ja" ? "Excel出力" : t("submissions.exportExcel")}
+              {exporting ? t("submissions.exporting") : t("submissions.exportExcel")}
             </button>
             <button
               className="btn-danger-soft btn-danger-soft--compact"
@@ -118,7 +118,7 @@ export default function TableToolbar({
               disabled={!hasSelection || isActionPending}
             >
               <TrashIcon size="md" />
-              {lang === "ja" ? `選択削除 (${selectedCount})` : `${t("submissions.deleteSelected")} (${selectedCount})`}
+              {`${t("submissions.deleteSelected")} (${selectedCount})`}
             </button>
           </div>
         </div>
@@ -137,8 +137,8 @@ export default function TableToolbar({
             className="review-toolbar__search-input"
             value={searchQuery}
             onChange={(event) => onSearchQueryChange(event.target.value)}
-            placeholder={lang === "ja" ? "ドキュメント名で検索..." : "Tìm kiếm tài liệu..."}
-            aria-label="Search documents"
+            placeholder={t("submissions.searchPlaceholder")}
+            aria-label={t("submissions.searchPlaceholder")}
           />
         </div>
 
@@ -147,7 +147,7 @@ export default function TableToolbar({
             value={documentTypeFilter}
             onChange={(event) => onDocumentTypeFilterChange(event.target.value as DocumentType | "all")}
           >
-            <option value="all">{lang === "ja" ? "資料タイプ: すべて" : "Tất cả loại tài liệu"}</option>
+            <option value="all">{t("submissions.filterAllDocumentTypes")}</option>
             <option value="project-review">{t("upload.types.projectReview.label")}</option>
             <option value="bug-analysis">{t("upload.types.bugAnalysis.label")}</option>
             <option value="qa-review">{t("upload.types.qaReview.label")}</option>
@@ -158,7 +158,7 @@ export default function TableToolbar({
             value={statusFilter}
             onChange={(event) => onStatusFilterChange(event.target.value as "all" | "completed" | "pending")}
           >
-            <option value="all">{lang === "ja" ? "状態: すべて" : "Tất cả trạng thái"}</option>
+            <option value="all">{t("submissions.filterAllStatuses")}</option>
             <option value="completed">{t("project.completed")}</option>
             <option value="pending">{t("project.pending")}</option>
           </select>
@@ -167,7 +167,7 @@ export default function TableToolbar({
             value={languageFilter}
             onChange={(event) => onLanguageFilterChange(event.target.value as LanguageCode | "all")}
           >
-            <option value="all">{lang === "ja" ? "言語: すべて" : "Tất cả ngôn ngữ"}</option>
+            <option value="all">{t("submissions.filterAllLanguages")}</option>
             <option value="ja">日本語</option>
             <option value="vi">Tiếng Việt</option>
           </select>

@@ -1,4 +1,4 @@
-/* eslint-disable react-refresh/only-export-components */
+﻿/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 import { getLanguage, LANGUAGE_CHANGE_EVENT, setLanguage } from "../api/client";
@@ -105,7 +105,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function LanguageSelector() {
-  const { lang, setLang } = useTranslation();
+  const { lang, setLang, t } = useTranslation();
 
   return (
     <div className="language-selector">
@@ -113,7 +113,7 @@ export function LanguageSelector() {
         value={lang}
         onChange={(event) => setLang(event.target.value as LanguageCode)}
         className="language-select"
-        aria-label="Language"
+        aria-label={t("common.language")}
       >
         {languages.map((language) => (
           <option key={language.code} value={language.code}>
@@ -135,3 +135,5 @@ export function useTranslation() {
   }
   return context;
 }
+
+

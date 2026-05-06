@@ -624,18 +624,6 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
 
               <div className="prod-upload-actions">
                 <div>
-                  <label className="prod-field" style={{ marginBottom: "10px" }}>
-                    <span style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 500 }}>
-                      <input
-                        type="checkbox"
-                        checked={forceRegrade}
-                        onChange={(event) => setForceRegrade(event.target.checked)}
-                        disabled={reviewing || uploadState === "uploading"}
-                      />
-                      {copy.rerunWithoutCache}
-                    </span>
-                    <small style={{ color: "#64748b" }}>{copy.rerunWithoutCacheHint}</small>
-                  </label>
                   {!canStartReview ? <p>{copy.disabledHelper}</p> : null}
                   {documentType && !selectedEvaluationSetId ? (
                     <ErrorState
@@ -698,6 +686,12 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                     </strong>
                   </div>
                 </div>
+                <div className="prod-option-summary">
+                  <div>
+                    <span>{copy.levelLabel}</span>
+                    <strong>{getLevelLabel(selectedEvaluationSet?.level ?? null, lang)}</strong>
+                  </div>
+                </div>
                 <div className="prod-field">
                   <small style={{ color: "#64748b" }}>
                     {copy.activeSetAutoNote}
@@ -712,23 +706,6 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                     compact
                   />
                 ) : null}
-
-                <div className="prod-criteria-list">
-                  {selectedCriteriaPreview.length > 0 ? (
-                    selectedCriteriaPreview.map((criterion) => (
-                      <article key={criterion.key}>
-                        <ShieldCheckIcon size="sm" />
-                        <span>{criterion.label}</span>
-                        <strong>/{criterion.maxScore}</strong>
-                      </article>
-                    ))
-                  ) : (
-                    <article>
-                      <ShieldCheckIcon size="sm" />
-                      <span>{copy.selectedSetNoCriteria}</span>
-                    </article>
-                  )}
-                </div>
                 <div className="prod-field" style={{ marginTop: "12px" }}>
                   <button
                     type="button"
@@ -744,13 +721,21 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
 
                 {showAdvancedOptions ? (
                   <div className="prod-option-summary">
+                    <label className="prod-field" style={{ marginBottom: "10px" }}>
+                      <span style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 500 }}>
+                        <input
+                          type="checkbox"
+                          checked={forceRegrade}
+                          onChange={(event) => setForceRegrade(event.target.checked)}
+                          disabled={reviewing || uploadState === "uploading"}
+                        />
+                        {copy.rerunWithoutCache}
+                      </span>
+                      <small style={{ color: "#64748b" }}>{copy.rerunWithoutCacheHint}</small>
+                    </label>
                     <div>
                       <span>{copy.selectedType}</span>
                       <strong>{documentType ? getDocumentTypeLabel(documentType, lang) : t("common.noValue")}</strong>
-                    </div>
-                    <div>
-                      <span>{copy.levelLabel}</span>
-                      <strong>{getLevelLabel(selectedEvaluationSet?.level ?? null, lang)}</strong>
                     </div>
                     <div>
                       <span>{copy.rubricLabel}</span>
@@ -775,6 +760,22 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                     <div>
                       <span>{copy.setStatusLabel}</span>
                       <strong>{selectedEvaluationSet?.status ?? t("common.noValue")}</strong>
+                    </div>
+                    <div className="prod-criteria-list">
+                      {selectedCriteriaPreview.length > 0 ? (
+                        selectedCriteriaPreview.map((criterion) => (
+                          <article key={criterion.key}>
+                            <ShieldCheckIcon size="sm" />
+                            <span>{criterion.label}</span>
+                            <strong>/{criterion.maxScore}</strong>
+                          </article>
+                        ))
+                      ) : (
+                        <article>
+                          <ShieldCheckIcon size="sm" />
+                          <span>{copy.selectedSetNoCriteria}</span>
+                        </article>
+                      )}
                     </div>
                   </div>
                 ) : null}

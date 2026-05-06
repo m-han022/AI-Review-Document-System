@@ -16,6 +16,7 @@ import { useTranslation } from "../LanguageSelector";
 import { formatUploadedAt } from "../submissions/utils";
 import { FileReviewIcon, ShieldCheckIcon, TargetIcon } from "../ui/Icon";
 import { PageHeader } from "../ui/PageHeader";
+import { toBusinessStatus } from "../ui/businessStatus";
 import { EmptyState, StatusBadge } from "../ui/States";
 
 interface DashboardOverviewProps {
@@ -71,6 +72,24 @@ export default function DashboardOverview({ projects, onSelectProject }: Dashboa
     const avgScore = completed > 0 ? Math.round(graded.reduce((acc, p) => acc + (p.latest_score ?? 0), 0) / completed) : 0;
     return { total, completed, avgScore };
   }, [projects, graded]);
+
+  const attention = useMemo(() => {
+    const failed = projects.filter((p) => toBusinessStatus(p.latest_status) === "attentionNeeded").length;
+    const processing = projects.filter((p) => toBusinessStatus(p.latest_status) === "processing").length;
+    const lowScore = projects.filter((p) => typeof p.latest_score === "number" && (p.latest_score ?? 0) < 60).length;
+    const notReviewed = projects.filter((p) => p.latest_score === null).length;
+    return { failed, processing, lowScore, notReviewed };
+  }, [projects]);
+
+  const attentionItems = useMemo(() => {
+    const items = [
+      { key: "failed", tone: "danger" as const, count: attention.failed, label: t("dashboard.attention.failed") },
+      { key: "low", tone: "warning" as const, count: attention.lowScore, label: t("dashboard.attention.lowScore") },
+      { key: "processing", tone: "primary" as const, count: attention.processing, label: t("dashboard.attention.processing") },
+      { key: "notReviewed", tone: "muted" as const, count: attention.notReviewed, label: t("dashboard.attention.notReviewed") },
+    ];
+    return items.filter((item) => item.count > 0);
+  }, [attention, t]);
 
   const latestProjects = useMemo(
     () => [...projects].sort((a, b) => new Date(b.latest_updated_at).getTime() - new Date(a.latest_updated_at).getTime()).slice(0, 8),
@@ -156,13 +175,22 @@ export default function DashboardOverview({ projects, onSelectProject }: Dashboa
           <header className="prod-card__head">
             <div>
               <h2>{t("dashboard.actionPanelTitle")}</h2>
-              <p>{t("dashboard.nextActionsSubtitle")}</p>
+              <p>{t("dashboard.attention.subtitle")}</p>
             </div>
           </header>
           <div className="prod-dashboard__actions">
-            <div className="prod-option-summary"><div><strong>{t("dashboard.nextAction1")}</strong></div></div>
-            <div className="prod-option-summary"><div><strong>{t("dashboard.nextAction2")}</strong></div></div>
-            <div className="prod-option-summary"><div><strong>{t("dashboard.nextAction3")}</strong></div></div>
+            {attentionItems.length ? (
+              attentionItems.map((item) => (
+                <div className="prod-option-summary" key={item.key}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+                    <strong>{item.label}</strong>
+                    <StatusBadge tone={item.tone}>{item.count}</StatusBadge>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <EmptyState title={t("dashboard.attention.noneTitle")} description={t("dashboard.attention.noneDesc")} compact />
+            )}
           </div>
         </section>
       </div>

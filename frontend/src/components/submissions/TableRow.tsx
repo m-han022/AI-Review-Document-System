@@ -1,5 +1,7 @@
-import type { Project } from "../../types";
+﻿import type { Project } from "../../types";
 import { useTranslation } from "../LanguageSelector";
+import Badge from "../ui/Badge";
+import { businessStatusTone, toBusinessStatus } from "../ui/businessStatus";
 import { EditIcon, EyeIcon, FileReviewIcon, RefreshIcon, TrashIcon } from "../ui/Icon";
 import { formatUploadedAt } from "./utils";
 
@@ -41,35 +43,21 @@ export default function TableRow({
   const getStatusBadge = () => {
     const status = project.latest_status?.toUpperCase() || "PENDING";
     const error = project.latest_error_message;
-    
-    const baseStyle: React.CSSProperties = {
-      display: "inline-flex",
-      alignItems: "center",
-      padding: "2px 8px",
-      borderRadius: "12px",
-      fontSize: "11px",
-      fontWeight: 600,
-      textTransform: "uppercase",
-    };
+    const businessStatus = toBusinessStatus(status);
 
     switch (status) {
-      case "COMPLETED":
-      case "GRADED":
-        return <span style={{ ...baseStyle, backgroundColor: "#dcfce7", color: "#166534" }}>{t("status.completed") || "Completed"}</span>;
       case "FAILED":
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-            <span style={{ ...baseStyle, backgroundColor: "#fee2e2", color: "#991b1b" }}>{t("status.failed") || "Failed"}</span>
+            <Badge tone={businessStatusTone(businessStatus)}>{t("statusBiz.attentionNeeded")}</Badge>
             {error && <span style={{ fontSize: "10px", color: "#ef4444", maxWidth: "120px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={error}>{error}</span>}
           </div>
         );
-      case "GRADING":
-        return <span style={{ ...baseStyle, backgroundColor: "#fef9c3", color: "#854d0e" }}>{t("status.grading") || "Grading..."}</span>;
-      case "EXTRACTING":
-        return <span style={{ ...baseStyle, backgroundColor: "#e0f2fe", color: "#075985" }}>{t("status.extracting") || "Extracting..."}</span>;
-      case "PENDING":
       default:
-        return <span style={{ ...baseStyle, backgroundColor: "#f1f5f9", color: "#475569" }}>{t("status.pending") || "Pending"}</span>;
+        if (businessStatus === "reviewReady") {
+          return <Badge tone="success">{t("statusBiz.reviewReady")}</Badge>;
+        }
+        return <Badge tone="warning">{t("statusBiz.processing")}</Badge>;
     }
   };
 
@@ -140,7 +128,7 @@ export default function TableRow({
             </div>
           </div>
         ) : (
-          <span style={{ color: "#94a3b8" }}>—</span>
+          <span style={{ color: "#94a3b8" }}>{t("common.noValue")}</span>
         )}
       </td>
 
@@ -149,12 +137,27 @@ export default function TableRow({
       <td>
         <div className="review-table__actions-v3">
           <button
+            className="btn-primary btn-primary--compact"
+            onClick={(event) => {
+              event.stopPropagation();
+              onGrade(project.project_id);
+            }}
+            disabled={gradingId === project.project_id || isActionPending}
+            title={latestScore !== null ? t("submissions.regrade") : t("submissions.gradeAll")}
+            aria-label={latestScore !== null ? t("submissions.regrade") : t("submissions.gradeAll")}
+          >
+            <RefreshIcon size="sm" className={gradingId === project.project_id ? "animate-spin" : ""} />
+            {latestScore !== null ? t("submissions.regrade") : t("submissions.gradeAll")}
+          </button>
+
+          <button
             className="review-action-button-v3"
             onClick={(event) => {
               event.stopPropagation();
               onSelect(project.project_id);
             }}
-            title={t("project.reviewResult")}
+            title={t("submissions.viewResult")}
+            aria-label={t("submissions.viewResult")}
           >
             <EyeIcon size="sm" />
           </button>
@@ -166,21 +169,10 @@ export default function TableRow({
               onEdit(project);
             }}
             disabled={isActionPending}
-            title={t("common.edit") || "Sửa"}
+            title={t("common.edit")}
+            aria-label={t("common.edit")}
           >
             <EditIcon size="sm" />
-          </button>
-
-          <button
-            className="review-action-button-v3"
-            onClick={(event) => {
-              event.stopPropagation();
-              onGrade(project.project_id);
-            }}
-            disabled={gradingId === project.project_id || isActionPending}
-            title={latestScore !== null ? t("submissions.regrade") : t("submissions.gradeAll")}
-          >
-            <RefreshIcon size="sm" className={gradingId === project.project_id ? "animate-spin" : ""} />
           </button>
 
           <button
@@ -191,6 +183,7 @@ export default function TableRow({
             }}
             disabled={deletingId === project.project_id || isActionPending}
             title={t("common.delete")}
+            aria-label={t("common.delete")}
           >
             <TrashIcon size="sm" />
           </button>
@@ -199,3 +192,4 @@ export default function TableRow({
     </tr>
   );
 }
+
