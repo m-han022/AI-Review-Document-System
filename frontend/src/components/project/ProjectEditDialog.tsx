@@ -69,11 +69,11 @@ export default function ProjectEditDialog({ open, onClose, project }: ProjectEdi
   return (
     <Dialog
       open={open}
-      title={titleText === "project.editTitle" ? "Chỉnh sửa dự án" : titleText}
+      title={titleText}
       onConfirm={handleSave}
       onCancel={onClose}
-      confirmLabel={saveText === "common.save" ? "Lưu" : saveText}
-      cancelLabel={cancelText === "common.cancel" ? "Hủy" : cancelText}
+      confirmLabel={saveText}
+      cancelLabel={cancelText}
       pending={loading}
     >
       <div className="prod-edit-form" style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "8px" }}>
@@ -83,7 +83,7 @@ export default function ProjectEditDialog({ open, onClose, project }: ProjectEdi
           <input className="prod-input" value={project.project_id} disabled style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #ddd", backgroundColor: "#f5f5f5" }} />
         </div>
         <div className="prod-field">
-          <label style={{ display: "block", marginBottom: "4px", fontWeight: 500 }}>{nameText === "project.name" ? "Tên dự án" : nameText}</label>
+          <label style={{ display: "block", marginBottom: "4px", fontWeight: 500 }}>{nameText}</label>
           <input
             className="prod-input"
             value={name}
@@ -92,7 +92,7 @@ export default function ProjectEditDialog({ open, onClose, project }: ProjectEdi
           />
         </div>
         <div className="prod-field">
-          <label style={{ display: "block", marginBottom: "4px", fontWeight: 500 }}>{descText === "project.description" ? "Mô tả" : descText}</label>
+          <label style={{ display: "block", marginBottom: "4px", fontWeight: 500 }}>{descText}</label>
           <textarea
             className="prod-textarea"
             value={description}

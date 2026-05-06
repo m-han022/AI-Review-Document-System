@@ -129,7 +129,7 @@ function renderStatusLabel(status: string, t: (key: string) => string): string {
 }
 
 export default function AuditDashboard() {
-  const { t, lang } = useTranslation();
+  const { t } = useTranslation();
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -205,6 +205,13 @@ export default function AuditDashboard() {
       setIsExporting(false);
     }
   };
+  const handleSelectRun = (runId: number) => dispatch({ type: "SELECT_RUN", runId });
+  const handleRowKeyDown = (event: React.KeyboardEvent<HTMLTableRowElement>, runId: number) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleSelectRun(runId);
+    }
+  };
 
   return (
     <section className="ops-screen" aria-label={t("biz.auditDashboard.title")}>
@@ -217,7 +224,7 @@ export default function AuditDashboard() {
 
       <section className="ops-card">
         <h2>{t("sm.auditDashboard.filterTitle")}</h2>
-        <div className="prod-form-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
+        <div className="prod-form-grid audit-filter-grid">
           <label className="prod-field">
             <span>{t("sm.audit.project")}</span>
             <input
@@ -273,14 +280,14 @@ export default function AuditDashboard() {
             />
           </label>
         </div>
-        <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
+        <div className="audit-actions">
           <button type="button" className="prod-button" onClick={() => dispatch({ type: "RESET_FILTERS" })}>
             {t("sm.auditDashboard.reset")}
           </button>
           <button type="button" className="prod-button prod-button--primary" onClick={fetchRows}>
             {t("sm.common.retry")}
           </button>
-          <button type="button" className="prod-button" onClick={runExport} disabled={!canExport || isExporting}>
+          <button type="button" className="prod-button audit-actions__export" onClick={runExport} disabled={!canExport || isExporting}>
             {isExporting ? t("submissions.exporting") : t("submissions.exportExcel")}
           </button>
         </div>
@@ -289,10 +296,10 @@ export default function AuditDashboard() {
       <section className="ops-card">
         <h2>{t("sm.auditDashboard.tableTitle")}</h2>
         {state.status === "loading" || state.status === "idle" ? (
-          <>
+          <div className="audit-loading-block">
             <LoadingState title={t("common.loading")} description={t("sm.auditDashboard.loadingDesc")} />
             <SkeletonTable rows={5} cols={6} />
-          </>
+          </div>
         ) : null}
         {state.status === "error" ? (
           <ErrorState
@@ -313,34 +320,41 @@ export default function AuditDashboard() {
               <table className="prod-history-table">
                 <thead>
                   <tr>
-                    <th>{t("sm.audit.gradingRun")}</th>
-                    <th>{t("sm.audit.document")}</th>
-                    <th>{t("sm.audit.version")}</th>
-                    <th>{t("project.totalScore")}</th>
-                    <th>{t("common.status")}</th>
-                    <th>{t("project.reviewedAt")}</th>
+                    <th className="audit-table__col-run">{t("sm.audit.gradingRun")}</th>
+                    <th className="audit-table__col-document">{t("sm.audit.document")}</th>
+                    <th className="audit-table__col-version">{t("sm.audit.version")}</th>
+                    <th className="audit-table__col-score">{t("project.totalScore")}</th>
+                    <th className="audit-table__col-status">{t("common.status")}</th>
+                    <th className="audit-table__col-date">{t("project.reviewedAt")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {state.rows.map((row) => (
-                    <tr key={row.id} onClick={() => dispatch({ type: "SELECT_RUN", runId: row.id })} style={{ cursor: "pointer" }}>
-                      <td>#{row.id}</td>
-                      <td>{row.document_name || (row.document_id ? `D-${row.document_id}` : row.document_type) || "—"}</td>
-                      <td>{row.document_version || "—"}</td>
-                      <td>{typeof row.total_score === "number" ? `${row.total_score}/100` : "—"}</td>
-                      <td>
+                    <tr
+                      key={row.id}
+                      onClick={() => handleSelectRun(row.id)}
+                      onKeyDown={(event) => handleRowKeyDown(event, row.id)}
+                      tabIndex={0}
+                      role="button"
+                      className="audit-table__row-clickable"
+                    >
+                      <td className="audit-table__col-run">#{row.id}</td>
+                      <td className="audit-table__col-document">{row.document_name || (row.document_id ? `${t("sm.auditDashboard.documentIdPrefix")}${row.document_id}` : row.document_type) || t("common.noValue")}</td>
+                      <td className="audit-table__col-version">{row.document_version || t("common.noValue")}</td>
+                      <td className="audit-table__col-score">{typeof row.total_score === "number" ? `${row.total_score}/100` : t("common.noValue")}</td>
+                      <td className="audit-table__col-status">
                         <StatusBadge tone={mapStatusTone(row.status)}>
                           {renderStatusLabel(row.status, t)}
                         </StatusBadge>
                       </td>
-                      <td>{row.graded_at ? new Date(row.graded_at).toLocaleString(lang === "ja" ? "ja-JP" : "vi-VN") : "—"}</td>
+                      <td className="audit-table__col-date">{row.graded_at ? new Date(row.graded_at).toLocaleString(t("common.localeCode")) : t("common.noValue")}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
+            <div className="audit-pagination">
               <button
                 type="button"
                 className="prod-button"
@@ -365,7 +379,12 @@ export default function AuditDashboard() {
       <section className="ops-card">
         <h2>{t("sm.auditDashboard.detailTitle")}</h2>
         {state.detailStatus === "idle" ? <EmptyState title={t("sm.auditDashboard.selectRun")} description={t("sm.auditDashboard.selectRunDesc")} compact /> : null}
-        {state.detailStatus === "loading" ? <LoadingState title={t("sm.detail.loading")} /> : null}
+        {state.detailStatus === "loading" ? (
+          <div className="audit-loading-block audit-loading-block--detail">
+            <LoadingState title={t("sm.detail.loading")} />
+            <SkeletonTable rows={2} cols={3} />
+          </div>
+        ) : null}
         {state.detailStatus === "error" ? (
           <ErrorState
             title={t("sm.detail.error")}
@@ -383,16 +402,16 @@ export default function AuditDashboard() {
           />
         ) : null}
         {state.detailStatus === "ready" && state.selectedRunDetail ? (
-          <div className="prod-form-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+          <div className="prod-form-grid audit-detail-grid">
             <DetailField label={t("sm.audit.project")} value={state.selectedRunDetail.submission.project_id} />
-            <DetailField label={t("sm.audit.document")} value={state.selectedRunDetail.document?.document_name || "—"} />
-            <DetailField label={t("sm.audit.version")} value={state.selectedRunDetail.document_version?.document_version || "—"} />
+            <DetailField label={t("sm.audit.document")} value={state.selectedRunDetail.document?.document_name || t("common.noValue")} />
+            <DetailField label={t("sm.audit.version")} value={state.selectedRunDetail.document_version?.document_version || t("common.noValue")} />
             <DetailField label={t("sm.audit.gradingRun")} value={`#${state.selectedRunDetail.grading_run.id}`} />
-            <DetailField label={t("sm.audit.evaluationSet")} value={state.selectedRunDetail.grading_run.evaluation_set_id ?? "—"} />
-            <DetailField label={t("sm.auditDashboard.promptLevel")} value={state.selectedRunDetail.grading_run.prompt_level || "—"} />
+            <DetailField label={t("sm.audit.evaluationSet")} value={state.selectedRunDetail.grading_run.evaluation_set_id ?? t("common.noValue")} />
+            <DetailField label={t("sm.auditDashboard.promptLevel")} value={state.selectedRunDetail.grading_run.prompt_level || t("common.noValue")} />
             <DetailField label={t("common.status")} value={renderStatusLabel(state.selectedRunDetail.grading_run.status, t)} />
-            <DetailField label={t("project.totalScore")} value={state.selectedRunDetail.grading_run.total_score ?? state.selectedRunDetail.grading_run.score ?? "—"} />
-            <DetailField label={t("project.reviewedAt")} value={state.selectedRunDetail.grading_run.graded_at || "—"} />
+            <DetailField label={t("project.totalScore")} value={state.selectedRunDetail.grading_run.total_score ?? state.selectedRunDetail.grading_run.score ?? t("common.noValue")} />
+            <DetailField label={t("project.reviewedAt")} value={state.selectedRunDetail.grading_run.graded_at || t("common.noValue")} />
           </div>
         ) : null}
       </section>

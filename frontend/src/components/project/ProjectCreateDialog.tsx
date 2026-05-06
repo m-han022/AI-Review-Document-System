@@ -66,11 +66,11 @@ export default function ProjectCreateDialog({ open, onClose, onCreated }: Projec
   return (
     <Dialog
       open={open}
-      title={titleText === "project.createTitle" ? "Tạo dự án mới" : titleText}
+      title={titleText}
       onConfirm={handleSave}
       onCancel={onClose}
-      confirmLabel={createText === "common.create" ? "Tạo" : createText}
-      cancelLabel={cancelText === "common.cancel" ? "Hủy" : cancelText}
+      confirmLabel={createText}
+      cancelLabel={cancelText}
       pending={loading}
     >
       <div className="prod-edit-form" style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "8px" }}>
@@ -86,7 +86,7 @@ export default function ProjectCreateDialog({ open, onClose, onCreated }: Projec
           />
         </div>
         <div className="prod-field">
-          <label style={{ display: "block", marginBottom: "4px", fontWeight: 500 }}>{nameText === "project.name" ? "Tên dự án" : nameText}</label>
+          <label style={{ display: "block", marginBottom: "4px", fontWeight: 500 }}>{nameText}</label>
           <input
             className="prod-input"
             value={name}
@@ -96,7 +96,7 @@ export default function ProjectCreateDialog({ open, onClose, onCreated }: Projec
           />
         </div>
         <div className="prod-field">
-          <label style={{ display: "block", marginBottom: "4px", fontWeight: 500 }}>{descText === "project.description" ? "Mô tả" : descText}</label>
+          <label style={{ display: "block", marginBottom: "4px", fontWeight: 500 }}>{descText}</label>
           <textarea
             className="prod-textarea"
             value={description}

@@ -13,6 +13,7 @@ import {
   previewFinalPrompt
 } from "../../api/client";
 import { getDocumentTypeKey } from "../../constants/documentTypes";
+import { isUploadCriterionKey } from "../../constants/uploadCriteria";
 import { getLocalizedText } from "../../locales/utils";
 import { 
   projectsQueryKey
@@ -112,6 +113,23 @@ function splitFeedbackLines(feedback: Record<string, string> | null, lang: Langu
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
+}
+
+function getStatusLabel(status: string, t: (key: string) => string): string {
+  switch (status.toLowerCase()) {
+    case "pending":
+      return t("status.pending");
+    case "extracting":
+      return t("status.extracting");
+    case "grading":
+      return t("status.grading");
+    case "completed":
+      return t("status.completed");
+    case "failed":
+      return t("status.failed");
+    default:
+      return status;
+  }
 }
 
 function extractCriterionSuggestionText(raw: unknown, lang: LanguageCode): string {
@@ -460,13 +478,36 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
     [gradingDetail, lang, t],
   );
   const ngSlideCount = slideReviewItems.filter(s => s.status === "NG").length;
+  const getCriterionLabel = (key: string) => {
+    if (!isUploadCriterionKey(key)) return key;
+    switch (key) {
+      case "review_tong_the": return t("upload.criteria.review_tong_the");
+      case "diem_tot": return t("upload.criteria.diem_tot");
+      case "diem_xau": return t("upload.criteria.diem_xau");
+      case "chinh_sach": return t("upload.criteria.chinh_sach");
+      case "chat_luong_viet": return t("upload.criteria.chat_luong_viet");
+      case "kha_nang_tai_hien_bug": return t("upload.criteria.kha_nang_tai_hien_bug");
+      case "phan_tich_nguyen_nhan": return t("upload.criteria.phan_tich_nguyen_nhan");
+      case "danh_gia_anh_huong": return t("upload.criteria.danh_gia_anh_huong");
+      case "giai_phap_phong_ngua": return t("upload.criteria.giai_phap_phong_ngua");
+      case "do_ro_rang": return t("upload.criteria.do_ro_rang");
+      case "do_bao_phu": return t("upload.criteria.do_bao_phu");
+      case "kha_nang_truy_vet": return t("upload.criteria.kha_nang_truy_vet");
+      case "tinh_thuc_thi": return t("upload.criteria.tinh_thuc_thi");
+      case "do_ro_rang_de_hieu": return t("upload.criteria.do_ro_rang_de_hieu");
+      case "tinh_day_du_dung_trong_tam": return t("upload.criteria.tinh_day_du_dung_trong_tam");
+      case "tinh_chinh_xac": return t("upload.criteria.tinh_chinh_xac");
+      case "tinh_ung_dung": return t("upload.criteria.tinh_ung_dung");
+      default: return key;
+    }
+  };
 
   const orderedScores = useMemo<OrderedScoreItem[]>(() => {
     return criteriaResults.map((item) => ({
       key: item.key,
       value: item.score,
       max: item.max_score,
-      label: t(`upload.criteria.${item.key}`),
+      label: getCriterionLabel(item.key),
       Icon: getCriterionIcon(item.key),
     }));
   }, [criteriaResults, t]);
@@ -478,7 +519,7 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
       const suggestion = extractCriterionSuggestionText(item.suggestion, lang);
       return {
         key: item.key,
-        label: t(`upload.criteria.${item.key}`),
+        label: getCriterionLabel(item.key),
         score: item.score,
         max: item.max_score,
         suggestion,
@@ -535,7 +576,7 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
                 result?.status === "failed" ? "danger" :
                 "warning"
               }>
-                {result?.status ? (t(`status.${result.status.toLowerCase()}`) || result.status) : t("project.pending")}
+                {result?.status ? getStatusLabel(result.status, t) : t("project.pending")}
               </Badge>
               {result?.status === "failed" && result?.error_message && (
                 <span style={{ fontSize: '12px', color: '#ef4444' }} title={result.error_message}>

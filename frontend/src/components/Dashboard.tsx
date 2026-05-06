@@ -9,7 +9,7 @@ import AppShell from "./layout/AppShell";
 import Sidebar, { type WorkspaceView } from "./layout/Sidebar";
 import Topbar from "./layout/Topbar";
 import SectionBlock from "./ui/SectionBlock";
-import { ErrorState, LoadingState } from "./ui/States";
+import { ErrorState, LoadingState, SkeletonTable } from "./ui/States";
 
 const DashboardOverview = lazy(() => import("./dashboard/DashboardOverview"));
 const FileUpload = lazy(() => import("./FileUpload"));
@@ -21,10 +21,17 @@ const VersionDiffDashboard = lazy(() => import("./workspace/VersionDiffDashboard
 const OperationalScreen = lazy(() => import("./workspace/OperationalScreens"));
 
 function ViewFallback({ title }: { title: string }) {
+  const { t } = useTranslation();
   return (
     <SectionBlock>
-      <SectionBlock.Body>
-        <LoadingState title={title} description="Loading view..." />
+      <SectionBlock.Body className="dashboard-view-fallback">
+        <LoadingState title={title} description={t("common.loading")} />
+        <div className="dashboard-loading-skeletons" aria-hidden="true">
+          <div className="dashboard-loading-skeleton dashboard-loading-skeleton--kpi" />
+          <div className="dashboard-loading-skeleton dashboard-loading-skeleton--kpi" />
+          <div className="dashboard-loading-skeleton dashboard-loading-skeleton--kpi" />
+        </div>
+        <SkeletonTable rows={4} cols={4} />
       </SectionBlock.Body>
     </SectionBlock>
   );
@@ -154,8 +161,14 @@ export default function Dashboard() {
     if (isLoading) {
       return (
         <SectionBlock>
-          <SectionBlock.Body>
+          <SectionBlock.Body className="dashboard-view-fallback">
             <LoadingState title={t("common.loading")} description={t("nav.dashboard")} />
+            <div className="dashboard-loading-skeletons" aria-hidden="true">
+              <div className="dashboard-loading-skeleton dashboard-loading-skeleton--kpi" />
+              <div className="dashboard-loading-skeleton dashboard-loading-skeleton--kpi" />
+              <div className="dashboard-loading-skeleton dashboard-loading-skeleton--kpi" />
+            </div>
+            <SkeletonTable rows={4} cols={4} />
           </SectionBlock.Body>
         </SectionBlock>
       );

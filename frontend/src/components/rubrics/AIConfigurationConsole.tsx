@@ -434,7 +434,7 @@ export default function AIConfigurationConsole() {
         <SectionBlock.Body>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(220px,1fr))", gap: 12, marginBottom: 16 }}>
             <div style={{ display: "grid", gap: 6 }}>
-              <label style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>{ui.scopeDocumentType || "Document type"}</label>
+              <label style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>{ui.scopeDocumentType || t("sm.aiConfig.scopeDocumentType")}</label>
               <select value={documentType} onChange={(event) => setDocumentType(event.target.value)}>
                 {documentTypes.map((item) => {
                   const local = getDocumentTypeLabel(item, lang);
@@ -641,11 +641,11 @@ export default function AIConfigurationConsole() {
                             <div><strong>{ui.statusLabel}:</strong> {selectedSet.status}</div>
                             <div><strong>{ui.documentTypeLabel}:</strong> {selectedSet.document_type}</div>
                             <div><strong>{ui.levelLabel}:</strong> {selectedSet.level}</div>
-                            <div><strong>{ui.rubricLabel}:</strong> {selectedSet.rubric?.version || "-"}</div>
-                            <div><strong>{ui.promptLabel}:</strong> {selectedSet.prompt?.version || "-"}</div>
-                            <div><strong>{ui.policyLabel}:</strong> {selectedSet.policy?.version || "-"}</div>
+                            <div><strong>{ui.rubricLabel}:</strong> {selectedSet.rubric?.version || t("common.noValue")}</div>
+                            <div><strong>{ui.promptLabel}:</strong> {selectedSet.prompt?.version || t("common.noValue")}</div>
+                            <div><strong>{ui.policyLabel}:</strong> {selectedSet.policy?.version || t("common.noValue")}</div>
                             <div><strong>{ui.requiredRulesVersionLabel}:</strong> {selectedSet.required_rules_version}</div>
-                            <div><strong>{ui.requiredRulesHashLabel}:</strong> {(selectedSet.required_rule_hash || "-").slice(0, 16)}...</div>
+                            <div><strong>{ui.requiredRulesHashLabel}:</strong> {(selectedSet.required_rule_hash || t("common.noValue")).slice(0, 16)}...</div>
                           </div>
                           <div style={{ display: "grid", gap: 8 }}>
                             <div>
@@ -724,13 +724,13 @@ export default function AIConfigurationConsole() {
                 </select>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                <pre style={{ whiteSpace: "pre-wrap", maxHeight: 260, overflow: "auto", background: "#f8fafc", padding: 8 }}>{renderSet(leftSet)}</pre>
-                <pre style={{ whiteSpace: "pre-wrap", maxHeight: 260, overflow: "auto", background: "#f8fafc", padding: 8 }}>{renderSet(rightSet)}</pre>
+                <pre style={{ whiteSpace: "pre-wrap", maxHeight: 260, overflow: "auto", background: "#f8fafc", padding: 8 }}>{renderSet(leftSet, t)}</pre>
+                <pre style={{ whiteSpace: "pre-wrap", maxHeight: 260, overflow: "auto", background: "#f8fafc", padding: 8 }}>{renderSet(rightSet, t)}</pre>
               </div>
               <div style={{ marginTop: 8 }}>
                 <strong>{ui.diff}</strong>
                 <div style={{ maxHeight: 260, overflow: "auto", background: "#f8fafc", padding: 8, borderRadius: 8 }}>
-                  {renderDiff(renderSet(leftSet), renderSet(rightSet))}
+                  {renderDiff(renderSet(leftSet, t), renderSet(rightSet, t))}
                 </div>
               </div>
               {compareSummary ? (
@@ -941,19 +941,19 @@ function renderSet(setItem: {
   prompt?: MgmtPrompt;
   policy?: MgmtPolicy;
   required_rule_hash: string;
-} | null) {
-  if (!setItem) return "No set selected";
+} | null, t: (key: string) => string) {
+  if (!setItem) return t("sm.aiConfig.noSetSelected");
   return [
-    `name: ${setItem.name}`,
-    `status: ${setItem.status}`,
-    `muc_do_danh_gia: ${setItem.level}`,
-    `khung_tieu_chi_cham_diem: ${setItem.rubric?.version || "-"}`,
-    `huong_dan_phan_hoi_ai: ${setItem.prompt?.version || "-"}`,
-    `nguyen_tac_danh_gia: ${setItem.policy?.version || "-"}`,
-    `ma_quy_tac_bat_buoc: ${setItem.required_rule_hash}`,
+    `${t("sm.aiConfig.dumpName")}: ${setItem.name}`,
+    `${t("sm.aiConfig.dumpStatus")}: ${setItem.status}`,
+    `${t("sm.aiConfig.dumpLevel")}: ${setItem.level}`,
+    `${t("sm.aiConfig.dumpRubric")}: ${setItem.rubric?.version || t("common.noValue")}`,
+    `${t("sm.aiConfig.dumpPrompt")}: ${setItem.prompt?.version || t("common.noValue")}`,
+    `${t("sm.aiConfig.dumpPolicy")}: ${setItem.policy?.version || t("common.noValue")}`,
+    `${t("sm.aiConfig.dumpRulesHash")}: ${setItem.required_rule_hash}`,
     "",
-    "prompt_content:",
-    setItem.prompt?.content || "-",
+    `${t("sm.aiConfig.dumpPromptContent")}:`,
+    setItem.prompt?.content || t("common.noValue"),
   ].join("\n");
 }
 

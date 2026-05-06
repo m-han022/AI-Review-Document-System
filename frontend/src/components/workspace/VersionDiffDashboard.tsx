@@ -96,6 +96,12 @@ function formatDelta(delta: number, t: (key: string) => string): string {
   return t("sm.versionDiff.noChangeLabel");
 }
 
+function deltaToneClass(direction: "up" | "down" | "same"): string {
+  if (direction === "up") return "diff-delta--up";
+  if (direction === "down") return "diff-delta--down";
+  return "diff-delta--same";
+}
+
 function getPromptLevelChangedLabel(changed: boolean, t: (key: string) => string): string {
   return changed ? t("sm.versionDiff.promptLevelChangedLabel") : t("sm.versionDiff.promptLevelNotChangedLabel");
 }
@@ -106,6 +112,17 @@ function getEvaluationSetChangedLabel(changed: boolean, t: (key: string) => stri
 
 function getContextLabel(same: boolean, t: (key: string) => string): string {
   return same ? t("sm.versionDiff.sameContextLabel") : t("sm.versionDiff.differentContextLabel");
+}
+
+function getWarningLabel(item: string, t: (key: string) => string): string {
+  switch (item) {
+    case "evaluation_set_changed":
+      return t("sm.versionDiff.warning.evaluation_set_changed");
+    case "prompt_level_changed":
+      return t("sm.versionDiff.warning.prompt_level_changed");
+    default:
+      return item;
+  }
 }
 
 export default function VersionDiffDashboard() {
@@ -193,7 +210,7 @@ export default function VersionDiffDashboard() {
 
       <section className="ops-card">
         <h2>{t("sm.versionDiff.selectorTitle")}</h2>
-        <div className="prod-form-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+        <div className="prod-form-grid versiondiff-selector-grid">
           <label className="prod-field">
             <span>{t("sm.audit.project")}</span>
             <select value={state.selectedProjectId} onChange={(e) => dispatch({ type: "SET_PROJECT", projectId: e.target.value })}>
@@ -243,7 +260,7 @@ export default function VersionDiffDashboard() {
             </select>
           </label>
         </div>
-        <div style={{ marginTop: 12 }}>
+        <div className="versiondiff-actions">
           <button type="button" className="prod-button prod-button--primary" onClick={runCompare} disabled={!canCompare}>
             {t("sm.versionDiff.compare")}
           </button>
@@ -251,10 +268,10 @@ export default function VersionDiffDashboard() {
       </section>
 
       {state.status === "loading" ? (
-        <>
+        <section className="ops-card versiondiff-loading-card">
           <LoadingState title={t("common.loading")} description={t("sm.versionDiff.loadingDesc")} />
           <SkeletonTable rows={4} cols={4} />
-        </>
+        </section>
       ) : null}
       {state.status === "error" ? (
         <ErrorState
@@ -268,18 +285,26 @@ export default function VersionDiffDashboard() {
       {state.diff ? (
         <>
           <section className="ops-card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+            <div className="versiondiff-score-head">
               <h2>{t("sm.versionDiff.scoreTitle")}</h2>
               <button type="button" className="prod-button" onClick={runExport} disabled={isExporting}>
                 {isExporting ? t("submissions.exporting") : t("submissions.exportExcel")}
               </button>
             </div>
-            <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-              <span>{state.diff.version_a.label}: {state.diff.score_diff.a_score ?? "—"}</span>
-              <span>{state.diff.version_b.label}: {state.diff.score_diff.b_score ?? "—"}</span>
-              <StatusBadge tone={tone(state.diff.score_diff.direction)}>
-                {formatDelta(state.diff.score_diff.delta, t)}
-              </StatusBadge>
+            <div className="diff-score-strip">
+              <div className="diff-score-strip__item">
+                <span>{state.diff.version_a.label}</span>
+                <strong>{state.diff.score_diff.a_score ?? t("common.noValue")}</strong>
+              </div>
+              <div className="diff-score-strip__item">
+                <span>{state.diff.version_b.label}</span>
+                <strong>{state.diff.score_diff.b_score ?? t("common.noValue")}</strong>
+              </div>
+              <div className="diff-score-strip__delta">
+                <StatusBadge tone={tone(state.diff.score_diff.direction)}>
+                  {formatDelta(state.diff.score_diff.delta, t)}
+                </StatusBadge>
+              </div>
             </div>
           </section>
 
@@ -289,19 +314,21 @@ export default function VersionDiffDashboard() {
               <table className="prod-history-table">
                 <thead>
                   <tr>
-                    <th>{t("sm.versionDiff.criterion")}</th>
-                    <th>{t("sm.versionDiff.before")}</th>
-                    <th>{t("sm.versionDiff.after")}</th>
-                    <th>{t("sm.versionDiff.delta")}</th>
+                    <th className="versiondiff-col-criterion">{t("sm.versionDiff.criterion")}</th>
+                    <th className="versiondiff-col-before">{t("sm.versionDiff.before")}</th>
+                    <th className="versiondiff-col-after">{t("sm.versionDiff.after")}</th>
+                    <th className="versiondiff-col-delta">{t("sm.versionDiff.delta")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {state.diff.criteria_diff.map((row) => (
                     <tr key={row.criterion_key}>
-                      <td>{row.criterion_key}</td>
-                      <td>{row.a ?? "—"}</td>
-                      <td>{row.b ?? "—"}</td>
-                      <td><StatusBadge tone={tone(row.direction)}>{formatDelta(row.delta, t)}</StatusBadge></td>
+                      <td className="versiondiff-col-criterion">{row.criterion_key}</td>
+                      <td className="versiondiff-col-before">{row.a ?? t("common.noValue")}</td>
+                      <td className="versiondiff-col-after">{row.b ?? t("common.noValue")}</td>
+                      <td className={`versiondiff-col-delta ${deltaToneClass(row.direction)}`}>
+                        <StatusBadge tone={tone(row.direction)}>{formatDelta(row.delta, t)}</StatusBadge>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -311,7 +338,7 @@ export default function VersionDiffDashboard() {
 
           <section className="ops-card">
             <h2>{t("sm.versionDiff.metaTitle")}</h2>
-            <div className="prod-form-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+            <div className="prod-form-grid versiondiff-meta-grid">
               <div className="prod-field">
                 <span>{t("sm.versionDiff.promptLevelChanged")}</span>
                 <strong>{getPromptLevelChangedLabel(state.diff.meta_diff.prompt_level_changed, t)}</strong>
@@ -326,11 +353,11 @@ export default function VersionDiffDashboard() {
               </div>
             </div>
             {state.diff.comparison_validity.warnings.length ? (
-              <div style={{ marginTop: 12 }}>
+              <div className="versiondiff-meta-warnings">
                 <strong>{t("sm.versionDiff.warnings")}</strong>
                 <ul>
                   {state.diff.comparison_validity.warnings.map((item) => (
-                    <li key={item}>{t(`sm.versionDiff.warning.${item}` as never)}</li>
+                    <li key={item}>{getWarningLabel(item, t)}</li>
                   ))}
                 </ul>
               </div>

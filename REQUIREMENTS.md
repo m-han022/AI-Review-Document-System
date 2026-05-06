@@ -1,4 +1,4 @@
-# REQUIREMENT.md (v5 - ALIGNED WITH AGENTS v2)
+﻿# REQUIREMENTS.md (v5 - ALIGNED WITH AGENTS v2)
 
 ## 🎯 Mục tiêu
 
@@ -302,3 +302,4 @@ Khi gọi review:
 
 - Trước khi review, màn Upload phải hiển thị rõ bộ tiêu chuẩn đang áp dụng theo scope hiện tại.
 - Nếu điều kiện chưa sẵn sàng (project chưa chọn/cấu hình chưa sẵn), nút hành động phải khóa kèm lý do rõ.
+

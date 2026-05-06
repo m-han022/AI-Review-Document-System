@@ -445,7 +445,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                         <em>{cardCopy.example}</em>
                       </span>
                       <Tooltip content={cardCopy.tooltip}>
-                        <span className="prod-doc-type-card__help" aria-label="Scoring hint">
+                        <span className="prod-doc-type-card__help" aria-label={copy.scoringHintAria}>
                           <HelpIcon size="sm" />
                         </span>
                       </Tooltip>
@@ -613,11 +613,11 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
               ) : null}
               
               <div className="prod-field" style={{ marginTop: '24px' }}>
-                <span style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>{(copy as any).projectDescription}</span>
+                <span style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>{copy.projectDescription}</span>
                 <textarea
                   className="prod-textarea"
                   style={{ width: '100%', minHeight: '80px', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.875rem' }}
-                  placeholder={(copy as any).projectDescriptionHint}
+                  placeholder={copy.projectDescriptionHint}
                   value={projectDescription}
                   onChange={(e) => setProjectDescription(e.target.value)}
                   disabled={uploadState === "uploading" || reviewing}
@@ -748,35 +748,35 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                   <div className="prod-option-summary">
                     <div>
                       <span>{copy.selectedType}</span>
-                      <strong>{documentType ? getDocumentTypeLabel(documentType, lang) : "—"}</strong>
+                      <strong>{documentType ? getDocumentTypeLabel(documentType, lang) : t("common.noValue")}</strong>
                     </div>
                     <div>
                       <span>{copy.levelLabel}</span>
                       <strong>{getLevelLabel(selectedEvaluationSet?.level ?? null, lang)}</strong>
                     </div>
                     <div>
-                      <span>Rubric</span>
-                      <strong>{selectedEvaluationSetDetail?.rubric_version ?? "—"}</strong>
+                      <span>{copy.rubricLabel}</span>
+                      <strong>{selectedEvaluationSetDetail?.rubric_version ?? t("common.noValue")}</strong>
                     </div>
                     <div>
-                      <span>Prompt</span>
-                      <strong>{selectedEvaluationSetDetail?.prompt_version ?? "—"}</strong>
+                      <span>{copy.promptLabel}</span>
+                      <strong>{selectedEvaluationSetDetail?.prompt_version ?? t("common.noValue")}</strong>
                     </div>
                     <div>
-                      <span>Policy</span>
-                      <strong>{selectedEvaluationSetDetail?.policy_version ?? "—"}</strong>
+                      <span>{copy.policyLabel}</span>
+                      <strong>{selectedEvaluationSetDetail?.policy_version ?? t("common.noValue")}</strong>
                     </div>
                     <div>
-                      <span>Required Rules</span>
-                      <strong>{selectedEvaluationSet?.required_rules_version ?? "—"}</strong>
+                      <span>{copy.requiredRulesLabel}</span>
+                      <strong>{selectedEvaluationSet?.required_rules_version ?? t("common.noValue")}</strong>
                     </div>
                     <div>
-                      <span>Rules Hash</span>
-                      <strong>{selectedEvaluationSet?.required_rule_hash?.slice(0, 10) ?? "—"}</strong>
+                      <span>{copy.rulesHashLabel}</span>
+                      <strong>{selectedEvaluationSet?.required_rule_hash?.slice(0, 10) ?? t("common.noValue")}</strong>
                     </div>
                     <div>
                       <span>{copy.setStatusLabel}</span>
-                      <strong>{selectedEvaluationSet?.status ?? "—"}</strong>
+                      <strong>{selectedEvaluationSet?.status ?? t("common.noValue")}</strong>
                     </div>
                   </div>
                 ) : null}

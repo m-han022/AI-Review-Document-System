@@ -1,5 +1,5 @@
 :root {
-  --ds-font-family-base: Inter, "Noto Sans JP", "Yu Gothic", "Hiragino Sans", system-ui, sans-serif;
+  --ds-font-family-base: "Noto Sans JP", "Inter", "Noto Sans", system-ui, sans-serif;
   --ds-font-size-caption: 12px;
   --ds-font-size-body: 14px;
   --ds-font-size-section: 18px;

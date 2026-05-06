@@ -27,6 +27,21 @@ interface CriteriaDiffItem {
   compareLabel: string;
 }
 
+function getDiffTypeLabel(type: CriteriaDiffItem["type"], t: (key: string) => string): string {
+  switch (type) {
+    case "added":
+      return t("rubric.diffType.added");
+    case "removed":
+      return t("rubric.diffType.removed");
+    case "changed":
+      return t("rubric.diffType.changed");
+    case "unchanged":
+      return t("rubric.diffType.unchanged");
+    default:
+      return type;
+  }
+}
+
 function promptText(prompt: RubricVersion["prompt"], key: "vi" | "ja"): string {
   if (typeof prompt === "string") {
     return key === "vi" ? prompt : "";
@@ -470,7 +485,7 @@ export default function RubricManagement() {
                                       : "default"
                               }
                             >
-                              {t(`rubric.diffType.${item.type}`)}
+                              {getDiffTypeLabel(item.type, t)}
                             </Badge>
                           </div>
                           <div className="rubric-diff-card__grid">
