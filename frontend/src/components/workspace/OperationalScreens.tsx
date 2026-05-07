@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useMutation } from "@tanstack/react-query";
 
+import { PageHeader } from "../ui/PageHeader";
 import { exportSubmissionsExcel } from "../../api/client";
 import { API_BASE_URL } from "../../config";
 import type { Project } from "../../types";
@@ -151,22 +152,16 @@ export default function OperationalScreen({
 
   return (
     <section className="ops-screen" aria-label={screen.title}>
-      <header className="ops-screen__header">
-        <div>
-          <h1>{screen.title}</h1>
-          <p>{screen.subtitle}</p>
-        </div>
-        <div className="ops-screen__actions">
-          <button type="button" className="prod-button" onClick={onOpenUpload}>
-            <FileReviewIcon size="sm" />
-            {copy.uploadMore}
-          </button>
-          <button type="button" className="prod-button prod-button--primary" onClick={onOpenReviews}>
-            <EyeIcon size="sm" />
-            {copy.openReviews}
-          </button>
-        </div>
-      </header>
+      <div className="ops-screen__actions" style={{ marginBottom: '16px', justifyContent: 'flex-end' }}>
+        <button type="button" className="prod-button" onClick={onOpenUpload}>
+          <FileReviewIcon size="sm" />
+          {copy.uploadMore}
+        </button>
+        <button type="button" className="prod-button prod-button--primary" onClick={onOpenReviews}>
+          <EyeIcon size="sm" />
+          {copy.openReviews}
+        </button>
+      </div>
 
       <div className="ops-metric-grid">
         <MetricCard icon={<TargetIcon size="md" />} label={copy.avgScore} value={metrics.avgScore === null ? "—" : `${metrics.avgScore}/100`} tone="primary" />

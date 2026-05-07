@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { diffLines } from "diff";
 
@@ -430,7 +430,7 @@ export default function AIConfigurationConsole() {
   return (
     <div className="workspace-stack">
       <SectionBlock>
-        <SectionBlock.Header title={ui.title} subtitle={ui.subtitle} />
+
         <SectionBlock.Body>
           <div className="ai-config-scope-grid">
             <div className="ai-config-scope-item">

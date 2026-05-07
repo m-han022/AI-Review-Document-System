@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ApiClientError,
@@ -396,7 +396,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
 
   return (
     <section className="prod-upload" aria-label={copy.title}>
-      <PageHeader title={copy.title} subtitle={copy.subtitle} />
+
 
       <div className="prod-upload__panel">
         <div className="prod-upload-steps">

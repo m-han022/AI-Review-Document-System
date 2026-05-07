@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useReducer, useState } from "react";
 
+import { PageHeader } from "../ui/PageHeader";
 import { exportAuditRunsCsv, getAuditRunDetail, listAuditRuns } from "../../api/client";
 import type { GradingRunDetail, GradingRunHistory } from "../../types";
 import { useTranslation } from "../LanguageSelector";
@@ -215,13 +216,6 @@ export default function AuditDashboard() {
 
   return (
     <section className="ops-screen" aria-label={t("biz.auditDashboard.title")}>
-      <header className="ops-screen__header">
-        <div>
-          <h1>{t("biz.auditDashboard.title")}</h1>
-          <p>{t("biz.auditDashboard.subtitle")}</p>
-        </div>
-      </header>
-
       <section className="ops-card">
         <h2>{t("sm.auditDashboard.filterTitle")}</h2>
         <div className="prod-form-grid audit-filter-grid">

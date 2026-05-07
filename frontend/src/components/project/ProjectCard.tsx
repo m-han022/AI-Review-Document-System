@@ -1,4 +1,4 @@
-﻿import { Suspense, lazy, useMemo, useState, useEffect } from "react";
+import { Suspense, lazy, useMemo, useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { 
@@ -556,29 +556,20 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
 
   return (
     <div className="project-workspace-container">
-      <header className="project-workspace-header">
-        <div className="project-header-info">
-          <div className="project-detail-hero__eyebrow">
-            <button className="text-button" onClick={onBack} style={{ marginRight: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-              <ArrowLeftIcon size="sm" />
-              {t("nav.allReviews")}
-            </button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Badge tone={
-                result?.status === "completed" || result?.status === "graded" ? "success" :
-                result?.status === "failed" ? "danger" :
-                "warning"
-              }>
-                {result?.status ? getStatusLabel(result.status, t) : t("project.pending")}
-              </Badge>
-              {result?.status === "failed" && result?.error_message && (
-                <span style={{ fontSize: '12px', color: '#ef4444' }} title={result.error_message}>
-                  {result.error_message}
-                </span>
-              )}
-            </div>
-          </div>
-          <h2>{currentProject?.project_name || projectId}</h2>
+      <div className="project-toolbar-v3">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Badge tone={
+            result?.status === "completed" || result?.status === "graded" ? "success" :
+            result?.status === "failed" ? "danger" :
+            "warning"
+          }>
+            {result?.status ? getStatusLabel(result.status, t) : t("project.pending")}
+          </Badge>
+          {result?.status === "failed" && result?.error_message && (
+            <span style={{ fontSize: '12px', color: '#ef4444' }} title={result.error_message}>
+              {result.error_message}
+            </span>
+          )}
         </div>
 
         <div className="project-header-navigation">
@@ -629,7 +620,7 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
             {showGovernanceDetails ? t("project.hideGovernanceDetails") : t("project.showGovernanceDetails")}
           </button>
         </div>
-      </header>
+      </div>
 
       {showGovernanceDetails ? (
         <SectionBlock style={{ marginBottom: "16px" }}>

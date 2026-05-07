@@ -3,6 +3,7 @@ import { useEffect, useMemo, useReducer, useState } from "react";
 import { exportVersionDiffCsv, getVersionDiff, listDocumentVersions, listProjectDocuments, listProjects } from "../../api/client";
 import type { DocumentListOut, Project, VersionDiffOut, VersionListOut } from "../../types";
 import { useTranslation } from "../LanguageSelector";
+import { PageHeader } from "../ui/PageHeader";
 import { EmptyState, ErrorState, LoadingState, SkeletonTable, StatusBadge } from "../ui/States";
 
 type UiState = "idle" | "loading" | "ready" | "empty" | "error";
@@ -125,6 +126,8 @@ function getWarningLabel(item: string, t: (key: string) => string): string {
   }
 }
 
+
+
 export default function VersionDiffDashboard() {
   const { t } = useTranslation();
   const [state, dispatch] = useReducer(reducer, INITIAL);
@@ -201,72 +204,67 @@ export default function VersionDiffDashboard() {
 
   return (
     <section className="ops-screen" aria-label={t("biz.versionDiff.title")}>
-      <header className="ops-screen__header">
-        <div>
-          <h1>{t("biz.versionDiff.title")}</h1>
-          <p>{t("biz.versionDiff.subtitle")}</p>
+      <div className="versiondiff-toolbar">
+        <div className="versiondiff-toolbar-grid">
+            <label className="prod-field">
+              <span>{t("sm.audit.project")}</span>
+              <select value={state.selectedProjectId} onChange={(e) => dispatch({ type: "SET_PROJECT", projectId: e.target.value })}>
+                <option value="">{t("sm.versionDiff.selectProject")}</option>
+                {state.projects.map((item) => (
+                  <option key={item.project_id} value={item.project_id}>{item.project_name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="prod-field">
+              <span>{t("sm.audit.document")}</span>
+              <select
+                value={state.selectedDocumentId ?? ""}
+                onChange={(e) => dispatch({ type: "SET_DOCUMENT", documentId: e.target.value ? Number(e.target.value) : null })}
+                disabled={!state.selectedProjectId}
+              >
+                <option value="">{t("sm.versionDiff.selectDocument")}</option>
+                {state.documents.map((item) => (
+                  <option key={item.document_id} value={item.document_id}>{item.document_name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="prod-field">
+              <span>{t("sm.versionDiff.versionA")}</span>
+              <select
+                value={state.versionAId ?? ""}
+                onChange={(e) => dispatch({ type: "SET_VERSION_A", versionId: e.target.value ? Number(e.target.value) : null })}
+                disabled={!state.selectedDocumentId}
+              >
+                <option value="">{t("sm.versionDiff.selectVersionA")}</option>
+                {state.versions.map((item) => (
+                  <option key={item.document_version_id} value={item.document_version_id}>{item.version}</option>
+                ))}
+              </select>
+            </label>
+            <label className="prod-field">
+              <span>{t("sm.versionDiff.versionB")}</span>
+              <select
+                value={state.versionBId ?? ""}
+                onChange={(e) => dispatch({ type: "SET_VERSION_B", versionId: e.target.value ? Number(e.target.value) : null })}
+                disabled={!state.selectedDocumentId}
+              >
+                <option value="">{t("sm.versionDiff.selectVersionB")}</option>
+                {state.versions.map((item) => (
+                  <option key={item.document_version_id} value={item.document_version_id}>{item.version}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="versiondiff-header-actions">
+            <button type="button" className="prod-button prod-button--primary" onClick={runCompare} disabled={!canCompare}>
+              {t("sm.versionDiff.compare")}
+            </button>
+            {!canCompare && state.selectedDocumentId ? (
+              <span className="ops-inline-hint">{t("sm.versionDiff.emptyDesc")}</span>
+            ) : null}
+          </div>
         </div>
-      </header>
-
-      <section className="ops-card">
-        <h2>{t("sm.versionDiff.selectorTitle")}</h2>
-        <div className="prod-form-grid versiondiff-selector-grid">
-          <label className="prod-field">
-            <span>{t("sm.audit.project")}</span>
-            <select value={state.selectedProjectId} onChange={(e) => dispatch({ type: "SET_PROJECT", projectId: e.target.value })}>
-              <option value="">{t("sm.versionDiff.selectProject")}</option>
-              {state.projects.map((item) => (
-                <option key={item.project_id} value={item.project_id}>{item.project_name}</option>
-              ))}
-            </select>
-          </label>
-          <label className="prod-field">
-            <span>{t("sm.audit.document")}</span>
-            <select
-              value={state.selectedDocumentId ?? ""}
-              onChange={(e) => dispatch({ type: "SET_DOCUMENT", documentId: e.target.value ? Number(e.target.value) : null })}
-              disabled={!state.selectedProjectId}
-            >
-              <option value="">{t("sm.versionDiff.selectDocument")}</option>
-              {state.documents.map((item) => (
-                <option key={item.document_id} value={item.document_id}>{item.document_name}</option>
-              ))}
-            </select>
-          </label>
-          <label className="prod-field">
-            <span>{t("sm.versionDiff.versionA")}</span>
-            <select
-              value={state.versionAId ?? ""}
-              onChange={(e) => dispatch({ type: "SET_VERSION_A", versionId: e.target.value ? Number(e.target.value) : null })}
-              disabled={!state.selectedDocumentId}
-            >
-              <option value="">{t("sm.versionDiff.selectVersionA")}</option>
-              {state.versions.map((item) => (
-                <option key={item.document_version_id} value={item.document_version_id}>{item.version}</option>
-              ))}
-            </select>
-          </label>
-          <label className="prod-field">
-            <span>{t("sm.versionDiff.versionB")}</span>
-            <select
-              value={state.versionBId ?? ""}
-              onChange={(e) => dispatch({ type: "SET_VERSION_B", versionId: e.target.value ? Number(e.target.value) : null })}
-              disabled={!state.selectedDocumentId}
-            >
-              <option value="">{t("sm.versionDiff.selectVersionB")}</option>
-              {state.versions.map((item) => (
-                <option key={item.document_version_id} value={item.document_version_id}>{item.version}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <div className="versiondiff-actions">
-          <button type="button" className="prod-button prod-button--primary" onClick={runCompare} disabled={!canCompare}>
-            {t("sm.versionDiff.compare")}
-          </button>
-        </div>
-        {!canCompare ? <p className="ops-inline-hint">{t("sm.versionDiff.emptyDesc")}</p> : null}
-      </section>
+      </div>
 
       {state.status === "loading" ? (
         <section className="ops-card versiondiff-loading-card">

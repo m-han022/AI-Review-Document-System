@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 import { aiReviewAssets } from "../../assets/aiReviewAssets";
 import { getLanguageLabel } from "../../constants/uiLabels";
@@ -6,7 +6,7 @@ import { UI_THEME_STORAGE_KEY } from "../../config";
 import type { LanguageCode } from "../../types";
 import { LanguageSelector, useTranslation } from "../LanguageSelector";
 import Badge from "../ui/Badge";
-import { ChevronDownIcon, DownloadIcon, FileReviewIcon, GlobeIcon, MoonIcon, SunIcon } from "../ui/Icon";
+import { ChevronDownIcon, DownloadIcon, GlobeIcon, MoonIcon, SunIcon } from "../ui/Icon";
 
 interface TopbarProps {
   title: string;
@@ -40,11 +40,7 @@ export default function Topbar({
     (["ja", "vi"] as LanguageCode[]).map((code) => ({ code, label: getLanguageLabel(code, lang) }));
 
   const currentLanguageLabel = languageOptions.find((item) => item.code === lang)?.label ?? "日本語";
-  const searchLabel = lang === "ja" ? "ドキュメント検索" : "Tìm kiếm tài liệu";
-  const searchPlaceholder =
-    lang === "ja"
-      ? "ドキュメント名、キーワード、プロジェクトで検索..."
-      : "Tìm theo tên tài liệu, từ khóa, dự án...";
+
   const reportLabel = lang === "ja" ? "レポート出力" : "Xuất báo cáo";
 
   useEffect(() => {
@@ -79,15 +75,25 @@ export default function Topbar({
   }, [isLanguageMenuOpen]);
 
   if (dashboardChrome) {
+    const showGlobalExport = !hideMain; // Using hideMain as a proxy to hide the redundant global export
+
     return (
       <header
         className="workspace-topbar workspace-topbar--v3"
         style={{ "--ai-review-header-bg": `url(${aiReviewAssets.headerLightAi})` } as CSSProperties}
       >
-        <label className="workspace-topbar-search workspace-topbar-search--v3">
-          <FileReviewIcon size="sm" />
-          <input type="text" inputMode="search" aria-label={searchLabel} placeholder={searchPlaceholder} />
-        </label>
+        <div className="workspace-topbar__left">
+          {breadcrumb && breadcrumb.length > 0 && (
+            <nav className="workspace-topbar__breadcrumb" aria-label="Breadcrumb">
+              {breadcrumb.map((item, index) => (
+                <span key={item}>
+                  {item}
+                  {index < breadcrumb.length - 1 && <span className="workspace-topbar__breadcrumb-sep">/</span>}
+                </span>
+              ))}
+            </nav>
+          )}
+        </div>
 
         <div className="workspace-topbar-reference-actions workspace-topbar-reference-actions--v3">
           <div
@@ -139,10 +145,12 @@ export default function Topbar({
             {theme === "dark" ? <SunIcon size="md" /> : <MoonIcon size="md" />}
           </button>
 
-          <button type="button" className="workspace-report-button workspace-report-button--v3">
-            <DownloadIcon size="sm" />
-            <span className="workspace-report-button__label">{reportLabel}</span>
-          </button>
+          {showGlobalExport && (
+            <button type="button" className="workspace-report-button workspace-report-button--v3">
+              <DownloadIcon size="sm" />
+              <span className="workspace-report-button__label">{reportLabel}</span>
+            </button>
+          )}
         </div>
       </header>
     );

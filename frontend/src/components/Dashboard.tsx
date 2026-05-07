@@ -69,7 +69,7 @@ export default function Dashboard() {
           subtitle: t("upload.pageSubtitle"),
           breadcrumb: undefined,
           rightBadge: null,
-          hideMain: false,
+          hideMain: true,
         };
       case "reviews":
         return {
@@ -83,17 +83,17 @@ export default function Dashboard() {
         return {
           title: selectedProject?.project_name ?? t("project.reviewResult"),
           subtitle: t("project.reviewDetailSubtitle"),
-          breadcrumb: undefined,
+          breadcrumb: [t("nav.dashboard"), t("nav.allReviews"), selectedProject?.project_name ?? ""],
           rightBadge: null,
-          hideMain: false,
+          hideMain: true,
         };
       case "rubrics":
         return {
           title: t("rubric.pageTitle"),
           subtitle: t("rubric.pageSubtitle"),
-          breadcrumb: undefined,
+          breadcrumb: [t("nav.dashboard"), t("nav.rubrics")],
           rightBadge: null,
-          hideMain: false,
+          hideMain: true,
         };
       case "report":
         return {
@@ -101,7 +101,7 @@ export default function Dashboard() {
           subtitle: undefined,
           breadcrumb: [t("nav.dashboard"), t("nav.qualityReport")],
           rightBadge: null,
-          hideMain: false,
+          hideMain: true,
         };
       case "diff":
         return {
@@ -109,7 +109,7 @@ export default function Dashboard() {
           subtitle: t("biz.versionDiff.subtitle"),
           breadcrumb: [t("nav.dashboard"), t("nav.versionDiff")],
           rightBadge: null,
-          hideMain: false,
+          hideMain: true,
         };
       case "workflow":
         return {
@@ -117,7 +117,7 @@ export default function Dashboard() {
           subtitle: undefined,
           breadcrumb: [t("nav.dashboard"), t("nav.approvalWorkflow")],
           rightBadge: null,
-          hideMain: false,
+          hideMain: true,
         };
       case "export":
         return {
@@ -125,7 +125,7 @@ export default function Dashboard() {
           subtitle: undefined,
           breadcrumb: [t("nav.dashboard"), t("nav.export")],
           rightBadge: null,
-          hideMain: false,
+          hideMain: true,
         };
       case "settings":
         return {
@@ -133,7 +133,7 @@ export default function Dashboard() {
           subtitle: undefined,
           breadcrumb: [t("nav.dashboard"), t("nav.settings")],
           rightBadge: null,
-          hideMain: false,
+          hideMain: true,
         };
       case "dashboard":
       default:
@@ -225,35 +225,41 @@ export default function Dashboard() {
       case "rubrics":
         return (
           <div className="workspace-stack">
-            <Suspense fallback={<ViewFallback title={t("rubric.pageTitle")} />}>
+            <Suspense fallback={<ViewFallback title={t("common.loading")} />}>
               <AIConfigurationConsole />
             </Suspense>
           </div>
         );
       case "report":
         return (
-          <Suspense fallback={<ViewFallback title={t("common.loading")} />}>
-            <AuditDashboard />
-          </Suspense>
+          <div className="workspace-stack">
+            <Suspense fallback={<ViewFallback title={t("common.loading")} />}>
+              <AuditDashboard />
+            </Suspense>
+          </div>
         );
       case "diff":
         return (
-          <Suspense fallback={<ViewFallback title={t("common.loading")} />}>
-            <VersionDiffDashboard />
-          </Suspense>
+          <div className="workspace-stack">
+            <Suspense fallback={<ViewFallback title={t("common.loading")} />}>
+              <VersionDiffDashboard />
+            </Suspense>
+          </div>
         );
       case "workflow":
       case "export":
       case "settings":
         return (
-          <Suspense fallback={<ViewFallback title={t("common.loading")} />}>
-            <OperationalScreen
-              route={activeView}
-              projects={projects}
-              onOpenReviews={() => setActiveView("reviews")}
-              onOpenUpload={() => setActiveView("upload")}
-            />
-          </Suspense>
+          <div className="workspace-stack">
+            <Suspense fallback={<ViewFallback title={t("common.loading")} />}>
+              <OperationalScreen
+                route={activeView}
+                projects={projects}
+                onOpenReviews={() => setActiveView("reviews")}
+                onOpenUpload={() => setActiveView("upload")}
+              />
+            </Suspense>
+          </div>
         );
       case "dashboard":
       default:
@@ -285,7 +291,7 @@ export default function Dashboard() {
           breadcrumb={topbarContent.breadcrumb}
           rightBadge={topbarContent.rightBadge}
           hideMain={topbarContent.hideMain}
-          dashboardChrome={activeView === "dashboard" || activeView === "reviews" || activeView === "upload"}
+          dashboardChrome={activeView === "dashboard" || activeView === "reviews" || activeView === "upload" || activeView === "diff" || activeView === "workflow" || activeView === "export" || activeView === "settings" || activeView === "report" || activeView === "rubrics" || activeView === "detail"}
         />
       }
     >

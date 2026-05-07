@@ -1,4 +1,4 @@
-﻿export const translations = {
+export const translations = {
   vi: {
     // Common
     common: {
@@ -370,6 +370,10 @@
         listTitle: "Danh sách tài liệu",
         listSubtitle: "Danh sách tài liệu đã tải lên và kết quả review chi tiết",
       },
+      qualityDistribution: "Phân bổ chất lượng",
+      highRiskWatchlist: "Dự án rủi ro cao",
+      lastUpdate: "Cập nhật",
+      noRiskProjects: "Không có dự án rủi ro",
     },
     // Upload Page
     upload: {
@@ -1094,6 +1098,10 @@
         listTitle: "資料一覧",
         listSubtitle: "資料一覧とレビュー結果の詳細です。",
       },
+      qualityDistribution: "品質分布",
+      highRiskWatchlist: "高リスクウォッチリスト",
+      lastUpdate: "更新日時",
+      noRiskProjects: "リスクのあるプロジェクトはありません",
     },
     // Upload Page
     upload: {

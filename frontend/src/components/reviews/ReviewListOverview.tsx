@@ -1,7 +1,7 @@
-﻿import type { Project } from "../../types";
+import type { Project } from "../../types";
 import { useTranslation } from "../LanguageSelector";
 import SubmissionsTable from "../SubmissionsTable";
-import { PageHeader } from "../ui/PageHeader";
+
 import { FileReviewIcon, ShieldCheckIcon, TargetIcon } from "../ui/Icon";
 
 interface ReviewListOverviewProps {
@@ -21,10 +21,7 @@ export default function ReviewListOverview({ projects, activeProjectId, onSelect
 
   return (
     <section className="dashboard-reference" aria-label={t("dashboard.reviewList.ariaLabel")}>
-      <PageHeader
-        title={t("dashboard.reviewList.heroTitle")}
-        subtitle={t("dashboard.reviewList.heroSubtitle")}
-      />
+
 
       <div className="review-stats-grid-v3">
         <div className="review-stat-card-v3">
