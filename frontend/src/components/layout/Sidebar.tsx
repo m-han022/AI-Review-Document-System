@@ -1,8 +1,16 @@
-import { aiReviewAssets } from "../../assets/aiReviewAssets";
-import brandHeaderImage from "../../assets/dashboard-reference/cropped/brand-header.png";
-import statusCardImage from "../../assets/dashboard-reference/cropped/status-card-inner.png";
 import { useTranslation } from "../LanguageSelector";
-import { SparkIcon } from "../ui/Icon";
+import { 
+  HomeIcon, 
+  HistoryIcon, 
+  UploadIcon, 
+  LayersIcon, 
+  DownloadIcon, 
+  BookOpenIcon, 
+  SettingsIcon, 
+  ShieldCheckIcon, 
+  WorkflowIcon 
+} from "../ui/Icon";
+import "./Layout.css";
 
 export type WorkspaceView =
   | "dashboard"
@@ -19,23 +27,13 @@ export type WorkspaceView =
 interface SidebarProps {
   activeView: WorkspaceView;
   onChangeView: (view: WorkspaceView) => void;
+  isCollapsed?: boolean;
 }
 
-type NavItemKey =
-  | "navDashboard"
-  | "navUpload"
-  | "navAllReviews"
-  | "navVersionDiff"
-  | "navReport"
-  | "navRubrics"
-  | "navWorkflow"
-  | "navExport"
-  | "navSettings";
-
 interface NavItem {
-  key: NavItemKey;
+  labelKey: string;
   view: Exclude<WorkspaceView, "detail">;
-  iconSrc: string;
+  icon: React.ElementType;
 }
 
 interface NavGroup {
@@ -43,19 +41,7 @@ interface NavGroup {
   items: NavItem[];
 }
 
-const navKeyMap: Record<NavItemKey, string> = {
-  navDashboard: "nav.dashboard",
-  navUpload: "nav.upload",
-  navAllReviews: "nav.allReviews",
-  navVersionDiff: "nav.versionDiff",
-  navReport: "nav.qualityReport",
-  navRubrics: "nav.rubrics",
-  navWorkflow: "nav.approvalWorkflow",
-  navExport: "nav.export",
-  navSettings: "nav.settings",
-};
-
-export default function Sidebar({ activeView, onChangeView }: SidebarProps) {
+export default function Sidebar({ activeView, onChangeView, isCollapsed = false }: SidebarProps) {
   const { t } = useTranslation();
   const selectedView = activeView === "detail" ? "reviews" : activeView;
 
@@ -63,81 +49,62 @@ export default function Sidebar({ activeView, onChangeView }: SidebarProps) {
     {
       titleKey: "nav.groupMonitor",
       items: [
-        { key: "navDashboard", view: "dashboard", iconSrc: aiReviewAssets.sidebarIcons.dashboard },
-        { key: "navAllReviews", view: "reviews", iconSrc: aiReviewAssets.sidebarIcons.reviewHistory },
+        { labelKey: "nav.dashboard", view: "dashboard", icon: HomeIcon },
+        { labelKey: "nav.allReviews", view: "reviews", icon: HistoryIcon },
       ],
     },
     {
       titleKey: "nav.groupOperate",
       items: [
-        { key: "navUpload", view: "upload", iconSrc: aiReviewAssets.sidebarIcons.document },
-        { key: "navVersionDiff", view: "diff", iconSrc: aiReviewAssets.sidebarIcons.compare },
-        { key: "navExport", view: "export", iconSrc: aiReviewAssets.sidebarIcons.export },
+        { labelKey: "nav.upload", view: "upload", icon: UploadIcon },
+        { labelKey: "nav.versionDiff", view: "diff", icon: LayersIcon },
+        { labelKey: "nav.export", view: "export", icon: DownloadIcon },
       ],
     },
     {
       titleKey: "nav.groupGovern",
       items: [
-        { key: "navReport", view: "report", iconSrc: aiReviewAssets.sidebarIcons.qualityReport },
-        { key: "navRubrics", view: "rubrics", iconSrc: aiReviewAssets.sidebarIcons.compare },
-        { key: "navWorkflow", view: "workflow", iconSrc: aiReviewAssets.sidebarIcons.workflow },
+        { labelKey: "nav.qualityReport", view: "report", icon: BookOpenIcon },
+        { labelKey: "nav.rubrics", view: "rubrics", icon: ShieldCheckIcon },
+        { labelKey: "nav.approvalWorkflow", view: "workflow", icon: WorkflowIcon },
       ],
     },
     {
       titleKey: "nav.groupConfigure",
-      items: [{ key: "navSettings", view: "settings", iconSrc: aiReviewAssets.sidebarIcons.settings }],
+      items: [{ labelKey: "nav.settings", view: "settings", icon: SettingsIcon }],
     },
   ];
 
   return (
-    <div className="workspace-sidebar workspace-sidebar--v3">
-      <div className="workspace-brand workspace-brand--v3">
-        <img className="workspace-brand__image" src={brandHeaderImage} alt="AI Review" />
+    <>
+      <div className="app-sidebar__brand">
+        <div style={{ color: 'var(--ds-color-sakura)', fontWeight: 800, fontSize: '20px' }}>
+          {isCollapsed ? "S" : "SAKURA REVIEW"}
+        </div>
       </div>
 
-      <nav className="workspace-nav workspace-nav--v3">
+      <nav className="app-sidebar__nav">
         {navGroups.map((group) => (
-          <div key={group.titleKey} className="workspace-nav__group">
-            <p className="workspace-nav__group-title">{t(group.titleKey)}</p>
+          <div key={group.titleKey} className="nav-group">
+            <p className="nav-group__title">{t(group.titleKey)}</p>
             {group.items.map((item) => {
               const isActive = selectedView === item.view;
+              const Icon = item.icon;
               return (
                 <button
-                  key={`${item.key}-${item.view}`}
+                  key={item.view}
                   type="button"
-                  className={`workspace-nav__item workspace-nav__item--v3 ${isActive ? "is-active" : ""}`.trim()}
+                  className={`nav-item ${isActive ? "is-active" : ""}`}
                   onClick={() => onChangeView(item.view)}
                 >
-                  <span className="workspace-nav__icon">
-                    <img src={item.iconSrc} alt="" aria-hidden="true" />
-                  </span>
-                  <span className="workspace-nav__label">{t(navKeyMap[item.key])}</span>
-                  {isActive ? (
-                    <span className="workspace-nav__spark" aria-hidden="true">
-                      <SparkIcon size="sm" />
-                    </span>
-                  ) : null}
+                  <Icon size="md" />
+                  <span>{t(item.labelKey)}</span>
                 </button>
               );
             })}
           </div>
         ))}
       </nav>
-
-      <div className="workspace-sidebar__footer workspace-sidebar__footer--v3">
-        <div className="workspace-ai-card workspace-ai-card--v3">
-          <img
-            className="workspace-ai-card__robot-image"
-            src={aiReviewAssets.aiRobotIllustration}
-            alt=""
-            aria-hidden="true"
-          />
-        </div>
-
-        <div className="workspace-status-card workspace-status-card--image">
-          <img className="workspace-status-card__image" src={statusCardImage} alt="" aria-hidden="true" />
-        </div>
-      </div>
-    </div>
+    </>
   );
 }

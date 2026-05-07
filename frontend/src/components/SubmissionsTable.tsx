@@ -15,6 +15,7 @@ import TableToolbar from "./submissions/TableToolbar";
 import TableFooter from "./submissions/TableFooter";
 import ProjectCreateDialog from "./project/ProjectCreateDialog";
 import ProjectEditDialog from "./project/ProjectEditDialog";
+import { EmptyState } from "./ui/States";
 
 interface SubmissionsTableProps {
   projects: Project[];
@@ -126,10 +127,6 @@ export default function SubmissionsTable({
         (statusFilter === "completed" && isCompleted) ||
         (statusFilter === "pending" && !isCompleted);
 
-      // Note: project level doesn't have document_type or language directly anymore in Project interface,
-      // but we keep the filters for UI parity if possible or simplify.
-      // For now, let's just use what we have.
-
       return matchesSearch && matchesStatus;
     });
   }, [projects, searchQuery, statusFilter]);
@@ -209,75 +206,77 @@ export default function SubmissionsTable({
   const isActionPending = gradeMutation.isPending || deleteMutation.isPending || bulkDeleteMutation.isPending;
 
   return (
-    <div className="prod-table-workspace">
-      <TableToolbar
-        selectedCount={selectedIds.size}
-        totalCount={filteredProjects.length}
-        onExport={() => {}}
-        onDeleteSelected={() => openDeleteDialog(Array.from(selectedIds), "selected")}
-        exporting={false}
-        isActionPending={isActionPending}
-        documentTypeFilter={documentTypeFilter}
-        statusFilter={statusFilter}
-        languageFilter={languageFilter}
-        onDocumentTypeFilterChange={setDocumentTypeFilter}
-        onStatusFilterChange={setStatusFilter}
-        onLanguageFilterChange={setLanguageFilter}
-        searchQuery={searchQuery}
-        onSearchQueryChange={setSearchQuery}
-        onCreateProject={() => setShowCreateDialog(true)}
-        variant={variant === "reference" ? "reference" : "full"}
-      />
+    <div className="ds-table-container">
+      {variant !== "dashboard" && (
+        <TableToolbar
+          selectedCount={selectedIds.size}
+          totalCount={filteredProjects.length}
+          onExport={() => {}}
+          onDeleteSelected={() => openDeleteDialog(Array.from(selectedIds), "selected")}
+          exporting={false}
+          isActionPending={isActionPending}
+          documentTypeFilter={documentTypeFilter}
+          statusFilter={statusFilter}
+          languageFilter={languageFilter}
+          onDocumentTypeFilterChange={setDocumentTypeFilter}
+          onStatusFilterChange={setStatusFilter}
+          onLanguageFilterChange={setLanguageFilter}
+          searchQuery={searchQuery}
+          onSearchQueryChange={setSearchQuery}
+          onCreateProject={() => setShowCreateDialog(true)}
+          variant={variant === "reference" ? "reference" : "full"}
+        />
+      )}
 
-      <div className="prod-table-wrap">
-        <table className="review-table review-table--v3">
-          <TableHeader
-            allSelected={pagedProjects.length > 0 && selectedIds.size === pagedProjects.length}
-            onToggleSelectAll={toggleSelectAll}
-            showCheckbox={!isDashboardVariant}
-          />
-          <tbody>
-            {pagedProjects.length ? (
-              pagedProjects.map((project) => (
-                <TableRow
-                  key={project.project_id}
-                  project={project}
-                  isActive={project.project_id === activeProjectId}
-                  isSelected={selectedIds.has(project.project_id)}
-                  showCheckbox={!isDashboardVariant}
-                  gradingId={gradingId}
-                  deletingId={deletingId}
-                  isActionPending={isActionPending}
-                  onSelect={handleSelectProject}
-                  onToggleSelect={toggleSelect}
-                  onGrade={handleGrade}
-                  onDelete={(id) => openDeleteDialog([id], "single")}
-                  onEdit={(p) => setEditingProject(p)}
-                />
-              ))
-            ) : (
-              <tr>
-                <td colSpan={6} style={{ textAlign: "center", padding: "48px 0" }}>
-                  {t("submissions.noSubmissions")}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <table className={`ds-table ${variant === "dashboard" || variant === "reference" ? "ds-table--compact" : ""}`}>
+        <TableHeader
+          allSelected={pagedProjects.length > 0 && selectedIds.size === pagedProjects.length}
+          onToggleSelectAll={toggleSelectAll}
+          showCheckbox={!isDashboardVariant}
+        />
+        <tbody>
+          {pagedProjects.length ? (
+            pagedProjects.map((project) => (
+              <TableRow
+                key={project.project_id}
+                project={project}
+                isActive={project.project_id === activeProjectId}
+                isSelected={selectedIds.has(project.project_id)}
+                showCheckbox={!isDashboardVariant}
+                gradingId={gradingId}
+                deletingId={deletingId}
+                isActionPending={isActionPending}
+                onSelect={handleSelectProject}
+                onToggleSelect={toggleSelect}
+                onGrade={handleGrade}
+                onDelete={(id) => openDeleteDialog([id], "single")}
+                onEdit={(p) => setEditingProject(p)}
+              />
+            ))
+          ) : (
+            <tr>
+              <td colSpan={7} style={{ padding: 0 }}>
+                <EmptyState title={t("submissions.noSubmissions")} compact />
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
 
-      <TableFooter
-        totalCount={filteredProjects.length}
-        resultSummary={t("submissions.count", { count: filteredProjects.length })}
-        currentPage={currentPage}
-        canGoPrevious={currentPage > 1}
-        canGoNext={currentPage < totalPages}
-        previousLabel={lang === "ja" ? "前へ" : "Trước"}
-        nextLabel={lang === "ja" ? "次へ" : "Tiếp"}
-        onPrevious={() => setCurrentPage(p => Math.max(1, p - 1))}
-        onNext={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-        variant={variant === "reference" ? "reference" : "default"}
-      />
+      {variant !== "dashboard" && (
+        <TableFooter
+          totalCount={filteredProjects.length}
+          resultSummary={t("submissions.count", { count: filteredProjects.length })}
+          currentPage={currentPage}
+          canGoPrevious={currentPage > 1}
+          canGoNext={currentPage < totalPages}
+          previousLabel={lang === "ja" ? "前へ" : "Trước"}
+          nextLabel={lang === "ja" ? "次へ" : "Tiếp"}
+          onPrevious={() => setCurrentPage(p => Math.max(1, p - 1))}
+          onNext={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+          variant={variant === "reference" ? "reference" : "default"}
+        />
+      )}
 
       {pendingDelete && (
         <ConfirmDialog
@@ -289,7 +288,7 @@ export default function SubmissionsTable({
           onCancel={() => setPendingDelete(null)}
           confirmLabel={t("common.delete")}
           cancelLabel={t("common.cancel")}
-          pending={deletingId !== null}
+          isLoading={deletingId !== null}
         />
       )}
 

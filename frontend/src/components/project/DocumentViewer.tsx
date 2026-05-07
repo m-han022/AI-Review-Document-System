@@ -1,7 +1,7 @@
 import { getSubmissionFileUrl } from "../../api/client";
 import type { Submission } from "../../types";
 import { useTranslation } from "../LanguageSelector";
-import SectionBlock from "../ui/SectionBlock";
+import { SectionBlock } from "../ui/SectionBlock";
 import { DownloadIcon, EyeIcon, FileReviewIcon } from "../ui/Icon";
 
 interface DocumentViewerProps {

@@ -38,9 +38,7 @@ function SectionBlockBody({ children, className, style }: SectionBlockBodyProps)
   return <div className={`section-block__body ${className ?? ""}`.trim()} style={style}>{children}</div>;
 }
 
-const SectionBlock = Object.assign(SectionBlockRoot, {
+export const SectionBlock = Object.assign(SectionBlockRoot, {
   Header: SectionBlockHeader,
   Body: SectionBlockBody,
 });
-
-export default SectionBlock;

@@ -1,225 +1,264 @@
 :root {
-  --ds-font-family-base: "Noto Sans JP", "Inter", "Noto Sans", system-ui, sans-serif;
-  --ds-font-size-caption: 12px;
-  --ds-font-size-body: 14px;
-  --ds-font-size-section: 18px;
-  --ds-font-size-title: 24px;
-  --ds-font-size-metric: 28px;
+  /* Typography */
+  --ds-font-family-base: "Inter", "Noto Sans JP", system-ui, sans-serif;
+  --ds-font-size-caption: 13px;
+  --ds-font-size-body: 15px;
+  --ds-font-size-section: 19px;
+  --ds-font-size-title: 26px;
+  --ds-font-size-metric: 32px;
+  
   --ds-font-weight-regular: 400;
   --ds-font-weight-medium: 500;
   --ds-font-weight-semibold: 600;
-  --ds-font-weight-bold: 700;
-  --ds-line-height-tight: 1.2;
-  --ds-line-height-title: 1.4;
-  --ds-line-height-heading: 1.3;
-  --ds-line-height-body: 1.55;
+  --ds-font-weight-bold: 750;
+  --ds-font-weight-black: 800;
 
+  --ds-line-height-tight: 1.2;
+  --ds-line-height-title: 1.3;
+  --ds-line-height-heading: 1.4;
+  --ds-line-height-body: 1.6;
+
+  /* Spacing */
   --ds-space-1: 4px;
   --ds-space-2: 8px;
   --ds-space-3: 12px;
   --ds-space-4: 16px;
-  --ds-space-section: 24px;
-  --ds-space-card: 16px;
-  --ds-space-inner: 12px;
   --ds-space-5: 24px;
   --ds-space-6: 32px;
+  --ds-space-section: 40px;
 
-  --ds-icon-sm: 16px;
-  --ds-icon-md: 20px;
-  --ds-icon-lg: 24px;
+  /* Colors - Precise Figma Mappings */
+  --ds-color-primary: #2563EB;
+  --ds-color-primary-hover: #1D4ED8;
+  --ds-color-primary-soft: #EFF6FF;
+  
+  --ds-color-sakura: #F4729B;
+  --ds-color-sakura-soft: #FFE4EC;
 
-  --ds-color-primary: #2F5F9F;
-  --ds-color-primary-text: #244E83;
-  --ds-color-primary-soft: #F1F6FC;
-  --ds-color-success: #22C55E;
-  --ds-color-success-soft: #F4FAF6;
+  --ds-color-success: #10B981;
+  --ds-color-success-soft: #ECFDF5;
+  
   --ds-color-warning: #F59E0B;
-  --ds-color-warning-soft: #FFFAF0;
+  --ds-color-warning-soft: #FFFBEB;
+  
   --ds-color-danger: #EF4444;
-  --ds-color-danger-strong: #B91C1C;
-  --ds-color-danger-soft: #FFF5F5;
-  --ds-color-error: #EF4444;
-  --ds-color-error-soft: #FEF2F2;
-  --ds-color-text: #1F2933;
-  --ds-color-text-secondary: #64748B;
+  --ds-color-danger-soft: #FEF2F2;
+
+  --ds-color-text: #0F172A;
+  --ds-color-text-secondary: #475569;
   --ds-color-text-muted: #64748B;
-  --ds-color-text-on-dark: #FFFFFF;
-  --ds-color-bg-app: #F9FAFB;
-  --ds-color-white: #FFFFFF;
+  --ds-color-text-on-dark: #F8FAFC;
+
+  --ds-color-bg-app: #FBFCFF;
   --ds-color-surface: #FFFFFF;
-  --ds-color-surface-muted: #F3F4F6;
-  --ds-color-border: #E5EAF3;
-  --ds-color-border-subtle: #EEF2F7;
-  --ds-color-border-strong: #D1D5DB;
-  --ds-color-row-hover: #F8FAFC;
-  --ds-color-row-selected: #F8FBFF;
-  --ds-color-sidebar: #111827;
-  --ds-color-sidebar-active: #1F2937;
-  --ds-color-focus-ring: rgb(37 99 235 / 16%);
-  --ds-color-overlay: rgb(17 24 39 / 48%);
-  --ds-color-disabled: rgb(107 114 128 / 60%);
+  --ds-color-surface-hover: #F8FAFC;
+  
+  --ds-color-border: #E2E8F0;
+  --ds-color-border-strong: #CBD5E1;
+  
+  --ds-color-sidebar: #111C32;
+  --ds-color-sidebar-item-hover: rgba(255, 255, 255, 0.06);
 
-  --ds-chart-gauge-primary: #2f6be8;
-  --ds-chart-gauge-warning: #d89a3d;
-  --ds-chart-gauge-danger: #d95b63;
-  --ds-chart-gauge-track: #e8eef8;
-  --ds-chart-issue-1: #ea4e57;
-  --ds-chart-issue-2: #f29d38;
-  --ds-chart-issue-3: #f3be4b;
-  --ds-chart-issue-4: #4b8ef7;
-  --ds-chart-issue-5: #9aadc4;
-  --ds-chart-issue-6: #c7d1dc;
-  --ds-chart-slide-ok: #61b986;
-  --ds-chart-slide-ng: #ea4e57;
-  --ds-chart-criteria-track: color-mix(in srgb, var(--ds-color-primary) 10%, white);
-  --ds-chart-criteria-fill: linear-gradient(90deg, #2b6df3 0%, #2563eb 100%);
-
-  --ds-radius-sm: 4px;
+  /* Radius & Shadows */
+  --ds-radius-sm: 6px;
   --ds-radius-md: 10px;
   --ds-radius-control: 12px;
   --ds-radius-card: 16px;
   --ds-radius-pill: 999px;
-  --ds-border-width: 1px;
-  --ds-selected-indicator-width: 2px;
-  --ds-dot-border-width: 2px;
-  --ds-selected-ring-width: 4px;
-  --ds-focus-ring-width: 4px;
-  --ds-metric-letter-spacing: 0.2px;
-  --ds-shadow-card: 0 1px 2px rgba(15, 23, 42, 0.03);
-  --ds-focus-ring-shadow: 0 0 0 var(--ds-focus-ring-width) var(--ds-color-focus-ring);
-  --ds-control-height: 36px;
-  --ds-control-height-sm: 32px;
-  --ds-icon-button-md: 36px;
-  --ds-icon-button-sm: 32px;
-  --ds-badge-min-height: 24px;
-  --ds-table-header-height: 44px;
-  --ds-table-row-height: 44px;
-  --ds-table-min-width: 960px;
-  --ds-table-checkbox-width: 48px;
-  --ds-layout-sidebar-width: 280px;
-  --ds-topbar-min-height: 72px;
-  --ds-brand-logo-width: 224px;
-  --ds-brand-logo-min-height: 72px;
-  --ds-language-select-min-width: 136px;
-  --ds-title-anchor-gap: var(--ds-space-5);
-  --ds-card-min-height: 120px;
-  --ds-panel-padding: var(--ds-space-5);
-  --ds-upload-card-min-height: 224px;
-  --ds-upload-dropzone-min-height: 128px;
-  --ds-upload-aside-width: 320px;
-  --ds-detail-score-aside-width: 288px;
-  --ds-rubric-sidebar-min-width: 224px;
-  --ds-rubric-sidebar-width: 240px;
-  --ds-rubric-index-column-width: 32px;
-  --ds-rubric-key-min-width: 160px;
-  --ds-rubric-score-min-width: 96px;
-  --ds-rubric-score-column-width: 120px;
-  --ds-prompt-textarea-min-height: 120px;
-  --ds-prompt-textarea-max-height: 240px;
-  --ds-progress-dot-size: 24px;
-  --ds-progress-line-width: 32px;
-  --ds-progress-line-height: 1px;
-  --ds-textarea-min-height: 160px;
-  --ds-modal-width: 720px;
-  --ds-dialog-width: 520px;
-  --ds-toast-width: 360px;
+  
+  --ds-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --ds-shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.1), 0 2px 4px -2px rgba(15, 23, 42, 0.1);
+  --ds-shadow-lg: 0 10px 15px -3px rgba(16, 33, 63, 0.1), 0 4px 6px -4px rgba(16, 33, 63, 0.1);
+  --ds-shadow-figma: 0 10px 16px rgba(16, 33, 63, 0.10);
 
+  /* Layout */
+  --ds-control-height: 44px;
+  --ds-control-height-sm: 36px;
+  --ds-layout-sidebar-width: 260px;
+  --ds-layout-header-height: 64px;
+
+  /* Semantic aliases */
   --bg-app: var(--ds-color-bg-app);
   --bg-surface: var(--ds-color-surface);
-  --bg-elevated: var(--ds-color-surface-muted);
-  --bg-strong: var(--ds-color-sidebar);
-  --bg-strong-soft: var(--ds-color-sidebar-active);
   --text-primary: var(--ds-color-text);
   --text-secondary: var(--ds-color-text-secondary);
   --text-muted: var(--ds-color-text-muted);
-  --text-on-dark: var(--ds-color-text-on-dark);
   --border: var(--ds-color-border);
-  --border-soft: var(--ds-color-border);
   --accent: var(--ds-color-primary);
-  --accent-soft: var(--ds-color-primary-soft);
-  --success: var(--ds-color-success);
-  --success-soft: var(--ds-color-success-soft);
-  --warning: var(--ds-color-warning);
-  --warning-soft: var(--ds-color-warning-soft);
-  --danger: var(--ds-color-danger);
-  --danger-soft: var(--ds-color-danger-soft);
-  --radius-sm: var(--ds-radius-sm);
-  --radius-md: var(--ds-radius-md);
-  --radius-lg: var(--ds-radius-card);
-  --radius-xl: var(--ds-radius-card);
 }
 
 :root[data-theme="dark"] {
-  --ds-color-primary: #7FA6D8;
-  --ds-color-primary-text: #BFD8F2;
-  --ds-color-primary-soft: #132A42;
-  --ds-color-success: #7DBA8D;
-  --ds-color-success-soft: #10281A;
-  --ds-color-warning: #D4A84D;
-  --ds-color-warning-soft: #2D2410;
-  --ds-color-danger: #E08A8E;
-  --ds-color-danger-soft: #321719;
-  --ds-color-error: #E08A8E;
-  --ds-color-error-soft: #321719;
-  --ds-color-text: #E6EAF0;
-  --ds-color-text-secondary: #A7B0BD;
-  --ds-color-text-muted: #8893A2;
-  --ds-color-bg-app: #0F141B;
-  --ds-color-white: #171D25;
-  --ds-color-surface: #171D25;
-  --ds-color-surface-muted: #202833;
-  --ds-color-border: #2D3745;
-  --ds-color-border-strong: #3B4654;
-  --ds-color-row-hover: #1C2430;
-  --ds-color-row-selected: #17283A;
-  --ds-color-sidebar: #0B1118;
-  --ds-color-sidebar-active: #1A2532;
-  --ds-color-focus-ring: rgb(127 166 216 / 22%);
-  --ds-color-overlay: rgb(0 0 0 / 60%);
-  --ds-color-disabled: rgb(167 176 189 / 48%);
-  --ds-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24);
-
-  --ds-chart-gauge-primary: #8cb4ea;
-  --ds-chart-gauge-warning: #e1b667;
-  --ds-chart-gauge-danger: #e2989d;
-  --ds-chart-gauge-track: #2b3643;
-  --ds-chart-issue-1: #e2989d;
-  --ds-chart-issue-2: #e1b667;
-  --ds-chart-issue-3: #d6c679;
-  --ds-chart-issue-4: #7fa6d8;
-  --ds-chart-issue-5: #708396;
-  --ds-chart-issue-6: #566574;
-  --ds-chart-slide-ok: #7dba8d;
-  --ds-chart-slide-ng: #e2989d;
-  --ds-chart-criteria-track: color-mix(in srgb, var(--ds-color-primary) 18%, var(--ds-color-surface));
-  --ds-chart-criteria-fill: linear-gradient(90deg, #8cb4ea 0%, #7fa6d8 100%);
+  --ds-color-bg-app: #0F172A;
+  --ds-color-surface: #1E293B;
+  --ds-color-surface-hover: #334155;
+  --ds-color-text: #F8FAFC;
+  --ds-color-text-secondary: #CBD5E1;
+  --ds-color-text-muted: #94A3B8;
+  --ds-color-border: #334155;
+  --ds-color-border-strong: #475569;
+  --ds-shadow-figma: 0 10px 16px rgba(0, 0, 0, 0.4);
 }
 
+/* Base Typography Classes */
 .ds-title {
-  color: var(--ds-color-text);
+  font-family: var(--ds-font-family-base);
   font-size: var(--ds-font-size-title);
-  font-weight: var(--ds-font-weight-bold);
+  font-weight: var(--ds-font-weight-black);
+  color: var(--ds-color-text);
   line-height: var(--ds-line-height-title);
-  letter-spacing: 0;
 }
 
 .ds-section {
-  color: var(--ds-color-text);
+  font-family: var(--ds-font-family-base);
   font-size: var(--ds-font-size-section);
-  font-weight: var(--ds-font-weight-medium);
+  font-weight: var(--ds-font-weight-black);
+  color: var(--ds-color-text);
   line-height: var(--ds-line-height-heading);
-  letter-spacing: 0;
 }
 
 .ds-body {
-  color: var(--ds-color-text);
+  font-family: var(--ds-font-family-base);
   font-size: var(--ds-font-size-body);
-  font-weight: var(--ds-font-weight-regular);
+  font-weight: var(--ds-font-weight-medium);
+  color: var(--ds-color-text-secondary);
   line-height: var(--ds-line-height-body);
 }
 
 .ds-caption {
-  color: var(--ds-color-text-secondary);
+  font-family: var(--ds-font-family-base);
   font-size: var(--ds-font-size-caption);
-  line-height: var(--ds-line-height-body);
+  font-weight: var(--ds-font-weight-medium);
+  color: var(--ds-color-text-muted);
+}
+
+/* Layout Helpers */
+.ds-card {
+  background: var(--ds-color-surface);
+  border-radius: var(--ds-radius-card);
+  border: 1px solid var(--ds-color-border);
+  box-shadow: var(--ds-shadow-figma);
+  padding: var(--ds-space-5);
+}
+
+.ds-container {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 var(--ds-space-5);
+}
+
+/* Tables */
+.ds-table-container {
+  overflow-x: auto;
+  width: 100%;
+}
+
+.ds-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.ds-table th {
+  padding: var(--ds-space-3) var(--ds-space-4);
+  background-color: var(--ds-color-bg-app);
+  color: var(--ds-color-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid var(--ds-color-border);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.ds-table td {
+  padding: var(--ds-space-4);
+  border-bottom: 1px solid var(--ds-color-border);
+  font-size: 14px;
+  color: var(--ds-color-text);
+  transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ds-table tr:last-child td {
+  border-bottom: none;
+}
+
+.ds-table tr.is-active td {
+  background-color: var(--ds-color-primary-soft) !important;
+  border-bottom-color: var(--ds-color-primary);
+}
+
+.ds-table tr.is-active td:first-child {
+  box-shadow: inset 3px 0 0 var(--ds-color-primary);
+}
+
+.ds-table tr.is-clickable:hover td {
+  background-color: var(--ds-color-surface-hover);
+}
+
+/* Compact Table Variant */
+.ds-table--compact td {
+  padding: var(--ds-space-2) var(--ds-space-4);
+  font-size: 13px;
+}
+
+.ds-table--compact th {
+  padding: var(--ds-space-2) var(--ds-space-4);
+}
+
+/* Utilities */
+.ds-text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Responsive Foundation */
+@media (max-width: 1024px) {
+  :root {
+    --ds-layout-sidebar-width: 240px;
+    --ds-font-size-title: 22px;
+    --ds-space-section: 32px;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --ds-layout-sidebar-width: 0px; /* Sidebar will be an overlay on mobile */
+    --ds-layout-header-height: 56px;
+    --ds-font-size-title: 20px;
+    --ds-font-size-section: 17px;
+    --ds-space-section: 24px;
+    --ds-space-5: 16px;
+    --ds-space-6: 24px;
+  }
+
+  .ds-container {
+    padding: 0 var(--ds-space-4);
+  }
+
+  .ds-card {
+    padding: var(--ds-space-4);
+  }
+}
+
+/* Responsive Visibility Helpers */
+.hide-on-mobile {
+  @media (max-width: 768px) {
+    display: none !important;
+  }
+}
+
+.show-on-mobile {
+  display: none !important;
+  @media (max-width: 768px) {
+    display: block !important;
+  }
+}
+
+.show-on-mobile-flex {
+  display: none !important;
+  @media (max-width: 768px) {
+    display: flex !important;
+  }
 }

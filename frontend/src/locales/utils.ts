@@ -1,33 +1,39 @@
-import { DEFAULT_UI_LANGUAGE } from "../config";
-import { SUPPORTED_LANGUAGES, type LanguageCode } from "../types";
+import vi from './vi.json';
+import ja from './ja.json';
+import en from './en.json';
 
-export function isLanguageCode(value: string | null | undefined): value is LanguageCode {
-  return SUPPORTED_LANGUAGES.includes(value as LanguageCode);
-}
+export type Language = 'vi' | 'ja' | 'en';
 
-export function normalizeLanguage(value: string | null | undefined): LanguageCode {
-  return isLanguageCode(value) ? value : DEFAULT_UI_LANGUAGE;
-}
+export const translations = {
+  vi,
+  ja,
+  en
+} as const;
 
-export function getLocalizedText(
-  value: unknown,
-  language: LanguageCode,
-  fallbackLanguage: LanguageCode = DEFAULT_UI_LANGUAGE,
-): string {
-  if (typeof value === "string") {
-    return value;
+export const normalizeLanguage = (lang: string | undefined): Language => {
+  if (!lang) return 'vi';
+  const l = lang.toLowerCase();
+  if (l.startsWith('vi')) return 'vi';
+  if (l.startsWith('ja')) return 'ja';
+  if (l.startsWith('en')) return 'en';
+  return 'vi';
+};
+
+export const getTranslation = (lang: Language, key: string, fallback?: string): string => {
+  const parts = key.split('.');
+  let current: any = translations[lang];
+
+  for (const part of parts) {
+    if (current && typeof current === 'object' && part in current) {
+      current = current[part];
+    } else {
+      // Fallback to Vietnamese if key not found in current language
+      if (lang !== 'vi') {
+        return getTranslation('vi', key, fallback || key);
+      }
+      return fallback || key;
+    }
   }
 
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return "";
-  }
-
-  const record = value as Partial<Record<LanguageCode, unknown>>;
-  const localized =
-    record[language] ??
-    record[fallbackLanguage] ??
-    record.vi ??
-    record.ja ??
-    (value as Record<string, unknown>).text;
-  return typeof localized === "string" ? localized : "";
-}
+  return typeof current === 'string' ? current : (fallback || key);
+};

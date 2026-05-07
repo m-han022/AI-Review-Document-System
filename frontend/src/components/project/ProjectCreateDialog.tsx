@@ -1,9 +1,10 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createProject } from "../../api/client";
 import { projectsQueryKey } from "../../query";
 import { useTranslation } from "../LanguageSelector";
 import Dialog from "../ui/Dialog";
+import { Input } from "../ui/Input";
 
 interface ProjectCreateDialogProps {
   open: boolean;
@@ -71,38 +72,43 @@ export default function ProjectCreateDialog({ open, onClose, onCreated }: Projec
       onCancel={onClose}
       confirmLabel={createText}
       cancelLabel={cancelText}
-      pending={loading}
+      isLoading={loading}
     >
-      <div className="prod-edit-form" style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "8px" }}>
-        {error && <div style={{ color: "#ef4444", fontSize: "14px" }}>{error}</div>}
-        <div className="prod-field">
-          <label style={{ display: "block", marginBottom: "4px", fontWeight: 500 }}>ID (e.g. P123)</label>
-          <input
-            className="prod-input"
-            value={id}
-            onChange={(e) => setId(e.target.value.toUpperCase())}
-            placeholder="P001"
-            style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #ddd" }}
-          />
-        </div>
-        <div className="prod-field">
-          <label style={{ display: "block", marginBottom: "4px", fontWeight: 500 }}>{nameText}</label>
-          <input
-            className="prod-input"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Tên dự án..."
-            style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #ddd" }}
-          />
-        </div>
-        <div className="prod-field">
-          <label style={{ display: "block", marginBottom: "4px", fontWeight: 500 }}>{descText}</label>
+      <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+        {error && (
+          <div style={{ 
+            padding: '12px', borderRadius: 'var(--ds-radius-md)', 
+            backgroundColor: 'var(--ds-color-danger-light)', 
+            color: 'var(--ds-color-danger)', fontSize: '13px' 
+          }}>
+            {error}
+          </div>
+        )}
+        
+        <Input
+          label="ID (e.g. P123)"
+          value={id}
+          onChange={(e) => setId(e.target.value.toUpperCase())}
+          placeholder="P001"
+          required
+        />
+
+        <Input
+          label={nameText}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={t("project.namePlaceholder") || "Tên dự án..."}
+          required
+        />
+
+        <div className="ds-input-group">
+          <label className="ds-input-label">{descText}</label>
           <textarea
-            className="prod-textarea"
+            className="ds-input ds-input--textarea"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Mô tả chi tiết dự án..."
-            style={{ width: "100%", minHeight: "100px", padding: "8px", borderRadius: "4px", border: "1px solid #ddd" }}
+            placeholder={t("project.descPlaceholder") || "Mô tả chi tiết dự án..."}
+            rows={4}
           />
         </div>
       </div>

@@ -1,0 +1,168 @@
+/* Dashboard Layout & Components */
+
+.dashboard-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-6);
+}
+
+/* KPI Section */
+.dashboard-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--ds-space-4);
+}
+
+.kpi-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--ds-space-3);
+}
+
+.kpi-card__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--ds-radius-md);
+  background-color: var(--ds-color-bg-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ds-color-primary);
+}
+
+.kpi-card__value {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--ds-color-text-main);
+  line-height: 1;
+  margin-bottom: var(--ds-space-1);
+}
+
+.kpi-card__value span {
+  font-size: 16px;
+  color: var(--ds-color-text-muted);
+  font-weight: 500;
+}
+
+.kpi-card__label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ds-color-text-muted);
+}
+
+.kpi-trend {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: var(--ds-radius-sm);
+}
+
+.kpi-trend--up {
+  color: var(--ds-color-success);
+  background-color: var(--ds-color-success-light);
+}
+
+/* Main Dashboard Layout */
+.dashboard-main-grid {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: var(--ds-space-6);
+}
+
+@media (max-width: 1024px) {
+  .dashboard-main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dashboard-main-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-6);
+}
+
+/* Chart Styles */
+.dashboard-chart-container {
+  height: 300px;
+  margin-top: var(--ds-space-4);
+}
+
+/* Sidebar Sections */
+.dashboard-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-6);
+}
+
+.sidebar-section__title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ds-color-text-main);
+  margin-bottom: var(--ds-space-4);
+}
+
+/* Risk Items */
+.risk-item {
+  padding: var(--ds-space-3);
+  background-color: var(--ds-color-danger-light);
+  border: 1px solid var(--ds-color-danger-light);
+  border-radius: var(--ds-radius-md);
+  transition: transform 0.2s;
+  cursor: pointer;
+}
+
+.risk-item:hover {
+  transform: translateY(-2px);
+  border-color: var(--ds-color-danger);
+}
+
+.risk-item__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.risk-item__name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #991B1B;
+}
+
+.risk-item__score {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--ds-color-danger);
+}
+
+.risk-item__date {
+  font-size: 11px;
+  color: #B91C1C;
+}
+
+/* Distribution Bars */
+.dist-bar {
+  margin-bottom: var(--ds-space-3);
+}
+
+.dist-bar__head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.dist-bar__track {
+  height: 6px;
+  width: 100%;
+  background-color: var(--ds-color-bg-muted);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.dist-bar__fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease-out;
+}

@@ -4,7 +4,6 @@ interface TableHeaderProps {
   showCheckbox: boolean;
   allSelected: boolean;
   onToggleSelectAll: () => void;
-  variant?: "full" | "dashboard" | "reference";
 }
 
 export default function TableHeader({ showCheckbox, allSelected, onToggleSelectAll }: TableHeaderProps) {
@@ -14,22 +13,22 @@ export default function TableHeader({ showCheckbox, allSelected, onToggleSelectA
   return (
     <thead>
       <tr>
-        {showCheckbox ? (
+        {showCheckbox && (
           <th style={{ width: "40px" }}>
             <input
               type="checkbox"
+              className="ds-checkbox"
               checked={allSelected}
               onChange={onToggleSelectAll}
-              style={{ width: "18px", height: "18px", cursor: "pointer" }}
             />
           </th>
-        ) : null}
+        )}
         <th>{isJa ? "Project ID / Name" : "Mã / Tên Dự án"}</th>
         <th>{isJa ? "Documents" : "Tài liệu"}</th>
         <th>{isJa ? "Status" : "Trạng thái"}</th>
         <th>{isJa ? "Score" : "Điểm"}</th>
         <th>{isJa ? "Last Updated" : "Cập nhật cuối"}</th>
-        <th style={{ textAlign: "center" }}>{t("common.actions")}</th>
+        <th style={{ textAlign: "right" }}>{t("common.actions")}</th>
       </tr>
     </thead>
   );

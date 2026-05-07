@@ -1,7 +1,8 @@
 import type { DocumentType } from "../../constants/documentTypes";
 import type { LanguageCode } from "../../types";
 import { useTranslation } from "../LanguageSelector";
-import { DownloadIcon, PlusIcon, SearchIcon, TrashIcon } from "../ui/Icon";
+import { DownloadIcon, PlusIcon, TrashIcon } from "../ui/Icon";
+import { Button, Input, Select } from "../ui";
 
 interface TableToolbarProps {
   selectedCount: number;
@@ -38,175 +39,89 @@ export default function TableToolbar({
   searchQuery,
   onSearchQueryChange,
   onCreateProject,
-  variant = "full",
 }: TableToolbarProps) {
   const { t } = useTranslation();
   const hasSelection = selectedCount > 0;
-  const isReferenceVariant = variant === "reference";
 
-  if (!isReferenceVariant) {
-    // Original full variant layout remains largely unchanged for business logic parity, 
-    // but we can apply some minor styling tweaks if needed.
-    return (
-      <div className="review-toolbar review-toolbar--table review-toolbar--reviews">
-        <div className="review-toolbar__top">
-          <div className="review-toolbar__heading">
-            <div className="review-toolbar__heading-copy">
-              <strong>{t("submissions.title")}</strong>
-              <span>{t("submissions.subtitle")}</span>
-            </div>
-            <span className="review-toolbar__total">{t("submissions.count", { count: totalCount })}</span>
-          </div>
+  const docTypeOptions = [
+    { value: "all", label: t("submissions.filterAllDocumentTypes") },
+    { value: "project-review", label: t("upload.types.projectReview.label") },
+    { value: "bug-analysis", label: t("upload.types.bugAnalysis.label") },
+    { value: "qa-review", label: t("upload.types.qaReview.label") },
+    { value: "explanation-review", label: t("upload.types.explanationReview.label") },
+  ];
 
-          <div className="review-toolbar__selection">
-            <span className={`review-toolbar__selection-count ${hasSelection ? "is-active" : ""}`.trim()}>
-              {t("common.selected", { count: selectedCount })}
-            </span>
-          </div>
+  const statusOptions = [
+    { value: "all", label: t("submissions.filterAllStatuses") },
+    { value: "completed", label: t("project.completed") },
+    { value: "pending", label: t("project.pending") },
+  ];
 
-          <div className="review-toolbar__filters">
-            <select
-              value={documentTypeFilter}
-              onChange={(event) => onDocumentTypeFilterChange(event.target.value as DocumentType | "all")}
-            >
-              <option value="all">{t("submissions.filterAllDocumentTypes")}</option>
-              <option value="project-review">{t("upload.types.projectReview.label")}</option>
-              <option value="bug-analysis">{t("upload.types.bugAnalysis.label")}</option>
-              <option value="qa-review">{t("upload.types.qaReview.label")}</option>
-              <option value="explanation-review">{t("upload.types.explanationReview.label")}</option>
-            </select>
+  const languageOptions = [
+    { value: "all", label: t("submissions.filterAllLanguages") },
+    { value: "ja", label: "日本語" },
+    { value: "vi", label: "Tiếng Việt" },
+  ];
 
-            <select
-              value={statusFilter}
-              onChange={(event) => onStatusFilterChange(event.target.value as "all" | "completed" | "pending")}
-            >
-              <option value="all">{t("submissions.filterAllStatuses")}</option>
-              <option value="completed">{t("project.completed")}</option>
-              <option value="pending">{t("project.pending")}</option>
-            </select>
-
-            <select
-              value={languageFilter}
-              onChange={(event) => onLanguageFilterChange(event.target.value as LanguageCode | "all")}
-            >
-              <option value="all">{t("submissions.filterAllLanguages")}</option>
-              <option value="ja">日本語</option>
-              <option value="vi">Tiếng Việt</option>
-            </select>
-          </div>
-
-          <div className="review-toolbar__actions">
-            <button
-              className="btn-primary btn-primary--compact"
-              onClick={onCreateProject}
-              disabled={isActionPending}
-            >
-              <PlusIcon size="md" />
-              {t("submissions.createProjectNew")}
-            </button>
-            <button
-              className="btn-primary btn-primary--compact"
-              onClick={onExport}
-              disabled={totalCount === 0 || exporting || isActionPending}
-            >
-              <DownloadIcon size="md" />
-              {exporting ? t("submissions.exporting") : t("submissions.exportExcel")}
-            </button>
-            <button
-              className="btn-danger-soft btn-danger-soft--compact"
-              onClick={onDeleteSelected}
-              disabled={!hasSelection || isActionPending}
-            >
-              <TrashIcon size="md" />
-              {`${t("submissions.deleteSelected")} (${selectedCount})`}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Modern V3 layout for Document List
   return (
-    <div className="review-toolbar--v3">
-      <div className="review-toolbar__top--v3">
-        <div className="review-toolbar__search-wrap">
-          <SearchIcon size="sm" />
-          <input 
-            type="text" 
-            className="review-toolbar__search-input"
-            value={searchQuery}
-            onChange={(event) => onSearchQueryChange(event.target.value)}
-            placeholder={t("submissions.searchPlaceholder")}
-            aria-label={t("submissions.searchPlaceholder")}
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center', marginBottom: '20px' }}>
+      <div style={{ flex: '1', minWidth: '240px' }}>
+        <Input
+          placeholder={t("submissions.searchPlaceholder")}
+          value={searchQuery}
+          onChange={(e) => onSearchQueryChange(e.target.value)}
+        />
+      </div>
+
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <div style={{ width: '160px' }}>
+          <Select
+            options={docTypeOptions}
+            value={documentTypeFilter}
+            onChange={(e) => onDocumentTypeFilterChange(e.target.value as any)}
           />
         </div>
-
-        <div className="review-toolbar__filters--v3">
-          <select
-            value={documentTypeFilter}
-            onChange={(event) => onDocumentTypeFilterChange(event.target.value as DocumentType | "all")}
-          >
-            <option value="all">{t("submissions.filterAllDocumentTypes")}</option>
-            <option value="project-review">{t("upload.types.projectReview.label")}</option>
-            <option value="bug-analysis">{t("upload.types.bugAnalysis.label")}</option>
-            <option value="qa-review">{t("upload.types.qaReview.label")}</option>
-            <option value="explanation-review">{t("upload.types.explanationReview.label")}</option>
-          </select>
-
-          <select
+        <div style={{ width: '160px' }}>
+          <Select
+            options={statusOptions}
             value={statusFilter}
-            onChange={(event) => onStatusFilterChange(event.target.value as "all" | "completed" | "pending")}
-          >
-            <option value="all">{t("submissions.filterAllStatuses")}</option>
-            <option value="completed">{t("project.completed")}</option>
-            <option value="pending">{t("project.pending")}</option>
-          </select>
-
-          <select
+            onChange={(e) => onStatusFilterChange(e.target.value as any)}
+          />
+        </div>
+        <div style={{ width: '160px' }}>
+          <Select
+            options={languageOptions}
             value={languageFilter}
-            onChange={(event) => onLanguageFilterChange(event.target.value as LanguageCode | "all")}
-          >
-            <option value="all">{t("submissions.filterAllLanguages")}</option>
-            <option value="ja">日本語</option>
-            <option value="vi">Tiếng Việt</option>
-          </select>
+            onChange={(e) => onLanguageFilterChange(e.target.value as any)}
+          />
         </div>
+      </div>
 
-        <div className="review-toolbar__actions" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {selectedCount > 0 && (
-            <span className="review-badge-v3" style={{ background: '#e0e7ff', color: '#4338ca', height: '32px', padding: '0 12px' }}>
-              {t("common.selected", { count: selectedCount })}
-            </span>
-          )}
-
-          <button
-            className="review-pagination-btn-v3"
-            style={{ height: '40px', background: '#6366f1', color: '#ffffff', borderColor: '#6366f1' }}
-            onClick={onCreateProject}
-            disabled={isActionPending}
-          >
-            <PlusIcon size="sm" />
-          </button>
-
-          <button
-            className="review-pagination-btn-v3"
-            style={{ height: '40px', background: '#f8fafc', color: '#475569' }}
-            onClick={onExport}
-            disabled={totalCount === 0 || exporting || isActionPending}
-          >
-            <DownloadIcon size="sm" />
-          </button>
-          
-          <button
-            className="review-pagination-btn-v3"
-            style={{ height: '40px', borderColor: hasSelection ? '#ef4444' : '#e2e8f0', color: hasSelection ? '#ef4444' : '#94a3b8' }}
-            onClick={onDeleteSelected}
-            disabled={!hasSelection || isActionPending}
-          >
-            <TrashIcon size="sm" />
-          </button>
-        </div>
+      <div style={{ display: 'flex', gap: '8px' }}>
+        <Button 
+          variant="primary" 
+          onClick={onCreateProject} 
+          disabled={isActionPending}
+        >
+          <PlusIcon size="sm" />
+          {t("submissions.createProjectNew")}
+        </Button>
+        <Button 
+          variant="outline" 
+          onClick={onExport} 
+          disabled={totalCount === 0 || exporting || isActionPending}
+          isLoading={exporting}
+        >
+          <DownloadIcon size="sm" />
+        </Button>
+        <Button 
+          variant="danger" 
+          onClick={onDeleteSelected} 
+          disabled={!hasSelection || isActionPending}
+        >
+          <TrashIcon size="sm" />
+          {hasSelection && <span>{selectedCount}</span>}
+        </Button>
       </div>
     </div>
   );

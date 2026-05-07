@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useReducer, useState } from "react";
 
-import { PageHeader } from "../ui/PageHeader";
 import { exportAuditRunsCsv, getAuditRunDetail, listAuditRuns } from "../../api/client";
 import type { GradingRunDetail, GradingRunHistory } from "../../types";
 import { useTranslation } from "../LanguageSelector";
-import { EmptyState, ErrorState, LoadingState, SkeletonTable, StatusBadge } from "../ui/States";
+import { Button, Card, Input, PageHeader, Select, StatusBadge } from "../ui";
+import { EmptyState, LoadingState } from "../ui/States";
 
 type UiStatus = "idle" | "loading" | "ready" | "empty" | "error";
 type DetailStatus = "idle" | "loading" | "ready" | "error";
@@ -207,197 +207,152 @@ export default function AuditDashboard() {
     }
   };
   const handleSelectRun = (runId: number) => dispatch({ type: "SELECT_RUN", runId });
-  const handleRowKeyDown = (event: React.KeyboardEvent<HTMLTableRowElement>, runId: number) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      handleSelectRun(runId);
-    }
-  };
 
   return (
-    <section className="ops-screen" aria-label={t("biz.auditDashboard.title")}>
-      <section className="ops-card">
-        <h2>{t("sm.auditDashboard.filterTitle")}</h2>
-        <div className="prod-form-grid audit-filter-grid">
-          <label className="prod-field">
-            <span>{t("sm.audit.project")}</span>
-            <input
-              value={state.filters.projectId}
-              onChange={(e) => dispatch({ type: "SET_FILTER", key: "projectId", value: e.target.value })}
-              placeholder={t("sm.auditDashboard.projectPlaceholder")}
-            />
-          </label>
-          <label className="prod-field">
-            <span>{t("sm.audit.document")}</span>
-            <input
-              value={state.filters.documentId}
-              onChange={(e) => dispatch({ type: "SET_FILTER", key: "documentId", value: e.target.value })}
-              placeholder={t("sm.auditDashboard.documentPlaceholder")}
-            />
-          </label>
-          <label className="prod-field">
-            <span>{t("sm.audit.version")}</span>
-            <input
-              value={state.filters.versionId}
-              onChange={(e) => dispatch({ type: "SET_FILTER", key: "versionId", value: e.target.value })}
-              placeholder={t("sm.auditDashboard.versionPlaceholder")}
-            />
-          </label>
-          <label className="prod-field">
-            <span>{t("common.status")}</span>
-            <select
-              value={state.filters.status}
-              onChange={(e) => dispatch({ type: "SET_FILTER", key: "status", value: e.target.value })}
-            >
-              <option value="">{t("sm.auditDashboard.statusAll")}</option>
-              <option value="PENDING">{t("status.pending")}</option>
-              <option value="EXTRACTING">{t("status.extracting")}</option>
-              <option value="GRADING">{t("status.grading")}</option>
-              <option value="COMPLETED">{t("status.completed")}</option>
-              <option value="FAILED">{t("status.failed")}</option>
-            </select>
-          </label>
-          <label className="prod-field">
-            <span>{t("sm.auditDashboard.fromTime")}</span>
-            <input
-              type="datetime-local"
-              value={state.filters.fromTime}
-              onChange={(e) => dispatch({ type: "SET_FILTER", key: "fromTime", value: e.target.value })}
-            />
-          </label>
-          <label className="prod-field">
-            <span>{t("sm.auditDashboard.toTime")}</span>
-            <input
-              type="datetime-local"
-              value={state.filters.toTime}
-              onChange={(e) => dispatch({ type: "SET_FILTER", key: "toTime", value: e.target.value })}
-            />
-          </label>
+    <div className="workspace-stack">
+      <PageHeader 
+        title={t("biz.auditDashboard.title") || "Audit Dashboard"} 
+        subtitle={t("sm.auditDashboard.filterTitle")}
+      />
+
+      <Card title={t("sm.auditDashboard.filterTitle")}>
+        <div className="governance-grid" style={{ marginBottom: '20px' }}>
+          <Input 
+            label={t("sm.audit.project")} 
+            value={state.filters.projectId} 
+            onChange={(e) => dispatch({ type: "SET_FILTER", key: "projectId", value: e.target.value })}
+            placeholder={t("sm.auditDashboard.projectPlaceholder")}
+          />
+          <Input 
+            label={t("sm.audit.document")} 
+            value={state.filters.documentId} 
+            onChange={(e) => dispatch({ type: "SET_FILTER", key: "documentId", value: e.target.value })}
+            placeholder={t("sm.auditDashboard.documentPlaceholder")}
+          />
+          <Input 
+            label={t("sm.audit.version")} 
+            value={state.filters.versionId} 
+            onChange={(e) => dispatch({ type: "SET_FILTER", key: "versionId", value: e.target.value })}
+            placeholder={t("sm.auditDashboard.versionPlaceholder")}
+          />
+          <Select 
+            label={t("common.status")} 
+            value={state.filters.status} 
+            onChange={(e) => dispatch({ type: "SET_FILTER", key: "status", value: e.target.value })}
+            options={[
+              { value: "", label: t("sm.auditDashboard.statusAll") },
+              { value: "PENDING", label: t("status.pending") },
+              { value: "EXTRACTING", label: t("status.extracting") },
+              { value: "GRADING", label: t("status.grading") },
+              { value: "COMPLETED", label: t("status.completed") },
+              { value: "FAILED", label: t("status.failed") }
+            ]}
+          />
+          <Input 
+            label={t("sm.auditDashboard.fromTime")} 
+            type="datetime-local"
+            value={state.filters.fromTime} 
+            onChange={(e) => dispatch({ type: "SET_FILTER", key: "fromTime", value: e.target.value })}
+          />
+          <Input 
+            label={t("sm.auditDashboard.toTime")} 
+            type="datetime-local"
+            value={state.filters.toTime} 
+            onChange={(e) => dispatch({ type: "SET_FILTER", key: "toTime", value: e.target.value })}
+          />
         </div>
-        <div className="audit-actions">
-          <button type="button" className="prod-button" onClick={() => dispatch({ type: "RESET_FILTERS" })}>
+
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+          <Button variant="outline" onClick={() => dispatch({ type: "RESET_FILTERS" })}>
             {t("sm.auditDashboard.reset")}
-          </button>
-          <button type="button" className="prod-button prod-button--primary" onClick={fetchRows}>
+          </Button>
+          <Button variant="outline" onClick={fetchRows}>
             {t("sm.common.retry")}
-          </button>
-          <button type="button" className="prod-button audit-actions__export" onClick={runExport} disabled={!canExport || isExporting}>
-            {isExporting ? t("submissions.exporting") : t("submissions.exportExcel")}
-          </button>
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={runExport} 
+            disabled={!canExport || isExporting}
+            isLoading={isExporting}
+          >
+            {t("submissions.exportExcel")}
+          </Button>
         </div>
-        {!canExport ? <p className="ops-inline-hint">{t("sm.auditDashboard.projectPlaceholder")}</p> : null}
-      </section>
+      </Card>
 
-      <section className="ops-card">
-        <h2>{t("sm.auditDashboard.tableTitle")}</h2>
-        {state.status === "loading" || state.status === "idle" ? (
-          <div className="audit-loading-block">
-            <LoadingState title={t("common.loading")} description={t("sm.auditDashboard.loadingDesc")} />
-            <SkeletonTable rows={5} cols={6} />
-          </div>
-        ) : null}
-        {state.status === "error" ? (
-          <ErrorState
-            title={t("sm.grading.error")}
-            description={state.error || t("api.unknown")}
-            compact
-            action={(
-              <button type="button" className="prod-button" onClick={fetchRows}>
-                {t("sm.common.retry")}
-              </button>
-            )}
-          />
-        ) : null}
-        {state.status === "empty" ? <EmptyState title={t("sm.auditDashboard.empty")} description={t("sm.auditDashboard.emptyDesc")} compact /> : null}
-        {state.status === "ready" ? (
-          <>
-            <div className="prod-table-wrap">
-              <table className="prod-history-table">
-                <thead>
-                  <tr>
-                    <th className="audit-table__col-run">{t("sm.audit.gradingRun")}</th>
-                    <th className="audit-table__col-document">{t("sm.audit.document")}</th>
-                    <th className="audit-table__col-version">{t("sm.audit.version")}</th>
-                    <th className="audit-table__col-score">{t("project.totalScore")}</th>
-                    <th className="audit-table__col-status">{t("common.status")}</th>
-                    <th className="audit-table__col-date">{t("project.reviewedAt")}</th>
+      <Card title={t("sm.auditDashboard.tableTitle")}>
+        <div className="prod-table-wrap">
+          <table className="prod-history-table">
+            <thead>
+              <tr>
+                <th>{t("sm.audit.gradingRun")}</th>
+                <th>{t("sm.audit.document")}</th>
+                <th>{t("sm.audit.version")}</th>
+                <th>{t("project.totalScore")}</th>
+                <th>{t("common.status")}</th>
+                <th>{t("project.reviewedAt")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {state.status === "loading" ? (
+                <tr><td colSpan={6}><LoadingState title={t("common.loading")} /></td></tr>
+              ) : state.status === "empty" ? (
+                <tr><td colSpan={6}><EmptyState title={t("sm.auditDashboard.empty")} compact /></td></tr>
+              ) : (
+                state.rows.map((row) => (
+                  <tr
+                    key={row.id}
+                    onClick={() => handleSelectRun(row.id)}
+                    className={state.selectedRunId === row.id ? 'is-active' : ''}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <td>#{row.id}</td>
+                    <td>{row.document_name || t("common.noValue")}</td>
+                    <td>{row.document_version || t("common.noValue")}</td>
+                    <td>{typeof row.total_score === "number" ? `${row.total_score}/100` : "—"}</td>
+                    <td>
+                      <StatusBadge tone={mapStatusTone(row.status)}>
+                        {renderStatusLabel(row.status, t)}
+                      </StatusBadge>
+                    </td>
+                    <td style={{ fontSize: '12px', color: 'var(--ds-color-text-muted)' }}>
+                      {row.graded_at ? new Date(row.graded_at).toLocaleString() : "—"}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {state.rows.map((row) => (
-                    <tr
-                      key={row.id}
-                      onClick={() => handleSelectRun(row.id)}
-                      onKeyDown={(event) => handleRowKeyDown(event, row.id)}
-                      tabIndex={0}
-                      role="button"
-                      className="audit-table__row-clickable"
-                    >
-                      <td className="audit-table__col-run">#{row.id}</td>
-                      <td className="audit-table__col-document">{row.document_name || (row.document_id ? `${t("sm.auditDashboard.documentIdPrefix")}${row.document_id}` : row.document_type) || t("common.noValue")}</td>
-                      <td className="audit-table__col-version">{row.document_version || t("common.noValue")}</td>
-                      <td className="audit-table__col-score">{typeof row.total_score === "number" ? `${row.total_score}/100` : t("common.noValue")}</td>
-                      <td className="audit-table__col-status">
-                        <StatusBadge tone={mapStatusTone(row.status)}>
-                          {renderStatusLabel(row.status, t)}
-                        </StatusBadge>
-                      </td>
-                      <td className="audit-table__col-date">{row.graded_at ? new Date(row.graded_at).toLocaleString(t("common.localeCode")) : t("common.noValue")}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
 
-            <div className="audit-pagination">
-              <button
-                type="button"
-                className="prod-button"
-                disabled={!canGoPrev}
-                onClick={() => dispatch({ type: "SET_FILTER", key: "offset", value: Math.max(0, state.filters.offset - state.filters.limit) })}
-              >
-                {t("sm.auditDashboard.prevPage")}
-              </button>
-              <button
-                type="button"
-                className="prod-button"
-                disabled={!canGoNext}
-                onClick={() => dispatch({ type: "SET_FILTER", key: "offset", value: state.filters.offset + state.filters.limit })}
-              >
-                {t("sm.auditDashboard.nextPage")}
-              </button>
-            </div>
-          </>
-        ) : null}
-      </section>
-
-      <section className="ops-card">
-        <h2>{t("sm.auditDashboard.detailTitle")}</h2>
-        {state.detailStatus === "idle" ? <EmptyState title={t("sm.auditDashboard.selectRun")} description={t("sm.auditDashboard.selectRunDesc")} compact /> : null}
-        {state.detailStatus === "loading" ? (
-          <div className="audit-loading-block audit-loading-block--detail">
-            <LoadingState title={t("sm.detail.loading")} />
-            <SkeletonTable rows={2} cols={3} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
+          <div style={{ fontSize: '12px', color: 'var(--ds-color-text-muted)' }}>
+            Showing {state.rows.length} results
           </div>
-        ) : null}
-        {state.detailStatus === "error" ? (
-          <ErrorState
-            title={t("sm.detail.error")}
-            description={state.detailError || t("api.unknown")}
-            compact
-            action={(
-              <button
-                type="button"
-                className="prod-button"
-                onClick={() => state.selectedRunId && dispatch({ type: "SELECT_RUN", runId: state.selectedRunId })}
-              >
-                {t("sm.common.retry")}
-              </button>
-            )}
-          />
-        ) : null}
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              disabled={!canGoPrev}
+              onClick={() => dispatch({ type: "SET_FILTER", key: "offset", value: Math.max(0, state.filters.offset - state.filters.limit) })}
+            >
+              {t("sm.auditDashboard.prevPage")}
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              disabled={!canGoNext}
+              onClick={() => dispatch({ type: "SET_FILTER", key: "offset", value: state.filters.offset + state.filters.limit })}
+            >
+              {t("sm.auditDashboard.nextPage")}
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      <Card title={t("sm.auditDashboard.detailTitle")}>
         {state.detailStatus === "ready" && state.selectedRunDetail ? (
-          <div className="prod-form-grid audit-detail-grid">
+          <div className="governance-grid">
             <DetailField label={t("sm.audit.project")} value={state.selectedRunDetail.submission.project_id} />
             <DetailField label={t("sm.audit.document")} value={state.selectedRunDetail.document?.document_name || t("common.noValue")} />
             <DetailField label={t("sm.audit.version")} value={state.selectedRunDetail.document_version?.document_version || t("common.noValue")} />
@@ -406,19 +361,20 @@ export default function AuditDashboard() {
             <DetailField label={t("sm.auditDashboard.promptLevel")} value={state.selectedRunDetail.grading_run.prompt_level || t("common.noValue")} />
             <DetailField label={t("common.status")} value={renderStatusLabel(state.selectedRunDetail.grading_run.status, t)} />
             <DetailField label={t("project.totalScore")} value={state.selectedRunDetail.grading_run.total_score ?? state.selectedRunDetail.grading_run.score ?? t("common.noValue")} />
-            <DetailField label={t("project.reviewedAt")} value={state.selectedRunDetail.grading_run.graded_at || t("common.noValue")} />
           </div>
-        ) : null}
-      </section>
-    </section>
+        ) : (
+          <EmptyState title={t("sm.auditDashboard.selectRun")} description={t("sm.auditDashboard.selectRunDesc")} compact />
+        )}
+      </Card>
+    </div>
   );
 }
 
 function DetailField({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="prod-field">
-      <span>{label}</span>
-      <strong>{value}</strong>
+    <div className="detail-section">
+      <span className="detail-section__title" style={{ fontSize: '11px' }}>{label}</span>
+      <div style={{ fontWeight: 600, fontSize: '14px' }}>{value}</div>
     </div>
   );
 }

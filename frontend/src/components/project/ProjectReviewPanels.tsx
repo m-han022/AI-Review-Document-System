@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import SectionBlock from "../ui/SectionBlock";
+import { SectionBlock } from "../ui/SectionBlock";
 import Badge from "../ui/Badge";
 
 export interface SummaryLine {

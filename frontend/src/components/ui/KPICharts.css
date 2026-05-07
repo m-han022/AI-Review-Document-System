@@ -1,0 +1,66 @@
+.kpi-bar-chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-4);
+  width: 100%;
+}
+
+.kpi-bar-chart__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-1);
+}
+
+.kpi-bar-chart__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.kpi-bar-chart__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ds-color-text-main);
+}
+
+.kpi-bar-chart__value {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ds-color-text-muted);
+}
+
+.kpi-bar-chart__track {
+  height: 6px;
+  background-color: var(--ds-color-bg-muted);
+  border-radius: var(--ds-radius-full);
+  overflow: hidden;
+}
+
+.kpi-bar-chart__fill {
+  height: 100%;
+  border-radius: var(--ds-radius-full);
+  transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.kpi-bar-chart__fill--success { background-color: var(--ds-color-success); }
+.kpi-bar-chart__fill--warning { background-color: var(--ds-color-warning); }
+.kpi-bar-chart__fill--danger { background-color: var(--ds-color-danger); }
+
+.kpi-delta-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: var(--ds-radius-sm);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.kpi-delta-badge--success {
+  background-color: var(--ds-color-success-light);
+  color: var(--ds-color-success);
+}
+
+.kpi-delta-badge--danger {
+  background-color: var(--ds-color-danger-light);
+  color: var(--ds-color-danger);
+}

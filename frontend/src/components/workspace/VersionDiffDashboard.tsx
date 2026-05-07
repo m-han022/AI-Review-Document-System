@@ -3,8 +3,8 @@ import { useEffect, useMemo, useReducer, useState } from "react";
 import { exportVersionDiffCsv, getVersionDiff, listDocumentVersions, listProjectDocuments, listProjects } from "../../api/client";
 import type { DocumentListOut, Project, VersionDiffOut, VersionListOut } from "../../types";
 import { useTranslation } from "../LanguageSelector";
-import { PageHeader } from "../ui/PageHeader";
-import { EmptyState, ErrorState, LoadingState, SkeletonTable, StatusBadge } from "../ui/States";
+import { Button, Card, PageHeader, Select, StatusBadge } from "../ui";
+import { LoadingState } from "../ui/States";
 
 type UiState = "idle" | "loading" | "ready" | "empty" | "error";
 
@@ -97,11 +97,7 @@ function formatDelta(delta: number, t: (key: string) => string): string {
   return t("sm.versionDiff.noChangeLabel");
 }
 
-function deltaToneClass(direction: "up" | "down" | "same"): string {
-  if (direction === "up") return "diff-delta--up";
-  if (direction === "down") return "diff-delta--down";
-  return "diff-delta--same";
-}
+
 
 function getPromptLevelChangedLabel(changed: boolean, t: (key: string) => string): string {
   return changed ? t("sm.versionDiff.promptLevelChangedLabel") : t("sm.versionDiff.promptLevelNotChangedLabel");
@@ -203,167 +199,152 @@ export default function VersionDiffDashboard() {
   };
 
   return (
-    <section className="ops-screen" aria-label={t("biz.versionDiff.title")}>
-      <div className="versiondiff-toolbar">
-        <div className="versiondiff-toolbar-grid">
-            <label className="prod-field">
-              <span>{t("sm.audit.project")}</span>
-              <select value={state.selectedProjectId} onChange={(e) => dispatch({ type: "SET_PROJECT", projectId: e.target.value })}>
-                <option value="">{t("sm.versionDiff.selectProject")}</option>
-                {state.projects.map((item) => (
-                  <option key={item.project_id} value={item.project_id}>{item.project_name}</option>
-                ))}
-              </select>
-            </label>
-            <label className="prod-field">
-              <span>{t("sm.audit.document")}</span>
-              <select
-                value={state.selectedDocumentId ?? ""}
-                onChange={(e) => dispatch({ type: "SET_DOCUMENT", documentId: e.target.value ? Number(e.target.value) : null })}
-                disabled={!state.selectedProjectId}
-              >
-                <option value="">{t("sm.versionDiff.selectDocument")}</option>
-                {state.documents.map((item) => (
-                  <option key={item.document_id} value={item.document_id}>{item.document_name}</option>
-                ))}
-              </select>
-            </label>
-            <label className="prod-field">
-              <span>{t("sm.versionDiff.versionA")}</span>
-              <select
-                value={state.versionAId ?? ""}
-                onChange={(e) => dispatch({ type: "SET_VERSION_A", versionId: e.target.value ? Number(e.target.value) : null })}
-                disabled={!state.selectedDocumentId}
-              >
-                <option value="">{t("sm.versionDiff.selectVersionA")}</option>
-                {state.versions.map((item) => (
-                  <option key={item.document_version_id} value={item.document_version_id}>{item.version}</option>
-                ))}
-              </select>
-            </label>
-            <label className="prod-field">
-              <span>{t("sm.versionDiff.versionB")}</span>
-              <select
-                value={state.versionBId ?? ""}
-                onChange={(e) => dispatch({ type: "SET_VERSION_B", versionId: e.target.value ? Number(e.target.value) : null })}
-                disabled={!state.selectedDocumentId}
-              >
-                <option value="">{t("sm.versionDiff.selectVersionB")}</option>
-                {state.versions.map((item) => (
-                  <option key={item.document_version_id} value={item.document_version_id}>{item.version}</option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <div className="versiondiff-header-actions">
-            <button type="button" className="prod-button prod-button--primary" onClick={runCompare} disabled={!canCompare}>
-              {t("sm.versionDiff.compare")}
-            </button>
-            {!canCompare && state.selectedDocumentId ? (
-              <span className="ops-inline-hint">{t("sm.versionDiff.emptyDesc")}</span>
-            ) : null}
-          </div>
+    <div className="workspace-stack">
+      <PageHeader 
+        title={t("biz.versionDiff.title") || "Version Comparison"} 
+        subtitle={t("biz.versionDiff.subtitle")}
+      />
+
+      <Card title={t("sm.versionDiff.compare")}>
+        <div className="governance-grid" style={{ marginBottom: '20px' }}>
+          <Select 
+            label={t("sm.audit.project")} 
+            value={state.selectedProjectId} 
+            onChange={(e) => dispatch({ type: "SET_PROJECT", projectId: e.target.value })}
+            options={[
+              { value: "", label: t("sm.versionDiff.selectProject") },
+              ...state.projects.map(item => ({ value: item.project_id, label: item.project_name }))
+            ]}
+          />
+          <Select 
+            label={t("sm.audit.document")} 
+            value={state.selectedDocumentId ?? ""} 
+            onChange={(e) => dispatch({ type: "SET_DOCUMENT", documentId: e.target.value ? Number(e.target.value) : null })}
+            disabled={!state.selectedProjectId}
+            options={[
+              { value: "", label: t("sm.versionDiff.selectDocument") },
+              ...state.documents.map(item => ({ value: String(item.document_id), label: item.document_name }))
+            ]}
+          />
+          <Select 
+            label={t("sm.versionDiff.versionA")} 
+            value={state.versionAId ?? ""} 
+            onChange={(e) => dispatch({ type: "SET_VERSION_A", versionId: e.target.value ? Number(e.target.value) : null })}
+            disabled={!state.selectedDocumentId}
+            options={[
+              { value: "", label: t("sm.versionDiff.selectVersionA") },
+              ...state.versions.map(item => ({ value: String(item.document_version_id), label: item.version }))
+            ]}
+          />
+          <Select 
+            label={t("sm.versionDiff.versionB")} 
+            value={state.versionBId ?? ""} 
+            onChange={(e) => dispatch({ type: "SET_VERSION_B", versionId: e.target.value ? Number(e.target.value) : null })}
+            disabled={!state.selectedDocumentId}
+            options={[
+              { value: "", label: t("sm.versionDiff.selectVersionB") },
+              ...state.versions.map(item => ({ value: String(item.document_version_id), label: item.version }))
+            ]}
+          />
         </div>
-      </div>
 
-      {state.status === "loading" ? (
-        <section className="ops-card versiondiff-loading-card">
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+          <Button variant="primary" onClick={runCompare} disabled={!canCompare}>
+            {t("sm.versionDiff.compare")}
+          </Button>
+        </div>
+      </Card>
+
+      {state.status === "loading" && (
+        <Card>
           <LoadingState title={t("common.loading")} description={t("sm.versionDiff.loadingDesc")} />
-          <SkeletonTable rows={4} cols={4} />
-        </section>
-      ) : null}
-      {state.status === "error" ? (
-        <ErrorState
-          title={t("sm.grading.error")}
-          description={state.error || t("api.unknown")}
-          action={<button className="prod-button" type="button" onClick={loadProjects}>{t("sm.common.retry")}</button>}
-        />
-      ) : null}
-      {state.status === "empty" ? <EmptyState title={t("sm.versionDiff.empty")} description={t("sm.versionDiff.emptyDesc")} /> : null}
+        </Card>
+      )}
 
-      {state.diff ? (
-        <>
-          <section className="ops-card">
-            <div className="versiondiff-score-head">
-              <h2>{t("sm.versionDiff.scoreTitle")}</h2>
-              <button type="button" className="prod-button" onClick={runExport} disabled={isExporting}>
-                {isExporting ? t("submissions.exporting") : t("submissions.exportExcel")}
-              </button>
-            </div>
-            <div className="diff-score-strip">
-              <div className="diff-score-strip__item">
-                <span>{state.diff.version_a.label}</span>
-                <strong>{state.diff.score_diff.a_score ?? t("common.noValue")}</strong>
+      {state.diff && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <Card title={t("sm.versionDiff.scoreTitle")}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', gap: '40px' }}>
+                <div className="detail-section">
+                  <span className="detail-section__title">{state.diff.version_a.label}</span>
+                  <div style={{ fontSize: '24px', fontWeight: 700 }}>{state.diff.score_diff.a_score ?? "—"}</div>
+                </div>
+                <div className="detail-section">
+                  <span className="detail-section__title">{state.diff.version_b.label}</span>
+                  <div style={{ fontSize: '24px', fontWeight: 700 }}>{state.diff.score_diff.b_score ?? "—"}</div>
+                </div>
               </div>
-              <div className="diff-score-strip__item">
-                <span>{state.diff.version_b.label}</span>
-                <strong>{state.diff.score_diff.b_score ?? t("common.noValue")}</strong>
-              </div>
-              <div className="diff-score-strip__delta">
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '11px', color: 'var(--ds-color-text-muted)', marginBottom: '4px' }}>Delta</div>
                 <StatusBadge tone={tone(state.diff.score_diff.direction)}>
                   {formatDelta(state.diff.score_diff.delta, t)}
                 </StatusBadge>
               </div>
             </div>
-          </section>
+            
+            <Button variant="outline" size="sm" onClick={runExport} isLoading={isExporting}>
+              {t("submissions.exportExcel")}
+            </Button>
+          </Card>
 
-          <section className="ops-card">
-            <h2>{t("sm.versionDiff.criteriaTitle")}</h2>
+          <Card title={t("sm.versionDiff.criteriaTitle")}>
             <div className="prod-table-wrap">
               <table className="prod-history-table">
                 <thead>
                   <tr>
-                    <th className="versiondiff-col-criterion">{t("sm.versionDiff.criterion")}</th>
-                    <th className="versiondiff-col-before">{t("sm.versionDiff.before")}</th>
-                    <th className="versiondiff-col-after">{t("sm.versionDiff.after")}</th>
-                    <th className="versiondiff-col-delta">{t("sm.versionDiff.delta")}</th>
+                    <th>{t("sm.versionDiff.criterion")}</th>
+                    <th>{t("sm.versionDiff.before")}</th>
+                    <th>{t("sm.versionDiff.after")}</th>
+                    <th style={{ textAlign: 'right' }}>{t("sm.versionDiff.delta")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {state.diff.criteria_diff.map((row) => (
                     <tr key={row.criterion_key}>
-                      <td className="versiondiff-col-criterion">{row.criterion_key}</td>
-                      <td className="versiondiff-col-before">{row.a ?? t("common.noValue")}</td>
-                      <td className="versiondiff-col-after">{row.b ?? t("common.noValue")}</td>
-                      <td className={`versiondiff-col-delta ${deltaToneClass(row.direction)}`}>
-                        <StatusBadge tone={tone(row.direction)}>{formatDelta(row.delta, t)}</StatusBadge>
+                      <td style={{ fontWeight: 600 }}>{row.criterion_key}</td>
+                      <td>{row.a ?? t("common.noValue")}</td>
+                      <td>{row.b ?? t("common.noValue")}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        <StatusBadge tone={tone(row.direction)}>
+                          {formatDelta(row.delta, t)}
+                        </StatusBadge>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </section>
+          </Card>
 
-          <section className="ops-card">
-            <h2>{t("sm.versionDiff.metaTitle")}</h2>
-            <div className="prod-form-grid versiondiff-meta-grid">
-              <div className="prod-field">
-                <span>{t("sm.versionDiff.promptLevelChanged")}</span>
-                <strong>{getPromptLevelChangedLabel(state.diff.meta_diff.prompt_level_changed, t)}</strong>
+          <Card title={t("sm.versionDiff.metaTitle")}>
+            <div className="governance-grid">
+              <div className="detail-section">
+                <span className="detail-section__title">{t("sm.versionDiff.promptLevelChanged")}</span>
+                <div style={{ fontWeight: 600 }}>{getPromptLevelChangedLabel(state.diff.meta_diff.prompt_level_changed, t)}</div>
               </div>
-              <div className="prod-field">
-                <span>{t("sm.versionDiff.evaluationSetChanged")}</span>
-                <strong>{getEvaluationSetChangedLabel(state.diff.meta_diff.evaluation_set_changed, t)}</strong>
+              <div className="detail-section">
+                <span className="detail-section__title">{t("sm.versionDiff.evaluationSetChanged")}</span>
+                <div style={{ fontWeight: 600 }}>{getEvaluationSetChangedLabel(state.diff.meta_diff.evaluation_set_changed, t)}</div>
               </div>
-              <div className="prod-field">
-                <span>{t("sm.versionDiff.sameContext")}</span>
-                <strong>{getContextLabel(state.diff.comparison_validity.same_evaluation_context, t)}</strong>
+              <div className="detail-section">
+                <span className="detail-section__title">{t("sm.versionDiff.sameContext")}</span>
+                <div style={{ fontWeight: 600 }}>{getContextLabel(state.diff.comparison_validity.same_evaluation_context, t)}</div>
               </div>
             </div>
-            {state.diff.comparison_validity.warnings.length ? (
-              <div className="versiondiff-meta-warnings">
-                <strong>{t("sm.versionDiff.warnings")}</strong>
-                <ul>
+            {state.diff.comparison_validity.warnings.length > 0 && (
+              <div style={{ marginTop: '16px', padding: '12px', backgroundColor: 'var(--ds-color-warning-light)', borderRadius: 'var(--ds-radius-md)' }}>
+                <strong style={{ fontSize: '12px', color: 'var(--ds-color-warning)' }}>{t("sm.versionDiff.warnings")}</strong>
+                <ul style={{ marginTop: '8px', paddingLeft: '20px', fontSize: '13px', color: 'var(--ds-color-text)' }}>
                   {state.diff.comparison_validity.warnings.map((item) => (
                     <li key={item}>{getWarningLabel(item, t)}</li>
                   ))}
                 </ul>
               </div>
-            ) : null}
-          </section>
-        </>
-      ) : null}
-    </section>
+            )}
+          </Card>
+        </div>
+      )}
+    </div>
   );
 }

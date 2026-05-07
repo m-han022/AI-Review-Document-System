@@ -1,0 +1,145 @@
+/* Standardized UI States using Design Tokens */
+
+.ui-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: var(--ds-radius-sm);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.ui-status-badge--muted {
+  background-color: var(--ds-color-bg-muted);
+  color: var(--ds-color-text-muted);
+}
+
+.ui-status-badge--primary {
+  background-color: var(--ds-color-primary-light);
+  color: var(--ds-color-primary);
+}
+
+.ui-status-badge--success {
+  background-color: var(--ds-color-success-light);
+  color: var(--ds-color-success);
+}
+
+.ui-status-badge--warning {
+  background-color: var(--ds-color-warning-light);
+  color: var(--ds-color-warning);
+}
+
+.ui-status-badge--danger {
+  background-color: var(--ds-color-danger-light);
+  color: var(--ds-color-danger);
+}
+
+/* State Panels (Empty, Error, Success) */
+.ui-state {
+  padding: var(--ds-space-6);
+  border-radius: var(--ds-radius-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--ds-space-3);
+  border: 1px dashed var(--ds-color-border);
+  background-color: var(--ds-color-bg-muted);
+}
+
+.ui-state--compact {
+  padding: var(--ds-space-4);
+}
+
+.ui-state__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--ds-radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: white;
+  box-shadow: var(--ds-shadow-sm);
+  color: var(--ds-color-text-muted);
+}
+
+.ui-state--primary .ui-state__icon { color: var(--ds-color-primary); }
+.ui-state--success .ui-state__icon { color: var(--ds-color-success); }
+.ui-state--danger .ui-state__icon { color: var(--ds-color-danger); }
+.ui-state--warning .ui-state__icon { color: var(--ds-color-warning); }
+
+.ui-state__copy strong {
+  display: block;
+  font-size: 16px;
+  color: var(--ds-color-text-main);
+  margin-bottom: var(--ds-space-1);
+}
+
+.ui-state__copy p {
+  font-size: 14px;
+  color: var(--ds-color-text-muted);
+  max-width: 400px;
+}
+
+.ui-state__icon--spin {
+  animation: ds-spin 1s linear infinite;
+}
+
+/* AI-Native Animations */
+@keyframes ds-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes ds-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes ds-pulse {
+  0% { transform: scale(0.98); opacity: 0.8; }
+  50% { transform: scale(1.02); opacity: 1; }
+  100% { transform: scale(0.98); opacity: 0.8; }
+}
+
+.ds-skeleton {
+  background: linear-gradient(90deg, var(--ds-color-bg-muted) 25%, var(--ds-color-border) 50%, var(--ds-color-bg-muted) 75%);
+  background-size: 200% 100%;
+  animation: ds-shimmer 1.5s infinite linear;
+}
+
+.ds-ai-pulse {
+  animation: ds-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Tooltip Content Enhancement */
+.ui-tooltip__content {
+  position: absolute;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--ds-color-text-main);
+  color: white;
+  padding: var(--ds-space-2) var(--ds-space-3);
+  border-radius: var(--ds-radius-md);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: pre-wrap;
+  width: max-content;
+  max-width: 200px;
+  z-index: 100;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, transform 0.2s;
+  pointer-events: none;
+  box-shadow: var(--ds-shadow-md);
+}
+
+.ui-tooltip:hover .ui-tooltip__content {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(-5px);
+}

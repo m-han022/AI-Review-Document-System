@@ -4,7 +4,6 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  LabelList,
   ResponsiveContainer,
   Tooltip as RechartsTooltip,
   XAxis,
@@ -15,9 +14,10 @@ import type { Project } from "../../types";
 import { useTranslation } from "../LanguageSelector";
 import { formatUploadedAt } from "../submissions/utils";
 import { FileReviewIcon, ShieldCheckIcon, TargetIcon } from "../ui/Icon";
-import { PageHeader } from "../ui/PageHeader";
 import { toBusinessStatus } from "../ui/businessStatus";
 import { EmptyState, StatusBadge } from "../ui/States";
+import { Card } from "../ui";
+import "./DashboardOverview.css";
 
 interface DashboardOverviewProps {
   projects: Project[];
@@ -48,17 +48,26 @@ function shortName(value: string, max = 24) {
 
 function DistributionBar({ label, count, total, tone }: { label: string; count: number; total: number; tone: "success" | "warning" | "danger" }) {
   const percentage = total > 0 ? (count / total) * 100 : 0;
-  const color = tone === "success" ? "#10b981" : tone === "warning" ? "#f59e0b" : "#ef4444";
-  const bgColor = tone === "success" ? "#ecfdf5" : tone === "warning" ? "#fffbeb" : "#fef2f2";
+  const colorMap = {
+    success: "var(--ds-color-success)",
+    warning: "var(--ds-color-warning)",
+    danger: "var(--ds-color-danger)"
+  };
 
   return (
-    <div style={{ fontSize: '12px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-        <span style={{ color: '#64748b' }}>{label}</span>
-        <strong style={{ color: '#1e293b' }}>{count}</strong>
+    <div className="dist-bar">
+      <div className="dist-bar__head">
+        <span style={{ color: 'var(--ds-color-text-muted)' }}>{label}</span>
+        <strong style={{ color: 'var(--ds-color-text-main)' }}>{count}</strong>
       </div>
-      <div style={{ height: '6px', width: '100%', background: bgColor, borderRadius: '3px', overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${percentage}%`, background: color, borderRadius: '3px' }} />
+      <div className="dist-bar__track">
+        <div 
+          className="dist-bar__fill" 
+          style={{ 
+            width: `${percentage}%`, 
+            backgroundColor: colorMap[tone] 
+          }} 
+        />
       </div>
     </div>
   );
@@ -68,6 +77,7 @@ export default function DashboardOverview({ projects, onSelectProject }: Dashboa
   const { lang, t } = useTranslation();
 
   const graded = useMemo(() => projects.filter((item) => typeof item.latest_score === "number"), [projects]);
+  
   const statusLabelMap: Record<ScoreStatus, string> = {
     "NO DATA": t("dashboard.statusPending"),
     GOOD: t("dashboard.statusCompleted"),
@@ -129,114 +139,117 @@ export default function DashboardOverview({ projects, onSelectProject }: Dashboa
       .sort((a, b) => (a.latest_score ?? 0) - (b.latest_score ?? 0))
       .slice(0, 3);
   }, [projects]);
+
   const handleOpenProject = (projectId: string) => onSelectProject?.(projectId);
-  const handleRowKeyDown = (event: React.KeyboardEvent<HTMLTableRowElement>, projectId: string) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      handleOpenProject(projectId);
-    }
-  };
 
   return (
-    <section className="prod-dashboard" aria-label={t("dashboard.qualityPageTitle")}>
-      <div className="prod-dashboard__kpis">
-        <div className="prod-kpi-card">
-          <div className="prod-kpi-card__head">
-            <span className="prod-kpi-card__icon"><TargetIcon size="md" /></span>
+    <div className="dashboard-container">
+      {/* KPI Cards Section */}
+      <div className="dashboard-kpis">
+        <Card className="kpi-card">
+          <div className="kpi-card__header">
+            <div className="kpi-card__icon"><TargetIcon size="md" /></div>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <StatusBadge tone="primary">{t("dashboard.scoreLabel")}</StatusBadge>
-              <span className="metric-trend metric-trend--up">â–² 4.2%</span>
+              <span className="kpi-trend kpi-trend--up">▲ 4.2%</span>
             </div>
           </div>
-          <strong className="prod-kpi-card__title">{t("dashboard.qualityPageTitle")}</strong>
-          <div className="prod-kpi-card__value">{stats.avgScore} <span>/ 100</span></div>
-          <p>{t("dashboard.avgScore")}</p>
-        </div>
+          <div className="kpi-card__value">{stats.avgScore} <span>/ 100</span></div>
+          <div className="kpi-card__label">{t("dashboard.avgScore")}</div>
+        </Card>
 
-        <div className="prod-kpi-card">
-          <div className="prod-kpi-card__head">
-            <span className="prod-kpi-card__icon"><FileReviewIcon size="md" /></span>
+        <Card className="kpi-card">
+          <div className="kpi-card__header">
+            <div className="kpi-card__icon"><FileReviewIcon size="md" /></div>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <StatusBadge tone="success">{t("dashboard.statusCompleted")}</StatusBadge>
-              <span className="metric-trend metric-trend--up">â–² 1</span>
+              <span className="kpi-trend kpi-trend--up">▲ 1</span>
             </div>
           </div>
-          <strong className="prod-kpi-card__title">{t("project.totalDocuments")}</strong>
-          <div className="prod-kpi-card__value">{stats.total}</div>
-          <p>{stats.completed} {t("dashboard.statusCompleted")}</p>
-        </div>
+          <div className="kpi-card__value">{stats.total}</div>
+          <div className="kpi-card__label">{stats.completed} {t("dashboard.statusCompleted")}</div>
+        </Card>
 
-        <div className="prod-kpi-card">
-          <div className="prod-kpi-card__head">
-            <span className="prod-kpi-card__icon"><ShieldCheckIcon size="md" /></span>
+        <Card className="kpi-card">
+          <div className="kpi-card__header">
+            <div className="kpi-card__icon"><ShieldCheckIcon size="md" /></div>
             <StatusBadge tone="warning">{t("common.status")}</StatusBadge>
           </div>
-          <strong className="prod-kpi-card__title">{t("dashboard.activeProjects")}</strong>
-          <div className="prod-kpi-card__value">{projects.length}</div>
-          <p>{t("dashboard.realtimeData")}</p>
-        </div>
+          <div className="kpi-card__value">{projects.length}</div>
+          <div className="kpi-card__label">{t("dashboard.activeProjects")}</div>
+        </Card>
       </div>
 
-      <div className="prod-dashboard__layout-v2">
-        <div className="prod-dashboard__main-stack">
-          <section className="prod-card">
-            <header className="prod-card__head">
-              <div>
-                <h2>{t("dashboard.scoreBarsTitle")}</h2>
-                <p>{t("dashboard.topProjects")}</p>
-              </div>
-            </header>
-            <div className="prod-chart prod-chart--dashboard-bars">
+      {/* Main Grid Section */}
+      <div className="dashboard-main-grid">
+        <div className="dashboard-main-stack">
+          {/* Main Chart Card */}
+          <Card 
+            title={t("dashboard.scoreBarsTitle")} 
+            subtitle={t("dashboard.topProjects")}
+          >
+            <div className="dashboard-chart-container">
               {documentScoreBars.length ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={documentScoreBars} margin={{ top: 20, right: 18, bottom: 40, left: 0 }}>
-                    <CartesianGrid stroke="#EEF2F7" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fill: "#64748B", fontSize: 11 }} interval={0} angle={-25} textAnchor="end" />
-                    <YAxis domain={[0, 100]} tick={{ fill: "#64748B", fontSize: 12 }} width={36} />
-                    <RechartsTooltip formatter={(value) => [`${value}/100`, t("dashboard.scoreLabel")]} />
-                    <Bar dataKey="score" radius={[8, 8, 0, 0]} fill="#5263FF">
-                      <LabelList dataKey="score" position="top" fill="#0f172a" fontSize={12} fontWeight={700} />
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={documentScoreBars} margin={{ top: 20, right: 10, bottom: 40, left: -20 }}>
+                    <CartesianGrid stroke="var(--ds-color-border)" vertical={false} />
+                    <XAxis 
+                      dataKey="label" 
+                      tick={{ fill: "var(--ds-color-text-muted)", fontSize: 11 }} 
+                      interval={0} 
+                      angle={-25} 
+                      textAnchor="end" 
+                    />
+                    <YAxis 
+                      domain={[0, 100]} 
+                      tick={{ fill: "var(--ds-color-text-muted)", fontSize: 12 }} 
+                      width={40} 
+                    />
+                    <RechartsTooltip 
+                      contentStyle={{ 
+                        borderRadius: 'var(--ds-radius-md)', 
+                        border: '1px solid var(--ds-color-border)',
+                        boxShadow: 'var(--ds-shadow-md)'
+                      }}
+                    />
+                    <Bar dataKey="score" radius={[4, 4, 0, 0]} fill="var(--ds-color-primary)">
                       {documentScoreBars.map((entry, index) => {
                         const status = scoreStatus(entry.score);
-                        const color = status === "GOOD" ? "#22C55E" : status === "WARNING" ? "#EAB308" : "#EF4444";
+                        const color = status === "GOOD" ? "var(--ds-color-success)" : status === "WARNING" ? "var(--ds-color-warning)" : "var(--ds-color-danger)";
                         return <Cell key={`cell-${index}`} fill={color} />;
                       })}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <EmptyState title={t("dashboard.noData")} description={t("dashboard.noDataDescription")} compact />
+                <EmptyState title={t("dashboard.noData")} compact />
               )}
             </div>
-          </section>
+          </Card>
 
-          <section className="prod-card prod-card--dashboard-latest">
-            <header className="prod-card__head">
-              <div>
-                <h2>{t("dashboard.latestReviewsTitle")}</h2>
-                <p>{t("dashboard.latestActivity")}</p>
-              </div>
-            </header>
-            <div className="prod-table-wrap">
-              <table className="prod-history-table">
+          {/* Latest Activity Card */}
+          <Card 
+            title={t("dashboard.latestReviewsTitle")} 
+            subtitle={t("dashboard.latestActivity")}
+          >
+            <div className="ds-table-container">
+              <table className="ds-table ds-table--compact">
                 <thead>
-                  <tr><th>{t("dashboard.projectNameLabel")}</th><th>{t("dashboard.scoreLabel")}</th><th>{t("dashboard.reviewedAtLabel")}</th><th>{t("dashboard.statusLabel")}</th></tr>
+                  <tr>
+                    <th>{t("dashboard.projectNameLabel")}</th>
+                    <th>{t("dashboard.scoreLabel")}</th>
+                    <th>{t("dashboard.reviewedAtLabel")}</th>
+                    <th>{t("dashboard.statusLabel")}</th>
+                  </tr>
                 </thead>
                 <tbody>
                   {latestProjects.length ? latestProjects.map((p) => {
                     const status = scoreStatus(p.latest_score);
                     return (
-                      <tr
-                        key={p.project_id}
-                        onClick={() => handleOpenProject(p.project_id)}
-                        onKeyDown={(event) => handleRowKeyDown(event, p.project_id)}
-                        tabIndex={0}
-                        role="button"
-                        className="prod-history-table__row-clickable"
-                      >
-                        <td style={{ fontWeight: 500 }}>{shortName(p.project_name, 30)}</td>
-                        <td>{p.latest_score !== null ? `${Math.round(p.latest_score)}/100` : t("common.noValue")}</td>
-                        <td style={{ fontSize: "13px", color: "#64748B" }}>{formatUploadedAt(p.latest_updated_at, lang)}</td>
+                      <tr key={p.project_id} onClick={() => handleOpenProject(p.project_id)} className="is-clickable">
+                        <td className="font-bold ds-text-truncate" style={{ maxWidth: '200px' }}>{shortName(p.project_name, 40)}</td>
+                        <td>{p.latest_score !== null ? `${Math.round(p.latest_score)}/100` : "—"}</td>
+                        <td className="text-muted">{formatUploadedAt(p.latest_updated_at, lang)}</td>
                         <td><StatusBadge tone={statusTone(status)}>{statusLabelMap[status]}</StatusBadge></td>
                       </tr>
                     );
@@ -246,78 +259,54 @@ export default function DashboardOverview({ projects, onSelectProject }: Dashboa
                 </tbody>
               </table>
             </div>
-          </section>
+          </Card>
         </div>
 
-        <aside className="prod-dashboard__sidebar">
-          <section className="prod-card" style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {/* Sidebar Sections */}
+        <aside className="dashboard-sidebar">
+          <Card>
             <div className="sidebar-section">
-              <header className="prod-card__head" style={{ marginBottom: '12px' }}>
-                <div>
-                  <h2 style={{ fontSize: '15px' }}>{t("dashboard.qualityDistribution") || "Phân bổ chất lượng"}</h2>
-                </div>
-              </header>
-              <div className="quality-distribution-bars" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <h3 className="sidebar-section__title">{t("dashboard.qualityDistribution")}</h3>
+              <div className="quality-distribution-bars">
                 <DistributionBar label={t("dashboard.statusCompleted")} count={distribution.GOOD} total={graded.length} tone="success" />
                 <DistributionBar label={t("dashboard.statusWarning")} count={distribution.WARNING} total={graded.length} tone="warning" />
                 <DistributionBar label={t("dashboard.statusCritical")} count={distribution.CRITICAL} total={graded.length} tone="danger" />
               </div>
             </div>
 
-            <div className="sidebar-divider" style={{ height: '1px', background: '#f1f5f9' }} />
+            <div style={{ margin: '24px 0', borderTop: '1px solid var(--ds-color-border)' }} />
 
             <div className="sidebar-section">
-              <header className="prod-card__head" style={{ marginBottom: '12px' }}>
-                <div>
-                  <h2 style={{ fontSize: '15px' }}>{t("dashboard.actionPanelTitle")}</h2>
-                </div>
-              </header>
-              <div className="prod-dashboard__actions">
-                {attentionItems.length ? (
-                  attentionItems.map((item) => (
-                    <div className="prod-option-summary" key={item.key} style={{ padding: '10px', marginBottom: '6px' }}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
-                        <strong>{item.label}</strong>
-                        <StatusBadge tone={item.tone}>{item.count}</StatusBadge>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <EmptyState title={t("dashboard.attention.noneTitle")} compact />
-                )}
-              </div>
-            </div>
-
-            <div className="sidebar-divider" style={{ height: '1px', background: '#f1f5f9' }} />
-
-            <div className="sidebar-section">
-              <header className="prod-card__head" style={{ marginBottom: '12px' }}>
-                <div>
-                  <h2 style={{ fontSize: '15px' }}>{t("dashboard.highRiskWatchlist") || "Dự án rủi ro cao"}</h2>
-                </div>
-              </header>
-              <div className="risk-watchlist" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {highRiskProjects.length ? highRiskProjects.map(p => (
-                  <div key={p.project_id} onClick={() => handleOpenProject(p.project_id)} style={{ cursor: 'pointer', padding: '10px', background: '#fff1f2', borderRadius: '8px', border: '1px solid #fecaca' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                      <strong style={{ fontSize: '13px', color: '#991b1b' }}>{shortName(p.project_name, 20)}</strong>
-                      <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#ef4444' }}>{p.latest_score !== null ? `${Math.round(p.latest_score)}%` : 'ERR'}</span>
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#b91c1c' }}>{t("dashboard.lastUpdate") || "Cập nhật"}: {formatUploadedAt(p.latest_updated_at, lang)}</div>
+              <h3 className="sidebar-section__title">{t("dashboard.actionPanelTitle")}</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {attentionItems.map((item) => (
+                  <div key={item.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--ds-color-bg-muted)', borderRadius: 'var(--ds-radius-md)' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600 }}>{item.label}</span>
+                    <StatusBadge tone={item.tone}>{item.count}</StatusBadge>
                   </div>
-                )) : (
-                  <p style={{ fontSize: '13px', color: '#64748b', textAlign: 'center' }}>{t("dashboard.noRiskProjects") || "Không có dự án rủi ro"}</p>
-                )}
+                ))}
               </div>
             </div>
 
-            <div className="sidebar-footer-hint" style={{ marginTop: 'auto', paddingTop: '16px', fontSize: '11px', color: '#94a3b8' }}>
-              <p>• {t("dashboard.realtimeData")}</p>
-              <p style={{ marginTop: '4px' }}>• {new Date().toLocaleTimeString(lang === 'vi' ? 'vi-VN' : 'ja-JP')} update</p>
+            <div style={{ margin: '24px 0', borderTop: '1px solid var(--ds-color-border)' }} />
+
+            <div className="sidebar-section">
+              <h3 className="sidebar-section__title">{t("dashboard.highRiskWatchlist")}</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {highRiskProjects.map(p => (
+                  <div key={p.project_id} onClick={() => handleOpenProject(p.project_id)} className="risk-item">
+                    <div className="risk-item__head">
+                      <span className="risk-item__name">{shortName(p.project_name, 20)}</span>
+                      <span className="risk-item__score">{p.latest_score !== null ? `${Math.round(p.latest_score)}%` : 'ERR'}</span>
+                    </div>
+                    <div className="risk-item__date">{t("dashboard.lastUpdate")}: {formatUploadedAt(p.latest_updated_at, lang)}</div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </section>
+          </Card>
         </aside>
       </div>
-    </section>
+    </div>
   );
 }

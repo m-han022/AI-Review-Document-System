@@ -1,4 +1,4 @@
-export const SUPPORTED_LANGUAGES = ["vi", "ja"] as const;
+export const SUPPORTED_LANGUAGES = ["vi", "ja", "en"] as const;
 export type LanguageCode = (typeof SUPPORTED_LANGUAGES)[number];
 
 export interface CriteriaResult {

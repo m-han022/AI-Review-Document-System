@@ -1,0 +1,101 @@
+.table-row-project {
+  display: flex;
+  gap: var(--ds-space-3);
+  align-items: center;
+}
+
+.project-icon-box {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--ds-radius-md);
+  background-color: var(--ds-color-bg-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ds-color-primary);
+  flex-shrink: 0;
+}
+
+.project-info-stack {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.project-name-text {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ds-color-text);
+}
+
+.project-id-text {
+  font-size: 11px;
+  color: var(--ds-color-text-muted);
+}
+
+.status-cell-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.error-message-mini {
+  font-size: 10px;
+  color: var(--ds-color-danger);
+  max-width: 140px;
+}
+
+.score-display-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 80px;
+}
+
+.score-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.score-main-value {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.score-max-value {
+  font-size: 10px;
+  color: var(--ds-color-text-muted);
+}
+
+.score-progress-track {
+  height: 4px;
+  background-color: var(--ds-color-bg-muted);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.score-progress-bar {
+  height: 100%;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.row-actions-group {
+  display: flex;
+  gap: 2px;
+  justify-content: flex-end;
+}
+
+/* Compact Overrides */
+.ds-table--compact .project-icon-box {
+  width: 24px;
+  height: 24px;
+}
+
+.ds-table--compact .project-name-text {
+  font-size: 13px;
+}
+
+.ds-table--compact .score-display-stack {
+  width: 60px;
+}

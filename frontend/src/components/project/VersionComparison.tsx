@@ -3,7 +3,7 @@ import { diffWordsWithSpace } from "diff";
 import { useTranslation } from "../LanguageSelector";
 import type { VersionComparison as VersionComparisonData } from "../../types";
 import { isUploadCriterionKey } from "../../constants/uploadCriteria";
-import SectionBlock from "../ui/SectionBlock";
+import { SectionBlock } from "../ui/SectionBlock";
 import Badge from "../ui/Badge";
 import { 
   ArrowUpIcon, 

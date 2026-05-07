@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "../LanguageSelector";
-import SectionBlock from "../ui/SectionBlock";
+import { SectionBlock } from "../ui/SectionBlock";
 import { MessageSquareIcon } from "../ui/Icon";
 import FeedbackItem from "./FeedbackItem";
 import type { LanguageCode } from "../../types";

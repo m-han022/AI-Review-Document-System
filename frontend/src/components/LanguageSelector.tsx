@@ -1,17 +1,16 @@
-﻿/* eslint-disable react-refresh/only-export-components */
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 import { getLanguage, LANGUAGE_CHANGE_EVENT, setLanguage } from "../api/client";
 import type { LanguageCode } from "../types";
-import { normalizeLanguage } from "../locales/utils";
+import { getTranslation, normalizeLanguage } from "../locales/utils";
 import { ChevronDownIcon } from "./ui/Icon";
 
 const languages: { code: LanguageCode; label: string }[] = [
-  { code: "vi", label: "Ti\u1ebfng Vi\u1ec7t" },
-  { code: "ja", label: "\u65e5\u672c\u8a9e" },
+  { code: "vi", label: "Tiếng Việt" },
+  { code: "ja", label: "日本語" },
+  { code: "en", label: "English" },
 ];
-
-import { translations } from "../locales/dictionary";
 
 interface LanguageContextValue {
   lang: LanguageCode;
@@ -23,16 +22,16 @@ const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<LanguageCode>(() => {
-    return normalizeLanguage(getLanguage());
+    return normalizeLanguage(getLanguage()) as LanguageCode;
   });
 
   useEffect(() => {
     const handleStorageChange = () => {
-      setLangState(normalizeLanguage(getLanguage()));
+      setLangState(normalizeLanguage(getLanguage()) as LanguageCode);
     };
     const handleLanguageChange = (event: Event) => {
       const customEvent = event as CustomEvent<LanguageCode>;
-      setLangState(normalizeLanguage(customEvent.detail || getLanguage()));
+      setLangState(normalizeLanguage(customEvent.detail || getLanguage()) as LanguageCode);
     };
 
     window.addEventListener("storage", handleStorageChange);
@@ -45,7 +44,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    document.documentElement.lang = lang === "ja" ? "ja" : "vi";
+    document.documentElement.lang = lang;
     document.documentElement.dataset.uiLanguage = lang;
   }, [lang]);
 
@@ -56,39 +55,12 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<LanguageContextValue>(() => {
     const t = (key: string, params?: Record<string, string | number>) => {
-      const keys = key.split(".");
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let value: any = translations[lang];
-
-      for (const k of keys) {
-        if (value && typeof value === "object" && k in value) {
-          value = value[k];
-        } else {
-          // Fallback to Vietnamese if key not found in current language
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          let fallback: any = translations.vi;
-          for (const fk of keys) {
-            if (fallback && typeof fallback === "object" && fk in fallback) {
-              fallback = fallback[fk];
-            } else {
-              return key;
-            }
-          }
-          value = fallback;
-          break;
-        }
-      }
-
-      if (typeof value !== "string") {
-        return key;
-      }
+      let value = getTranslation(lang as any, key);
 
       if (params) {
-        let result = value;
         for (const [paramKey, paramValue] of Object.entries(params)) {
-          result = result.replace(`{${paramKey}}`, String(paramValue));
+          value = value.replace(`{${paramKey}}`, String(paramValue));
         }
-        return result;
       }
 
       return value;

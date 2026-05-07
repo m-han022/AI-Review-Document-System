@@ -1,5 +1,6 @@
-﻿import type { ReactNode } from "react";
-import { useTranslation } from "../LanguageSelector";
+import type { ReactNode } from "react";
+
+import { Button } from "./Button";
 
 interface DialogProps {
   open: boolean;
@@ -9,7 +10,7 @@ interface DialogProps {
   onCancel: () => void;
   confirmLabel: string;
   cancelLabel: string;
-  pending?: boolean;
+  isLoading?: boolean;
 }
 
 export default function Dialog({
@@ -20,15 +21,14 @@ export default function Dialog({
   onCancel,
   confirmLabel,
   cancelLabel,
-  pending = false,
+  isLoading = false,
 }: DialogProps) {
-  const { t } = useTranslation();
   if (!open) return null;
 
   return (
     <div className="dialog-backdrop" role="presentation" onClick={onCancel}>
       <div
-        className="dialog-card dialog-card--compact"
+        className="dialog-card"
         role="dialog"
         aria-modal="true"
         aria-labelledby="dialog-title"
@@ -38,17 +38,17 @@ export default function Dialog({
           <h3 id="dialog-title">{title}</h3>
         </div>
 
-        <div className="dialog-card__content dialog-card__content--compact">
+        <div className="dialog-card__content">
           {children}
         </div>
 
         <div className="dialog-card__actions">
-          <button className="btn-secondary" onClick={onCancel} disabled={pending}>
+          <Button variant="outline" onClick={onCancel} disabled={isLoading}>
             {cancelLabel}
-          </button>
-          <button className="btn-primary" onClick={onConfirm} disabled={pending}>
-            {pending ? t("common.loading") : confirmLabel}
-          </button>
+          </Button>
+          <Button variant="primary" onClick={onConfirm} isLoading={isLoading}>
+            {confirmLabel}
+          </Button>
         </div>
       </div>
     </div>

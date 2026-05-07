@@ -27,8 +27,9 @@ import {
   ShieldCheckIcon,
   UploadCloudIcon,
 } from "./ui/Icon";
-import { PageHeader } from "./ui/PageHeader";
+
 import { EmptyState, ErrorState, FilePreview, StatusBadge, SuccessState, Tooltip } from "./ui/States";
+import { Button, Card, Input, Select } from "./ui";
 
 const ACCEPTED_EXTENSIONS = [".pdf", ".pptx"];
 const MAX_FILE_SIZE = 100 * 1024 * 1024;
@@ -121,14 +122,14 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadedProjectId, setUploadedProjectId] = useState<string | null>(null);
   const [projectDescription, setProjectDescription] = useState("");
-  const [selectedExistingProjectId, setSelectedExistingProjectId] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState(false);
   const [forceRegrade, setForceRegrade] = useState(false);
   const [processingStep, setProcessingStep] = useState<ProcessingStep>("read");
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
-  const [reviewErrorKind, setReviewErrorKind] = useState<"config" | "runtime" | null>(null);
+  const [, setReviewErrorKind] = useState<"config" | "runtime" | null>(null);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [showCreateProjectDialog, setShowCreateProjectDialog] = useState(false);
+  const [selectedExistingProjectId, setSelectedExistingProjectId] = useState<string | null>(null);
   const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
   const [pendingDuplicateFile, setPendingDuplicateFile] = useState<File | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{
@@ -395,11 +396,9 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
   };
 
   return (
-    <section className="prod-upload" aria-label={copy.title}>
-
-
-      <div className="prod-upload__panel">
-        <div className="prod-upload-steps">
+    <div className="workspace-stack" aria-label={copy.title}>
+      <div className="governance-grid" style={{ marginBottom: 'var(--ds-space-5)' }}>
+        <div className="prod-upload-steps" style={{ gridColumn: 'span 12' }}>
           {copy.steps.map((step, index) => (
             <div className={`prod-upload-step ${activeStep === index ? "is-active" : activeStep > index ? "is-complete" : ""}`.trim()} key={step}>
               <span>{index + 1}</span>
@@ -407,16 +406,16 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
             </div>
           ))}
         </div>
+      </div>
 
-        <div className="prod-upload__layout">
-          <main className="prod-upload__main">
-            <section className="prod-upload-card">
-              <header className="prod-upload-card__head">
-                <div>
-                  <h2>{copy.chooseType}</h2>
-                  <p>{copy.chooseTypeHint}</p>
-                </div>
-              </header>
+      <div className="governance-explorer">
+        <main className="governance-explorer__content" style={{ flex: '1 1 auto' }}>
+          <div className="prod-upload__main">
+            <Card 
+              title={copy.chooseType}
+              subtitle={copy.chooseTypeHint}
+              className="mb-6"
+            >
               <div className="prod-doc-type-grid">
                 {DOCUMENT_TYPE_OPTIONS.map((option) => {
                   const cardCopy = DOCUMENT_CARD_COPY[lang][option.id];
@@ -453,32 +452,35 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                   );
                 })}
               </div>
-            </section>
-            <section className="prod-upload-card">
-              <header className="prod-upload-card__head">
-                <div>
-                  <h2>{copy.uploadFile}</h2>
-                  <p>{documentType ? DOCUMENT_CARD_COPY[lang][documentType].title : copy.disabledHelper}</p>
-                </div>
+            </Card>
+            <Card
+              title={copy.uploadFile}
+              subtitle={documentType ? DOCUMENT_CARD_COPY[lang][documentType].title : copy.disabledHelper}
+              headerAction={
                 <StatusBadge tone={uploadState === "uploaded" ? "success" : uploadState === "error" ? "danger" : "muted"}>
                   {uploadState === "uploaded" ? copy.uploaded : uploadState.toUpperCase()}
                 </StatusBadge>
-              </header>
-
+              }
+              className="mb-6"
+            >
               <div className="prod-field upload-project-select">
-                <label className="upload-project-select__label">{copy.projectSelect}</label>
-                <div className="upload-project-select__control-wrap">
-                  <button
-                    type="button"
-                    className="btn-secondary btn-secondary--compact"
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label className="ds-input-label">{copy.projectSelect}</label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setShowCreateProjectDialog(true)}
                     disabled={uploadState === "uploading" || reviewing}
                   >
                     {`+ ${copy.createProjectNew}`}
-                  </button>
+                  </Button>
                 </div>
-                <select
-                  className="prod-select upload-project-select__control"
+                
+                <Select
+                  options={[
+                    { value: "", label: `-- ${copy.selectExistingProject} --` },
+                    ...projects.map(p => ({ value: p.project_id, label: `${p.project_id} - ${p.project_name}` }))
+                  ]}
                   value={selectedExistingProjectId || ""}
                   onChange={(e) => {
                     const pid = e.target.value;
@@ -488,15 +490,9 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                       setProjectDescription(p.project_description || "");
                     }
                   }}
-                >
-                  <option value="">{`-- ${copy.selectExistingProject} --`}</option>
-                  {projects.map(p => (
-                    <option key={p.project_id} value={p.project_id}>{p.project_id} - {p.project_name}</option>
-                  ))}
-                </select>
-                {fieldErrors.project ? (
-                  <p className="upload-project-select__error">{fieldErrors.project}</p>
-                ) : null}
+                  error={fieldErrors.project}
+                />
+                
                 {projects.length === 0 ? (
                   <div className="upload-project-select__empty">
                     <EmptyState
@@ -505,18 +501,17 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                       tone="warning"
                       compact
                       action={
-                        <button
-                          type="button"
-                          className="prod-button"
+                        <Button
                           onClick={() => setShowCreateProjectDialog(true)}
                           disabled={uploadState === "uploading" || reviewing}
                         >
                           {copy.createProject}
-                        </button>
+                        </Button>
                       }
                     />
                   </div>
                 ) : null}
+                
                 {selectedExistingProject && (
                   <div className="upload-project-select__summary">
                     <strong className="upload-project-select__summary-title">{selectedExistingProject.project_name}</strong>
@@ -565,11 +560,10 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                   <small>{copy.idleHint}</small>
                 </span>
               </label>
-              {fieldErrors.file ? (
-                <ErrorState title={copy.uploadFailed} description={fieldErrors.file} compact />
-              ) : null}
 
-              {uploadState === "uploading" && selectedFile ? (
+              {fieldErrors.file && <ErrorState title={copy.uploadFailed} description={fieldErrors.file} compact />}
+
+              {uploadState === "uploading" && selectedFile && (
                 <div className="prod-upload-progress">
                   <div className="prod-upload-progress__head">
                     <strong>{selectedFile.name}</strong>
@@ -579,9 +573,9 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                     <span style={{ width: `${uploadProgress}%` }} />
                   </div>
                 </div>
-              ) : null}
+              )}
 
-              {uploadState === "uploaded" && selectedFile ? (
+              {uploadState === "uploaded" && selectedFile && (
                 <FilePreview
                   filename={selectedFile.name}
                   sizeLabel={formatFileSize(selectedFile.size)}
@@ -591,30 +585,30 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                   onRemove={resetFile}
                   disabled={reviewing}
                 />
-              ) : null}
+              )}
 
-              {uploadState === "error" && !fieldErrors.file ? (
+              {uploadState === "error" && !fieldErrors.file && (
                 <ErrorState
                   title={copy.uploadFailed}
                   description={message?.text}
                   compact
                   action={
                     <div className="prod-upload-error-actions">
-                      <button type="button" className="prod-button" onClick={() => void retryUpload()} disabled={!selectedFile}>
+                      <Button variant="secondary" onClick={() => void retryUpload()} disabled={!selectedFile}>
                         {copy.retry}
-                      </button>
-                      <button type="button" className="prod-button" onClick={openFilePicker}>
+                      </Button>
+                      <Button variant="outline" onClick={openFilePicker}>
                         {copy.chooseOther}
-                      </button>
+                      </Button>
                     </div>
                   }
                 />
-              ) : null}
+              )}
               
-              <div className="prod-field upload-project-desc">
-                <span className="upload-project-desc__label">{copy.projectDescription}</span>
-                <textarea
-                  className="prod-textarea upload-project-desc__input"
+              <div className="mt-4">
+                <Input
+                  label={copy.projectDescription}
+                  multiline
                   placeholder={copy.projectDescriptionHint}
                   value={projectDescription}
                   onChange={(e) => setProjectDescription(e.target.value)}
@@ -622,40 +616,29 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                 />
               </div>
 
-              <div className="prod-upload-actions">
+              <div className="prod-upload-actions mt-6">
                 <div>
-                  {!canStartReview ? <p>{copy.disabledHelper}</p> : null}
-                  {documentType && !selectedEvaluationSetId ? (
-                    <ErrorState
-                      title={copy.setMissingTitle}
-                      description={
-                        copy.setMissingDescription
-                      }
-                      compact
-                    />
-                  ) : null}
-                  {message && uploadState !== "error" ? (
+                  {!canStartReview && <p className="ds-caption">{copy.disabledHelper}</p>}
+                  {message && uploadState !== "error" && (
                     message.type === "success" ? (
                       <SuccessState title={message.text} compact />
-                    ) : reviewErrorKind === "config" ? (
-                      <EmptyState title={message.text} tone="warning" compact />
                     ) : (
                       <ErrorState title={message.text} compact />
                     )
-                  ) : null}
+                  )}
                 </div>
-                <button
-                  type="button"
-                  className="prod-button prod-button--primary"
+                <Button
                   onClick={() => void handleReview()}
                   disabled={!canStartReview}
+                  isLoading={reviewing}
+                  size="lg"
                 >
                   {reviewing ? copy.reviewing : copy.startReview}
-                </button>
+                </Button>
               </div>
 
-              {reviewing ? (
-                <div className="prod-processing">
+              {reviewing && (
+                <div className="prod-processing mt-4">
                   {(["read", "extract", "grade", "recommend"] as ProcessingStep[]).map((step) => (
                     <div className={`prod-processing__step ${processingStep === step ? "is-active" : ""}`.trim()} key={step}>
                       <span />
@@ -663,18 +646,15 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                     </div>
                   ))}
                 </div>
-              ) : null}
-            </section>
-          </main>
+              )}
+            </Card>
+          </div>
 
-          <aside className="prod-upload__side">
-            <section className="prod-upload-card">
-              <header className="prod-upload-card__head">
-                <div>
-                  <h2>{copy.options}</h2>
-                  <p>{copy.criteriaNote}</p>
-                </div>
-              </header>
+          <aside className="governance-explorer__sidebar" style={{ width: '360px', flex: '0 0 360px' }}>
+            <Card
+              title={copy.options}
+              subtitle={copy.criteriaNote}
+            >
               <div className="prod-options-stack">
                 <div className="prod-option-summary">
                   <div>
@@ -692,34 +672,31 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                     <strong>{getLevelLabel(selectedEvaluationSet?.level ?? null, lang)}</strong>
                   </div>
                 </div>
-                <div className="prod-field">
-                  <small style={{ color: "#64748b" }}>
+                <div className="mt-2">
+                  <p className="ds-caption">
                     {copy.activeSetAutoNote}
-                  </small>
+                  </p>
                 </div>
-                {!selectedEvaluationSet ? (
+                {!selectedEvaluationSet && (
                   <ErrorState
                     title={copy.setMissingShortTitle}
-                    description={
-                      copy.setMissingDescription
-                    }
+                    description={copy.setMissingDescription}
                     compact
                   />
-                ) : null}
-                <div className="prod-field" style={{ marginTop: "12px" }}>
-                  <button
-                    type="button"
-                    className="btn-secondary btn-secondary--compact"
+                )}
+                <div className="mt-4">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="w-full"
                     onClick={() => setShowAdvancedOptions((prev) => !prev)}
                     disabled={uploadState === "uploading" || reviewing}
                   >
-                    {showAdvancedOptions
-                      ? copy.hideDetailInfo
-                      : copy.detailInfo}
-                  </button>
+                    {showAdvancedOptions ? copy.hideDetailInfo : copy.detailInfo}
+                  </Button>
                 </div>
 
-                {showAdvancedOptions ? (
+                {showAdvancedOptions && (
                   <div className="prod-option-summary">
                     <label className="prod-field" style={{ marginBottom: "10px" }}>
                       <span style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 500 }}>
@@ -778,11 +755,11 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                       )}
                     </div>
                   </div>
-                ) : null}
+                )}
               </div>
-            </section>
+            </Card>
           </aside>
-        </div>
+        </main>
       </div>
       <ProjectCreateDialog
         open={showCreateProjectDialog}
@@ -811,7 +788,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
         }}
         onCancel={handleCancelDuplicateUpload}
       />
-    </section>
+    </div>
   );
 }
 

@@ -1,9 +1,10 @@
-﻿import type { Project } from "../../types";
+import type { Project } from "../../types";
 import { useTranslation } from "../LanguageSelector";
-import Badge from "../ui/Badge";
-import { businessStatusTone, toBusinessStatus } from "../ui/businessStatus";
+import { toBusinessStatus } from "../ui/businessStatus";
 import { EditIcon, EyeIcon, FileReviewIcon, RefreshIcon, TrashIcon } from "../ui/Icon";
+import { StatusBadge } from "../ui/States";
 import { formatUploadedAt } from "./utils";
+import "./TableRow.css";
 
 interface TableRowProps {
   project: Project;
@@ -38,152 +39,126 @@ export default function TableRow({
   const latestScore = project.latest_score;
   const scoreValue = latestScore ?? 0;
 
-  const iconClass = "review-table__file-icon-v3 review-table__file-icon-v3--default";
-  
-  const getStatusBadge = () => {
+  const renderStatus = () => {
     const status = project.latest_status?.toUpperCase() || "PENDING";
-    const error = project.latest_error_message;
     const businessStatus = toBusinessStatus(status);
 
-    switch (status) {
-      case "FAILED":
-        return (
-          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-            <Badge tone={businessStatusTone(businessStatus)}>{t("statusBiz.attentionNeeded")}</Badge>
-            {error && <span style={{ fontSize: "10px", color: "#ef4444", maxWidth: "120px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={error}>{error}</span>}
-          </div>
-        );
-      default:
-        if (businessStatus === "reviewReady") {
-          return <Badge tone="success">{t("statusBiz.reviewReady")}</Badge>;
-        }
-        return <Badge tone="warning">{t("statusBiz.processing")}</Badge>;
+    if (status === "FAILED") {
+      return (
+        <div className="status-cell-stack">
+          <StatusBadge tone="danger">{t("statusBiz.attentionNeeded")}</StatusBadge>
+          {project.latest_error_message && (
+            <span className="error-message-mini ds-text-truncate" title={project.latest_error_message}>
+              {project.latest_error_message}
+            </span>
+          )}
+        </div>
+      );
     }
+
+    if (businessStatus === "reviewReady") {
+      return <StatusBadge tone="success">{t("statusBiz.reviewReady")}</StatusBadge>;
+    }
+    
+    return <StatusBadge tone="warning">{t("statusBiz.processing")}</StatusBadge>;
   };
 
+  const scoreColor = scoreValue >= 80 ? 'var(--ds-color-success)' : scoreValue >= 60 ? 'var(--ds-color-warning)' : 'var(--ds-color-danger)';
+
   return (
-    <tr className={isActive ? "is-active" : ""} onClick={() => onSelect(project.project_id)}>
-      {showCheckbox ? (
-        <td className="review-table__checkbox" onClick={(e) => e.stopPropagation()}>
+    <tr className={`is-clickable ${isActive ? "is-active" : ""}`} onClick={() => onSelect(project.project_id)}>
+      {showCheckbox && (
+        <td onClick={(e) => e.stopPropagation()}>
           <input
             type="checkbox"
+            className="ds-checkbox"
             checked={isSelected}
             onChange={() => onToggleSelect(project.project_id)}
-            style={{ width: "18px", height: "18px", cursor: "pointer" }}
           />
         </td>
-      ) : null}
+      )}
 
       <td>
-        <div className="review-table__file-v3">
-          <div className={iconClass}>
+        <div className="table-row-project">
+          <div className="project-icon-box">
             <FileReviewIcon size="sm" />
           </div>
-          <div className="review-table__file-info-v3">
-            <strong className="review-table__file-name-v3" title={project.project_name}>
+          <div className="project-info-stack">
+            <strong className="project-name-text ds-text-truncate" title={project.project_name}>
               {project.project_name}
             </strong>
-            <span className="review-table__file-meta-v3">{project.project_id}</span>
-            {project.project_description && (
-              <span className="review-table__file-desc-v3" style={{ fontSize: "12px", color: "#64748b", display: "block", marginTop: "2px", maxWidth: "300px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {project.project_description}
-              </span>
-            )}
+            <span className="project-id-text">{project.project_id}</span>
           </div>
         </div>
       </td>
 
-      <td>
-        <span style={{ fontWeight: 500, color: "#475569" }}>
-          {project.total_documents}
-        </span>
+      <td style={{ fontWeight: 600, color: 'var(--ds-color-text-muted)' }}>
+        {project.total_documents}
       </td>
 
       <td>
-        {getStatusBadge()}
+        {renderStatus()}
       </td>
 
       <td>
         {latestScore !== null ? (
-          <div className="review-table__score-v3">
-            <div className="review-table__score-text-v3">
-              <strong style={{ color: scoreValue >= 80 ? "#16a34a" : scoreValue >= 50 ? "#ca8a04" : "#ef4444" }}>
+          <div className="score-display-stack">
+            <div className="score-value-row">
+              <strong className="score-main-value" style={{ color: scoreColor }}>
                 {latestScore}
               </strong>
-              <small>/100</small>
+              <small className="score-max-value">/100</small>
             </div>
-            <div className="review-table__score-progress-v3">
-              <div
-                className="review-table__score-bar-v3"
-                style={{
-                  width: `${scoreValue}%`,
-                  background:
-                    scoreValue >= 80
-                      ? "linear-gradient(90deg, #22c55e, #16a34a)"
-                      : scoreValue >= 50
-                        ? "linear-gradient(90deg, #eab308, #ca8a04)"
-                        : "linear-gradient(90deg, #ef4444, #dc2626)",
-                }}
+            <div className="score-progress-track">
+              <div 
+                className="score-progress-bar" 
+                style={{ width: `${scoreValue}%`, backgroundColor: scoreColor }} 
               />
             </div>
           </div>
         ) : (
-          <span style={{ color: "#94a3b8" }}>{t("common.noValue")}</span>
+          <span style={{ color: 'var(--ds-color-text-muted)' }}>—</span>
         )}
       </td>
 
-      <td style={{ fontSize: "13px", color: "#64748b" }}>{formatUploadedAt(project.latest_updated_at, lang)}</td>
+      <td style={{ fontSize: '12px', color: 'var(--ds-color-text-muted)' }}>
+        {formatUploadedAt(project.latest_updated_at, lang)}
+      </td>
 
       <td>
-        <div className="review-table__actions-v3">
+        <div className="row-actions-group" onClick={(e) => e.stopPropagation()}>
           <button
-            className="btn-primary btn-primary--compact"
-            onClick={(event) => {
-              event.stopPropagation();
-              onGrade(project.project_id);
-            }}
+            className="ds-button ds-button--ghost ds-button--sm"
+            onClick={() => onGrade(project.project_id)}
             disabled={gradingId === project.project_id || isActionPending}
-            title={latestScore !== null ? t("submissions.regrade") : t("submissions.gradeAll")}
-            aria-label={latestScore !== null ? t("submissions.regrade") : t("submissions.gradeAll")}
+            title={t("submissions.regrade")}
           >
             <RefreshIcon size="sm" className={gradingId === project.project_id ? "animate-spin" : ""} />
-            {latestScore !== null ? t("submissions.regrade") : t("submissions.gradeAll")}
           </button>
-
+          
           <button
-            className="review-action-button-v3"
-            onClick={(event) => {
-              event.stopPropagation();
-              onSelect(project.project_id);
-            }}
+            className="ds-button ds-button--ghost ds-button--sm"
+            onClick={() => onSelect(project.project_id)}
             title={t("submissions.viewResult")}
-            aria-label={t("submissions.viewResult")}
           >
             <EyeIcon size="sm" />
           </button>
 
           <button
-            className="review-action-button-v3"
-            onClick={(event) => {
-              event.stopPropagation();
-              onEdit(project);
-            }}
+            className="ds-button ds-button--ghost ds-button--sm"
+            onClick={() => onEdit(project)}
             disabled={isActionPending}
             title={t("common.edit")}
-            aria-label={t("common.edit")}
           >
             <EditIcon size="sm" />
           </button>
 
           <button
-            className="review-action-button-v3 review-action-button-v3--danger"
-            onClick={(event) => {
-              event.stopPropagation();
-              onDelete(project.project_id);
-            }}
+            className="ds-button ds-button--ghost ds-button--sm text-danger"
+            style={{ color: 'var(--ds-color-danger)' }}
+            onClick={() => onDelete(project.project_id)}
             disabled={deletingId === project.project_id || isActionPending}
             title={t("common.delete")}
-            aria-label={t("common.delete")}
           >
             <TrashIcon size="sm" />
           </button>
@@ -192,4 +167,3 @@ export default function TableRow({
     </tr>
   );
 }
-

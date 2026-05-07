@@ -8,9 +8,8 @@ import { rubricsQueryKey } from "../../query";
 import type { RubricVersion, RubricVersionPayload } from "../../types";
 import { useRubrics } from "../../hooks/useRubrics";
 import { useTranslation } from "../LanguageSelector";
-import Badge from "../ui/Badge";
+import { Button, Card, Input, PageHeader, Select, StatusBadge } from "../ui";
 import { PlusIcon } from "../ui/Icon";
-import SectionBlock from "../ui/SectionBlock";
 import { ErrorState, LoadingState } from "../ui/States";
 const RubricScoreAllocationChart = lazy(() => import("./charts/RubricScoreAllocationChart"));
 
@@ -232,316 +231,242 @@ export default function RubricManagement() {
   if (error) {
     return <ErrorState title={t("rubric.loadFailed")} description={error instanceof Error ? error.message : t("rubric.loadFailed")} />;
   }
-
   return (
-    <div className="rubric-manager">
-      <SectionBlock className="rubric-editor-panel">
-        <SectionBlock.Header title={t("rubric.title")} subtitle={t("rubric.subtitle")} />
-        <SectionBlock.Body>
-          <div className="rubric-manager__top-bar">
-            <label className="rubric-field">
-              <span>{t("upload.documentType")}</span>
-              <select value={documentType} onChange={(event) => setDocumentType(event.target.value as DocumentType)}>
-                {DOCUMENT_TYPE_OPTIONS.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {t(option.labelKey)}
-                  </option>
-                ))}
-              </select>
-            </label>
+    <div className="workspace-stack">
+      <PageHeader 
+        title={t("rubric.title")} 
+        subtitle={t("rubric.subtitle")}
+      />
+
+      <div className="governance-explorer">
+        {/* Sidebar */}
+        <aside className="governance-explorer__sidebar">
+          <div style={{ marginBottom: '16px' }}>
+            <Card title={t("upload.documentType")}>
+              <Select 
+                value={documentType} 
+                onChange={(e) => setDocumentType(e.target.value as DocumentType)}
+                options={DOCUMENT_TYPE_OPTIONS.map(opt => ({ value: opt.id, label: t(opt.labelKey) }))}
+              />
+            </Card>
           </div>
 
-          <div className="rubric-manager__layout">
-            <aside className="rubric-manager__sidebar">
-              <div className="rubric-sidebar-panel">
-                <div className="rubric-sidebar-panel__head">
-                  <div>
-                    <span className="rubric-sidebar-panel__eyebrow">{t("rubric.activeSummary")}</span>
-                    <strong>{activeVersion}</strong>
-                  </div>
-                  <Badge tone="success">{t("rubric.active")}</Badge>
-                </div>
-                <div className="rubric-sidebar-panel__meta">
-                  <div>
-                    <span>{t("upload.rubricVersionLabel")}</span>
-                    <strong>{form.version || "—"}</strong>
-                  </div>
-                  <div>
-                    <span>{t("rubric.criteria")}</span>
-                    <strong>{form.criteria.length}</strong>
-                  </div>
-                  <div>
-                    <span>{t("upload.overallScore")}</span>
-                    <strong>{totalScore}</strong>
-                  </div>
-                </div>
+          <Card title={t("rubric.activeSummary")}>
+            <div className="detail-section">
+              <span className="detail-section__title">{t("rubric.activeVersion")}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <strong style={{ fontSize: '18px' }}>{activeVersion}</strong>
+                <StatusBadge tone="success">{t("rubric.active")}</StatusBadge>
               </div>
-
-              <div className="rubric-sidebar-section">
-                <div className="rubric-sidebar-title">{t("rubric.versionList")}</div>
-                <div className="rubric-version-list">
-                  {documentRubrics.map((rubric) => (
-                    <button
-                      key={`${rubric.document_type}-${rubric.version}`}
-                      type="button"
-                      className={`rubric-version-item ${rubric.active ? "rubric-version-item--active" : ""} ${
-                        rubric.version === form.version ? "is-selected" : ""
-                      }`.trim()}
-                      onClick={() => setVersion(rubric.version)}
-                    >
-                      <div className="rubric-version-item__copy">
-                        <strong>{rubric.version}</strong>
-                        <span>{rubric.criteria.length} {t("rubric.criteria")}</span>
-                      </div>
-                      {rubric.active ? (
-                        <span className="rubric-status-badge rubric-status-badge--active">{t("rubric.active")}</span>
-                      ) : null}
-                    </button>
-                  ))}
-                </div>
+            </div>
+            <div style={{ marginTop: '12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div className="detail-section">
+                <span className="detail-section__title">{t("rubric.criteria")}</span>
+                <strong>{form.criteria.length}</strong>
               </div>
-
-              <div className="rubric-sidebar-section">
-                <div className="rubric-sidebar-title">{t("rubric.compareVersion")}</div>
-                <label className="rubric-field">
-                  <span>{t("rubric.compareVersionHint")}</span>
-                  <select
-                    value={compareVersion}
-                    onChange={(event) => setCompareVersion(event.target.value)}
-                  >
-                    <option value="">{t("rubric.compareVersionNone")}</option>
-                    {compareCandidates.map((rubric) => (
-                      <option key={`${rubric.document_type}-${rubric.version}`} value={rubric.version}>
-                        {rubric.version}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+              <div className="detail-section">
+                <span className="detail-section__title">{t("upload.overallScore")}</span>
+                <strong>{totalScore}</strong>
               </div>
+            </div>
+          </Card>
 
-              <div className="rubric-sidebar-actions">
-                <button type="button" className="btn-secondary btn-secondary--compact" onClick={createNewVersion}>
-                  <PlusIcon size="sm" />
-                  {t("rubric.createVersion")}
-                </button>
+          <Card title={t("rubric.versionList")}>
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '4px' }}>
+              {documentRubrics.map((rubric) => (
                 <button
+                  key={`${rubric.document_type}-${rubric.version}`}
                   type="button"
-                  className="btn-primary btn-primary--compact"
-                  onClick={() => activateMutation.mutate()}
-                  disabled={!form.version || activateMutation.isPending}
+                  className={`submission-card__button ${rubric.version === form.version ? "is-active" : ""}`}
+                  style={{ textAlign: 'left', width: '100%' }}
+                  onClick={() => setVersion(rubric.version)}
                 >
-                  {activateMutation.isPending ? t("rubric.activating") : t("rubric.activate")}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontWeight: 600 }}>{rubric.version}</div>
+                    {rubric.active && <StatusBadge tone="success">{t("rubric.active")}</StatusBadge>}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--ds-color-text-muted)' }}>
+                    {rubric.criteria.length} {t("rubric.criteria")}
+                  </div>
                 </button>
-              </div>
-            </aside>
+              ))}
+            </div>
+            <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <Button variant="outline" size="sm" onClick={createNewVersion} fullWidth>
+                <PlusIcon size="sm" />
+                {t("rubric.createVersion")}
+              </Button>
+              <Button 
+                variant="primary" 
+                size="sm" 
+                onClick={() => activateMutation.mutate()} 
+                disabled={!form.version || activateMutation.isPending || selectedRubric?.active}
+                isLoading={activateMutation.isPending}
+                fullWidth
+              >
+                {t("rubric.activate")}
+              </Button>
+            </div>
+          </Card>
+        </aside>
 
-            <div className="rubric-editor">
-              <div className="rubric-editor__hero">
-                <div className="rubric-editor__hero-copy">
-                  <div className="rubric-editor__hero-top">
-                    <Badge tone={selectedRubric?.active ? "success" : "default"}>
-                      {selectedRubric?.active ? t("rubric.active") : form.version}
-                    </Badge>
-                    <span>{t("rubric.promptSection")}</span>
-                  </div>
-                  <h3>{form.version || "—"}</h3>
-                  <p>{t("rubric.activeSummarySubtitle")}</p>
-                </div>
-
-                <div className="rubric-active-summary">
-                  <div className="rubric-active-summary__item">
-                    <span>{t("rubric.criteria")}</span>
-                    <strong>{form.criteria.length}</strong>
-                  </div>
-                  <div className="rubric-active-summary__item">
-                    <span>{t("upload.overallScore")}</span>
-                    <strong>{totalScore}</strong>
-                  </div>
-                  <div className="rubric-active-summary__item">
-                    <span>{t("common.language")}</span>
-                    <strong>{promptLanguage.toUpperCase()}</strong>
-                  </div>
-                  <div className="rubric-active-summary__item">
-                    <span>{t("common.status")}</span>
-                    <strong>{hasPrompt ? t("common.ready") : t("project.pending")}</strong>
-                  </div>
-                </div>
-              </div>
-
-              {compareRubric ? (
-                <div className="rubric-diff-summary">
-                  <div className="rubric-diff-summary__head">
-                    <div>
-                      <h3>{t("rubric.compareSummaryTitle")}</h3>
-                      <p>
-                        {form.version} ↔ {compareRubric.version}
-                      </p>
-                    </div>
-                    <Badge tone={promptChanged ? "warning" : "success"}>
-                      {promptChanged ? t("rubric.promptChanged") : t("rubric.promptUnchanged")}
-                    </Badge>
-                  </div>
-                  <div className="rubric-diff-summary__grid">
-                    <article className="rubric-diff-summary__item">
-                      <span>{t("rubric.diffAdded")}</span>
-                      <strong>{diffSummary.added}</strong>
-                    </article>
-                    <article className="rubric-diff-summary__item">
-                      <span>{t("rubric.diffRemoved")}</span>
-                      <strong>{diffSummary.removed}</strong>
-                    </article>
-                    <article className="rubric-diff-summary__item">
-                      <span>{t("rubric.diffChanged")}</span>
-                      <strong>{diffSummary.changed}</strong>
-                    </article>
-                    <article className="rubric-diff-summary__item">
-                      <span>{t("rubric.diffUnchanged")}</span>
-                      <strong>{diffSummary.unchanged}</strong>
-                    </article>
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="rubric-editor__header">
-                <label className="rubric-field">
-                  <span>{t("upload.rubricVersionLabel")}</span>
-                  <input
-                    value={form.version}
-                    onChange={(event) => setForm((current) => ({ ...current, version: event.target.value }))}
-                  />
-                </label>
-
-                <div className="rubric-criteria-compact">
-                  <span>{t("rubric.criteriaNote")}</span>
-                  <div className="rubric-key-group">
-                    {form.criteria.map((criterion) => (
-                      <code key={criterion.key} title={criterion.labels[lang]}>
-                        {criterion.key}
+        {/* Content */}
+        <main className="governance-explorer__content">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <Card title={t("rubric.activeSummarySubtitle")}>
+              <div className="governance-grid">
+                <Input 
+                  label={t("upload.rubricVersionLabel")} 
+                  value={form.version} 
+                  onChange={(e) => setForm(curr => ({ ...curr, version: e.target.value }))}
+                />
+                <div className="detail-section">
+                  <span className="detail-section__title">{t("rubric.criteria")}</span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
+                    {form.criteria.map(c => (
+                      <code key={c.key} style={{ fontSize: '11px', padding: '2px 6px', background: 'var(--ds-color-bg-muted)', borderRadius: '4px' }}>
+                        {c.key}
                       </code>
                     ))}
                   </div>
                 </div>
               </div>
+            </Card>
 
-              <div className="rubric-editor__section">
-                <div className="rubric-editor__section-head">
-                  <div>
-                    <h3>{t("rubric.scoreAllocationTitle")}</h3>
-                    <p className="section-block__subtitle">{t("rubric.scoreAllocationSubtitle")}</p>
-                  </div>
-                </div>
-                <Suspense fallback={chartFallback}>
-                  <RubricScoreAllocationChart criteria={form.criteria} language={lang} />
-                </Suspense>
-              </div>
+            <Card title={t("rubric.scoreAllocationTitle")} subtitle={t("rubric.scoreAllocationSubtitle")}>
+              <Suspense fallback={chartFallback}>
+                <RubricScoreAllocationChart criteria={form.criteria} language={lang} />
+              </Suspense>
+            </Card>
 
-              <div className="rubric-editor__section rubric-editor__section--expand">
-                <div className="rubric-editor__section-head">
-                  <div>
-                    <h3>{t("rubric.promptSection")}</h3>
-                    <p className="section-block__subtitle">{t("common.language")}: {promptLanguage.toUpperCase()}</p>
-                  </div>
-                </div>
-                <div className="rubric-prompt-single">
-                  <label className="rubric-field rubric-field--textarea">
-                    <span>{t("rubric.promptCanonical")}</span>
-                    <textarea
-                      value={promptValue}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          prompt: { ...(current.prompt || {}), [promptLanguage]: event.target.value },
-                        }))
-                      }
-                      rows={15}
-                      placeholder={t("rubric.promptCanonicalPlaceholder")}
-                    />
-                  </label>
-                </div>
-              </div>
-
-              {compareRubric ? (
-                <>
-                  <div className="rubric-editor__section">
-                    <div className="rubric-editor__section-head">
-                      <div>
-                        <h3>{t("rubric.criteriaDiffTitle")}</h3>
-                        <p className="section-block__subtitle">{t("rubric.criteriaDiffSubtitle")}</p>
-                      </div>
-                    </div>
-                    <div className="rubric-diff-list">
-                      {criteriaDiff.map((item) => (
-                        <article className={`rubric-diff-card rubric-diff-card--${item.type}`.trim()} key={item.key}>
-                          <div className="rubric-diff-card__head">
-                            <strong>{item.key}</strong>
-                            <Badge
-                              tone={
-                                item.type === "added"
-                                  ? "success"
-                                  : item.type === "removed"
-                                    ? "danger"
-                                    : item.type === "changed"
-                                      ? "warning"
-                                      : "default"
-                              }
-                            >
-                              {getDiffTypeLabel(item.type, t)}
-                            </Badge>
-                          </div>
-                          <div className="rubric-diff-card__grid">
-                            <div>
-                              <span>{form.version}</span>
-                              <strong>{item.currentLabel}</strong>
-                              <p>{item.currentMax ?? "—"}</p>
-                            </div>
-                            <div>
-                              <span>{compareRubric.version}</span>
-                              <strong>{item.compareLabel}</strong>
-                              <p>{item.compareMax ?? "—"}</p>
-                            </div>
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="rubric-editor__section">
-                    <div className="rubric-editor__section-head">
-                      <div>
-                        <h3>{t("rubric.promptDiffTitle")}</h3>
-                        <p className="section-block__subtitle">{t("rubric.promptDiffSubtitle")}</p>
-                      </div>
-                    </div>
-                    <div className="rubric-prompt-compare">
-                      <article className="rubric-prompt-compare__panel">
-                        <span>{form.version}</span>
-                        <pre>{currentPrompt || "—"}</pre>
-                      </article>
-                      <article className="rubric-prompt-compare__panel">
-                        <span>{compareRubric.version}</span>
-                        <pre>{comparePrompt || "—"}</pre>
-                      </article>
-                    </div>
-                  </div>
-                </>
-              ) : null}
-
-              {message ? <div className={`rubric-message rubric-message--${message.type}`}>{message.text}</div> : null}
-
-              <div className="rubric-editor__actions">
-                <button
-                  type="button"
-                  className="btn-primary btn-primary--compact"
+            <Card title={t("rubric.promptSection")} subtitle={`${t("common.language")}: ${promptLanguage.toUpperCase()}`}>
+              <textarea
+                value={promptValue}
+                onChange={(e) => setForm(curr => ({
+                  ...curr,
+                  prompt: { ...curr.prompt, [promptLanguage]: e.target.value }
+                }))}
+                rows={15}
+                style={{ 
+                  width: '100%', padding: '12px', 
+                  borderRadius: 'var(--ds-radius-md)', border: '1px solid var(--ds-color-border)',
+                  fontFamily: 'var(--ds-font-mono)', fontSize: '13px', lineHeight: '1.5',
+                  backgroundColor: 'var(--ds-color-bg-main)', color: 'var(--ds-color-text-main)'
+                }}
+                placeholder={t("rubric.promptCanonicalPlaceholder")}
+              />
+              <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
+                <Button 
+                  variant="primary" 
                   onClick={() => saveMutation.mutate()}
                   disabled={!totalValid || !hasPrompt || saveMutation.isPending}
+                  isLoading={saveMutation.isPending}
                 >
-                  {saveMutation.isPending ? t("rubric.saving") : t("rubric.save")}
-                </button>
+                  {t("rubric.save")}
+                </Button>
               </div>
-            </div>
+              {message && (
+                <div style={{ marginTop: '12px' }}>
+                  <StatusBadge tone={message.type === "success" ? "success" : "danger"}>
+                    {message.text}
+                  </StatusBadge>
+                </div>
+              )}
+            </Card>
+
+            <Card title={t("rubric.compareVersion")}>
+              <div style={{ marginBottom: '16px' }}>
+                <Select 
+                  label={t("rubric.compareVersionHint")} 
+                  value={compareVersion} 
+                  onChange={(e) => setCompareVersion(e.target.value)}
+                  options={[
+                    { value: "", label: t("rubric.compareVersionNone") },
+                    ...compareCandidates.map(r => ({ value: r.version, label: r.version }))
+                  ]}
+                />
+              </div>
+
+              {compareRubric && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                  <div className="governance-grid">
+                    <div className="detail-section">
+                      <span className="detail-section__title">{t("rubric.diffAdded")}</span>
+                      <div style={{ fontSize: '20px', fontWeight: 700 }}>{diffSummary.added}</div>
+                    </div>
+                    <div className="detail-section">
+                      <span className="detail-section__title">{t("rubric.diffChanged")}</span>
+                      <div style={{ fontSize: '20px', fontWeight: 700 }}>{diffSummary.changed}</div>
+                    </div>
+                    <div className="detail-section">
+                      <span className="detail-section__title">{t("rubric.promptChanged")}</span>
+                      <StatusBadge tone={promptChanged ? "warning" : "success"}>
+                        {promptChanged ? t("common.yes") : t("common.no")}
+                      </StatusBadge>
+                    </div>
+                  </div>
+
+                  <div className="rubric-diff-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+                    {criteriaDiff.map((item) => (
+                      <div key={item.key} style={{ 
+                        padding: '16px', borderRadius: 'var(--ds-radius-md)', 
+                        border: '1px solid var(--ds-color-border)',
+                        backgroundColor: 'var(--ds-color-bg-muted)'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                          <strong style={{ fontSize: '14px' }}>{item.key}</strong>
+                          <StatusBadge tone={
+                            item.type === "added" ? "success" : 
+                            item.type === "removed" ? "danger" : 
+                            item.type === "changed" ? "warning" : "muted"
+                          }>
+                            {getDiffTypeLabel(item.type, t)}
+                          </StatusBadge>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '12px' }}>
+                          <div>
+                            <div style={{ color: 'var(--ds-color-text-muted)' }}>{form.version}</div>
+                            <div style={{ fontWeight: 600 }}>{item.currentLabel}</div>
+                            <div>{item.currentMax ?? "—"}</div>
+                          </div>
+                          <div>
+                            <div style={{ color: 'var(--ds-color-text-muted)' }}>{compareRubric.version}</div>
+                            <div style={{ fontWeight: 600 }}>{item.compareLabel}</div>
+                            <div>{item.compareMax ?? "—"}</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div className="detail-section">
+                      <span className="detail-section__title">{form.version} Prompt</span>
+                      <pre style={{ 
+                        padding: '12px', backgroundColor: 'var(--ds-color-bg-muted)', 
+                        borderRadius: 'var(--ds-radius-md)', fontSize: '11px', whiteSpace: 'pre-wrap',
+                        maxHeight: '300px', overflowY: 'auto'
+                      }}>
+                        {currentPrompt || "—"}
+                      </pre>
+                    </div>
+                    <div className="detail-section">
+                      <span className="detail-section__title">{compareRubric.version} Prompt</span>
+                      <pre style={{ 
+                        padding: '12px', backgroundColor: 'var(--ds-color-bg-muted)', 
+                        borderRadius: 'var(--ds-radius-md)', fontSize: '11px', whiteSpace: 'pre-wrap',
+                        maxHeight: '300px', overflowY: 'auto'
+                      }}>
+                        {comparePrompt || "—"}
+                      </pre>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </Card>
           </div>
-        </SectionBlock.Body>
-      </SectionBlock>
+        </main>
+      </div>
     </div>
   );
 }

@@ -8,8 +8,8 @@ import { useTranslation } from "./LanguageSelector";
 import AppShell from "./layout/AppShell";
 import Sidebar, { type WorkspaceView } from "./layout/Sidebar";
 import Topbar from "./layout/Topbar";
-import SectionBlock from "./ui/SectionBlock";
-import { ErrorState, LoadingState, SkeletonTable } from "./ui/States";
+import { Card } from "./ui";
+import { EmptyState, ErrorState, LoadingState, SkeletonTable } from "./ui/States";
 
 const DashboardOverview = lazy(() => import("./dashboard/DashboardOverview"));
 const FileUpload = lazy(() => import("./FileUpload"));
@@ -23,17 +23,14 @@ const OperationalScreen = lazy(() => import("./workspace/OperationalScreens"));
 function ViewFallback({ title }: { title: string }) {
   const { t } = useTranslation();
   return (
-    <SectionBlock>
-      <SectionBlock.Body className="dashboard-view-fallback">
+    <div className="workspace-stack">
+      <Card title={title}>
         <LoadingState title={title} description={t("common.loading")} />
-        <div className="dashboard-loading-skeletons" aria-hidden="true">
-          <div className="dashboard-loading-skeleton dashboard-loading-skeleton--kpi" />
-          <div className="dashboard-loading-skeleton dashboard-loading-skeleton--kpi" />
-          <div className="dashboard-loading-skeleton dashboard-loading-skeleton--kpi" />
+        <div style={{ marginTop: '24px' }}>
+          <SkeletonTable rows={4} cols={4} />
         </div>
-        <SkeletonTable rows={4} cols={4} />
-      </SectionBlock.Body>
-    </SectionBlock>
+      </Card>
+    </div>
   );
 }
 
@@ -150,27 +147,30 @@ export default function Dashboard() {
   const content = (() => {
     if (error) {
       return (
-        <SectionBlock>
-          <SectionBlock.Body>
-            <ErrorState title={t("common.error")} description={error instanceof Error ? error.message : t("rubric.loadFailed")} />
-          </SectionBlock.Body>
-        </SectionBlock>
+        <div className="workspace-stack">
+          <Card>
+            <ErrorState 
+              title={t("common.error")} 
+              description={error instanceof Error ? error.message : t("rubric.loadFailed")} 
+            />
+          </Card>
+        </div>
       );
     }
 
     if (isLoading) {
       return (
-        <SectionBlock>
-          <SectionBlock.Body className="dashboard-view-fallback">
-            <LoadingState title={t("common.loading")} description={t("nav.dashboard")} />
-            <div className="dashboard-loading-skeletons" aria-hidden="true">
-              <div className="dashboard-loading-skeleton dashboard-loading-skeleton--kpi" />
-              <div className="dashboard-loading-skeleton dashboard-loading-skeleton--kpi" />
-              <div className="dashboard-loading-skeleton dashboard-loading-skeleton--kpi" />
+        <div className="workspace-stack">
+          <Card title={t("common.loading")}>
+            <LoadingState 
+              title={t("common.loading")} 
+              description={t("nav.dashboard")} 
+            />
+            <div style={{ marginTop: '24px' }}>
+              <SkeletonTable rows={5} cols={4} />
             </div>
-            <SkeletonTable rows={4} cols={4} />
-          </SectionBlock.Body>
-        </SectionBlock>
+          </Card>
+        </div>
       );
     }
 
@@ -207,9 +207,9 @@ export default function Dashboard() {
         if (!selectedProjectId) {
           return (
             <div className="workspace-stack">
-              <SectionBlock>
-                <SectionBlock.Header title={t("project.reviewResult")} subtitle={t("submissions.noSubmissions")} />
-              </SectionBlock>
+              <Card title={t("project.reviewResult")}>
+                <EmptyState title={t("submissions.noSubmissions")} />
+              </Card>
             </div>
           );
         }

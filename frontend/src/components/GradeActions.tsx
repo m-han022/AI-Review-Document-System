@@ -123,7 +123,7 @@ export default function GradeActions({ ungradedCount, totalCount }: GradeActions
         description={t("submissions.regradeAllConfirm").replace("{count}", String(totalCount))}
         confirmLabel={t("submissions.regradeAll")}
         cancelLabel={t("common.cancel")}
-        pending={grading}
+        isLoading={grading}
         onConfirm={() => {
           setConfirmRegradeAll(false);
           void handleGradeAll(true);

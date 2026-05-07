@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import "./States.css";
 
 import {
   AlertTriangleIcon,
@@ -75,7 +76,7 @@ export function SkeletonTable({ rows = 4, cols = 4 }: SkeletonTableProps) {
           style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
         >
           {Array.from({ length: cols }).map((__, colIdx) => (
-            <span key={`cell-${rowIdx}-${colIdx}`} className="ui-skeleton-table__cell" />
+            <span key={`cell-${rowIdx}-${colIdx}`} className="ui-skeleton-table__cell ds-skeleton" />
           ))}
         </div>
       ))}

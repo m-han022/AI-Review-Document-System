@@ -1,8 +1,9 @@
 import type { Project } from "../../types";
 import { useTranslation } from "../LanguageSelector";
 import SubmissionsTable from "../SubmissionsTable";
-
 import { FileReviewIcon, ShieldCheckIcon, TargetIcon } from "../ui/Icon";
+import { Card, StatusBadge } from "../ui";
+import "../dashboard/DashboardOverview.css";
 
 interface ReviewListOverviewProps {
   projects: Project[];
@@ -20,50 +21,48 @@ export default function ReviewListOverview({ projects, activeProjectId, onSelect
   };
 
   return (
-    <section className="dashboard-reference" aria-label={t("dashboard.reviewList.ariaLabel")}>
-
-
-      <div className="review-stats-grid-v3">
-        <div className="review-stat-card-v3">
-          <div className="review-stat-icon-v3 review-stat-icon-v3--info"><FileReviewIcon size="md" /></div>
-          <div className="review-stat-info-v3">
-            <span className="review-stat-value-v3">{stats.total}</span>
-            <span className="review-stat-label-v3">{t("dashboard.reviewList.totalDocs")}</span>
+    <div className="dashboard-container">
+      {/* Stats Section */}
+      <div className="dashboard-kpis">
+        <Card className="kpi-card">
+          <div className="kpi-card__header">
+            <div className="kpi-card__icon"><FileReviewIcon size="md" /></div>
+            <StatusBadge tone="primary">{t("dashboard.reviewList.totalDocs")}</StatusBadge>
           </div>
-        </div>
+          <div className="kpi-card__value">{stats.total}</div>
+          <div className="kpi-card__label">{t("dashboard.reviewList.totalDocs")}</div>
+        </Card>
 
-        <div className="review-stat-card-v3">
-          <div className="review-stat-icon-v3 review-stat-icon-v3--success"><ShieldCheckIcon size="md" /></div>
-          <div className="review-stat-info-v3">
-            <span className="review-stat-value-v3">{stats.completed}</span>
-            <span className="review-stat-label-v3">{t("dashboard.reviewList.completed")}</span>
+        <Card className="kpi-card">
+          <div className="kpi-card__header">
+            <div className="kpi-card__icon"><ShieldCheckIcon size="md" /></div>
+            <StatusBadge tone="success">{t("dashboard.reviewList.completed")}</StatusBadge>
           </div>
-        </div>
+          <div className="kpi-card__value">{stats.completed}</div>
+          <div className="kpi-card__label">{t("dashboard.reviewList.completed")}</div>
+        </Card>
 
-        <div className="review-stat-card-v3">
-          <div className="review-stat-icon-v3 review-stat-icon-v3--warning"><TargetIcon size="md" /></div>
-          <div className="review-stat-info-v3">
-            <span className="review-stat-value-v3">{stats.avgScore}</span>
-            <span className="review-stat-label-v3">{t("dashboard.reviewList.avgScore")}</span>
+        <Card className="kpi-card">
+          <div className="kpi-card__header">
+            <div className="kpi-card__icon"><TargetIcon size="md" /></div>
+            <StatusBadge tone="warning">{t("dashboard.reviewList.avgScore")}</StatusBadge>
           </div>
-        </div>
+          <div className="kpi-card__value">{stats.avgScore}</div>
+          <div className="kpi-card__label">{t("dashboard.reviewList.avgScore")}</div>
+        </Card>
       </div>
 
-      <section className="review-reference-panel">
-        <header className="review-reference-panel__head review-reference-panel__head--compact">
-          <div>
-            <h2 className="review-reference-panel__title">{t("dashboard.reviewList.listTitle")}</h2>
-            <p className="review-reference-panel__subtitle">{t("dashboard.reviewList.listSubtitle")}</p>
-          </div>
-        </header>
-
-        <SubmissionsTable
-          projects={projects}
-          activeProjectId={activeProjectId ?? null}
-          onSelectProject={onSelectProject}
-          variant="reference"
-        />
-      </section>
-    </section>
+      {/* List Panel */}
+      <Card title={t("dashboard.reviewList.listTitle")} subtitle={t("dashboard.reviewList.listSubtitle")}>
+        <div className="ds-table-container" style={{ marginTop: 'var(--ds-space-4)' }}>
+          <SubmissionsTable
+            projects={projects}
+            activeProjectId={activeProjectId ?? null}
+            onSelectProject={onSelectProject}
+            variant="reference"
+          />
+        </div>
+      </Card>
+    </div>
   );
 }

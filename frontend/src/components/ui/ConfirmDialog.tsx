@@ -1,3 +1,5 @@
+import { Button } from "./Button";
+
 interface ConfirmDialogProps {
   open: boolean;
   title: string;
@@ -5,7 +7,7 @@ interface ConfirmDialogProps {
   details?: string[];
   confirmLabel: string;
   cancelLabel: string;
-  pending?: boolean;
+  isLoading?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -17,7 +19,7 @@ export default function ConfirmDialog({
   details,
   confirmLabel,
   cancelLabel,
-  pending = false,
+  isLoading = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -36,13 +38,19 @@ export default function ConfirmDialog({
       >
         <div className="dialog-card__header">
           <h3 id="confirm-dialog-title">{title}</h3>
-          <p>{description}</p>
+          <p style={{ marginTop: '8px', color: 'var(--ds-color-text-muted)', fontSize: '14px' }}>
+            {description}
+          </p>
         </div>
 
         {details?.length ? (
-          <div className="dialog-card__details">
+          <div className="dialog-card__content" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             {details.map((detail) => (
-              <span key={detail} className="dialog-card__chip">
+              <span key={detail} style={{ 
+                padding: '4px 8px', borderRadius: 'var(--ds-radius-sm)', 
+                backgroundColor: 'var(--ds-color-bg-muted)', fontSize: '12px',
+                color: 'var(--ds-color-text-main)', border: '1px solid var(--ds-color-border)'
+              }}>
                 {detail}
               </span>
             ))}
@@ -50,12 +58,12 @@ export default function ConfirmDialog({
         ) : null}
 
         <div className="dialog-card__actions">
-          <button className="btn-secondary btn-secondary--compact" onClick={onCancel} disabled={pending}>
+          <Button variant="outline" onClick={onCancel} disabled={isLoading}>
             {cancelLabel}
-          </button>
-          <button className="btn-danger-soft btn-danger-soft--compact" onClick={onConfirm} disabled={pending}>
-            {pending ? "..." : confirmLabel}
-          </button>
+          </Button>
+          <Button variant="danger" onClick={onConfirm} isLoading={isLoading}>
+            {confirmLabel}
+          </Button>
         </div>
       </div>
     </div>

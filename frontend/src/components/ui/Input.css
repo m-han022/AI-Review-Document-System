@@ -1,0 +1,62 @@
+.ds-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-2);
+  width: 100%;
+}
+
+.ds-input-label {
+  font-size: var(--ds-font-size-caption);
+  font-weight: var(--ds-font-weight-semibold);
+  color: var(--ds-color-text-secondary);
+}
+
+.ds-input {
+  height: var(--ds-control-height);
+  padding: 0 var(--ds-space-4);
+  border-radius: var(--ds-radius-control);
+  border: 1px solid var(--ds-color-border);
+  background-color: var(--ds-color-surface);
+  font-family: var(--ds-font-family-base);
+  font-size: var(--ds-font-size-body);
+  color: var(--ds-color-text);
+  transition: all 0.2s;
+  width: 100%;
+}
+
+.ds-input:focus {
+  outline: none;
+  border-color: var(--ds-color-primary);
+  box-shadow: 0 0 0 3px var(--ds-color-primary-soft);
+}
+
+.ds-input::placeholder {
+  color: var(--ds-color-text-muted);
+}
+
+.ds-textarea {
+  height: auto;
+  min-height: 100px;
+  padding: var(--ds-space-3) var(--ds-space-4);
+  resize: vertical;
+}
+
+.ds-input-error {
+  font-size: 12px;
+  color: var(--ds-color-danger);
+  margin-top: 2px;
+}
+
+.ds-input-helper {
+  font-size: 12px;
+  color: var(--ds-color-text-muted);
+  margin-top: 2px;
+}
+
+.has-error .ds-input {
+  border-color: var(--ds-color-danger);
+}
+
+.has-error .ds-input:focus {
+  box-shadow: 0 0 0 3px var(--ds-color-danger-soft);
+}

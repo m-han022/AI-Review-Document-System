@@ -1,7 +1,6 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 
-import { PageHeader } from "../ui/PageHeader";
 import { exportSubmissionsExcel } from "../../api/client";
 import { API_BASE_URL } from "../../config";
 import type { Project } from "../../types";
@@ -16,7 +15,8 @@ import {
   TargetIcon,
   WorkflowIcon,
 } from "../ui/Icon";
-import { EmptyState, ErrorState, StatusBadge, SuccessState } from "../ui/States";
+import { Button, Card, PageHeader, StatusBadge } from "../ui";
+import { EmptyState } from "../ui/States";
 
 type OperationalRoute = "report" | "workflow" | "export" | "settings";
 
@@ -149,82 +149,112 @@ export default function OperationalScreen({
         .slice(0, 8),
     [projects],
   );
-
   return (
-    <section className="ops-screen" aria-label={screen.title}>
-      <div className="ops-screen__actions" style={{ marginBottom: '16px', justifyContent: 'flex-end' }}>
-        <button type="button" className="prod-button" onClick={onOpenUpload}>
+    <div className="workspace-stack">
+      <PageHeader 
+        title={screen.title} 
+        subtitle={screen.subtitle}
+      />
+
+      <div className="toolbar" style={{ justifyContent: 'flex-end', marginBottom: '24px' }}>
+        <Button variant="outline" onClick={onOpenUpload}>
           <FileReviewIcon size="sm" />
           {copy.uploadMore}
-        </button>
-        <button type="button" className="prod-button prod-button--primary" onClick={onOpenReviews}>
+        </Button>
+        <Button variant="primary" onClick={onOpenReviews}>
           <EyeIcon size="sm" />
           {copy.openReviews}
-        </button>
+        </Button>
       </div>
 
-      <div className="ops-metric-grid">
-        <MetricCard icon={<TargetIcon size="md" />} label={copy.avgScore} value={metrics.avgScore === null ? "—" : `${metrics.avgScore}/100`} tone="primary" />
-        <MetricCard icon={<ShieldCheckIcon size="md" />} label={copy.reviewed} value={metrics.reviewed.length} tone="success" />
-        <MetricCard icon={<WorkflowIcon size="md" />} label={copy.needsAction} value={metrics.needsAction.length} tone="warning" />
-        <MetricCard icon={<RefreshIcon size="md" />} label={copy.pending} value={metrics.pending} tone="danger" />
+      <div className="governance-grid" style={{ marginBottom: '24px' }}>
+        <Card title={copy.avgScore}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <TargetIcon size="md" color="var(--ds-color-primary)" />
+            <div style={{ fontSize: '24px', fontWeight: 700 }}>{metrics.avgScore === null ? "—" : `${metrics.avgScore}/100`}</div>
+          </div>
+        </Card>
+        <Card title={copy.reviewed}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <ShieldCheckIcon size="md" color="var(--ds-color-success)" />
+            <div style={{ fontSize: '24px', fontWeight: 700 }}>{metrics.reviewed.length}</div>
+          </div>
+        </Card>
+        <Card title={copy.needsAction}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <WorkflowIcon size="md" color="var(--ds-color-warning)" />
+            <div style={{ fontSize: '24px', fontWeight: 700 }}>{metrics.needsAction.length}</div>
+          </div>
+        </Card>
+        <Card title={copy.pending}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <RefreshIcon size="md" color="var(--ds-color-danger)" />
+            <div style={{ fontSize: '24px', fontWeight: 700 }}>{metrics.pending}</div>
+          </div>
+        </Card>
       </div>
 
-      {route === "workflow" ? (
-        <div className="ops-grid ops-grid--three">
+      {route === "workflow" && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px', marginBottom: '24px' }}>
           <WorkflowColumn title={copy.reviewed} tone="success" rows={metrics.reviewed} lang={lang} />
           <WorkflowColumn title={copy.needsAction} tone="warning" rows={metrics.needsAction} lang={lang} />
           <WorkflowColumn title={copy.pending} tone="danger" rows={projects.filter((p) => p.latest_score === null)} lang={lang} />
         </div>
-      ) : null}
+      )}
 
-      {route === "export" ? (
-        <section className="ops-card">
-          <h2>{copy.exportExcel}</h2>
-          <p>{screen.subtitle}</p>
-          <button
-            type="button"
-            className="prod-button prod-button--primary"
-            onClick={() => exportMutation.mutate()}
-            disabled={exportMutation.isPending || projects.length === 0}
-          >
-            <DownloadIcon size="sm" />
-            {exportMutation.isPending ? copy.exporting : copy.exportExcel}
-          </button>
-          {exportMessage?.type === "success" ? <SuccessState title={exportMessage.text} compact /> : null}
-          {exportMessage?.type === "error" ? <ErrorState title={exportMessage.text} compact /> : null}
-        </section>
-      ) : null}
+      {route === "export" && (
+        <div style={{ marginBottom: '24px' }}>
+          <Card title={copy.exportExcel}>
+            <p style={{ color: 'var(--ds-color-text-muted)', marginBottom: '16px' }}>{screen.subtitle}</p>
+            <Button 
+              variant="primary" 
+              onClick={() => exportMutation.mutate()} 
+              disabled={exportMutation.isPending || projects.length === 0}
+              isLoading={exportMutation.isPending}
+              leftIcon={<DownloadIcon size="sm" />}
+            >
+              {copy.exportExcel}
+            </Button>
+            {exportMessage && (
+              <div style={{ marginTop: '12px' }}>
+                <StatusBadge tone={exportMessage.type === "success" ? "success" : "danger"}>
+                  {exportMessage.text}
+                </StatusBadge>
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
 
-      {route === "settings" ? (
-        <section className="ops-card">
-          <h2>{screen.title}</h2>
-          <div className="ops-settings-list">
-            <div>
-              <span>{copy.apiBase}</span>
-              <strong>{API_BASE_URL}</strong>
+      {route === "settings" && (
+        <div style={{ marginBottom: '24px' }}>
+          <Card title={screen.title}>
+            <div className="governance-grid">
+              <div className="detail-section">
+                <span className="detail-section__title">{copy.apiBase}</span>
+                <div style={{ fontWeight: 600 }}>{API_BASE_URL}</div>
+              </div>
+              <div className="detail-section">
+                <span className="detail-section__title">{copy.dataSource}</span>
+                <div style={{ fontWeight: 600 }}>{copy.realData}</div>
+              </div>
+              <div className="detail-section">
+                <span className="detail-section__title">{t("common.language")}</span>
+                <div style={{ fontWeight: 600 }}>{lang.toUpperCase()}</div>
+              </div>
             </div>
-            <div>
-              <span>{copy.dataSource}</span>
-              <strong>{copy.realData}</strong>
-            </div>
-            <div>
-              <span>{t("common.language")}</span>
-              <strong>{lang.toUpperCase()}</strong>
-            </div>
-          </div>
-        </section>
-      ) : null}
+          </Card>
+        </div>
+      )}
 
-      <section className="ops-card">
-        <h2>{copy.latest}</h2>
+      <Card title={copy.latest}>
         <div className="prod-table-wrap">
           <table className="prod-history-table">
             <thead>
               <tr>
                 <th>{t("submissions.projectId")}</th>
-                <th>{t("project.projectName") || "Tên dự án"}</th>
-                <th>{t("project.totalDocuments") || "Số tài liệu"}</th>
+                <th>{t("project.projectName")}</th>
+                <th>{t("project.totalDocuments")}</th>
                 <th>{t("project.totalScore")}</th>
                 <th>{t("project.reviewedAt")}</th>
                 <th>{t("common.status")}</th>
@@ -238,7 +268,7 @@ export default function OperationalScreen({
                   return (
                     <tr key={project.project_id}>
                       <td>{project.project_id}</td>
-                      <td>{project.project_name}</td>
+                      <td style={{ fontWeight: 600 }}>{project.project_name}</td>
                       <td>{project.total_documents}</td>
                       <td>{reviewed ? `${score}/100` : "—"}</td>
                       <td>{formatUploadedAt(project.latest_updated_at, lang)}</td>
@@ -260,30 +290,8 @@ export default function OperationalScreen({
             </tbody>
           </table>
         </div>
-      </section>
-    </section>
-  );
-}
-
-function MetricCard({
-  icon,
-  label,
-  value,
-  tone,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: string | number;
-  tone: "primary" | "success" | "warning" | "danger";
-}) {
-  return (
-    <article className={`ops-metric ops-metric--${tone}`}>
-      <span>{icon}</span>
-      <div>
-        <strong>{value}</strong>
-        <small>{label}</small>
-      </div>
-    </article>
+      </Card>
+    </div>
   );
 }
 
@@ -299,23 +307,22 @@ function WorkflowColumn({
   lang: "vi" | "ja";
 }) {
   return (
-    <section className="ops-card ops-workflow-column">
-      <h2>
-        {title}
-        <StatusBadge tone={tone}>{rows.length}</StatusBadge>
-      </h2>
-      <div className="ops-workflow-list">
+    <Card title={title}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {rows.length ? (
           rows.slice(0, 8).map((row) => (
-            <article key={row.project_id}>
-              <strong title={row.project_name}>{row.project_name}</strong>
-              <span>{formatUploadedAt(row.latest_updated_at, lang)}</span>
-            </article>
+            <div key={row.project_id} style={{ 
+              padding: '12px', borderRadius: 'var(--ds-radius-md)', 
+              backgroundColor: 'var(--ds-color-bg-muted)', borderLeft: `4px solid var(--ds-color-${tone})`
+            }}>
+              <div style={{ fontWeight: 600, fontSize: '14px' }}>{row.project_name}</div>
+              <div style={{ fontSize: '12px', color: 'var(--ds-color-text-muted)' }}>{formatUploadedAt(row.latest_updated_at, lang)}</div>
+            </div>
           ))
         ) : (
           <EmptyState title={lang === "ja" ? "対象なし" : "Không có dự án"} compact />
         )}
       </div>
-    </section>
+    </Card>
   );
 }

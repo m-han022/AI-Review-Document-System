@@ -1,4 +1,4 @@
-import { Suspense, lazy, useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { 
@@ -9,8 +9,7 @@ import {
   getGradingRun,
   gradeSubmission,
   compareVersions,
-  exportSubmissionsExcel,
-  previewFinalPrompt
+  exportSubmissionsExcel
 } from "../../api/client";
 import { getDocumentTypeKey } from "../../constants/documentTypes";
 import { isUploadCriterionKey } from "../../constants/uploadCriteria";
@@ -28,9 +27,7 @@ import type {
   VersionComparison as VersionComparisonData
 } from "../../types";
 import { useTranslation } from "../LanguageSelector";
-import Badge from "../ui/Badge";
 import { toBusinessStatus } from "../ui/businessStatus";
-import SectionBlock from "../ui/SectionBlock";
 import {
   ArrowLeftIcon,
   BookOpenIcon,
@@ -41,24 +38,19 @@ import {
   TargetIcon,
   WorkflowIcon,
   AlertTriangleIcon,
-  LayersIcon
+  LayersIcon,
+  ChevronRightIcon
 } from "../ui/Icon";
 import { formatUploadedAt } from "../submissions/utils";
 import ProjectReviewDialog from "./ProjectReviewDialog";
-import VersionComparison from "./VersionComparison";
 import {
-  MetadataPanel,
   type FeedbackSectionView
 } from "./ProjectReviewPanels";
-import { LoadingState, EmptyState, StatusBadge } from "../ui/States";
+import { LoadingState, EmptyState, StatusBadge, Tooltip } from "../ui/States";
+import { Button, Card, Select } from "../ui";
+import { KPIBarChart } from "../ui/KPICharts";
 
-const CriteriaScoreChart = lazy(() => import("./charts/CriteriaScoreChart"));
 
-const chartFallback = (
-  <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', borderRadius: '12px', color: '#64748b' }}>
-    <span>Loading...</span>
-  </div>
-);
 
 interface ProjectCardProps {
   projectId: string;
@@ -124,27 +116,7 @@ function getStatusLabel(status: string, t: (key: string) => string): string {
   return t("statusBiz.processing");
 }
 
-function extractCriterionSuggestionText(raw: unknown, lang: LanguageCode): string {
-  if (!raw) return "";
-  if (typeof raw === "string") return raw;
-  if (typeof raw !== "object") return "";
 
-  const bag = raw as Record<string, unknown>;
-  const fallbackLang: LanguageCode = lang === "vi" ? "ja" : "vi";
-  const primary = bag[lang] ?? bag[fallbackLang];
-
-  if (typeof primary === "string") return primary;
-  if (primary && typeof primary === "object") {
-    const nested = primary as Record<string, unknown>;
-    const nestedPrimary = nested[lang] ?? nested[fallbackLang];
-    if (typeof nestedPrimary === "string") return nestedPrimary;
-    const anyNestedString = Object.values(nested).find((v) => typeof v === "string");
-    return typeof anyNestedString === "string" ? anyNestedString : "";
-  }
-
-  const anyString = Object.values(bag).find((v) => typeof v === "string");
-  return typeof anyString === "string" ? anyString : "";
-}
 
 function splitFeedbackSections(lines: string[]): FeedbackSectionView[] {
   const sections: FeedbackSectionView[] = [];
@@ -234,14 +206,14 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
   const [selectedSlideId, setSelectedSlideId] = useState<number | null>(null);
   const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
   const [promptUsedOpen, setPromptUsedOpen] = useState(false);
-  const [promptUsedText, setPromptUsedText] = useState("");
-  const [actionMessage, setActionMessage] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
+  const [promptUsedText] = useState("");
+  const [, setActionMessage] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
   const [showGovernanceDetails, setShowGovernanceDetails] = useState(false);
 
   // Comparison states
   const [comparisonMode, setComparisonMode] = useState(false);
-  const [baseVersionId, setBaseVersionId] = useState<number | null>(null);
-  const [compareVersionId, setCompareVersionId] = useState<number | null>(null);
+  const [baseVersionId] = useState<number | null>(null);
+  const [compareVersionId] = useState<number | null>(null);
 
   // Queries
   const {
@@ -261,8 +233,6 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
   const {
     data: versions = [],
     isLoading: loadingVersions,
-    error: versionsError,
-    refetch: refetchVersions,
   } = useQuery<VersionListOut[]>({
     queryKey: ["document-versions", selectedDocumentId],
     queryFn: () => listDocumentVersions(selectedDocumentId!),
@@ -273,8 +243,6 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
   const {
     data: gradings = [],
     isLoading: loadingGradings,
-    error: gradingsError,
-    refetch: refetchGradings,
   } = useQuery<GradingListOut[]>({
     queryKey: ["version-gradings", selectedVersionId],
     queryFn: () => listVersionGradings(selectedVersionId!),
@@ -290,7 +258,7 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
     }
   });
 
-  const { data: gradingDetail, isLoading: loadingDetail, error: detailError, refetch: refetchGradingDetail } = useQuery<GradingRunDetail>({
+  const { data: gradingDetail } = useQuery<GradingRunDetail>({
     queryKey: ["grading-detail", selectedGradingId],
     queryFn: () => getGradingRun(selectedGradingId!),
     enabled: !!selectedGradingId,
@@ -302,33 +270,11 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
     }
   });
   
-  const { data: comparisonData, isLoading: loadingComparison } = useQuery<VersionComparisonData>({
+  useQuery<VersionComparisonData>({
     queryKey: ["version-comparison", selectedDocumentId, baseVersionId, compareVersionId],
     queryFn: () => compareVersions(selectedDocumentId!, baseVersionId!, compareVersionId!),
     enabled: !!(selectedDocumentId && baseVersionId && compareVersionId && comparisonMode),
   });
-
-  useEffect(() => {
-    console.log("[ProjectCard] selectedDocumentId updated:", selectedDocumentId);
-  }, [selectedDocumentId]);
-
-  useEffect(() => {
-    if (selectedDocumentId) {
-      console.log(`[ProjectCard] Trace - Selected Document ID: ${selectedDocumentId}`);
-    }
-  }, [selectedDocumentId]);
-
-  useEffect(() => {
-    if (selectedVersionId) {
-      console.log(`[ProjectCard] Selected Version ID: ${selectedVersionId}`);
-    }
-  }, [selectedVersionId]);
-
-  useEffect(() => {
-    if (selectedGradingId) {
-      console.log(`[ProjectCard] Selected Grading Run ID: ${selectedGradingId}`);
-    }
-  }, [selectedGradingId]);
 
   // Auto-select logic
   const sortedDocuments = useMemo(() => {
@@ -357,10 +303,6 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
 
   useEffect(() => {
     if (versions.length > 0) {
-      // Find the version to select:
-      // 1. Current selectedVersionId if it's in the current versions list
-      // 2. Latest version (is_latest)
-      // 3. First version in list
       const currentExists = versions.some(v => v.document_version_id === selectedVersionId);
       if (!currentExists) {
         const latest = versions.find(v => v.is_latest) || versions[0];
@@ -373,10 +315,6 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
 
   useEffect(() => {
     if (gradings.length > 0) {
-      // Find the grading run to select:
-      // 1. Current selectedGradingId if it's in the current gradings list
-      // 2. Latest COMPLETED run
-      // 3. First run in list
       const currentExists = gradings.some(g => g.grading_run_id === selectedGradingId);
       if (!currentExists) {
         const completed = gradings.find(g => g.status?.toLowerCase() === "completed") || gradings[0];
@@ -391,34 +329,6 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
   const currentDocument = sortedDocuments.find(d => d.document_id === selectedDocumentId);
   const currentVersion = versions.find(v => v.document_version_id === selectedVersionId);
   const currentGrading = gradings.find((g) => g.grading_run_id === selectedGradingId) ?? null;
-
-  const documentSelectorState = docsError
-    ? "error"
-    : loadingDocs
-      ? "loading"
-      : sortedDocuments.length
-        ? "ready"
-        : "empty";
-
-  const versionSelectorState = selectedDocumentId === null
-    ? "idle"
-    : versionsError
-      ? "error"
-      : loadingVersions
-        ? "loading"
-        : versions.length
-          ? "ready"
-          : "empty";
-
-  const gradingSelectorState = selectedVersionId === null
-    ? "idle"
-    : gradingsError
-      ? "error"
-      : loadingGradings
-        ? "loading"
-        : gradings.length
-          ? "ready"
-          : "empty";
 
   const rerunMutation = useMutation({
     mutationFn: () => gradeSubmission({
@@ -507,18 +417,6 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
 
   const feedbackLines = useMemo(() => splitFeedbackLines(result?.draft_feedback ?? null, lang), [result, lang]);
   const feedbackSections = useMemo(() => splitFeedbackSections(feedbackLines), [feedbackLines]);
-  const criteriaDetails = useMemo(() => {
-    return criteriaResults.map((item) => {
-      const suggestion = extractCriterionSuggestionText(item.suggestion, lang);
-      return {
-        key: item.key,
-        label: getCriterionLabel(item.key),
-        score: item.score,
-        max: item.max_score,
-        suggestion,
-      };
-    });
-  }, [criteriaResults, lang, t]);
 
   const activeSlideId = useMemo(() => {
     if (selectedSlideId !== null) return selectedSlideId;
@@ -529,19 +427,6 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
     () => slideReviewItems.find((s) => s.id === activeSlideId) ?? null,
     [slideReviewItems, activeSlideId],
   );
-
-  const documentMeta = useMemo(() => [
-    { label: t("project.metaDocument"), value: currentDocument?.document_name ?? t("common.noValue") },
-    { label: t("project.metaVersion"), value: currentVersion?.version ?? t("common.noValue") },
-    { label: t("project.metaGradedAt"), value: formatDateTime(result?.graded_at, lang) },
-    { label: t("project.metaScore"), value: result?.score !== null ? `${result?.score}/100` : t("common.noValue") },
-    { label: t("project.metaRubric"), value: result?.rubric_version ? `v${result.rubric_version}` : t("common.noValue") },
-    { label: t("project.metaPrompt"), value: result?.prompt_version ? `v${result.prompt_version}` : t("common.noValue") },
-    { label: t("project.metaPolicy"), value: result?.policy_version ? `v${result.policy_version}` : t("common.noValue") },
-    { label: t("project.metaLevel"), value: result?.prompt_level ?? t("common.noValue") },
-    { label: t("project.metaRulesHash"), value: result?.required_rule_hash ?? t("common.noValue") },
-    { label: t("project.metaDescription"), value: gradingDetail?.submission?.project_description || t("common.noValue") },
-  ], [currentDocument, currentVersion, result, gradingDetail, lang, t]);
 
   if (loadingDocs) return <LoadingState title={m.loadingDocuments} />;
   if (docsError) {
@@ -555,78 +440,72 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
   }
 
   return (
-    <div className="project-workspace-container">
-      <div className="project-toolbar-v3">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Badge tone={
-            result?.status === "completed" || result?.status === "graded" ? "success" :
-            result?.status === "failed" ? "danger" :
-            "warning"
-          }>
-            {result?.status ? getStatusLabel(result.status, t) : t("project.pending")}
-          </Badge>
-          {result?.status === "failed" && result?.error_message && (
-            <span style={{ fontSize: '12px', color: '#ef4444' }} title={result.error_message}>
-              {result.error_message}
-            </span>
-          )}
+    <div className="project-workspace">
+      {/* Toolbar */}
+      <div className="project-toolbar">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <Button variant="ghost" onClick={onBack} size="sm">
+            <ArrowLeftIcon size="sm" />
+          </Button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <StatusBadge tone={
+              result?.status === "completed" || result?.status === "graded" ? "success" :
+              result?.status === "failed" ? "danger" :
+              "warning"
+            }>
+              {result?.status ? getStatusLabel(result.status, t) : t("project.pending")}
+            </StatusBadge>
+            {result?.status === "failed" && result?.error_message && (
+              <span style={{ fontSize: '12px', color: 'var(--ds-color-danger)' }} title={result.error_message}>
+                {result.error_message}
+              </span>
+            )}
+          </div>
         </div>
 
-        <div className="project-header-navigation">
-          <button className={`btn-secondary btn-secondary--compact ${comparisonMode ? 'is-active' : ''}`} onClick={() => setComparisonMode(!comparisonMode)}>
+        <div className="project-toolbar__actions">
+          <Button 
+            variant={comparisonMode ? "primary" : "outline"} 
+            size="sm" 
+            onClick={() => setComparisonMode(!comparisonMode)}
+          >
             <LayersIcon size="sm" />
             {t("nav.versionDiff")}
-          </button>
-          <button className="btn-primary btn-primary--compact" onClick={() => rerunMutation.mutate()} disabled={rerunMutation.isPending || !selectedVersionId}>
-            <RefreshIcon size="sm" className={rerunMutation.isPending ? "animate-spin" : ""} />
-            {t("project.rerunReview")}
-          </button>
-          <button className="btn-secondary btn-secondary--compact" onClick={() => exportMutation.mutate()} disabled={exportMutation.isPending}>
-            <DownloadIcon size="sm" />
-            {t("submissions.exportExcel")}
-          </button>
-          <button
-            className="btn-secondary btn-secondary--compact"
-            disabled={!result}
-            onClick={async () => {
-              try {
-                if (result?.final_prompt_snapshot) {
-                  setPromptUsedText(result.final_prompt_snapshot);
-                  setPromptUsedOpen(true);
-                  return;
-                }
-                const preview = await previewFinalPrompt(currentDocument?.document_type || "project-review", result?.prompt_level || "medium");
-                setPromptUsedText(
-                  `[Reconstructed preview - active configuration]\n` +
-                  `This is not the exact historical snapshot for run #${result?.id ?? "N/A"}.\n\n` +
-                  preview.full_prompt_preview
-                );
-                setPromptUsedOpen(true);
-              } catch (error) {
-                setActionMessage({
-                  tone: "danger",
-                  text: error instanceof Error ? error.message : t("project.promptPreviewLoadFailed"),
-                });
-              }
-            }}
+          </Button>
+          <Button 
+            variant="primary" 
+            size="sm" 
+            onClick={() => rerunMutation.mutate()} 
+            disabled={rerunMutation.isPending || !selectedVersionId}
+            isLoading={rerunMutation.isPending}
           >
-            {t("project.viewPromptUsed")}
-          </button>
-          <button
-            className="btn-secondary btn-secondary--compact"
-            type="button"
+            <RefreshIcon size="sm" />
+            {t("project.rerunReview")}
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => exportMutation.mutate()} 
+            disabled={exportMutation.isPending}
+            isLoading={exportMutation.isPending}
+          >
+            <DownloadIcon size="sm" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setShowGovernanceDetails((prev) => !prev)}
           >
             {showGovernanceDetails ? t("project.hideGovernanceDetails") : t("project.showGovernanceDetails")}
-          </button>
+          </Button>
         </div>
       </div>
 
-      {showGovernanceDetails ? (
-        <SectionBlock style={{ marginBottom: "16px" }}>
-          <SectionBlock.Header title={t("project.governanceDetails")} subtitle={m.auditContextSubtitle} />
-          <SectionBlock.Body>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+      {/* Governance Details (Collapsible) */}
+      {showGovernanceDetails && (
+        <>
+          <Card title={t("project.governanceDetails")} subtitle={m.auditContextSubtitle}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: '16px' }}>
               <StatusBadge tone="primary">{m.project}: {currentProject?.project_id ?? projectId}</StatusBadge>
               <StatusBadge tone="muted">{m.document}: {currentDocument?.document_name ?? m.notSelected}</StatusBadge>
               <StatusBadge tone={currentVersion?.is_latest ? "success" : "muted"}>
@@ -638,411 +517,286 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
               <StatusBadge tone={result?.evaluation_set_id ? "success" : "warning"}>
                 {m.evaluationSet}: {result?.evaluation_set_id ? `#${result.evaluation_set_id}` : m.autoUnresolved}
               </StatusBadge>
-              <StatusBadge tone="primary">
-                {m.resolveMode}: {result?.evaluation_set_id ? m.resolveAutoResolved : m.resolveAutoPending}
-              </StatusBadge>
             </div>
-            <p style={{ marginTop: "8px", fontSize: "12px", color: "#64748b" }}>
-              {m.resolveReasonTitle}: {m.resolveReasonAuto}
-            </p>
-          </SectionBlock.Body>
-        </SectionBlock>
-      ) : null}
-
-      {actionMessage && (
-        <div className={`project-action-message project-action-message--${actionMessage.tone}`}>
-          {actionMessage.text}
-        </div>
-      )}
-
-      {/* Hierarchy Selectors (Governance Details) */}
-      {showGovernanceDetails ? (
-      <div className="hierarchy-selectors" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
-        <SectionBlock>
-          <SectionBlock.Header title={t("project.documents") || "Documents"} />
-          <SectionBlock.Body>
-            <select 
-              value={selectedDocumentId || ""} 
-              onChange={(e) => {
-                const docId = e.target.value ? Number(e.target.value) : null;
-                console.log("[ProjectCard] DOCUMENT CHANGE:", docId);
-                setSelectedDocumentId(docId);
-                setSelectedVersionId(null);
-                setSelectedGradingId(null);
-                setBaseVersionId(null);
-                setCompareVersionId(null);
-              }}
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #e2e8f0' }}
-            >
-              <option value="">{t("project.selectDocument")}</option>
-              {sortedDocuments.map(d => (
-                <option key={d.document_id} value={d.document_id}>
-                  {d.document_name} ({t(getDocumentTypeKey(d.document_type))}) {d.latest_version ? `â€¢ ${d.latest_version}` : ""}
-                </option>
-              ))}
-            </select>
-            {documentSelectorState === "empty" && (
-              <p style={{ marginTop: "8px", fontSize: "12px", color: "#64748b" }}>
-                {m.emptyDocuments}
-              </p>
-            )}
-          </SectionBlock.Body>
-        </SectionBlock>
-
-        {!comparisonMode ? (
-          <>
-            <SectionBlock>
-              <SectionBlock.Header title={t("project.versions") || "Versions"} />
-              <SectionBlock.Body>
-                <select 
-                  value={selectedVersionId || ""} 
+            <div className="governance-grid">
+              <Card title={t("project.documents")}>
+                <Select 
+                  value={selectedDocumentId || ""} 
                   onChange={(e) => {
-                    const vId = Number(e.target.value);
-                    setSelectedVersionId(vId);
+                    const docId = e.target.value ? Number(e.target.value) : null;
+                    setSelectedDocumentId(docId);
+                    setSelectedVersionId(null);
                     setSelectedGradingId(null);
                   }}
+                  options={[
+                    { value: "", label: t("project.selectDocument") },
+                    ...sortedDocuments.map(d => ({
+                      value: String(d.document_id),
+                      label: `${d.document_name} (${t(getDocumentTypeKey(d.document_type))})`
+                    }))
+                  ]}
+                />
+              </Card>
+              <Card title={t("project.versions")}>
+                <Select 
+                  value={selectedVersionId || ""} 
+                  onChange={(e) => setSelectedVersionId(Number(e.target.value))}
                   disabled={!selectedDocumentId}
-                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #e2e8f0' }}
-                >
-                  <option value="">{t("project.selectVersion")}</option>
-                  {versions.map(v => <option key={v.document_version_id} value={v.document_version_id}>{v.version} {v.is_latest ? `(${t("project.latestTag")})` : ""}</option>)}
-                </select>
-                {versionSelectorState === "idle" && (
-                  <p style={{ marginTop: "8px", fontSize: "12px", color: "#64748b" }}>
-                    {m.selectDocumentToLoadVersions}
-                  </p>
-                )}
-                {versionSelectorState === "loading" && (
-                  <p style={{ marginTop: "8px", fontSize: "12px", color: "#64748b" }}>
-                    {m.loadingVersions}
-                  </p>
-                )}
-                {versionSelectorState === "empty" && (
-                  <p style={{ marginTop: "8px", fontSize: "12px", color: "#64748b" }}>
-                    {m.emptyVersions}
-                  </p>
-                )}
-                {versionSelectorState === "error" && (
-                  <div style={{ marginTop: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span style={{ fontSize: "12px", color: "#b91c1c" }}>
-                      {m.cannotLoadVersions}
-                    </span>
-                    <button className="btn-secondary btn-secondary--compact" onClick={() => void refetchVersions()}>
-                      {m.retry}
-                    </button>
-                  </div>
-                )}
-              </SectionBlock.Body>
-            </SectionBlock>
-
-            <SectionBlock>
-              <SectionBlock.Header title={t("project.reviewHistory")} />
-              <SectionBlock.Body>
-                <select 
+                  options={[
+                    { value: "", label: t("project.selectVersion") },
+                    ...versions.map(v => ({ value: String(v.document_version_id), label: v.version }))
+                  ]}
+                />
+              </Card>
+              <Card title={t("project.reviewHistory")}>
+                <Select 
                   value={selectedGradingId || ""} 
                   onChange={(e) => setSelectedGradingId(Number(e.target.value))}
                   disabled={!selectedVersionId}
-                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #e2e8f0' }}
-                >
-                  <option value="">{t("project.selectReviewRun")}</option>
-                  {gradings.map(g => (
-                    <option key={g.grading_run_id} value={g.grading_run_id}>
-                      {formatDateTime(g.created_at, lang)} - {getStatusLabel(g.status || "pending", t)} {g.total_score !== null ? `(Score: ${g.total_score})` : ""}
-                    </option>
-                  ))}
-                </select>
-                {gradingSelectorState === "idle" && (
-                  <p style={{ marginTop: "8px", fontSize: "12px", color: "#64748b" }}>
-                    {m.selectVersionToLoadGradings}
-                  </p>
-                )}
-                {gradingSelectorState === "loading" && (
-                  <p style={{ marginTop: "8px", fontSize: "12px", color: "#64748b" }}>
-                    {m.loadingGradings}
-                  </p>
-                )}
-                {gradingSelectorState === "empty" && (
-                  <p style={{ marginTop: "8px", fontSize: "12px", color: "#64748b" }}>
-                    {m.emptyGradings}
-                  </p>
-                )}
-                {gradingSelectorState === "error" && (
-                  <div style={{ marginTop: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span style={{ fontSize: "12px", color: "#b91c1c" }}>
-                      {m.cannotLoadGradings}
-                    </span>
-                    <button className="btn-secondary btn-secondary--compact" onClick={() => void refetchGradings()}>
-                      {m.retry}
-                    </button>
-                  </div>
-                )}
-              </SectionBlock.Body>
-            </SectionBlock>
-          </>
-        ) : (
-          <>
-            <SectionBlock>
-              <SectionBlock.Header title={t("compare.baseVersion")} />
-              <SectionBlock.Body>
-                <select 
-                  value={baseVersionId || ""} 
-                  onChange={(e) => setBaseVersionId(Number(e.target.value))}
-                  disabled={!selectedDocumentId || loadingVersions}
-                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #e2e8f0' }}
-                >
-                  <option value="">{t("project.selectVersion")}</option>
-                  {versions.map(v => <option key={v.document_version_id} value={v.document_version_id}>{v.version}</option>)}
-                </select>
-              </SectionBlock.Body>
-            </SectionBlock>
-
-            <SectionBlock>
-              <SectionBlock.Header title={t("compare.compareVersion")} />
-              <SectionBlock.Body>
-                <select 
-                  value={compareVersionId || ""} 
-                  onChange={(e) => setCompareVersionId(Number(e.target.value))}
-                  disabled={!selectedDocumentId || loadingVersions}
-                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #e2e8f0' }}
-                >
-                  <option value="">{t("project.selectVersion")}</option>
-                  {versions.map(v => <option key={v.document_version_id} value={v.document_version_id}>{v.version}</option>)}
-                </select>
-              </SectionBlock.Body>
-            </SectionBlock>
-          </>
-        )}
-      </div>
-      ) : null}
-
-      {!comparisonMode && showGovernanceDetails && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
-          <SectionBlock>
-            <SectionBlock.Header title={m.versionTimelineTitle} subtitle={m.newestFirst} />
-            <SectionBlock.Body>
-              {versions.length ? (
-                <div style={{ display: "grid", gap: "8px" }}>
-                  {versions.map((v) => (
-                    <button
-                      key={v.document_version_id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedVersionId(v.document_version_id);
-                        setSelectedGradingId(null);
-                      }}
-                      className={`submission-card__button ${selectedVersionId === v.document_version_id ? "is-active" : ""}`.trim()}
-                      style={{ textAlign: "left" }}
-                    >
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <strong>{v.version}</strong>
-                        <div style={{ display: "flex", gap: "6px" }}>
-                          {v.is_latest && <StatusBadge tone="success">{t("project.latestTag")}</StatusBadge>}
-                          {v.latest_status?.toLowerCase() === "completed" && <StatusBadge tone="primary">{t("statusBiz.reviewReady")}</StatusBadge>}
-                        </div>
-                      </div>
-                      <small style={{ color: "#64748b" }}>{formatDateTime(v.uploaded_at, lang)}</small>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState compact title={m.noVersions} description={m.uploadCreateV1} />
-              )}
-            </SectionBlock.Body>
-          </SectionBlock>
-
-          <SectionBlock>
-            <SectionBlock.Header title={m.gradingTimelineTitle} subtitle={m.newestFirst} />
-            <SectionBlock.Body>
-              {gradings.length ? (
-                <div style={{ display: "grid", gap: "8px" }}>
-                  {gradings.map((g) => (
-                    <button
-                      key={g.grading_run_id}
-                      type="button"
-                      onClick={() => setSelectedGradingId(g.grading_run_id)}
-                      className={`submission-card__button ${selectedGradingId === g.grading_run_id ? "is-active" : ""}`.trim()}
-                      style={{ textAlign: "left" }}
-                    >
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <strong>{t("project.runLabel", { id: g.grading_run_id })}</strong>
-                        <StatusBadge tone={g.status?.toLowerCase() === "completed" ? "success" : g.status?.toLowerCase() === "failed" ? "danger" : "warning"}>
-                          {getStatusLabel(g.status || "pending", t)}
-                        </StatusBadge>
-                      </div>
-                      <small style={{ color: "#64748b" }}>
-                        {formatDateTime(g.created_at, lang)} {g.total_score !== null ? `• Score ${g.total_score}` : ""}
-                      </small>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState compact title={m.noGradings} description={m.runReviewCreateGrading} />
-              )}
-            </SectionBlock.Body>
-          </SectionBlock>
-        </div>
+                  options={[
+                    { value: "", label: t("project.selectReviewRun") },
+                    ...gradings.map(g => ({ value: String(g.grading_run_id), label: `${formatDateTime(g.created_at, lang)}` }))
+                  ]}
+                />
+              </Card>
+            </div>
+          </Card>
+        </>
       )}
 
-      {(loadingDetail || loadingComparison) ? (
-        <LoadingState title={m.loadingDetails} />
-      ) : (versionsError || gradingsError || detailError) ? (
-        <EmptyState
-          title={m.cannotLoadDetail}
-          description={
-            (detailError instanceof Error && detailError.message)
-            || (gradingsError instanceof Error && gradingsError.message)
-            || (versionsError instanceof Error && versionsError.message)
-            || t("common.error")
-          }
-          action={<button className="btn-secondary btn-secondary--compact" onClick={() => void refetchGradingDetail()}>{m.retry}</button>}
-        />
-      ) : comparisonMode ? (
-        comparisonData ? <VersionComparison data={comparisonData} /> : <EmptyState title={t("compare.selectVersions")} />
-      ) : result ? (
-        <div className="project-detail-layout">
-          <div className="project-detail-main">
-            <div className="project-tab-nav">
-              <button className={`project-tab-btn ${activeTab === "criteria" ? "is-active" : ""}`} onClick={() => setActiveTab("criteria")}>
-                {t("project.tabCriteria")}
-              </button>
-              <button className={`project-tab-btn ${activeTab === "slides" ? "is-active" : ""}`} onClick={() => setActiveTab("slides")}>
-                {t("project.tabSlidesResult")}
-                {ngSlideCount > 0 && <Badge tone="danger">{ngSlideCount}</Badge>}
-              </button>
-            </div>
-
-            {activeTab === "criteria" ? (
-              <div className="project-tab-content">
-                <SectionBlock>
-                  <SectionBlock.Header title={t("project.criteriaDetailTitle")} />
-                  <SectionBlock.Body>
-                    <div style={{ height: "300px" }}>
-                      <Suspense fallback={chartFallback}>
-                        <CriteriaScoreChart data={orderedScores} />
-                      </Suspense>
-                    </div>
-                    <div style={{ marginTop: "16px", display: "grid", gap: "12px" }}>
-                      {criteriaDetails.map((item) => (
-                        <article key={item.key} style={{ border: "1px solid #e2e8f0", borderRadius: "10px", padding: "12px" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                            <strong>{item.label}</strong>
-                            <span>{item.score}/{item.max}</span>
-                          </div>
-                          <p style={{ margin: 0, color: "#475569", whiteSpace: "pre-wrap" }}>
-                            {item.suggestion || t("project.noDetailedComment")}
-                          </p>
-                        </article>
-                      ))}
-                    </div>
-                  </SectionBlock.Body>
-                </SectionBlock>
+      {/* Overview Grid */}
+      <div className="governance-grid">
+        <Card className="ds-card--metrics">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <Tooltip content={t("project.explainability.totalScore")}>
+              <div>
+                <p className="criteria-stat-card__label" style={{ marginBottom: '4px', cursor: 'help' }}>
+                  {t("project.metaScore")}
+                </p>
+                <div style={{ fontSize: '32px', fontWeight: 800, color: 'var(--ds-color-primary)' }}>
+                  {result?.total_score ?? "—"}
+                </div>
               </div>
-            ) : (
-              <div className="project-tab-content">
-                <div className="slide-review-explorer">
-                  <aside className="slide-sidebar">
-                    {slideReviewItems.map((item) => (
-                      <button key={item.id} className={`slide-nav-item ${activeSlideId === item.id ? "is-active" : ""}`} onClick={() => setSelectedSlideId(item.id)}>
-                        <span className={`slide-status-dot ${item.status === "OK" ? "is-ok" : "is-ng"}`} />
-                        <span className="slide-label" style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
-                          {item.displayTitle}
-                          <span
-                            style={{
-                              fontSize: "11px",
-                              lineHeight: 1,
-                              padding: "3px 7px",
-                              borderRadius: "999px",
-                              fontWeight: 700,
-                              color: item.status === "OK" ? "#166534" : "#991b1b",
-                              background: item.status === "OK" ? "#dcfce7" : "#fee2e2",
-                              border: `1px solid ${item.status === "OK" ? "#86efac" : "#fecaca"}`,
-                            }}
-                          >
-                            {item.status}
-                          </span>
-                        </span>
-                      </button>
-                    ))}
-                  </aside>
-                  <main className="slide-content">
-                    {activeSlide ? (
-                      <div className="slide-detail-card" style={{ border: "1px solid #e2e8f0", borderRadius: "12px", padding: "16px", background: "#fff" }}>
-                        <h3 style={{ marginBottom: "12px", display: "flex", alignItems: "center", gap: "10px" }}>
-                          {activeSlide.displayTitle}
-                          <span
-                            style={{
-                              fontSize: "12px",
-                              lineHeight: 1,
-                              padding: "4px 8px",
-                              borderRadius: "999px",
-                              fontWeight: 700,
-                              color: activeSlide.status === "OK" ? "#166534" : "#991b1b",
-                              background: activeSlide.status === "OK" ? "#dcfce7" : "#fee2e2",
-                              border: `1px solid ${activeSlide.status === "OK" ? "#86efac" : "#fecaca"}`,
-                            }}
-                          >
-                            {activeSlide.status === "OK" ? "OK" : "NG"}
-                          </span>
-                        </h3>
-                        <div className="slide-detail-body">
-                          <div style={{ marginBottom: "12px" }}>
-                            <strong style={{ display: "block", marginBottom: "6px" }}>{t("project.slideSummary")}</strong>
-                            <p style={{ margin: 0, color: "#334155", lineHeight: 1.6 }}>{activeSlide.summary || t("common.noValue")}</p>
-                          </div>
-                          {activeSlide.issues.length ? (
-                            <div className="slide-issues" style={{ marginBottom: "12px" }}>
-                              <strong style={{ display: "block", marginBottom: "6px" }}>{t("project.issuesFound")}</strong>
-                              <ul style={{ margin: 0, paddingLeft: "18px", color: "#b91c1c" }}>
-                                {activeSlide.issues.map((issue, i) => <li key={i}>{issue}</li>)}
-                              </ul>
+            </Tooltip>
+            <div className="metrics-icon primary">
+              <TargetIcon size="md" />
+            </div>
+          </div>
+          <div style={{ marginTop: '12px' }}>
+            <StatusBadge tone={(result?.total_score ?? 0) >= 80 ? "success" : "warning"}>
+              {(result?.total_score ?? 0) >= 80 ? t("statusBiz.reviewReady") : t("statusBiz.attentionNeeded")}
+            </StatusBadge>
+          </div>
+        </Card>
+
+        <Card className="ds-card--metrics">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <p className="criteria-stat-card__label" style={{ marginBottom: '4px' }}>{t("project.metaDocument")}</p>
+              <div style={{ fontSize: '18px', fontWeight: 700 }}>
+                {currentDocument?.document_name ?? t("common.noValue")}
+              </div>
+            </div>
+            <div className="metrics-icon muted">
+              <BookOpenIcon size="md" />
+            </div>
+          </div>
+          <div style={{ marginTop: '12px', fontSize: '13px', color: 'var(--ds-color-text-muted)' }}>
+            {t("project.metaVersion")}: <strong>{currentVersion?.version || "—"}</strong>
+          </div>
+        </Card>
+
+        <Card className="ds-card--metrics">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <p className="criteria-stat-card__label" style={{ marginBottom: '4px' }}>{t("project.metaGradedAt")}</p>
+              <div style={{ fontSize: '18px', fontWeight: 700 }}>
+                {formatDateTime(result?.graded_at, lang)}
+              </div>
+            </div>
+            <div className="metrics-icon muted">
+              <RefreshIcon size="md" />
+            </div>
+          </div>
+          <div style={{ marginTop: '12px', fontSize: '13px', color: 'var(--ds-color-text-muted)' }}>
+            {t("project.metaPrompt")}: <strong>v{result?.prompt_version || "—"}</strong>
+          </div>
+        </Card>
+      </div>
+
+      <div className="project-content-grid">
+        {/* Left: Sidebar Navigation */}
+        <div className="project-detail-sidebar">
+          <Card>
+            <h3 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '12px' }}>{t("project.slideList")}</h3>
+            <div className="slide-list">
+              {slideReviewItems.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`slide-item ${activeSlideId === item.id ? "is-active" : ""}`}
+                  onClick={() => setSelectedSlideId(item.id)}
+                >
+                  <div className="slide-item__status">
+                    <span className={`status-dot status-dot--${item.status === "NG" ? "danger" : "success"}`} />
+                  </div>
+                  <span className="slide-item__number">#{item.slide_number}</span>
+                  <span className="slide-item__title">{item.displayTitle}</span>
+                  {activeSlideId === item.id && <ChevronRightIcon size="sm" />}
+                </button>
+              ))}
+            </div>
+          </Card>
+        </div>
+
+        {/* Right: Main Content */}
+        <div className="project-detail-main">
+          <div className="ds-tabs">
+            <button 
+              className={`ds-tabs__item ${activeTab === "criteria" ? "is-active" : ""}`}
+              onClick={() => setActiveTab("criteria")}
+            >
+              {t("project.criteriaScores")}
+            </button>
+            <button 
+              className={`ds-tabs__item ${activeTab === "slides" ? "is-active" : ""}`}
+              onClick={() => setActiveTab("slides")}
+            >
+              {t("project.slideDetails")} {ngSlideCount > 0 && <span className="ds-tabs__badge">{ngSlideCount}</span>}
+            </button>
+          </div>
+
+          <div className="tab-content">
+            {activeTab === "criteria" ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <Card title={t("project.scoreOverview")}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '32px' }}>
+                    <div className="criteria-grid">
+                      {orderedScores.map((item) => {
+                        const Icon = item.Icon;
+                        return (
+                          <Tooltip key={item.key} content={t("project.explainability.criterion").replace("{name}", item.label)}>
+                            <div className="criteria-stat-card" style={{ cursor: 'help' }}>
+                              <div className="criteria-stat-card__icon">
+                                <Icon size="md" />
+                              </div>
+                              <div className="criteria-stat-card__info">
+                                <span className="criteria-stat-card__label">{item.label}</span>
+                                <div className="criteria-stat-card__value">
+                                  <strong>{item.value}</strong>
+                                  <small>/{item.max}</small>
+                                </div>
+                              </div>
                             </div>
-                          ) : null}
-                          <div>
-                            <strong style={{ display: "block", marginBottom: "6px" }}>{t("project.suggestions")}</strong>
-                            <p style={{ margin: 0, color: "#334155", lineHeight: 1.6 }}>{activeSlide.suggestions || t("common.noValue")}</p>
-                          </div>
+                          </Tooltip>
+                        );
+                      })}
+                    </div>
+                    
+                    <div className="criteria-visuals">
+                      <h4 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ds-color-text-muted)', marginBottom: '16px' }}>
+                        {t("project.visualDistribution")}
+                      </h4>
+                      <KPIBarChart data={orderedScores} />
+                    </div>
+                  </div>
+                </Card>
+
+                <div className="feedback-section">
+                  <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px' }}>{t("project.feedbackTitle")}</h2>
+                  <div className="feedback-cards">
+                    {feedbackSections.map((section, idx) => (
+                      <div key={idx} className="feedback-card">
+                        {section.title && <h3 className="feedback-card__title">{section.title}</h3>}
+                        <div className="feedback-card__content">
+                          {section.lines.map((line, lidx) => (
+                            <p key={lidx}>{line}</p>
+                          ))}
                         </div>
                       </div>
-                    ) : <EmptyState title={m.selectSlideForDetails} compact />}
-                  </main>
+                    ))}
+                  </div>
                 </div>
+              </div>
+            ) : (
+              <div className="slide-detail-view">
+                {activeSlide ? (
+                  <div className="slide-detail">
+                    <div className="slide-header">
+                      <h2 style={{ fontSize: '20px', fontWeight: 700 }}>{activeSlide.displayTitle}</h2>
+                      <StatusBadge tone={activeSlide.status === "NG" ? "danger" : "success"}>
+                        {activeSlide.status}
+                      </StatusBadge>
+                    </div>
+
+                    <Card title={t("project.slideSummary")}>
+                      <p style={{ lineHeight: 1.6 }}>{activeSlide.summary}</p>
+                    </Card>
+
+                    {activeSlide.issues.length > 0 && (
+                      <div className="detail-section">
+                        <h3 className="detail-section__title">
+                          <AlertTriangleIcon size="sm" />
+                          {t("project.identifiedIssues")}
+                        </h3>
+                        <div className="issue-list">
+                          {activeSlide.issues.map((issue, idx) => (
+                            <div key={idx} className="issue-item">
+                              <span className="issue-item__bullet" />
+                              {issue}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {activeSlide.suggestions && (
+                      <div className="detail-section">
+                        <h3 className="detail-section__title">
+                          <SparkIcon size="sm" />
+                          {t("project.aiSuggestions")}
+                        </h3>
+                        <div className="detail-card detail-card--suggestion">
+                          {activeSlide.suggestions}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <EmptyState title={m.selectSlideForDetails} />
+                )}
               </div>
             )}
           </div>
-
-          <aside className="project-detail-sidebar">
-            <MetadataPanel items={documentMeta} title={t("project.metadataTitle")} />
-          </aside>
         </div>
-      ) : (
-        <EmptyState title={t("project.noGradingDataTitle")} description={t("project.noGradingDataDesc")} />
-      )}
+      </div>
 
       {summaryDialogOpen && (
-        <ProjectReviewDialog 
-          title={t("project.fullFeedback")}
+        <ProjectReviewDialog
           onClose={() => setSummaryDialogOpen(false)}
-          closeLabel={t("common.close") || "Close"}
-          wide
+          title={t("project.fullFeedback")}
+          closeLabel={t("common.close")}
         >
           <div className="detail-feedback-preview">
-            {feedbackSections.map((section, index) => (
-              <section className="detail-feedback-section-block" key={index}>
+            {feedbackSections.map((section, idx) => (
+              <section key={idx} className="detail-feedback-section-block">
                 {section.title && <h4>{section.title}</h4>}
-                {section.lines.map((line, i) => <p key={i}>{line}</p>)}
+                {section.lines.map((line, lidx) => <p key={lidx}>{line}</p>)}
               </section>
             ))}
           </div>
         </ProjectReviewDialog>
       )}
+
       {promptUsedOpen && (
         <ProjectReviewDialog
-          title={t("project.viewPromptUsed")}
           onClose={() => setPromptUsedOpen(false)}
+          title={t("project.viewPromptUsed")}
           closeLabel={t("common.close")}
-          wide
         >
-          <pre style={{ whiteSpace: "pre-wrap", maxHeight: "60vh", overflow: "auto" }}>{promptUsedText || t("common.noValue")}</pre>
+          <pre style={{ whiteSpace: 'pre-wrap', padding: '16px', backgroundColor: 'var(--ds-color-bg-muted)', borderRadius: 'var(--ds-radius-md)' }}>
+            {promptUsedText}
+          </pre>
         </ProjectReviewDialog>
       )}
     </div>

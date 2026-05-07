@@ -1,0 +1,186 @@
+<svg width="1944" height="809" viewBox="0 0 1944 809" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="shadow" x="-10%" y="-20%" width="120%" height="160%">
+      <feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="#10213F" flood-opacity="0.10"/>
+    </filter>
+    <filter id="soft" x="-10%" y="-20%" width="120%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="14" flood-color="#0F172A" flood-opacity="0.08"/>
+    </filter>
+    <linearGradient id="darkHeader" x1="26" y1="300" x2="1917" y2="374" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#111C32"/>
+      <stop offset="1" stop-color="#0A1326"/>
+    </linearGradient>
+    <linearGradient id="noteBg" x1="40" y1="650" x2="980" y2="792" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EFF5FF"/>
+      <stop offset="1" stop-color="#F7FAFF"/>
+    </linearGradient>
+    <style>
+      .title{font-family:Inter,Arial,sans-serif;font-weight:800;font-size:26px;fill:#0F172A}
+      .section{font-family:Inter,Arial,sans-serif;font-weight:800;font-size:19px;fill:#0F172A}
+      .h2{font-family:Inter,Arial,sans-serif;font-weight:800;font-size:18px;fill:#0F172A}
+      .body{font-family:Inter,Arial,sans-serif;font-weight:500;font-size:15px;fill:#334155}
+      .small{font-family:Inter,Arial,sans-serif;font-weight:500;font-size:13px;fill:#475569}
+      .brand{font-family:Inter,Arial,sans-serif;font-weight:800;font-size:30px;fill:#0F172A}
+      .brandDark{font-family:Inter,Arial,sans-serif;font-weight:800;font-size:30px;fill:#F8FAFC}
+      .menuText{font-family:Inter,Arial,sans-serif;font-weight:750;font-size:18px;fill:#0F172A}
+      .menuTextDark{font-family:Inter,Arial,sans-serif;font-weight:750;font-size:18px;fill:#F8FAFC}
+      .muted{font-family:Inter,Arial,sans-serif;font-weight:550;font-size:16px;fill:#64748B}
+      .badge{font-family:Inter,Arial,sans-serif;font-weight:800;font-size:14px;fill:white}
+    </style>
+  </defs>
+
+  <rect width="1944" height="809" fill="#FBFCFF"/>
+  <text x="25" y="34" class="title">Header dùng chung</text>
+
+  <text x="25" y="78" class="section">1. Light mode (mặc định)</text>
+  <rect x="25" y="101" width="1894" height="116" rx="12" fill="white" stroke="#E2E8F0" filter="url(#shadow)"/>
+  <rect x="54" y="128" width="65" height="62" rx="10" fill="#FFFFFF" stroke="#E2E8F0"/>
+  <path d="M76 150H98M76 160H98M76 170H98" stroke="#0F172A" stroke-width="2.8" stroke-linecap="round"/>
+
+  <!-- Sakura logo light -->
+  <g transform="translate(158 135)">
+    <circle cx="30" cy="31" r="7" fill="#F4729B"/>
+    <ellipse cx="30" cy="12" rx="9" ry="17" fill="#FB8AAF" transform="rotate(0 30 12)"/>
+    <ellipse cx="47" cy="25" rx="9" ry="17" fill="#FB8AAF" transform="rotate(72 47 25)"/>
+    <ellipse cx="41" cy="47" rx="9" ry="17" fill="#FB8AAF" transform="rotate(144 41 47)"/>
+    <ellipse cx="18" cy="47" rx="9" ry="17" fill="#FB8AAF" transform="rotate(216 18 47)"/>
+    <ellipse cx="12" cy="25" rx="9" ry="17" fill="#FB8AAF" transform="rotate(288 12 25)"/>
+    <circle cx="30" cy="31" r="4" fill="#FFE4EC"/>
+  </g>
+  <text x="235" y="169" class="brand">AI Review</text>
+  <line x1="450" y1="122" x2="450" y2="196" stroke="#E2E8F0"/>
+  <g transform="translate(500 147)">
+    <path d="M11 18V9L24 0L37 9V18" stroke="#0F172A" stroke-width="2.3" stroke-linejoin="round"/>
+    <path d="M16 18V11H32V18" stroke="#0F172A" stroke-width="2.3"/>
+  </g>
+  <text x="555" y="166" class="muted">/</text>
+  <text x="588" y="166" class="menuText">Project</text>
+  <text x="678" y="166" class="muted">/</text>
+  <text x="713" y="166" class="menuText">Website E-commerce</text>
+  <path d="M919 156L928 164L937 156" stroke="#0F172A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <rect x="1554" y="128" width="66" height="62" rx="10" fill="#FFFFFF" stroke="#E2E8F0"/>
+  <circle cx="1587" cy="159" r="12" stroke="#0F172A" stroke-width="2.2"/>
+  <path d="M1587 136V145M1587 173V182M1564 159H1573M1601 159H1610M1571 143L1577 149M1597 169L1603 175M1603 143L1597 149M1577 169L1571 175" stroke="#0F172A" stroke-width="2.1" stroke-linecap="round"/>
+  <rect x="1660" y="128" width="212" height="62" rx="10" fill="#FFFFFF" stroke="#E2E8F0"/>
+  <circle cx="1689" cy="159" r="12" stroke="#0F172A" stroke-width="2.2"/>
+  <path d="M1677 159H1701M1689 147C1694 153 1694 165 1689 171M1689 147C1684 153 1684 165 1689 171" stroke="#0F172A" stroke-width="1.9"/>
+  <text x="1717" y="166" class="menuText">Tiếng Việt</text>
+  <path d="M1842 155L1852 164L1862 155" stroke="#0F172A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <text x="25" y="256" class="section">2. Dark mode</text>
+  <rect x="25" y="274" width="1894" height="112" rx="8" fill="url(#darkHeader)" filter="url(#shadow)"/>
+  <rect x="54" y="300" width="65" height="62" rx="10" fill="white" fill-opacity="0.06"/>
+  <path d="M76 322H98M76 332H98M76 342H98" stroke="#F8FAFC" stroke-width="2.8" stroke-linecap="round"/>
+  <g transform="translate(158 306)">
+    <circle cx="30" cy="31" r="7" fill="#F4729B"/>
+    <ellipse cx="30" cy="12" rx="9" ry="17" fill="#FB8AAF"/>
+    <ellipse cx="47" cy="25" rx="9" ry="17" fill="#FB8AAF" transform="rotate(72 47 25)"/>
+    <ellipse cx="41" cy="47" rx="9" ry="17" fill="#FB8AAF" transform="rotate(144 41 47)"/>
+    <ellipse cx="18" cy="47" rx="9" ry="17" fill="#FB8AAF" transform="rotate(216 18 47)"/>
+    <ellipse cx="12" cy="25" rx="9" ry="17" fill="#FB8AAF" transform="rotate(288 12 25)"/>
+    <circle cx="30" cy="31" r="4" fill="#FFE4EC"/>
+  </g>
+  <text x="235" y="340" class="brandDark">AI Review</text>
+  <line x1="450" y1="294" x2="450" y2="366" stroke="#334155" opacity="0.55"/>
+  <g transform="translate(500 319)">
+    <path d="M11 18V9L24 0L37 9V18" stroke="#F8FAFC" stroke-width="2.3" stroke-linejoin="round"/>
+    <path d="M16 18V11H32V18" stroke="#F8FAFC" stroke-width="2.3"/>
+  </g>
+  <text x="555" y="338" class="menuTextDark" opacity="0.8">/</text>
+  <text x="588" y="338" class="menuTextDark">Project</text>
+  <text x="678" y="338" class="menuTextDark" opacity="0.8">/</text>
+  <text x="713" y="338" class="menuTextDark">Website E-commerce</text>
+  <path d="M919 328L928 337L937 328" stroke="#F8FAFC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="1554" y="300" width="66" height="62" rx="10" fill="white" fill-opacity="0.07"/>
+  <path d="M1598 342C1585 346 1574 336 1578 323C1579 316 1584 311 1590 309C1586 317 1588 329 1598 342Z" stroke="#F8FAFC" stroke-width="2.4" stroke-linejoin="round"/>
+  <rect x="1660" y="300" width="212" height="62" rx="10" fill="white" fill-opacity="0.07"/>
+  <circle cx="1689" cy="331" r="12" stroke="#F8FAFC" stroke-width="2.2"/>
+  <path d="M1677 331H1701M1689 319C1694 325 1694 337 1689 343M1689 319C1684 325 1684 337 1689 343" stroke="#F8FAFC" stroke-width="1.9"/>
+  <text x="1717" y="338" class="menuTextDark">Tiếng Việt</text>
+  <path d="M1842 327L1852 336L1862 327" stroke="#F8FAFC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <text x="25" y="438" class="section">3. Thành phần trong header</text>
+  <g>
+    <circle cx="52" cy="489" r="13" fill="#F05B86"/><text x="48" y="494" class="badge">1</text>
+    <text x="78" y="494" class="h2">Menu thu gọn/mở rộng</text><text x="80" y="527" class="body">Mở hoặc thu sidebar</text>
+    <line x1="100" y1="544" x2="100" y2="555" stroke="#F05B86" stroke-dasharray="3 4"/>
+    <rect x="97" y="555" width="65" height="58" rx="9" fill="white" stroke="#E2E8F0" filter="url(#soft)"/>
+    <path d="M120 577H142M120 587H142M120 597H142" stroke="#0F172A" stroke-width="2.6" stroke-linecap="round"/>
+  </g>
+  <g>
+    <circle cx="342" cy="489" r="13" fill="#F05B86"/><text x="338" y="494" class="badge">2</text>
+    <text x="368" y="494" class="h2">Logo &amp; Tên hệ thống</text><text x="378" y="527" class="body">Nhấn để về trang tổng quan</text>
+    <line x1="393" y1="544" x2="393" y2="555" stroke="#F05B86" stroke-dasharray="3 4"/>
+    <g transform="translate(340 558) scale(.62)">
+      <circle cx="30" cy="31" r="7" fill="#F4729B"/>
+      <ellipse cx="30" cy="12" rx="9" ry="17" fill="#FB8AAF"/>
+      <ellipse cx="47" cy="25" rx="9" ry="17" fill="#FB8AAF" transform="rotate(72 47 25)"/>
+      <ellipse cx="41" cy="47" rx="9" ry="17" fill="#FB8AAF" transform="rotate(144 41 47)"/>
+      <ellipse cx="18" cy="47" rx="9" ry="17" fill="#FB8AAF" transform="rotate(216 18 47)"/>
+      <ellipse cx="12" cy="25" rx="9" ry="17" fill="#FB8AAF" transform="rotate(288 12 25)"/>
+    </g>
+    <text x="400" y="594" class="brand">AI Review</text>
+  </g>
+  <g>
+    <circle cx="693" cy="489" r="13" fill="#F05B86"/><text x="689" y="494" class="badge">3</text>
+    <text x="719" y="494" class="h2">Breadcrumb</text><text x="718" y="527" class="body">Hiển thị vị trí hiện tại</text>
+    <line x1="620" y1="544" x2="620" y2="555" stroke="#F05B86" stroke-dasharray="3 4"/>
+    <line x1="637" y1="544" x2="637" y2="555" stroke="#F05B86" stroke-dasharray="3 4"/>
+    <g transform="translate(612 570)">
+      <path d="M6 17V8L18 0L30 8V17" stroke="#0F172A" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M11 17V11H25V17" stroke="#0F172A" stroke-width="2"/>
+    </g>
+    <text x="672" y="592" class="muted">/</text><text x="700" y="592" class="menuText">Project</text>
+    <text x="785" y="592" class="muted">/</text><text x="818" y="592" class="menuText">Website E-commerce</text>
+    <path d="M1001 582L1010 591L1019 582" stroke="#0F172A" stroke-width="2.3" stroke-linecap="round"/>
+  </g>
+  <g>
+    <circle cx="1080" cy="489" r="13" fill="#F05B86"/><text x="1076" y="494" class="badge">4</text>
+    <text x="1106" y="494" class="h2">Chuyển đổi theme</text><text x="1102" y="527" class="body">Sáng / Tối</text>
+    <line x1="1140" y1="544" x2="1140" y2="555" stroke="#F05B86" stroke-dasharray="3 4"/>
+    <rect x="1076" y="555" width="58" height="58" rx="9" fill="white" stroke="#E2E8F0" filter="url(#soft)"/>
+    <circle cx="1105" cy="584" r="11" stroke="#0F172A" stroke-width="2"/>
+    <path d="M1105 564V571M1105 597V604M1085 584H1092M1118 584H1125M1091 570L1096 575M1114 593L1119 598M1119 570L1114 575M1096 593L1091 598" stroke="#0F172A" stroke-width="1.8" stroke-linecap="round"/>
+    <rect x="1160" y="555" width="58" height="58" rx="9" fill="white" stroke="#E2E8F0" filter="url(#soft)"/>
+    <path d="M1199 596C1187 599 1177 590 1181 578C1182 571 1187 567 1192 565C1188 573 1190 585 1199 596Z" stroke="#0F172A" stroke-width="2.1"/>
+  </g>
+  <g>
+    <circle cx="1372" cy="489" r="13" fill="#F05B86"/><text x="1368" y="494" class="badge">5</text>
+    <text x="1398" y="494" class="h2">Chọn ngôn ngữ</text><text x="1398" y="527" class="body">Đa ngôn ngữ</text>
+    <line x1="1450" y1="544" x2="1450" y2="555" stroke="#F05B86" stroke-dasharray="3 4"/>
+    <rect x="1354" y="555" width="213" height="58" rx="9" fill="white" stroke="#E2E8F0" filter="url(#soft)"/>
+    <circle cx="1386" cy="584" r="11" stroke="#0F172A" stroke-width="2"/>
+    <path d="M1375 584H1397M1386 573C1391 579 1391 589 1386 595M1386 573C1381 579 1381 589 1386 595" stroke="#0F172A" stroke-width="1.8"/>
+    <text x="1414" y="592" class="menuText">Tiếng Việt</text>
+    <path d="M1536 581L1546 590L1556 581" stroke="#0F172A" stroke-width="2.3" stroke-linecap="round"/>
+  </g>
+
+  <line x1="1618" y1="516" x2="1618" y2="716" stroke="#CBD5E1" stroke-dasharray="4 4"/>
+  <rect x="1652" y="516" width="248" height="202" rx="10" fill="white" stroke="#E2E8F0" filter="url(#shadow)"/>
+  <text x="1670" y="548" class="h2">Chọn ngôn ngữ</text>
+  <g transform="translate(1670 580)">
+    <rect x="0" y="0" width="28" height="18" rx="2" fill="#EF4444"/>
+    <path d="M14 3L16 10H23L17 13L19 20L14 16L9 20L11 13L5 10H12L14 3Z" fill="#FDE047" transform="scale(.75) translate(4 0)"/>
+    <text x="42" y="17" class="menuText">Tiếng Việt</text>
+    <path d="M203 8L211 16L226 0" stroke="#2563EB" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <g transform="translate(1670 632)">
+    <rect x="0" y="0" width="28" height="18" rx="2" fill="#3B82F6"/>
+    <path d="M0 3H28M0 8H28M0 13H28" stroke="white" stroke-width="1.6"/>
+    <text x="42" y="17" class="menuText">English</text>
+  </g>
+  <g transform="translate(1670 685)">
+    <rect x="0" y="0" width="28" height="18" rx="2" fill="white" stroke="#E2E8F0"/>
+    <circle cx="14" cy="9" r="5" fill="#EF4444"/>
+    <text x="42" y="17" class="menuText">日本語</text>
+  </g>
+
+  <rect x="40" y="651" width="942" height="142" rx="9" fill="url(#noteBg)" stroke="#BFD4FF"/>
+  <circle cx="75" cy="682" r="17" fill="#E5EEFF" stroke="#8AB4FF"/>
+  <text x="70" y="688" class="h2" fill="#2563EB">i</text>
+  <text x="104" y="688" class="h2" fill="#2563EB">Ghi chú</text>
+  <text x="100" y="721" class="body">• Header cố định ở phía trên, chiều cao: 64px</text>
+  <text x="100" y="747" class="body">• Khoảng cách giữa các thành phần được tối ưu theo thiết kế</text>
+  <text x="100" y="773" class="body">• Tương thích responsive: trên mobile, breadcrumb có thể ẩn bớt để tối ưu không gian</text>
+</svg>
