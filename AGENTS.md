@@ -366,3 +366,36 @@ Không overwrite
 ## Upload UI Rule (Current)
 
 - Trước khi bấm review, UI phải hiển thị rõ bộ tiêu chuẩn đang áp dụng theo scope hiện tại.
+
+## Operational Truth Guardrail (Current)
+
+- Mọi cải tiến Dashboard/UI/UX phải bám sát dữ liệu thật và nghiệp vụ thật hiện có.
+- Chỉ được tổ chức lại dữ liệu có thật, tăng clarity, tăng decision-support và trustworthiness.
+- Không được invent:
+  - AI prediction/AI confidence giả
+  - risk score giả
+  - governance engine giả
+  - recommendation không có logic backend
+  - analytics cần API chưa tồn tại
+  - workflow nghiệp vụ chưa được implement
+
+## Allowed Data Sources For UI Blocks
+
+- Dữ liệu hợp lệ để hiển thị/derive:
+  - Project / Document / Version / GradingRun
+  - grading status lifecycle (`PENDING/EXTRACTING/GRADING/COMPLETED/FAILED`)
+  - audit history
+  - version diff
+  - export CSV state
+  - evaluation set / prompt level
+  - metrics endpoint (`/metrics`) và operational metrics hiện có
+  - retry / queue delay / API latency metrics (nếu đã được backend expose)
+
+## Rule Before Adding New Dashboard Block
+
+- Phải ghi rõ:
+  1. Block dùng dữ liệu/API/metrics nào đang tồn tại
+  2. Dữ liệu derive trực tiếp từ state hiện tại hay từ endpoint nào
+  3. Regression risk
+  4. Có cần API mới không
+- Nếu cần backend rewrite lớn hoặc đổi business flow: **không implement**.

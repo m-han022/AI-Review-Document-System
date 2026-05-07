@@ -235,6 +235,62 @@ System = Versioned + Immutable + Auditable + Async (Production)
 
 ---
 
+# 📌 Current Product State (Latest)
+
+- Phase 1–5 completed and stable.
+- Core architecture stable: `Project -> Document -> Version -> GradingRun`.
+- i18n dictionaries (VI/JA) are clean:
+  - Missing keys: 0
+  - Used-key missing: 0
+  - Potential mojibake (VI/JA): 0
+- Frontend operational modules already implemented:
+  - Audit Dashboard
+  - Version Diff
+  - Export CSV
+  - Evaluation Set / Prompt Level flows
+  - Async grading status visibility
+
+---
+
+# 🛡️ Operational Truth Guardrail
+
+All dashboard/UI/UX refinements must be grounded in **real existing system data**.
+
+Allowed:
+- reorganize existing data
+- derive insights directly from current state/API/metrics
+- improve operational clarity, governance visibility, decision support
+
+Not allowed:
+- fake AI insights/predictions
+- fake governance/risk scoring
+- recommendation logic without backend source
+- analytics requiring non-existing APIs
+- workflow changes that alter business behavior
+
+Before adding any new UI block:
+1. map to existing API/metric/state source
+2. evaluate regression risk
+3. confirm no large backend rewrite needed
+
+---
+
+# ✅ Release Validation Gate
+
+For UI polish and documentation-aligned releases:
+
+```bash
+npm run build
+npm run check:i18n
+```
+
+Expected:
+- Missing in vi/ja = 0
+- Used keys missing in dictionary = 0
+- Potential mojibake vi/ja = 0
+
+---
+
 # 🔄 Runtime Behavior (Current)
 
 ## Review Flow (Auto Mode)

@@ -303,3 +303,51 @@ Khi gọi review:
 - Trước khi review, màn Upload phải hiển thị rõ bộ tiêu chuẩn đang áp dụng theo scope hiện tại.
 - Nếu điều kiện chưa sẵn sàng (project chưa chọn/cấu hình chưa sẵn), nút hành động phải khóa kèm lý do rõ.
 
+---
+
+## Operational Dashboard Integrity (Current)
+
+- Dashboard phải là **Enterprise AI Review Operations Center** dựa trên dữ liệu thật.
+- Mọi block mới trên UI chỉ được dùng:
+  - dữ liệu API hiện có
+  - dữ liệu metrics hiện có
+  - hoặc dữ liệu derive trực tiếp từ state hiện tại
+- Không được thêm analytics/prediction/recommendation nếu backend không có nguồn dữ liệu thật tương ứng.
+
+### Allowed Signals
+
+- review failed count
+- retry count
+- queue delay trend
+- API latency trend
+- export status
+- grading duration
+- low score documents
+- latest audit runs
+- latest version diffs
+- evaluation set coverage
+- prompt level distribution
+- completed vs failed reviews
+- recent operational events
+
+### Not Allowed
+
+- AI confidence score nếu backend không có
+- predictive risk engine
+- anomaly detection AI chưa implement
+- reviewer productivity ranking không có source thật
+- recommendation engine không có logic backend
+
+---
+
+## UI/UX Governance (Current)
+
+- Mục tiêu UI/UX:
+  1. operational truth
+  2. governance clarity
+  3. workflow visibility
+  4. actionable review operations
+  5. enterprise trust
+- Không đổi business flow khi polish UI.
+- Không đổi grading architecture khi polish UI.
+
