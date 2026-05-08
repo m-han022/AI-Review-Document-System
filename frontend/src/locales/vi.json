@@ -31,7 +31,8 @@
     "back": "Quay lại",
     "noData": "Không có dữ liệu",
     "yes": "Có",
-    "no": "Không"
+    "no": "Không",
+    "improveAction": "Hành động cải thiện"
   },
   "sm": {
     "common": {
@@ -489,6 +490,10 @@
     "detailDialogTitle": "Nhận xét chi tiết",
     "explanationBlock": "Giải thích",
     "improveScoreBlock": "Để tăng điểm",
+    "exportReport": "Xuất báo cáo",
+    "actionChecklist": "Checklist hành động",
+    "detailedBreakdown": "Phân tích chi tiết tiêu chí",
+    "noActionRequired": "Tuyệt vời! Không có hành động nào cần thực hiện cho phiên bản này.",
     "downloadResult": "Tải kết quả",
     "rerunReview": "Chạy lại review",
     "rerunSuccess": "Đã gửi yêu cầu chạy lại review.",

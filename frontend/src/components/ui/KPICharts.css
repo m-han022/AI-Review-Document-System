@@ -64,3 +64,103 @@
   background-color: var(--ds-color-danger-light);
   color: var(--ds-color-danger);
 }
+
+/* Premium Chart Tooltip */
+.chart-tooltip-v3 {
+  background: #1e293b;
+  border: 1px solid #334155;
+  padding: 8px 12px;
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+
+.chart-tooltip-v3 .label {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8; /* Muted light color for label */
+  margin-bottom: 2px;
+}
+
+.chart-tooltip-v3 .value {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff; /* Brilliant white for value */
+}
+
+/* KPI Progress List V4 */
+.kpi-progress-list-v4 {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-4);
+  width: 100%;
+}
+
+.kpi-progress-row-v4 {
+  transition: all 0.2s ease;
+  padding: var(--ds-space-2) var(--ds-space-3);
+  border-radius: var(--ds-radius-md);
+  cursor: default;
+}
+
+.kpi-progress-row-v4.is-focused {
+  background-color: var(--ds-color-bg-muted);
+  transform: translateX(4px);
+}
+
+.kpi-progress-row-v4.is-dimmed {
+  opacity: 0.4;
+  filter: grayscale(0.5);
+}
+
+.kpi-progress-info-v4 {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: var(--ds-space-2);
+}
+
+.kpi-progress-label-v4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ds-color-text-main);
+}
+
+.kpi-progress-value-v4 {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ds-color-text-muted);
+}
+
+.kpi-progress-track-v4 {
+  height: 24px;
+  background-color: var(--ds-color-bg-muted);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid var(--ds-color-border);
+}
+
+.kpi-progress-fill-v4 {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: var(--ds-space-3);
+  transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 0 12px 12px 0;
+}
+
+.kpi-progress-percent-tag-v4 {
+  font-size: 11px;
+  font-weight: 800;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.kpi-progress-fill-v4--success { background: linear-gradient(90deg, #10b981, #34d399); }
+.kpi-progress-fill-v4--warning { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.kpi-progress-fill-v4--danger { background: linear-gradient(90deg, #ef4444, #f87171); }
+

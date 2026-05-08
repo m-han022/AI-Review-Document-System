@@ -7,7 +7,6 @@ import {
   listDocumentVersions, 
   listVersionGradings, 
   getGradingRun,
-  getSubmissionGradingRuns,
   getSubmissionFileUrl,
   gradeSubmission,
   compareVersions,
@@ -43,7 +42,8 @@ import {
   ChevronRightIcon,
   ChevronLeftIcon,
   FileTextIcon,
-  MaximizeIcon
+  MaximizeIcon,
+  EyeIcon
 } from "../ui/Icon";
 import { formatUploadedAt } from "../submissions/utils";
 import ProjectReviewDialog from "./ProjectReviewDialog";
@@ -52,7 +52,7 @@ import {
 } from "./ProjectReviewPanels";
 import { LoadingState, EmptyState, StatusBadge, Tooltip } from "../ui/States";
 import { Button, Card, Select } from "../ui";
-import { KPIPieChart } from "../ui/KPICharts";
+import { KPIPieChart, KPIProgressList } from "../ui/KPICharts";
 import "./ProjectCard.css";
 
 
@@ -214,6 +214,8 @@ export default function ProjectCard({ projectId }: ProjectCardProps) {
   const [promptUsedOpen, setPromptUsedOpen] = useState(false);
   const [promptUsedText] = useState("");
   const [, setActionMessage] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
+  const [hoveredCriterion, setHoveredCriterion] = useState<string | null>(null);
+
 
   // Comparison states
   const [comparisonMode, setComparisonMode] = useState(false);
@@ -672,7 +674,7 @@ export default function ProjectCard({ projectId }: ProjectCardProps) {
             </div>
           </div>
           <div className="metric-card-v3">
-            <div className="metric-icon-wrapper" style={{ background: 'var(--ds-color-success-soft)', color: 'var(--ds-color-success)' }}>
+            <div className={`metric-icon-wrapper ${ngSlideCount > 0 ? 'pulse-danger' : ''}`} style={{ background: ngSlideCount > 0 ? 'var(--ds-color-danger-soft)' : 'var(--ds-color-success-soft)', color: ngSlideCount > 0 ? 'var(--ds-color-danger)' : 'var(--ds-color-success)' }}>
               <ShieldCheckIcon size="sm" />
             </div>
             <div className="metric-card-v3__label">{t("project.documentStatus")}</div>
@@ -720,79 +722,107 @@ export default function ProjectCard({ projectId }: ProjectCardProps) {
         </div>
 
         {/* Workspace Content */}
-        <div className="workspace-content-v3">
+        <section className="workspace-content-v3">
           {activeTab === "criteria" ? (
             <>
-              <div className="project-toolbar-v3" style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: '12px 20px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>{t("project.scoreOverview")}</h3>
-                <Button variant="secondary" size="sm">
-                  {t("project.exportReport")}
-                </Button>
-              </div>
+              <header className="project-toolbar-v3">
+                <h3>{t("project.scoreOverview")}</h3>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <Button variant="secondary" size="sm">
+                    {t("project.exportReport")}
+                  </Button>
+                </div>
+              </header>
 
-              <Card>
-                <div className="score-overview-layout-v3">
-                  <div className="metrics-side-v3">
-                    <div className="criteria-grid">
-                      {orderedScores.map((item) => {
-                        const Icon = item.Icon;
-                        return (
-                          <Tooltip key={item.key} content={item.label}>
-                            <div className="criteria-stat-card">
-                              <div className="criteria-stat-card__icon">
-                                <Icon size="sm" />
-                              </div>
-                              <div className="criteria-stat-card__content">
-                                <span className="criteria-stat-card__label">{item.label}</span>
-                                <div className="criteria-stat-card__value">
-                                  <strong>{item.value}</strong>
-                                  <small>/{item.max}</small>
-                                </div>
-                              </div>
-                            </div>
-                          </Tooltip>
-                        );
-                      })}
+              <Card className="score-overview-card-v4">
+                <div className="overview-split-v4">
+                  {/* Part 1: Visual Score Compass */}
+                  <div className="overview-visual-pane">
+                    <div className="visual-header-v4">
+                      <h4 className="visual-title-v4">{t("project.totalScore")}</h4>
+                      <div className="trend-indicator-v4 success">
+                        <SparkIcon size="sm" />
+                        <span>+12% vs v1</span>
+                      </div>
+                    </div>
+                    
+                    <div className="pie-wrapper-v4">
+                      <KPIPieChart 
+                        data={orderedScores} 
+                        highlightedKey={hoveredCriterion} 
+                      />
+                    </div>
+
+                    <div className="quick-insight-v4">
+                      <div className="insight-item-v4 success">
+                        <ShieldCheckIcon size="sm" />
+                        <span>Best: {orderedScores.sort((a,b) => b.value/b.max - a.value/a.max)[0]?.label}</span>
+                      </div>
+                      <div className="insight-item-v4 danger">
+                        <AlertTriangleIcon size="sm" />
+                        <span>Fix: {orderedScores.sort((a,b) => a.value/a.max - b.value/b.max)[0]?.label}</span>
+                      </div>
                     </div>
                   </div>
-                  
-                  <div className="criteria-visuals">
-                    <div className="version-trend-badge">
-                      <span className="trend-label">So với #{Math.max(1, (result?.id || 1) - 1)}</span>
-                      <span className="trend-value success">+12%</span>
+
+                  {/* Part 2: Performance Matrix */}
+                  <div className="overview-matrix-pane">
+                    <div className="matrix-header-v4">
+                      <h4 className="matrix-title-v4">{t("project.criteriaScores")}</h4>
+                      <Button variant="ghost" size="sm">Sort by Score</Button>
                     </div>
-                    <KPIPieChart data={orderedScores} />
+                    
+                    <KPIProgressList 
+                      data={orderedScores} 
+                      highlightedKey={hoveredCriterion}
+                      onHover={setHoveredCriterion}
+                    />
                   </div>
                 </div>
               </Card>
 
-              <div className="action-center-v3">
-                <div className="section-header-v3">
+              <section className="action-center-v3">
+                <header className="section-header-v3">
                   <h2 className="section-title-v3">{t("project.actionChecklist")}</h2>
-                  <span className="section-badge-v3">{feedbackSections.length} việc cần làm</span>
-                </div>
+                  <span className="section-badge-v3">
+                    {feedbackSections.length} {t("project.remainingTasks")}
+                  </span>
+                </header>
                 
                 <div className="action-grid-v3">
-                  {feedbackSections.map((section, idx) => (
-                    <div key={idx} className="action-card-v3">
-                      <div className="action-card-v3__checkbox">
-                        <div className="custom-cb"></div>
-                      </div>
-                      <div className="action-card-v3__content">
-                        <div className="action-card-v3__header">
-                          <h3 className="action-card-v3__title">{section.title || "Cải thiện nội dung"}</h3>
-                          <span className="action-card-v3__slide-tag">Slide {Math.floor(Math.random() * 10) + 1}</span>
+                  {feedbackSections.length > 0 ? (
+                    feedbackSections.map((section, idx) => (
+                      <article 
+                        key={idx} 
+                        className="action-card-v4"
+                      >
+                        <div className="action-card-v4__indicator" />
+                        <div className="action-card-v4__content">
+                          <div className="action-card-v4__header">
+                            <h3 className="action-card-v4__title">{section.title || t("common.improveAction")}</h3>
+                            <div className="action-card-v4__meta">
+                              <span className="action-card-v4__tag">Priority High</span>
+                            </div>
+                          </div>
+                          <div className="action-card-v4__body">
+                            {section.lines.map((line, lidx) => (
+                              <div key={lidx} className="action-line-v4">
+                                <span className="action-line-v4__bullet">•</span>
+                                <p>{line}</p>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <div className="action-card-v3__body">
-                          {section.lines.map((line, lidx) => (
-                            <p key={lidx}>{line}</p>
-                          ))}
-                        </div>
-                      </div>
+                      </article>
+                    ))
+                  ) : (
+                    <div className="action-empty-v4">
+                      <ShieldCheckIcon size="lg" style={{ color: 'var(--ds-color-success)', marginBottom: '16px', opacity: 0.5 }} />
+                      <p>{t("project.noActionRequired")}</p>
                     </div>
-                  ))}
+                  )}
                 </div>
-              </div>
+              </section>
             </>
           ) : (
             <div className="workspace-viewer-v3">
@@ -916,7 +946,7 @@ export default function ProjectCard({ projectId }: ProjectCardProps) {
               )}
             </div>
           )}
-        </div>
+        </section>
       </main>
 
       {summaryDialogOpen && (

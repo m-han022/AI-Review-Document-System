@@ -1,31 +1,46 @@
 import { useMemo } from "react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Label } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Label, Tooltip } from "recharts";
 import "./KPICharts.css";
 
 interface KPIBarChartProps {
   data: {
+    key: string;
     label: string;
     value: number;
     max: number;
   }[];
 }
 
-export function KPIBarChart({ data }: KPIBarChartProps) {
+export function KPIProgressList({ data, highlightedKey, onHover }: { 
+  data: KPIBarChartProps["data"], 
+  highlightedKey?: string | null,
+  onHover?: (key: string | null) => void 
+}) {
   return (
-    <div className="kpi-bar-chart">
-      {data.map((item, idx) => {
+    <div className="kpi-progress-list-v4">
+      {data.map((item) => {
         const percent = Math.round((item.value / item.max) * 100);
+        const status = percent >= 80 ? 'success' : percent >= 60 ? 'warning' : 'danger';
+        const isFocused = highlightedKey === item.key;
+        
         return (
-          <div key={idx} className="kpi-bar-chart__row">
-            <div className="kpi-bar-chart__header">
-              <span className="kpi-bar-chart__label">{item.label}</span>
-              <span className="kpi-bar-chart__value">{item.value}/{item.max}</span>
+          <div 
+            key={item.key} 
+            className={`kpi-progress-row-v4 ${isFocused ? 'is-focused' : ''} ${highlightedKey && !isFocused ? 'is-dimmed' : ''}`}
+            onMouseEnter={() => onHover?.(item.key)}
+            onMouseLeave={() => onHover?.(null)}
+          >
+            <div className="kpi-progress-info-v4">
+              <span className="kpi-progress-label-v4">{item.label}</span>
+              <span className="kpi-progress-value-v4">{item.value}/{item.max}</span>
             </div>
-            <div className="kpi-bar-chart__track">
+            <div className="kpi-progress-track-v4">
               <div 
-                className={`kpi-bar-chart__fill kpi-bar-chart__fill--${percent >= 80 ? 'success' : percent >= 60 ? 'warning' : 'danger'}`}
+                className={`kpi-progress-fill-v4 kpi-progress-fill-v4--${status}`}
                 style={{ width: `${percent}%` }}
-              />
+              >
+                {percent > 15 && <span className="kpi-progress-percent-tag-v4">{percent}%</span>}
+              </div>
             </div>
           </div>
         );
@@ -34,9 +49,14 @@ export function KPIBarChart({ data }: KPIBarChartProps) {
   );
 }
 
-export function KPIPieChart({ data }: KPIBarChartProps) {
+interface KPIPieChartProps extends KPIBarChartProps {
+  highlightedKey?: string | null;
+}
+
+export function KPIPieChart({ data, highlightedKey }: KPIPieChartProps) {
   const chartData = useMemo(() => {
     return data.map(item => ({
+      key: item.key,
       name: item.label,
       value: item.value,
       max: item.max,
@@ -59,71 +79,82 @@ export function KPIPieChart({ data }: KPIBarChartProps) {
     '#ec4899', // Pink
   ];
 
-  const STATUS_COLORS = {
-    success: '#10b981',
-    warning: '#f59e0b',
-    danger: '#ef4444'
-  };
-
   return (
     <div className="kpi-pie-container-v3">
       <div className="kpi-pie-visual">
-        <ResponsiveContainer width="100%" height={260}>
-          <PieChart>
+        <ResponsiveContainer width="100%" height={360}>
+          <PieChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
             <Pie
               data={chartData}
               cx="50%"
               cy="50%"
-              innerRadius={75}
-              outerRadius={95}
-              paddingAngle={4}
+              innerRadius={85}
+              outerRadius={110}
+              paddingAngle={6}
               dataKey="value"
               animationBegin={0}
-              animationDuration={1200}
+              animationDuration={1500}
+              stroke="#ffffff"
+              strokeWidth={3}
             >
-              {chartData.map((_, index) => (
+              {chartData.map((item, index) => (
                 <Cell 
                   key={`cell-${index}`} 
                   fill={COLORS_PALETTE[index % COLORS_PALETTE.length]} 
-                  stroke="#ffffff" 
-                  strokeWidth={2}
+                  opacity={!highlightedKey || highlightedKey === item.key ? 1 : 0.3}
+                  stroke={highlightedKey === item.key ? '#000' : '#fff'}
+                  strokeWidth={highlightedKey === item.key ? 4 : 2}
                 />
               ))}
               <Label 
-                value={`${totalScore}%`} 
-                position="center" 
-                className="pie-center-label"
+                content={({ viewBox }) => {
+                  const { cx, cy } = (viewBox || {}) as any;
+                  if (!cx || !cy) return null;
+                  return (
+                    <g>
+                      <text
+                        x={cx}
+                        y={cy - 10}
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                        style={{ fontSize: '12px', fontWeight: 600, fill: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                      >
+                        Score
+                      </text>
+                      <text
+                        x={cx}
+                        y={cy + 20}
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                        className="pie-center-label"
+                      >
+                        {totalScore}%
+                      </text>
+                    </g>
+                  );
+                }}
               />
             </Pie>
-            <Tooltip />
+            <Tooltip 
+              content={<CustomTooltip />} 
+              allowEscapeViewBox={{ x: true, y: true }}
+              wrapperStyle={{ zIndex: 1000 }}
+            />
           </PieChart>
         </ResponsiveContainer>
-      </div>
-      <div className="kpi-pie-legend">
-        {chartData.map((item, idx) => {
-          const statusColor = item.percent >= 80 ? STATUS_COLORS.success : item.percent >= 60 ? STATUS_COLORS.warning : STATUS_COLORS.danger;
-          const sliceColor = COLORS_PALETTE[idx % COLORS_PALETTE.length];
-          return (
-            <div key={idx} className="kpi-legend-item">
-              <span className="kpi-legend-dot" style={{ background: sliceColor }} />
-              <span className="kpi-legend-text">{item.name}</span>
-              <span className="kpi-legend-status-dot" style={{ background: statusColor }} title="Status Indicator" />
-              <span className="kpi-legend-score">{item.value}/{item.max}</span>
-            </div>
-          );
-        })}
       </div>
     </div>
   );
 }
 
 // Minimal Tooltip for Recharts
-const Tooltip = ({ active, payload }: any) => {
+const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
       <div className="chart-tooltip-v3">
-        <p className="label">{`${data.name} : ${data.value}/${data.max}`}</p>
+        <p className="label">{data.name}</p>
+        <p className="value">{data.value}/{data.max}</p>
       </div>
     );
   }

@@ -145,11 +145,11 @@ export default function DashboardOverview({ projects, onSelectProject }: Dashboa
   return (
     <div className="dashboard-container">
       {/* KPI Cards Section */}
-      <div className="dashboard-kpis">
+      <section className="dashboard-kpis">
         <Card className="kpi-card">
           <div className="kpi-card__header">
             <div className="kpi-card__icon"><TargetIcon size="md" /></div>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div className="kpi-card__badge-row">
               <StatusBadge tone="primary">{t("dashboard.scoreLabel")}</StatusBadge>
               <span className="kpi-trend kpi-trend--up">▲ 4.2%</span>
             </div>
@@ -161,7 +161,7 @@ export default function DashboardOverview({ projects, onSelectProject }: Dashboa
         <Card className="kpi-card">
           <div className="kpi-card__header">
             <div className="kpi-card__icon"><FileReviewIcon size="md" /></div>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div className="kpi-card__badge-row">
               <StatusBadge tone="success">{t("dashboard.statusCompleted")}</StatusBadge>
               <span className="kpi-trend kpi-trend--up">▲ 1</span>
             </div>
@@ -178,11 +178,11 @@ export default function DashboardOverview({ projects, onSelectProject }: Dashboa
           <div className="kpi-card__value">{projects.length}</div>
           <div className="kpi-card__label">{t("dashboard.activeProjects")}</div>
         </Card>
-      </div>
+      </section>
 
       {/* Main Grid Section */}
-      <div className="dashboard-main-grid">
-        <div className="dashboard-main-stack">
+      <main className="dashboard-main-grid">
+        <section className="dashboard-main-stack">
           {/* Main Chart Card */}
           <Card 
             title={t("dashboard.scoreBarsTitle")} 
@@ -260,7 +260,7 @@ export default function DashboardOverview({ projects, onSelectProject }: Dashboa
               </table>
             </div>
           </Card>
-        </div>
+        </section>
 
         {/* Sidebar Sections */}
         <aside className="dashboard-sidebar">
@@ -278,10 +278,10 @@ export default function DashboardOverview({ projects, onSelectProject }: Dashboa
 
             <div className="sidebar-section">
               <h3 className="sidebar-section__title">{t("dashboard.actionPanelTitle")}</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div className="sidebar-action-stack">
                 {attentionItems.map((item) => (
-                  <div key={item.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--ds-color-bg-muted)', borderRadius: 'var(--ds-radius-md)' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 600 }}>{item.label}</span>
+                  <div key={item.key} className="sidebar-action-item">
+                    <span>{item.label}</span>
                     <StatusBadge tone={item.tone}>{item.count}</StatusBadge>
                   </div>
                 ))}
@@ -292,7 +292,7 @@ export default function DashboardOverview({ projects, onSelectProject }: Dashboa
 
             <div className="sidebar-section">
               <h3 className="sidebar-section__title">{t("dashboard.highRiskWatchlist")}</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div className="sidebar-risk-stack">
                 {highRiskProjects.map(p => (
                   <div key={p.project_id} onClick={() => handleOpenProject(p.project_id)} className="risk-item">
                     <div className="risk-item__head">
@@ -306,7 +306,7 @@ export default function DashboardOverview({ projects, onSelectProject }: Dashboa
             </div>
           </Card>
         </aside>
-      </div>
+      </main>
     </div>
   );
 }

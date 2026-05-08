@@ -30,6 +30,7 @@ import {
 
 import { EmptyState, ErrorState, FilePreview, StatusBadge, SuccessState, Tooltip } from "./ui/States";
 import { Button, Card, Input, Select } from "./ui";
+import "./FileUpload.css";
 
 const ACCEPTED_EXTENSIONS = [".pdf", ".pptx"];
 const MAX_FILE_SIZE = 100 * 1024 * 1024;
@@ -398,9 +399,9 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
     setMessage(null);
     resetInput();
   };
-
   return (
-    <div className="workspace-stack" aria-label={copy.title}>
+    <>
+      <div className="upload-container-v3" aria-label={copy.title}>
       <div className="governance-grid" style={{ marginBottom: 'var(--ds-space-5)' }}>
         <div className="prod-upload-steps" style={{ gridColumn: 'span 12' }}>
           {copy.steps.map((step, index) => (
@@ -412,9 +413,8 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
         </div>
       </div>
 
-      <div className="governance-explorer">
-        <main className="governance-explorer__content" style={{ flex: '1 1 auto' }}>
-          <div className="prod-upload__main">
+      <main className="upload-layout-v3">
+        <section className="upload-main-v3">
             <Card 
               title={copy.chooseType}
               subtitle={copy.chooseTypeHint}
@@ -652,9 +652,9 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                 </div>
               )}
             </Card>
-          </div>
+        </section>
 
-          <aside className="governance-explorer__sidebar" style={{ width: '360px', flex: '0 0 360px' }}>
+        <aside className="upload-sidebar-v3">
             <Card
               title={copy.options}
               subtitle={copy.criteriaNote}
@@ -792,7 +792,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
         }}
         onCancel={handleCancelDuplicateUpload}
       />
-    </div>
+    </>
   );
 }
 
