@@ -14,7 +14,7 @@ interface TopbarProps {
   dashboardChrome?: boolean;
   onToggleSidebar?: () => void;
   onToggleCollapse?: () => void;
-  isSidebarCollapsed?: boolean;
+  onBreadcrumbClick?: (index: number) => void;
 }
 
 export default function Topbar({
@@ -26,6 +26,7 @@ export default function Topbar({
   hideMain = false,
   onToggleSidebar,
   onToggleCollapse,
+  onBreadcrumbClick,
 }: TopbarProps) {
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     if (typeof window === "undefined") return "light";
@@ -65,9 +66,14 @@ export default function Topbar({
           <nav className="app-breadcrumb" aria-label="Breadcrumb">
             {breadcrumb.map((item, index) => (
               <span key={item} className="app-breadcrumb__item">
-                <span className={index === breadcrumb.length - 1 ? "is-active" : ""}>
+                <button 
+                  type="button"
+                  className={`app-breadcrumb__btn ${index === breadcrumb.length - 1 ? "is-active" : ""}`}
+                  onClick={() => onBreadcrumbClick?.(index)}
+                  disabled={index === breadcrumb.length - 1}
+                >
                   {item}
-                </span>
+                </button>
                 {index < breadcrumb.length - 1 && <span className="app-breadcrumb__sep">/</span>}
               </span>
             ))}

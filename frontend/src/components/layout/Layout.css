@@ -194,6 +194,35 @@
   color: var(--ds-color-border-strong);
 }
 
+.app-breadcrumb__btn {
+  background: transparent;
+  border: none;
+  padding: 2px 4px;
+  border-radius: 4px;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+}
+
+.app-breadcrumb__btn:hover:not(:disabled) {
+  background-color: var(--ds-color-surface-hover);
+  color: var(--ds-color-primary);
+}
+
+.app-breadcrumb__btn.is-active {
+  color: var(--ds-color-text);
+  font-weight: 600;
+  cursor: default;
+}
+
+.app-breadcrumb__btn:disabled {
+  cursor: default;
+}
+
 .app-topbar__actions {
   display: flex;
   align-items: center;

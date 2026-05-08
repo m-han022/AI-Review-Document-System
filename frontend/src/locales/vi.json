@@ -260,7 +260,10 @@
     "processing": "Đang xử lý",
     "reviewReady": "Sẵn sàng review",
     "attentionNeeded": "Cần xử lý",
-    "exporting": "Đang xuất"
+    "exporting": "Đang xuất",
+    "lowRisk": "Rủi ro thấp",
+    "mediumRisk": "Rủi ro trung bình",
+    "highRisk": "Rủi ro cao"
   },
   "nav": {
     "dashboard": "Bảng điều khiển",
@@ -602,7 +605,21 @@
     "identifiedIssues": "Vấn đề phát hiện",
     "aiSuggestions": "Gợi ý từ AI",
     "namePlaceholder": "Nhập tên...",
-    "descPlaceholder": "Nhập mô tả..."
+    "descPlaceholder": "Nhập mô tả...",
+    "riskAssessment": "Đánh giá rủi ro",
+    "riskDescription": "Phân tích mức độ rủi ro dựa trên sự kết hợp giữa điểm số tổng quát và số lượng slide phát hiện lỗi NG.",
+    "auditTimeline": "Dòng thời gian kiểm tra",
+    "graded": "Đã chấm điểm",
+    "uploaded": "Tải tài liệu lên",
+    "documentStatus": "Trạng thái tài liệu",
+    "metaRisk": "Mức độ rủi ro",
+    "context": "Ngữ cảnh đang chọn",
+    "insight": {
+      "priorityAction": "Hành động ưu tiên số 1",
+      "priorityDesc": "Hãy tập trung cải thiện tiêu chí '{criterion}' và rà soát lại Slide {slide} để tối ưu hóa chất lượng tài liệu.",
+      "excellentTitle": "Tài liệu xuất sắc",
+      "excellentDesc": "Tài liệu của bạn đạt tiêu chuẩn rất cao. Không có hành động khẩn cấp nào được yêu cầu lúc này."
+    }
   },
   "compare": {
     "title": "So sánh phiên bản",

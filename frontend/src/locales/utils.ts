@@ -37,3 +37,9 @@ export const getTranslation = (lang: Language, key: string, fallback?: string): 
 
   return typeof current === 'string' ? current : (fallback || key);
 };
+
+export function getLocalizedText(obj: any, lang: string): string {
+  if (!obj) return "";
+  if (typeof obj === "string") return obj;
+  return obj[lang] || obj["ja"] || obj["vi"] || Object.values(obj)[0] || "";
+}

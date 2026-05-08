@@ -39,7 +39,9 @@ import {
   WorkflowIcon,
   AlertTriangleIcon,
   LayersIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  CheckCircleIcon,
+  ZapIcon
 } from "../ui/Icon";
 import { formatUploadedAt } from "../submissions/utils";
 import ProjectReviewDialog from "./ProjectReviewDialog";
@@ -428,7 +430,39 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
     [slideReviewItems, activeSlideId],
   );
 
-  if (loadingDocs) return <LoadingState title={m.loadingDocuments} />;
+  const isInitialLoading = loadingDocs || (selectedDocumentId && loadingVersions) || (selectedVersionId && loadingGradings);
+
+  const riskLevel = useMemo(() => {
+    const score = result?.total_score ?? 0;
+    if (score >= 90) return { label: t("statusBiz.lowRisk"), tone: "success" as const };
+    if (score >= 70) return { label: t("statusBiz.mediumRisk"), tone: "warning" as const };
+    return { label: t("statusBiz.highRisk"), tone: "danger" as const };
+  }, [result, t]);
+
+  const topInsight = useMemo(() => {
+    if (!result || orderedScores.length === 0) return null;
+    
+    const lowest = [...orderedScores].sort((a, b) => (a.value / a.max) - (b.value / b.max))[0];
+    const firstNg = slideReviewItems.find(s => s.status === "NG");
+    
+    if ((result.total_score ?? 0) >= 90 && !firstNg) {
+      return {
+        title: t("project.insight.excellentTitle"),
+        message: t("project.insight.excellentDesc"),
+        type: "success"
+      };
+    }
+
+    return {
+      title: t("project.insight.priorityAction"),
+      message: t("project.insight.priorityDesc")
+        .replace("{criterion}", lowest.label)
+        .replace("{slide}", firstNg ? String(firstNg.slide_number) : "—"),
+      type: "warning"
+    };
+  }, [result, orderedScores, slideReviewItems, t]);
+
+  if (loadingDocs || isInitialLoading) return <LoadingState title={m.loadingDocuments} />;
   if (docsError) {
     return (
       <EmptyState
@@ -440,13 +474,10 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
   }
 
   return (
-    <div className="project-workspace">
+    <div className="project-layout-v3">
       {/* Toolbar */}
-      <div className="project-toolbar">
+      <header className="project-toolbar-v3">
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <Button variant="ghost" onClick={onBack} size="sm">
-            <ArrowLeftIcon size="sm" />
-          </Button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <StatusBadge tone={
               result?.status === "completed" || result?.status === "graded" ? "success" :
@@ -491,285 +522,279 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
           >
             <DownloadIcon size="sm" />
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowGovernanceDetails((prev) => !prev)}
-          >
-            {showGovernanceDetails ? t("project.hideGovernanceDetails") : t("project.showGovernanceDetails")}
-          </Button>
         </div>
-      </div>
+      </header>
 
-      {/* Governance Details (Collapsible) */}
-      {showGovernanceDetails && (
-        <>
-          <Card title={t("project.governanceDetails")} subtitle={m.auditContextSubtitle}>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: '16px' }}>
-              <StatusBadge tone="primary">{m.project}: {currentProject?.project_id ?? projectId}</StatusBadge>
-              <StatusBadge tone="muted">{m.document}: {currentDocument?.document_name ?? m.notSelected}</StatusBadge>
-              <StatusBadge tone={currentVersion?.is_latest ? "success" : "muted"}>
-                {m.version}: {currentVersion?.version ?? m.notSelected} {currentVersion?.is_latest ? "(latest)" : ""}
-              </StatusBadge>
-              <StatusBadge tone="muted">
-                {m.gradingRun}: {currentGrading ? `#${currentGrading.grading_run_id}` : m.notSelected}
-              </StatusBadge>
-              <StatusBadge tone={result?.evaluation_set_id ? "success" : "warning"}>
-                {m.evaluationSet}: {result?.evaluation_set_id ? `#${result.evaluation_set_id}` : m.autoUnresolved}
-              </StatusBadge>
-            </div>
-            <div className="governance-grid">
-              <Card title={t("project.documents")}>
-                <Select 
-                  value={selectedDocumentId || ""} 
-                  onChange={(e) => {
-                    const docId = e.target.value ? Number(e.target.value) : null;
-                    setSelectedDocumentId(docId);
-                    setSelectedVersionId(null);
-                    setSelectedGradingId(null);
-                  }}
-                  options={[
-                    { value: "", label: t("project.selectDocument") },
-                    ...sortedDocuments.map(d => ({
-                      value: String(d.document_id),
-                      label: `${d.document_name} (${t(getDocumentTypeKey(d.document_type))})`
-                    }))
-                  ]}
-                />
-              </Card>
-              <Card title={t("project.versions")}>
-                <Select 
-                  value={selectedVersionId || ""} 
-                  onChange={(e) => setSelectedVersionId(Number(e.target.value))}
-                  disabled={!selectedDocumentId}
-                  options={[
-                    { value: "", label: t("project.selectVersion") },
-                    ...versions.map(v => ({ value: String(v.document_version_id), label: v.version }))
-                  ]}
-                />
-              </Card>
-              <Card title={t("project.reviewHistory")}>
-                <Select 
-                  value={selectedGradingId || ""} 
-                  onChange={(e) => setSelectedGradingId(Number(e.target.value))}
-                  disabled={!selectedVersionId}
-                  options={[
-                    { value: "", label: t("project.selectReviewRun") },
-                    ...gradings.map(g => ({ value: String(g.grading_run_id), label: `${formatDateTime(g.created_at, lang)}` }))
-                  ]}
-                />
-              </Card>
-            </div>
-          </Card>
-        </>
-      )}
-
-      {/* Overview Grid */}
-      <div className="governance-grid">
-        <Card className="ds-card--metrics">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <Tooltip content={t("project.explainability.totalScore")}>
-              <div>
-                <p className="criteria-stat-card__label" style={{ marginBottom: '4px', cursor: 'help' }}>
-                  {t("project.metaScore")}
-                </p>
-                <div style={{ fontSize: '32px', fontWeight: 800, color: 'var(--ds-color-primary)' }}>
-                  {result?.total_score ?? "—"}
-                </div>
-              </div>
-            </Tooltip>
-            <div className="metrics-icon primary">
-              <TargetIcon size="md" />
-            </div>
+      {/* Sidebar Navigation & Context */}
+      <aside className="project-sidebar-v3">
+        <div className="sidebar-section-v3">
+          <span className="sidebar-section-v3__title">{t("project.context")}</span>
+          <div className="selection-group-v3">
+            <Select 
+              value={selectedDocumentId || ""} 
+              onChange={(e) => {
+                const docId = e.target.value ? Number(e.target.value) : null;
+                setSelectedDocumentId(docId);
+                setSelectedVersionId(null);
+                setSelectedGradingId(null);
+              }}
+              options={[
+                { value: "", label: t("project.selectDocument") },
+                ...sortedDocuments.map(d => ({
+                  value: String(d.document_id),
+                  label: `${d.document_name} (${t(getDocumentTypeKey(d.document_type))})`
+                }))
+              ]}
+            />
+            <Select 
+              value={selectedVersionId || ""} 
+              onChange={(e) => setSelectedVersionId(Number(e.target.value))}
+              disabled={!selectedDocumentId}
+              options={[
+                { value: "", label: t("project.selectVersion") },
+                ...versions.map(v => ({ value: String(v.document_version_id), label: `${t("project.version")} ${v.version}` }))
+              ]}
+            />
+            <Select 
+              value={selectedGradingId || ""} 
+              onChange={(e) => setSelectedGradingId(Number(e.target.value))}
+              disabled={!selectedVersionId}
+              options={[
+                { value: "", label: t("project.selectReviewRun") },
+                ...gradings.map(g => ({ value: String(g.grading_run_id), label: `${formatDateTime(g.created_at, lang)}` }))
+              ]}
+            />
           </div>
-          <div style={{ marginTop: '12px' }}>
-            <StatusBadge tone={(result?.total_score ?? 0) >= 80 ? "success" : "warning"}>
-              {(result?.total_score ?? 0) >= 80 ? t("statusBiz.reviewReady") : t("statusBiz.attentionNeeded")}
-            </StatusBadge>
-          </div>
-        </Card>
-
-        <Card className="ds-card--metrics">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <p className="criteria-stat-card__label" style={{ marginBottom: '4px' }}>{t("project.metaDocument")}</p>
-              <div style={{ fontSize: '18px', fontWeight: 700 }}>
-                {currentDocument?.document_name ?? t("common.noValue")}
-              </div>
-            </div>
-            <div className="metrics-icon muted">
-              <BookOpenIcon size="md" />
-            </div>
-          </div>
-          <div style={{ marginTop: '12px', fontSize: '13px', color: 'var(--ds-color-text-muted)' }}>
-            {t("project.metaVersion")}: <strong>{currentVersion?.version || "—"}</strong>
-          </div>
-        </Card>
-
-        <Card className="ds-card--metrics">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <p className="criteria-stat-card__label" style={{ marginBottom: '4px' }}>{t("project.metaGradedAt")}</p>
-              <div style={{ fontSize: '18px', fontWeight: 700 }}>
-                {formatDateTime(result?.graded_at, lang)}
-              </div>
-            </div>
-            <div className="metrics-icon muted">
-              <RefreshIcon size="md" />
-            </div>
-          </div>
-          <div style={{ marginTop: '12px', fontSize: '13px', color: 'var(--ds-color-text-muted)' }}>
-            {t("project.metaPrompt")}: <strong>v{result?.prompt_version || "—"}</strong>
-          </div>
-        </Card>
-      </div>
-
-      <div className="project-content-grid">
-        {/* Left: Sidebar Navigation */}
-        <div className="project-detail-sidebar">
-          <Card>
-            <h3 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '12px' }}>{t("project.slideList")}</h3>
-            <div className="slide-list">
-              {slideReviewItems.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={`slide-item ${activeSlideId === item.id ? "is-active" : ""}`}
-                  onClick={() => setSelectedSlideId(item.id)}
-                >
-                  <div className="slide-item__status">
-                    <span className={`status-dot status-dot--${item.status === "NG" ? "danger" : "success"}`} />
-                  </div>
-                  <span className="slide-item__number">#{item.slide_number}</span>
-                  <span className="slide-item__title">{item.displayTitle}</span>
-                  {activeSlideId === item.id && <ChevronRightIcon size="sm" />}
-                </button>
-              ))}
-            </div>
-          </Card>
         </div>
 
-        {/* Right: Main Content */}
-        <div className="project-detail-main">
-          <div className="ds-tabs">
-            <button 
-              className={`ds-tabs__item ${activeTab === "criteria" ? "is-active" : ""}`}
-              onClick={() => setActiveTab("criteria")}
-            >
-              {t("project.criteriaScores")}
-            </button>
-            <button 
-              className={`ds-tabs__item ${activeTab === "slides" ? "is-active" : ""}`}
-              onClick={() => setActiveTab("slides")}
-            >
-              {t("project.slideDetails")} {ngSlideCount > 0 && <span className="ds-tabs__badge">{ngSlideCount}</span>}
-            </button>
+        {/* Risk & Summary Widget (Filling Sidebar Space) */}
+        {result && (
+          <div className="sidebar-section-v3" style={{ background: '#f8faff', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+            <span className="sidebar-section-v3__title">{t("project.riskAssessment")}</span>
+            <div style={{ marginTop: '8px' }}>
+              <StatusBadge tone={riskLevel.tone} style={{ width: '100%', justifyContent: 'center', padding: '8px' }}>
+                {riskLevel.label}
+              </StatusBadge>
+              <p style={{ fontSize: '12px', color: '#64748b', marginTop: '12px', lineHeight: 1.5 }}>
+                {t("project.riskDescription")}
+              </p>
+            </div>
           </div>
+        )}
 
-          <div className="tab-content">
-            {activeTab === "criteria" ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                <Card title={t("project.scoreOverview")}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '32px' }}>
-                    <div className="criteria-grid">
-                      {orderedScores.map((item) => {
-                        const Icon = item.Icon;
-                        return (
-                          <Tooltip key={item.key} content={t("project.explainability.criterion").replace("{name}", item.label)}>
-                            <div className="criteria-stat-card" style={{ cursor: 'help' }}>
-                              <div className="criteria-stat-card__icon">
-                                <Icon size="md" />
-                              </div>
-                              <div className="criteria-stat-card__info">
-                                <span className="criteria-stat-card__label">{item.label}</span>
-                                <div className="criteria-stat-card__value">
-                                  <strong>{item.value}</strong>
-                                  <small>/{item.max}</small>
-                                </div>
-                              </div>
-                            </div>
-                          </Tooltip>
-                        );
-                      })}
-                    </div>
-                    
-                    <div className="criteria-visuals">
-                      <h4 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ds-color-text-muted)', marginBottom: '16px' }}>
-                        {t("project.visualDistribution")}
-                      </h4>
-                      <KPIBarChart data={orderedScores} />
-                    </div>
-                  </div>
-                </Card>
+        <div className="sidebar-section-v3" style={{ flex: 1, minHeight: 0 }}>
+          <span className="sidebar-section-v3__title">{t("project.slideList")}</span>
+          <div className="slide-nav-v3" style={{ overflowY: 'auto' }}>
+            {slideReviewItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`slide-nav-item-v3 ${activeSlideId === item.id ? "is-active" : ""}`}
+                onClick={() => setSelectedSlideId(item.id)}
+              >
+                <span className={`slide-nav-item-v3__dot status-dot--${item.status === "NG" ? "danger" : "success"}`} />
+                <span className="slide-nav-item-v3__num">#{item.slide_number}</span>
+                <span className="slide-nav-item-v3__title">{item.displayTitle}</span>
+                {activeSlideId === item.id && <ChevronRightIcon size="sm" />}
+              </button>
+            ))}
+          </div>
+        </div>
 
-                <div className="feedback-section">
-                  <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px' }}>{t("project.feedbackTitle")}</h2>
-                  <div className="feedback-cards">
-                    {feedbackSections.map((section, idx) => (
-                      <div key={idx} className="feedback-card">
-                        {section.title && <h3 className="feedback-card__title">{section.title}</h3>}
-                        <div className="feedback-card__content">
-                          {section.lines.map((line, lidx) => (
-                            <p key={lidx}>{line}</p>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+        {/* Audit Timeline (Filling Sidebar Bottom Space) */}
+        <div className="sidebar-section-v3" style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
+          <span className="sidebar-section-v3__title">{t("project.auditTimeline")}</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {result && (
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--ds-color-success)', marginTop: '4px' }} />
+                <div>
+                  <p style={{ fontSize: '11px', fontWeight: 700 }}>{t("project.graded")}</p>
+                  <p style={{ fontSize: '10px', color: '#64748b' }}>{formatDateTime(result?.graded_at, lang)}</p>
                 </div>
               </div>
-            ) : (
-              <div className="slide-detail-view">
-                {activeSlide ? (
-                  <div className="slide-detail">
-                    <div className="slide-header">
-                      <h2 style={{ fontSize: '20px', fontWeight: 700 }}>{activeSlide.displayTitle}</h2>
-                      <StatusBadge tone={activeSlide.status === "NG" ? "danger" : "success"}>
-                        {activeSlide.status}
-                      </StatusBadge>
-                    </div>
-
-                    <Card title={t("project.slideSummary")}>
-                      <p style={{ lineHeight: 1.6 }}>{activeSlide.summary}</p>
-                    </Card>
-
-                    {activeSlide.issues.length > 0 && (
-                      <div className="detail-section">
-                        <h3 className="detail-section__title">
-                          <AlertTriangleIcon size="sm" />
-                          {t("project.identifiedIssues")}
-                        </h3>
-                        <div className="issue-list">
-                          {activeSlide.issues.map((issue, idx) => (
-                            <div key={idx} className="issue-item">
-                              <span className="issue-item__bullet" />
-                              {issue}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {activeSlide.suggestions && (
-                      <div className="detail-section">
-                        <h3 className="detail-section__title">
-                          <SparkIcon size="sm" />
-                          {t("project.aiSuggestions")}
-                        </h3>
-                        <div className="detail-card detail-card--suggestion">
-                          {activeSlide.suggestions}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <EmptyState title={m.selectSlideForDetails} />
-                )}
+            )}
+            {currentVersion && (
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#cbd5e1', marginTop: '4px' }} />
+                <div>
+                  <p style={{ fontSize: '11px', fontWeight: 700 }}>{t("project.uploaded")}</p>
+                  <p style={{ fontSize: '10px', color: '#64748b' }}>{formatDateTime(currentVersion?.uploaded_at, lang)}</p>
+                </div>
               </div>
             )}
           </div>
         </div>
-      </div>
+      </aside>
+
+      {/* Main Content Workspace */}
+      <main className="project-main-v3">
+        {/* Top Actionable Insight (100-Point Feature) */}
+        {result && topInsight && (
+          <div className={`insight-card-v3 ${topInsight.type === "success" ? "insight-card-v3--success" : ""}`}>
+            <div className="insight-card-v3__icon">
+              {topInsight.type === "success" ? <ShieldCheckIcon size="lg" /> : <AlertTriangleIcon size="lg" />}
+            </div>
+            <div className="insight-card-v3__content">
+              <div className="insight-card-v3__title">{topInsight.title}</div>
+              <div className="insight-card-v3__message">{topInsight.message}</div>
+            </div>
+            {topInsight.type !== "success" && (
+              <Button variant="ghost" size="sm" onClick={() => setActiveTab("criteria")}>
+                {t("project.expand")}
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* Executive Dashboard Expanded */}
+        <div className="metrics-row-v3">
+          <div className="metric-card-v3">
+            <div className="metric-card-v3__label">{t("project.metaScore")}</div>
+            <div className="metric-card-v3__value" style={{ color: 'var(--ds-color-primary)' }}>
+              {result?.total_score ?? "—"}
+            </div>
+          </div>
+          <div className="metric-card-v3">
+            <div className="metric-card-v3__label">{t("project.documentStatus")}</div>
+            <div className="metric-card-v3__value" style={{ fontSize: '16px' }}>
+              <StatusBadge tone={ngSlideCount > 0 ? "danger" : "success"}>
+                {ngSlideCount > 0 ? `${ngSlideCount} ${t("project.issuesFound")}` : t("statusBiz.reviewReady")}
+              </StatusBadge>
+            </div>
+          </div>
+          <div className="metric-card-v3">
+            <div className="metric-card-v3__label">{t("project.metaGradedAt")}</div>
+            <div className="metric-card-v3__value" style={{ fontSize: '14px' }}>
+              {formatDateTime(result?.graded_at, lang)}
+            </div>
+          </div>
+          <div className="metric-card-v3">
+            <div className="metric-card-v3__label">{t("project.metaRisk")}</div>
+            <div className="metric-card-v3__value">
+              <StatusBadge tone={riskLevel.tone}>{riskLevel.label}</StatusBadge>
+            </div>
+          </div>
+        </div>
+
+
+        {/* Primary Tabs */}
+        <div className="ds-tabs">
+          <button 
+            className={`ds-tabs__item ${activeTab === "criteria" ? "is-active" : ""}`}
+            onClick={() => setActiveTab("criteria")}
+          >
+            {t("project.criteriaScores")}
+          </button>
+          <button 
+            className={`ds-tabs__item ${activeTab === "slides" ? "is-active" : ""}`}
+            onClick={() => setActiveTab("slides")}
+          >
+            {t("project.slideDetails")} {ngSlideCount > 0 && <span className="ds-tabs__badge">{ngSlideCount}</span>}
+          </button>
+        </div>
+
+        {/* Workspace Content */}
+        <div className="workspace-content-v3" style={{ flex: 1 }}>
+          {activeTab === "criteria" ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              <Card title={t("project.scoreOverview")}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '32px' }}>
+                  <div className="criteria-grid">
+                    {orderedScores.map((item) => {
+                      const Icon = item.Icon;
+                      return (
+                        <Tooltip key={item.key} content={t("project.explainability.criterion").replace("{name}", item.label)}>
+                          <div className="criteria-stat-card" style={{ cursor: 'help' }}>
+                            <div className="criteria-stat-card__icon">
+                              <Icon size="md" />
+                            </div>
+                            <div className="criteria-stat-card__info">
+                              <span className="criteria-stat-card__label">{item.label}</span>
+                              <div className="criteria-stat-card__value">
+                                <strong>{item.value}</strong>
+                                <small>/{item.max}</small>
+                              </div>
+                            </div>
+                          </div>
+                        </Tooltip>
+                      );
+                    })}
+                  </div>
+                  
+                  <div className="criteria-visuals">
+                    <KPIBarChart data={orderedScores} />
+                  </div>
+                </div>
+              </Card>
+
+              <div className="feedback-section">
+                <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px' }}>{t("project.feedbackTitle")}</h2>
+                <div className="feedback-cards">
+                  {feedbackSections.map((section, idx) => (
+                    <div key={idx} className="feedback-card">
+                      {section.title && <h3 className="feedback-card__title">{section.title}</h3>}
+                      <div className="feedback-card__content">
+                        {section.lines.map((line, lidx) => (
+                          <p key={lidx}>{line}</p>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="slide-detail-view">
+              {activeSlide ? (
+                <div className="slide-detail">
+                  <div className="slide-header">
+                    <h2 style={{ fontSize: '20px', fontWeight: 700 }}>{activeSlide.displayTitle}</h2>
+                    <StatusBadge tone={activeSlide.status === "NG" ? "danger" : "success"}>
+                      {activeSlide.status}
+                    </StatusBadge>
+                  </div>
+
+                  <Card title={t("project.slideSummary")}>
+                    <p style={{ lineHeight: 1.6 }}>{activeSlide.summary}</p>
+                  </Card>
+
+                  {activeSlide.issues.length > 0 && (
+                    <div className="detail-section">
+                      <h3 className="detail-section__title">
+                        <AlertTriangleIcon size="sm" />
+                        {t("project.identifiedIssues")}
+                      </h3>
+                      <div className="issue-list">
+                        {activeSlide.issues.map((issue, idx) => (
+                          <div key={idx} className="issue-item">
+                            <span className="issue-item__bullet" />
+                            {issue}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {activeSlide.suggestions && (
+                    <div className="detail-section">
+                      <h3 className="detail-section__title">
+                        <SparkIcon size="sm" />
+                        {t("project.aiSuggestions")}
+                      </h3>
+                      <div className="detail-card detail-card--suggestion">
+                        {activeSlide.suggestions}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <EmptyState title={m.selectSlideForDetails} />
+              )}
+            </div>
+          )}
+        </div>
+      </main>
 
       {summaryDialogOpen && (
         <ProjectReviewDialog

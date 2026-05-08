@@ -210,11 +210,6 @@ export default function AuditDashboard() {
 
   return (
     <div className="workspace-stack">
-      <PageHeader 
-        title={t("biz.auditDashboard.title") || "Audit Dashboard"} 
-        subtitle={t("sm.auditDashboard.filterTitle")}
-      />
-
       <Card title={t("sm.auditDashboard.filterTitle")}>
         <div className="governance-grid" style={{ marginBottom: '20px' }}>
           <Input 

@@ -319,11 +319,6 @@ export default function AIConfigurationConsole() {
 
   return (
     <div className="workspace-stack">
-      <PageHeader 
-        title={t("sm.aiConfig.title") || "AI Configuration Console"} 
-        subtitle={ui.modeNote}
-      />
-
       <div className="governance-grid" style={{ marginBottom: 'var(--ds-space-5)' }}>
         <Card title={ui.scopeDocumentType || t("sm.aiConfig.scopeDocumentType")}>
           <Select 

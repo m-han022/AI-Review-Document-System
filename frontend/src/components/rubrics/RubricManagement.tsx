@@ -233,11 +233,6 @@ export default function RubricManagement() {
   }
   return (
     <div className="workspace-stack">
-      <PageHeader 
-        title={t("rubric.title")} 
-        subtitle={t("rubric.subtitle")}
-      />
-
       <div className="governance-explorer">
         {/* Sidebar */}
         <aside className="governance-explorer__sidebar">

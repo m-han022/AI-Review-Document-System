@@ -28,6 +28,8 @@ import {
   ListChecks,
   MessageSquare,
   Moon,
+  Menu,
+  LayoutDashboard,
   RefreshCw,
   Settings,
   ShieldCheck,
@@ -39,6 +41,7 @@ import {
   Plus,
   Search,
   Workflow,
+  Zap,
   X,
   type LucideIcon,
   type LucideProps,
@@ -72,6 +75,8 @@ const icons = {
   help: HelpCircle,
   history: History,
   home: Home,
+  menu: Menu,
+  layout: LayoutDashboard,
   messageSquare: MessageSquare,
   moon: Moon,
   moreHorizontal: Ellipsis,
@@ -89,6 +94,8 @@ const icons = {
   uploadCloud: CloudUpload,
   version: ListChecks,
   workflow: Workflow,
+  zap: Zap,
+  checkCircle: CircleCheck,
   x: X,
 } satisfies Record<string, LucideIcon>;
 
@@ -283,6 +290,22 @@ export function WorkflowIcon(props: NamedIconProps) {
   return <Icon name="workflow" {...props} />;
 }
 
+export function MenuIcon(props: NamedIconProps) {
+  return <Icon name="menu" {...props} />;
+}
+
+export function LayoutIcon(props: NamedIconProps) {
+  return <Icon name="layout" {...props} />;
+}
+
 export function XIcon(props: NamedIconProps) {
   return <Icon name="x" {...props} />;
+}
+
+export function ZapIcon(props: NamedIconProps) {
+  return <Icon name="zap" {...props} />;
+}
+
+export function CheckCircleIcon(props: NamedIconProps) {
+  return <Icon name="checkCircle" {...props} />;
 }

@@ -13,7 +13,7 @@ import { EmptyState, ErrorState, LoadingState, SkeletonTable } from "./ui/States
 
 const DashboardOverview = lazy(() => import("./dashboard/DashboardOverview"));
 const FileUpload = lazy(() => import("./FileUpload"));
-const ProjectCard = lazy(() => import("./project/ProjectCard"));
+import ProjectCard from "./project/ProjectCard";
 const ReviewListOverview = lazy(() => import("./reviews/ReviewListOverview"));
 const AIConfigurationConsole = lazy(() => import("./rubrics/AIConfigurationConsole"));
 const AuditDashboard = lazy(() => import("./workspace/AuditDashboard"));
@@ -38,7 +38,9 @@ export default function Dashboard() {
   const { t } = useTranslation();
   const [activeView, setActiveView] = useState<WorkspaceView>("dashboard");
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   const { data: projectsData, isLoading, error } = useQuery({
     queryKey: projectsQueryKey,
     queryFn: () => listProjects(),
@@ -66,7 +68,7 @@ export default function Dashboard() {
           subtitle: t("upload.pageSubtitle"),
           breadcrumb: undefined,
           rightBadge: null,
-          hideMain: true,
+          hideMain: false,
         };
       case "reviews":
         return {
@@ -82,7 +84,7 @@ export default function Dashboard() {
           subtitle: t("project.reviewDetailSubtitle"),
           breadcrumb: [t("nav.dashboard"), t("nav.allReviews"), selectedProject?.project_name ?? ""],
           rightBadge: null,
-          hideMain: true,
+          hideMain: false,
         };
       case "rubrics":
         return {
@@ -90,7 +92,7 @@ export default function Dashboard() {
           subtitle: t("rubric.pageSubtitle"),
           breadcrumb: [t("nav.dashboard"), t("nav.rubrics")],
           rightBadge: null,
-          hideMain: true,
+          hideMain: false,
         };
       case "report":
         return {
@@ -98,7 +100,7 @@ export default function Dashboard() {
           subtitle: undefined,
           breadcrumb: [t("nav.dashboard"), t("nav.qualityReport")],
           rightBadge: null,
-          hideMain: true,
+          hideMain: false,
         };
       case "diff":
         return {
@@ -106,7 +108,7 @@ export default function Dashboard() {
           subtitle: t("biz.versionDiff.subtitle"),
           breadcrumb: [t("nav.dashboard"), t("nav.versionDiff")],
           rightBadge: null,
-          hideMain: true,
+          hideMain: false,
         };
       case "workflow":
         return {
@@ -114,7 +116,7 @@ export default function Dashboard() {
           subtitle: undefined,
           breadcrumb: [t("nav.dashboard"), t("nav.approvalWorkflow")],
           rightBadge: null,
-          hideMain: true,
+          hideMain: false,
         };
       case "export":
         return {
@@ -122,7 +124,7 @@ export default function Dashboard() {
           subtitle: undefined,
           breadcrumb: [t("nav.dashboard"), t("nav.export")],
           rightBadge: null,
-          hideMain: true,
+          hideMain: false,
         };
       case "settings":
         return {
@@ -130,7 +132,7 @@ export default function Dashboard() {
           subtitle: undefined,
           breadcrumb: [t("nav.dashboard"), t("nav.settings")],
           rightBadge: null,
-          hideMain: true,
+          hideMain: false,
         };
       case "dashboard":
       default:
@@ -214,13 +216,11 @@ export default function Dashboard() {
           );
         }
         return (
-          <Suspense fallback={<ViewFallback title={t("project.reviewResult")} />}>
-            <ProjectCard
-              key={selectedProjectId}
-              projectId={selectedProjectId}
-              onBack={() => setActiveView("reviews")}
-            />
-          </Suspense>
+          <ProjectCard
+            key={selectedProjectId}
+            projectId={selectedProjectId}
+            onBack={() => setActiveView("reviews")}
+          />
         );
       case "rubrics":
         return (
@@ -281,9 +281,28 @@ export default function Dashboard() {
     }
   })();
 
+  const handleBreadcrumbClick = (index: number) => {
+    if (index === 0) setActiveView("dashboard");
+    else if (index === 1) setActiveView("reviews");
+  };
+
   return (
     <AppShell
-      sidebar={<Sidebar activeView={activeView} onChangeView={setActiveView} />}
+      isSidebarOpen={isMobileMenuOpen}
+      isCollapsed={isSidebarCollapsed}
+      onCloseSidebar={() => setIsMobileMenuOpen(false)}
+      onToggleSidebar={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+      onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+      sidebar={
+        <Sidebar 
+          activeView={activeView} 
+          onChangeView={(view) => {
+            setActiveView(view);
+            setIsMobileMenuOpen(false);
+          }} 
+          isCollapsed={isSidebarCollapsed}
+        />
+      }
       topbar={
         <Topbar
           title={topbarContent.title}
@@ -292,6 +311,9 @@ export default function Dashboard() {
           rightBadge={topbarContent.rightBadge}
           hideMain={topbarContent.hideMain}
           dashboardChrome={activeView === "dashboard" || activeView === "reviews" || activeView === "upload" || activeView === "diff" || activeView === "workflow" || activeView === "export" || activeView === "settings" || activeView === "report" || activeView === "rubrics" || activeView === "detail"}
+          onToggleSidebar={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          onBreadcrumbClick={handleBreadcrumbClick}
         />
       }
     >

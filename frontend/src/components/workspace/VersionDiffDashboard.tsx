@@ -200,11 +200,6 @@ export default function VersionDiffDashboard() {
 
   return (
     <div className="workspace-stack">
-      <PageHeader 
-        title={t("biz.versionDiff.title") || "Version Comparison"} 
-        subtitle={t("biz.versionDiff.subtitle")}
-      />
-
       <Card title={t("sm.versionDiff.compare")}>
         <div className="governance-grid" style={{ marginBottom: '20px' }}>
           <Select 

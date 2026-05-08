@@ -151,11 +151,6 @@ export default function OperationalScreen({
   );
   return (
     <div className="workspace-stack">
-      <PageHeader 
-        title={screen.title} 
-        subtitle={screen.subtitle}
-      />
-
       <div className="toolbar" style={{ justifyContent: 'flex-end', marginBottom: '24px' }}>
         <Button variant="outline" onClick={onOpenUpload}>
           <FileReviewIcon size="sm" />

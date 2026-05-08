@@ -6,16 +6,23 @@ interface AppShellProps {
   sidebar: ReactNode;
   topbar: ReactNode;
   children: ReactNode;
+  isSidebarOpen?: boolean;
+  isCollapsed?: boolean;
+  onCloseSidebar?: () => void;
+  onToggleSidebar?: () => void;
+  onToggleCollapse?: () => void;
 }
 
-export default function AppShell({ sidebar, topbar, children }: AppShellProps) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
-
-  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
-  const closeSidebar = () => setIsSidebarOpen(false);
-  const toggleCollapse = () => setIsCollapsed(!isCollapsed);
-
+export default function AppShell({ 
+  sidebar, 
+  topbar, 
+  children,
+  isSidebarOpen = false,
+  isCollapsed = false,
+  onCloseSidebar,
+  onToggleSidebar,
+  onToggleCollapse
+}: AppShellProps) {
   // Inject props into sidebar and topbar if they're valid elements
   const sidebarWithProps = isValidElement(sidebar)
     ? cloneElement(sidebar as any, { isCollapsed })
@@ -23,8 +30,8 @@ export default function AppShell({ sidebar, topbar, children }: AppShellProps) {
 
   const topbarWithToggle = isValidElement(topbar)
     ? cloneElement(topbar as any, { 
-        onToggleSidebar: toggleSidebar,
-        onToggleCollapse: toggleCollapse,
+        onToggleSidebar,
+        onToggleCollapse,
         isSidebarCollapsed: isCollapsed
       })
     : topbar;
@@ -34,12 +41,12 @@ export default function AppShell({ sidebar, topbar, children }: AppShellProps) {
       {/* Mobile Overlay */}
       <div 
         className={`sidebar-overlay ${isSidebarOpen ? 'is-visible' : ''}`}
-        onClick={closeSidebar}
+        onClick={onCloseSidebar}
       />
 
       <aside className={`app-sidebar ${isSidebarOpen ? 'is-open' : ''} ${isCollapsed ? 'app-sidebar--collapsed' : ''}`}>
         <div className="show-on-mobile" style={{ position: 'absolute', top: '12px', right: '12px', zIndex: 60 }}>
-          <button onClick={closeSidebar} className="mobile-toggle" style={{ color: 'white' }}>
+          <button onClick={onCloseSidebar} className="mobile-toggle" style={{ color: 'white' }}>
             <XIcon />
           </button>
         </div>
