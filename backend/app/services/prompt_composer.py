@@ -27,6 +27,7 @@ REQUIRED_RULES = [
     "3. NO HALLUCINATION: Only use information provided in the document content.",
     "4. BILINGUAL: All text fields must have both 'vi' and 'ja' translations.",
     "5. SCHEMA COMPLIANCE: Strictly follow the requested output schema.",
+    "6. COMPREHENSIVENESS: You MUST review and include EVERY slide/page from the input in the 'slide_reviews' array. Do not skip any slide numbers. If a slide is OK, mark it as 'OK'.",
 ]
 
 

@@ -10,6 +10,7 @@ interface CardProps {
   padding?: string;
   className?: string;
   noBorder?: boolean;
+  onClick?: () => void;
 }
 
 export const Card: React.FC<CardProps> = ({
@@ -20,10 +21,11 @@ export const Card: React.FC<CardProps> = ({
   footer,
   padding,
   className = '',
-  noBorder = false
+  noBorder = false,
+  onClick
 }) => {
   return (
-    <div className={`ds-card ${noBorder ? 'no-border' : ''} ${className}`}>
+    <div className={`ds-card ${noBorder ? 'no-border' : ''} ${className}`} onClick={onClick}>
       {(title || headerAction) && (
         <div className="ds-card__header">
           <div className="ds-card__title-group">

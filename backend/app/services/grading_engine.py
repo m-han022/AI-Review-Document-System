@@ -43,7 +43,7 @@ class _BoundedCache:
 
 
 _grading_cache: _BoundedCache = _BoundedCache()
-GRADING_SCHEMA_VERSION = "v1_slide_reviews"
+GRADING_SCHEMA_VERSION = "v2_full_coverage"
 
 BILINGUAL_SCHEMA = (
     "\n\nReturn JSON: {score:int, criteria_scores:{key:number}, "
@@ -415,6 +415,7 @@ def grade_submission(
             system_instruction=system_instruction,
             response_mime_type="application/json",
             temperature=0.3,
+            max_output_tokens=8192,
         ),
     )
 

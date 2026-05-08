@@ -16,7 +16,8 @@ import { formatUploadedAt } from "../submissions/utils";
 import { FileReviewIcon, ShieldCheckIcon, TargetIcon } from "../ui/Icon";
 import { toBusinessStatus } from "../ui/businessStatus";
 import { EmptyState, StatusBadge } from "../ui/States";
-import { Card } from "../ui";
+import { Card, Button } from "../ui";
+import { KPIProgressList } from "../ui/KPICharts";
 import "./DashboardOverview.css";
 
 interface DashboardOverviewProps {
@@ -46,32 +47,6 @@ function shortName(value: string, max = 24) {
   return value.length > max ? `${value.slice(0, max - 3)}...` : value;
 }
 
-function DistributionBar({ label, count, total, tone }: { label: string; count: number; total: number; tone: "success" | "warning" | "danger" }) {
-  const percentage = total > 0 ? (count / total) * 100 : 0;
-  const colorMap = {
-    success: "var(--ds-color-success)",
-    warning: "var(--ds-color-warning)",
-    danger: "var(--ds-color-danger)"
-  };
-
-  return (
-    <div className="dist-bar">
-      <div className="dist-bar__head">
-        <span style={{ color: 'var(--ds-color-text-muted)' }}>{label}</span>
-        <strong style={{ color: 'var(--ds-color-text-main)' }}>{count}</strong>
-      </div>
-      <div className="dist-bar__track">
-        <div 
-          className="dist-bar__fill" 
-          style={{ 
-            width: `${percentage}%`, 
-            backgroundColor: colorMap[tone] 
-          }} 
-        />
-      </div>
-    </div>
-  );
-}
 
 export default function DashboardOverview({ projects, onSelectProject }: DashboardOverviewProps) {
   const { lang, t } = useTranslation();
@@ -124,14 +99,18 @@ export default function DashboardOverview({ projects, onSelectProject }: Dashboa
     [projects],
   );
 
-  const distribution = useMemo(() => {
+  const distributionData = useMemo(() => {
     const counts = { GOOD: 0, WARNING: 0, CRITICAL: 0 };
     graded.forEach(p => {
       const status = scoreStatus(p.latest_score);
       if (status !== "NO DATA") counts[status]++;
     });
-    return counts;
-  }, [graded]);
+    return [
+      { key: "GOOD", label: t("dashboard.statusCompleted"), value: counts.GOOD, max: graded.length || 1 },
+      { key: "WARNING", label: t("dashboard.statusWarning"), value: counts.WARNING, max: graded.length || 1 },
+      { key: "CRITICAL", label: t("dashboard.statusCritical"), value: counts.CRITICAL, max: graded.length || 1 },
+    ];
+  }, [graded, t]);
 
   const highRiskProjects = useMemo(() => {
     return projects
@@ -145,8 +124,20 @@ export default function DashboardOverview({ projects, onSelectProject }: Dashboa
   return (
     <div className="dashboard-container">
       {/* KPI Cards Section */}
+      {/* Dashboard Header - Elite Polish */}
+      <header className="dashboard-header-v4">
+        <div className="header-text-v4">
+          <h1 className="header-title-v4">{t("dashboard.title") || "Dashboard"}</h1>
+          <p className="header-subtitle-v4">Chào mừng trở lại! Hệ thống đã ghi nhận <strong>{stats.completed}</strong> dự án mới hoàn thành.</p>
+        </div>
+        <div className="header-actions-v4">
+          <Button variant="primary" onClick={() => onSelectProject?.("")}>+ {t("project.createNew") || "Dự án mới"}</Button>
+        </div>
+      </header>
+
+      {/* KPI Cards Section */}
       <section className="dashboard-kpis">
-        <Card className="kpi-card">
+        <Card className="kpi-card" onClick={() => {}}>
           <div className="kpi-card__header">
             <div className="kpi-card__icon"><TargetIcon size="md" /></div>
             <div className="kpi-card__badge-row">
@@ -158,7 +149,7 @@ export default function DashboardOverview({ projects, onSelectProject }: Dashboa
           <div className="kpi-card__label">{t("dashboard.avgScore")}</div>
         </Card>
 
-        <Card className="kpi-card">
+        <Card className="kpi-card" onClick={() => {}}>
           <div className="kpi-card__header">
             <div className="kpi-card__icon"><FileReviewIcon size="md" /></div>
             <div className="kpi-card__badge-row">
@@ -170,10 +161,12 @@ export default function DashboardOverview({ projects, onSelectProject }: Dashboa
           <div className="kpi-card__label">{stats.completed} {t("dashboard.statusCompleted")}</div>
         </Card>
 
-        <Card className="kpi-card">
+        <Card className="kpi-card" onClick={() => {}}>
           <div className="kpi-card__header">
             <div className="kpi-card__icon"><ShieldCheckIcon size="md" /></div>
-            <StatusBadge tone="warning">{t("common.status")}</StatusBadge>
+            <StatusBadge tone="warning" className={attention.failed > 0 ? 'pulse-warning' : ''}>
+              {t("common.status")}
+            </StatusBadge>
           </div>
           <div className="kpi-card__value">{projects.length}</div>
           <div className="kpi-card__label">{t("dashboard.activeProjects")}</div>
@@ -267,14 +260,10 @@ export default function DashboardOverview({ projects, onSelectProject }: Dashboa
           <Card>
             <div className="sidebar-section">
               <h3 className="sidebar-section__title">{t("dashboard.qualityDistribution")}</h3>
-              <div className="quality-distribution-bars">
-                <DistributionBar label={t("dashboard.statusCompleted")} count={distribution.GOOD} total={graded.length} tone="success" />
-                <DistributionBar label={t("dashboard.statusWarning")} count={distribution.WARNING} total={graded.length} tone="warning" />
-                <DistributionBar label={t("dashboard.statusCritical")} count={distribution.CRITICAL} total={graded.length} tone="danger" />
-              </div>
+              <KPIProgressList data={distributionData} />
             </div>
 
-            <div style={{ margin: '24px 0', borderTop: '1px solid var(--ds-color-border)' }} />
+            <div className="sidebar-divider-v4" />
 
             <div className="sidebar-section">
               <h3 className="sidebar-section__title">{t("dashboard.actionPanelTitle")}</h3>
@@ -288,7 +277,7 @@ export default function DashboardOverview({ projects, onSelectProject }: Dashboa
               </div>
             </div>
 
-            <div style={{ margin: '24px 0', borderTop: '1px solid var(--ds-color-border)' }} />
+            <div className="sidebar-divider-v4" />
 
             <div className="sidebar-section">
               <h3 className="sidebar-section__title">{t("dashboard.highRiskWatchlist")}</h3>

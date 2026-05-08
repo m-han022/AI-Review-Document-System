@@ -175,6 +175,7 @@ export interface DocumentVersion {
   filename: string;
   original_filename: string;
   file_path?: string | null;
+  extracted_text?: string;
   content_hash: string;
   language: LanguageCode;
   uploaded_at: string;

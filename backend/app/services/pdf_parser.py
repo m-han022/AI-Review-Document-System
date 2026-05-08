@@ -8,10 +8,16 @@ def extract_text_from_pdf(file_path: str) -> str:
     text_parts = []
     try:
         with pdfplumber.open(file_path) as pdf:
-            for page_num, page in enumerate(pdf.pages, 1):
-                page_text = page.extract_text()
-                if page_text:
+            total_pages = len(pdf.pages)
+            print(f"[PDF Extract] Detected {total_pages} pages")
+            for page_num in range(1, total_pages + 1):
+                try:
+                    page = pdf.pages[page_num - 1]
+                    page_text = page.extract_text() or ""
                     text_parts.append(f"[Page {page_num}]\n{page_text}")
+                except Exception as e_page:
+                    print(f"[PDF Extract] Error on page {page_num}: {e_page}")
+                    text_parts.append(f"[Page {page_num}]\n[Extraction Failed]")
     except Exception as e:
         print(f"[PDF Extract] Error with pdfplumber: {e}")
         try:
@@ -19,9 +25,8 @@ def extract_text_from_pdf(file_path: str) -> str:
             from PyPDF2 import PdfReader
             reader = PdfReader(file_path)
             for page_num, page in enumerate(reader.pages, 1):
-                page_text = page.extract_text()
-                if page_text:
-                    text_parts.append(f"[Page {page_num}]\n{page_text}")
+                page_text = page.extract_text() or ""
+                text_parts.append(f"[Page {page_num}]\n{page_text}")
         except Exception as e2:
             print(f"[PDF Extract] Error with PyPDF2: {e2}")
     return "\n\n".join(text_parts)
@@ -34,13 +39,15 @@ def extract_text_from_pptx(file_path: str) -> str:
     text_parts = []
     try:
         prs = Presentation(file_path)
-        for slide_num, slide in enumerate(prs.slides, 1):
+        total_slides = len(prs.slides)
+        print(f"[PPTX Extract] Detected {total_slides} slides")
+        for slide_num in range(1, total_slides + 1):
+            slide = prs.slides[slide_num - 1]
             slide_text = []
             for shape in slide.shapes:
                 if hasattr(shape, "text") and shape.text.strip():
                     slide_text.append(shape.text.strip())
-            if slide_text:
-                text_parts.append(f"[Slide {slide_num}]\n" + "\n".join(slide_text))
+            text_parts.append(f"[Slide {slide_num}]\n" + "\n".join(slide_text))
     except Exception as e:
         print(f"[PPTX Extract] Error extracting text: {e}")
         return ""

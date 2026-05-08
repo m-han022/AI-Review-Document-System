@@ -434,6 +434,7 @@ class DocumentVersionOut(BaseModel):
     filename: str
     original_filename: str
     file_path: Optional[str] = None
+    extracted_text: Optional[str] = None
     content_hash: str
     language: LanguageCode = "ja"
     uploaded_at: str

@@ -104,6 +104,7 @@ class SubmissionStore:
             filename=version.filename,
             original_filename=version.original_filename,
             file_path=version.file_path,
+            extracted_text=version.extracted_text,
             content_hash=version.content_hash,
             language="vi" if version.language == "vi" else "ja",
             uploaded_at=version.uploaded_at,

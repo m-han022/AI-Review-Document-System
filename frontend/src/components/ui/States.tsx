@@ -175,8 +175,9 @@ export function Tooltip({ content, children }: TooltipProps) {
 interface StatusBadgeProps {
   children: ReactNode;
   tone?: StateTone | "muted";
+  className?: string;
 }
 
-export function StatusBadge({ children, tone = "muted" }: StatusBadgeProps) {
-  return <span className={`ui-status-badge ui-status-badge--${tone}`}>{children}</span>;
+export function StatusBadge({ children, tone = "muted", className = "" }: StatusBadgeProps) {
+  return <span className={`ui-status-badge ui-status-badge--${tone} ${className}`}>{children}</span>;
 }
