@@ -1,19 +1,19 @@
 import type { LanguageCode } from "../types";
 import type { DocumentType } from "./documentTypes";
 
-type Localized = { vi: string; ja: string };
+type Localized = { vi: string; ja: string; en: string };
 
 export const DOCUMENT_TYPE_LABELS: Record<DocumentType, Localized> = {
-  "project-review": { vi: "Tài liệu nhìn nhận dự án", ja: "プロジェクト振り返り資料" },
-  "bug-analysis": { vi: "Tài liệu phân tích bug", ja: "バグ分析資料" },
-  "qa-review": { vi: "Tài liệu QA", ja: "QA資料" },
-  "explanation-review": { vi: "Tài liệu giải thích", ja: "解説資料" },
+  "project-review": { vi: "Tài liệu nhìn nhận dự án", ja: "プロジェクト振り返り資料", en: "Project Review Document" },
+  "bug-analysis": { vi: "Tài liệu phân tích bug", ja: "バグ分析資料", en: "Bug Analysis Document" },
+  "qa-review": { vi: "Tài liệu QA", ja: "QA資料", en: "QA Document" },
+  "explanation-review": { vi: "Tài liệu giải thích", ja: "解説資料", en: "Explanation Document" },
 };
 
 export const LEVEL_LABELS: Record<"low" | "medium" | "high", Localized> = {
-  low: { vi: "Thấp", ja: "低" },
-  medium: { vi: "Vừa", ja: "中" },
-  high: { vi: "Cao", ja: "高" },
+  low: { vi: "Thấp", ja: "低", en: "Low" },
+  medium: { vi: "Vừa", ja: "中", en: "Medium" },
+  high: { vi: "Cao", ja: "高", en: "High" },
 };
 
 export function getDocumentTypeLabel(documentType: string | null | undefined, lang: LanguageCode): string {

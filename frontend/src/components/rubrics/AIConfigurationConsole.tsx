@@ -21,7 +21,7 @@ import { getDocumentTypeLabel, getLevelLabel } from "../../constants/uiLabels";
 import { mapErrorCodeToI18nKey } from "../../locales/errorMapping";
 import type { EvaluationSet } from "../../types";
 import ConfirmDialog from "../ui/ConfirmDialog";
-import { Button, Card, Input, PageHeader, Select, StatusBadge } from "../ui";
+import { Button, Card, Input, Select, StatusBadge } from "../ui";
 import { EmptyState, ErrorState, LoadingState } from "../ui/States";
 import { useTranslation } from "../LanguageSelector";
 

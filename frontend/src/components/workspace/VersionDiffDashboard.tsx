@@ -3,7 +3,7 @@ import { useEffect, useMemo, useReducer, useState } from "react";
 import { exportVersionDiffCsv, getVersionDiff, listDocumentVersions, listProjectDocuments, listProjects } from "../../api/client";
 import type { DocumentListOut, Project, VersionDiffOut, VersionListOut } from "../../types";
 import { useTranslation } from "../LanguageSelector";
-import { Button, Card, PageHeader, Select, StatusBadge } from "../ui";
+import { Button, Card, Select, StatusBadge } from "../ui";
 import { LoadingState } from "../ui/States";
 
 type UiState = "idle" | "loading" | "ready" | "empty" | "error";

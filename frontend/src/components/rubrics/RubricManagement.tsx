@@ -5,10 +5,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { activateRubricVersion, saveRubricVersion } from "../../api/client";
 import { DOCUMENT_TYPE_OPTIONS, type DocumentType } from "../../constants/documentTypes";
 import { rubricsQueryKey } from "../../query";
-import type { RubricVersion, RubricVersionPayload } from "../../types";
+import type { RubricVersion, RubricVersionPayload, LanguageCode } from "../../types";
 import { useRubrics } from "../../hooks/useRubrics";
 import { useTranslation } from "../LanguageSelector";
-import { Button, Card, Input, PageHeader, Select, StatusBadge } from "../ui";
+import { Button, Card, Input, Select, StatusBadge } from "../ui";
 import { PlusIcon } from "../ui/Icon";
 import { ErrorState, LoadingState } from "../ui/States";
 const RubricScoreAllocationChart = lazy(() => import("./charts/RubricScoreAllocationChart"));
@@ -41,7 +41,7 @@ function getDiffTypeLabel(type: CriteriaDiffItem["type"], t: (key: string) => st
   }
 }
 
-function promptText(prompt: RubricVersion["prompt"], key: "vi" | "ja"): string {
+function promptText(prompt: RubricVersion["prompt"], key: LanguageCode): string {
   if (typeof prompt === "string") {
     return key === "vi" ? prompt : "";
   }
@@ -62,11 +62,16 @@ function payloadFromRubric(rubric: RubricVersion | null): FormState {
     criteria: rubric.criteria.map((criterion) => ({
       key: criterion.key,
       max_score: criterion.max_score,
-      labels: { vi: criterion.labels.vi ?? criterion.key, ja: criterion.labels.ja ?? criterion.key },
+      labels: { 
+        vi: criterion.labels.vi ?? criterion.key, 
+        ja: criterion.labels.ja ?? criterion.key,
+        en: (criterion.labels as any).en ?? criterion.key 
+      },
     })),
     prompt: {
       vi: promptText(rubric.prompt, "vi") || promptText(rubric.prompt, "ja"),
       ja: promptText(rubric.prompt, "ja"),
+      en: promptText(rubric.prompt, "en") || promptText(rubric.prompt, "ja"),
     },
   };
 }
@@ -83,7 +88,7 @@ function nextVersion(versions: string[]): string {
 function buildCriteriaDiff(
   current: RubricVersion | null,
   compare: RubricVersion | null,
-  lang: "vi" | "ja",
+  lang: LanguageCode,
 ): CriteriaDiffItem[] {
   const currentCriteria = current?.criteria ?? [];
   const compareCriteria = compare?.criteria ?? [];

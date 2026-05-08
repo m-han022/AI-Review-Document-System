@@ -3,7 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 
 import { exportSubmissionsExcel } from "../../api/client";
 import { API_BASE_URL } from "../../config";
-import type { Project } from "../../types";
+import type { Project, LanguageCode } from "../../types";
 import { useTranslation } from "../LanguageSelector";
 import { formatUploadedAt } from "../submissions/utils";
 import {
@@ -15,7 +15,7 @@ import {
   TargetIcon,
   WorkflowIcon,
 } from "../ui/Icon";
-import { Button, Card, PageHeader, StatusBadge } from "../ui";
+import { Button, Card, StatusBadge } from "../ui";
 import { EmptyState } from "../ui/States";
 
 type OperationalRoute = "report" | "workflow" | "export" | "settings";
@@ -93,6 +93,39 @@ const SCREEN_COPY = {
     apiBase: "API base",
     dataSource: "データソース",
     realData: "新プロジェクト・ドキュメント構成",
+  },
+  en: {
+    report: {
+      title: "Quality Report",
+      subtitle: "Aggregate quality across projects, including average scores and review status.",
+    },
+    workflow: {
+      title: "Approval Workflow",
+      subtitle: "Track completed projects and those requiring action.",
+    },
+    export: {
+      title: "Export Data",
+      subtitle: "Export existing review data to Excel format.",
+    },
+    settings: {
+      title: "Settings",
+      subtitle: "Runtime information and operational options.",
+    },
+    noData: "No project data available.",
+    avgScore: "Average Score",
+    reviewed: "Completed",
+    needsAction: "Needs Action",
+    pending: "Pending Review",
+    slideNg: "NG Documents",
+    weakCriteria: "Weak Points",
+    openReviews: "Open List",
+    uploadMore: "Create Project",
+    exportExcel: "Export Excel",
+    exporting: "Exporting...",
+    latest: "Latest Projects",
+    apiBase: "API base",
+    dataSource: "Data source",
+    realData: "New Project-Document System",
   },
 } as const;
 
@@ -299,7 +332,7 @@ function WorkflowColumn({
   title: string;
   tone: "success" | "warning" | "danger";
   rows: Project[];
-  lang: "vi" | "ja";
+  lang: LanguageCode;
 }) {
   return (
     <Card title={title}>

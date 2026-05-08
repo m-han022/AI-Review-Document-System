@@ -8,11 +8,11 @@ import {
   YAxis,
 } from "recharts";
 
-import type { RubricCriterion } from "../../../types";
+import type { RubricCriterion, LanguageCode } from "../../../types";
 
 interface RubricScoreAllocationChartProps {
   criteria: RubricCriterion[];
-  language: "vi" | "ja";
+  language: LanguageCode;
 }
 
 export default function RubricScoreAllocationChart({

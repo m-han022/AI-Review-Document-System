@@ -1,6 +1,6 @@
-import { useState, type ReactNode, cloneElement, isValidElement } from "react";
+import { type ReactNode, cloneElement, isValidElement } from "react";
 import "./Layout.css";
-import { MenuIcon, XIcon } from "../ui/Icon";
+import { XIcon } from "../ui/Icon";
 
 interface AppShellProps {
   sidebar: ReactNode;

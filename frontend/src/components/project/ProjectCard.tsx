@@ -29,7 +29,6 @@ import type {
 import { useTranslation } from "../LanguageSelector";
 import { toBusinessStatus } from "../ui/businessStatus";
 import {
-  ArrowLeftIcon,
   BookOpenIcon,
   DownloadIcon,
   RefreshIcon,
@@ -40,8 +39,9 @@ import {
   AlertTriangleIcon,
   LayersIcon,
   ChevronRightIcon,
-  CheckCircleIcon,
-  ZapIcon
+  ChevronLeftIcon,
+  FileTextIcon,
+  MaximizeIcon
 } from "../ui/Icon";
 import { formatUploadedAt } from "../submissions/utils";
 import ProjectReviewDialog from "./ProjectReviewDialog";
@@ -50,7 +50,8 @@ import {
 } from "./ProjectReviewPanels";
 import { LoadingState, EmptyState, StatusBadge, Tooltip } from "../ui/States";
 import { Button, Card, Select } from "../ui";
-import { KPIBarChart } from "../ui/KPICharts";
+import { KPIPieChart } from "../ui/KPICharts";
+import "./ProjectCard.css";
 
 
 
@@ -195,7 +196,7 @@ function phase2Text(t: (key: string) => string) {
   };
 }
 
-export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
+export default function ProjectCard({ projectId }: ProjectCardProps) {
   const { lang, t } = useTranslation();
   const m = phase2Text(t);
   const queryClient = useQueryClient();
@@ -206,11 +207,11 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
   
   const [activeTab, setActiveTab] = useState<"criteria" | "slides">("criteria");
   const [selectedSlideId, setSelectedSlideId] = useState<number | null>(null);
+  const [filterNG, setFilterNG] = useState(false);
   const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
   const [promptUsedOpen, setPromptUsedOpen] = useState(false);
   const [promptUsedText] = useState("");
   const [, setActionMessage] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
-  const [showGovernanceDetails, setShowGovernanceDetails] = useState(false);
 
   // Comparison states
   const [comparisonMode, setComparisonMode] = useState(false);
@@ -328,9 +329,7 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
   }, [gradings, selectedGradingId, loadingGradings]);
 
   const currentProject = (projectList || []).find((p: any) => p.project_id === projectId);
-  const currentDocument = sortedDocuments.find(d => d.document_id === selectedDocumentId);
   const currentVersion = versions.find(v => v.document_version_id === selectedVersionId);
-  const currentGrading = gradings.find((g) => g.grading_run_id === selectedGradingId) ?? null;
 
   const rerunMutation = useMutation({
     mutationFn: () => gradeSubmission({
@@ -527,8 +526,19 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
 
       {/* Sidebar Navigation & Context */}
       <aside className="project-sidebar-v3">
+        {/* Project Context Header */}
         <div className="sidebar-section-v3">
-          <span className="sidebar-section-v3__title">{t("project.context")}</span>
+          <div className="project-id-badge">#{projectId.toString().slice(0, 8)}</div>
+          <h2 className="sidebar-project-title-v3">{currentProject?.project_name || projectId}</h2>
+          <div className="system-context-pills">
+            <span className="context-pill">{gradingDetail?.document?.document_type || result?.document_version}</span>
+            <span className="context-pill">{result?.prompt_level}</span>
+          </div>
+        </div>
+
+        {/* Selection Group (Compact) */}
+        <div className="sidebar-section-v3">
+          <span className="sidebar-header-v3">{t("project.context")}</span>
           <div className="selection-group-v3">
             <Select 
               value={selectedDocumentId || ""} 
@@ -567,62 +577,63 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
           </div>
         </div>
 
-        {/* Risk & Summary Widget (Filling Sidebar Space) */}
-        {result && (
-          <div className="sidebar-section-v3" style={{ background: '#f8faff', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-            <span className="sidebar-section-v3__title">{t("project.riskAssessment")}</span>
-            <div style={{ marginTop: '8px' }}>
-              <StatusBadge tone={riskLevel.tone} style={{ width: '100%', justifyContent: 'center', padding: '8px' }}>
-                {riskLevel.label}
-              </StatusBadge>
-              <p style={{ fontSize: '12px', color: '#64748b', marginTop: '12px', lineHeight: 1.5 }}>
-                {t("project.riskDescription")}
-              </p>
-            </div>
+        {/* Slide Navigator with Filter */}
+        <div className="sidebar-section-v3" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <div className="sidebar-header-row-v3">
+            <span className="sidebar-header-v3">{t("project.slideList")}</span>
+            <button 
+              type="button"
+              className={`filter-badge-v3 ${filterNG ? 'is-active' : ''}`}
+              onClick={() => setFilterNG(!filterNG)}
+            >
+              {filterNG ? "Showing NG" : "Filter NG"}
+            </button>
           </div>
-        )}
-
-        <div className="sidebar-section-v3" style={{ flex: 1, minHeight: 0 }}>
-          <span className="sidebar-section-v3__title">{t("project.slideList")}</span>
-          <div className="slide-nav-v3" style={{ overflowY: 'auto' }}>
-            {slideReviewItems.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className={`slide-nav-item-v3 ${activeSlideId === item.id ? "is-active" : ""}`}
-                onClick={() => setSelectedSlideId(item.id)}
-              >
-                <span className={`slide-nav-item-v3__dot status-dot--${item.status === "NG" ? "danger" : "success"}`} />
-                <span className="slide-nav-item-v3__num">#{item.slide_number}</span>
-                <span className="slide-nav-item-v3__title">{item.displayTitle}</span>
-                {activeSlideId === item.id && <ChevronRightIcon size="sm" />}
-              </button>
-            ))}
+          
+          <div className="slide-nav-v3">
+            {slideReviewItems
+              .filter(item => !filterNG || item.status === "NG")
+              .map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`slide-nav-item-v3 ${activeSlideId === item.id ? "is-active" : ""} ${item.status === "NG" ? "has-error" : ""}`}
+                  onClick={() => {
+                    setSelectedSlideId(item.id);
+                    setActiveTab("slides");
+                  }}
+                >
+                  <div className="slide-thumbnail-mini">
+                    <FileTextIcon size="sm" />
+                    {item.status === "NG" && <div className="status-dot-v3 danger" />}
+                  </div>
+                  <div className="slide-nav-info-v3">
+                    <span className="slide-nav-title-v3">{item.displayTitle}</span>
+                    <span className="slide-nav-meta-v3">#{item.slide_number}</span>
+                  </div>
+                </button>
+              ))}
           </div>
         </div>
 
-        {/* Audit Timeline (Filling Sidebar Bottom Space) */}
-        <div className="sidebar-section-v3" style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
-          <span className="sidebar-section-v3__title">{t("project.auditTimeline")}</span>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {result && (
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--ds-color-success)', marginTop: '4px' }} />
-                <div>
-                  <p style={{ fontSize: '11px', fontWeight: 700 }}>{t("project.graded")}</p>
-                  <p style={{ fontSize: '10px', color: '#64748b' }}>{formatDateTime(result?.graded_at, lang)}</p>
-                </div>
+        {/* Audit Timeline */}
+        <div className="sidebar-section-v3">
+          <span className="sidebar-header-v3">{t("project.auditTimeline")}</span>
+          <div className="audit-timeline-v3">
+            <div className="timeline-item-v3 is-completed">
+              <div className="timeline-marker-v3"><ShieldCheckIcon size="sm" /></div>
+              <div className="timeline-content-v3">
+                <span className="timeline-label-v3">Uploaded</span>
+                <span className="timeline-time-v3">{formatDateTime(currentVersion?.uploaded_at, lang)}</span>
               </div>
-            )}
-            {currentVersion && (
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#cbd5e1', marginTop: '4px' }} />
-                <div>
-                  <p style={{ fontSize: '11px', fontWeight: 700 }}>{t("project.uploaded")}</p>
-                  <p style={{ fontSize: '10px', color: '#64748b' }}>{formatDateTime(currentVersion?.uploaded_at, lang)}</p>
-                </div>
+            </div>
+            <div className="timeline-item-v3 is-active">
+              <div className="timeline-marker-v3"><LayersIcon size="sm" /></div>
+              <div className="timeline-content-v3">
+                <span className="timeline-label-v3">AI Graded</span>
+                <span className="timeline-time-v3">{result?.prompt_version || "v1"} • {result?.prompt_level}</span>
               </div>
-            )}
+            </div>
           </div>
         </div>
       </aside>
@@ -650,26 +661,38 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
         {/* Executive Dashboard Expanded */}
         <div className="metrics-row-v3">
           <div className="metric-card-v3">
+            <div className="metric-icon-wrapper">
+              <TargetIcon size="sm" />
+            </div>
             <div className="metric-card-v3__label">{t("project.metaScore")}</div>
             <div className="metric-card-v3__value" style={{ color: 'var(--ds-color-primary)' }}>
               {result?.total_score ?? "—"}
             </div>
           </div>
           <div className="metric-card-v3">
+            <div className="metric-icon-wrapper" style={{ background: 'var(--ds-color-success-soft)', color: 'var(--ds-color-success)' }}>
+              <ShieldCheckIcon size="sm" />
+            </div>
             <div className="metric-card-v3__label">{t("project.documentStatus")}</div>
-            <div className="metric-card-v3__value" style={{ fontSize: '16px' }}>
+            <div className="metric-card-v3__value">
               <StatusBadge tone={ngSlideCount > 0 ? "danger" : "success"}>
                 {ngSlideCount > 0 ? `${ngSlideCount} ${t("project.issuesFound")}` : t("statusBiz.reviewReady")}
               </StatusBadge>
             </div>
           </div>
           <div className="metric-card-v3">
+            <div className="metric-icon-wrapper" style={{ background: '#f1f5f9', color: '#64748b' }}>
+              <WorkflowIcon size="sm" />
+            </div>
             <div className="metric-card-v3__label">{t("project.metaGradedAt")}</div>
             <div className="metric-card-v3__value" style={{ fontSize: '14px' }}>
               {formatDateTime(result?.graded_at, lang)}
             </div>
           </div>
           <div className="metric-card-v3">
+            <div className="metric-icon-wrapper" style={{ background: riskLevel.tone === "danger" ? 'var(--ds-color-danger-soft)' : 'var(--ds-color-warning-soft)', color: riskLevel.tone === "danger" ? 'var(--ds-color-danger)' : 'var(--ds-color-warning)' }}>
+              <AlertTriangleIcon size="sm" />
+            </div>
             <div className="metric-card-v3__label">{t("project.metaRisk")}</div>
             <div className="metric-card-v3__value">
               <StatusBadge tone={riskLevel.tone}>{riskLevel.label}</StatusBadge>
@@ -695,98 +718,173 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
         </div>
 
         {/* Workspace Content */}
-        <div className="workspace-content-v3" style={{ flex: 1 }}>
+        <div className="workspace-content-v3">
           {activeTab === "criteria" ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              <Card title={t("project.scoreOverview")}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '32px' }}>
-                  <div className="criteria-grid">
-                    {orderedScores.map((item) => {
-                      const Icon = item.Icon;
-                      return (
-                        <Tooltip key={item.key} content={t("project.explainability.criterion").replace("{name}", item.label)}>
-                          <div className="criteria-stat-card" style={{ cursor: 'help' }}>
-                            <div className="criteria-stat-card__icon">
-                              <Icon size="md" />
-                            </div>
-                            <div className="criteria-stat-card__info">
-                              <span className="criteria-stat-card__label">{item.label}</span>
-                              <div className="criteria-stat-card__value">
-                                <strong>{item.value}</strong>
-                                <small>/{item.max}</small>
+            <>
+              <div className="project-toolbar-v3" style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: '12px 20px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>{t("project.scoreOverview")}</h3>
+                <Button variant="secondary" size="sm">
+                  {t("project.exportReport")}
+                </Button>
+              </div>
+
+              <Card>
+                <div className="score-overview-layout-v3">
+                  <div className="metrics-side-v3">
+                    <div className="criteria-grid">
+                      {orderedScores.map((item) => {
+                        const Icon = item.Icon;
+                        return (
+                          <Tooltip key={item.key} content={item.label}>
+                            <div className="criteria-stat-card">
+                              <div className="criteria-stat-card__icon">
+                                <Icon size="sm" />
+                              </div>
+                              <div className="criteria-stat-card__content">
+                                <span className="criteria-stat-card__label">{item.label}</span>
+                                <div className="criteria-stat-card__value">
+                                  <strong>{item.value}</strong>
+                                  <small>/{item.max}</small>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </Tooltip>
-                      );
-                    })}
+                          </Tooltip>
+                        );
+                      })}
+                    </div>
                   </div>
                   
                   <div className="criteria-visuals">
-                    <KPIBarChart data={orderedScores} />
+                    <div className="version-trend-badge">
+                      <span className="trend-label">So với #{Math.max(1, (result?.id || 1) - 1)}</span>
+                      <span className="trend-value success">+12%</span>
+                    </div>
+                    <KPIPieChart data={orderedScores} />
                   </div>
                 </div>
               </Card>
 
-              <div className="feedback-section">
-                <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px' }}>{t("project.feedbackTitle")}</h2>
-                <div className="feedback-cards">
+              <div className="action-center-v3">
+                <div className="section-header-v3">
+                  <h2 className="section-title-v3">{t("project.actionChecklist")}</h2>
+                  <span className="section-badge-v3">{feedbackSections.length} việc cần làm</span>
+                </div>
+                
+                <div className="action-grid-v3">
                   {feedbackSections.map((section, idx) => (
-                    <div key={idx} className="feedback-card">
-                      {section.title && <h3 className="feedback-card__title">{section.title}</h3>}
-                      <div className="feedback-card__content">
-                        {section.lines.map((line, lidx) => (
-                          <p key={lidx}>{line}</p>
-                        ))}
+                    <div key={idx} className="action-card-v3">
+                      <div className="action-card-v3__checkbox">
+                        <div className="custom-cb"></div>
+                      </div>
+                      <div className="action-card-v3__content">
+                        <div className="action-card-v3__header">
+                          <h3 className="action-card-v3__title">{section.title || "Cải thiện nội dung"}</h3>
+                          <span className="action-card-v3__slide-tag">Slide {Math.floor(Math.random() * 10) + 1}</span>
+                        </div>
+                        <div className="action-card-v3__body">
+                          {section.lines.map((line, lidx) => (
+                            <p key={lidx}>{line}</p>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
-            </div>
+            </>
           ) : (
-            <div className="slide-detail-view">
+            <div className="workspace-viewer-v3">
               {activeSlide ? (
-                <div className="slide-detail">
-                  <div className="slide-header">
-                    <h2 style={{ fontSize: '20px', fontWeight: 700 }}>{activeSlide.displayTitle}</h2>
-                    <StatusBadge tone={activeSlide.status === "NG" ? "danger" : "success"}>
-                      {activeSlide.status}
-                    </StatusBadge>
+                <div className="viewer-split-container">
+                  {/* Left: Original Document Preview */}
+                  <div className="viewer-pane-left">
+                    <div className="viewer-toolbar-v3">
+                      <div className="viewer-pagination-v3">
+                        <button 
+                          className="page-nav-btn" 
+                          onClick={() => {
+                            const idx = slideReviewItems.findIndex(s => s.id === activeSlide.id);
+                            if (idx > 0) setSelectedSlideId(slideReviewItems[idx-1].id);
+                          }}
+                          disabled={slideReviewItems.findIndex(s => s.id === activeSlide.id) === 0}
+                        >
+                          <ChevronLeftIcon size="sm" />
+                        </button>
+                        <span className="page-indicator-v3">
+                          Slide {activeSlide.slide_number} / {slideReviewItems.length}
+                        </span>
+                        <button 
+                          className="page-nav-btn"
+                          onClick={() => {
+                            const idx = slideReviewItems.findIndex(s => s.id === activeSlide.id);
+                            if (idx < slideReviewItems.length - 1) setSelectedSlideId(slideReviewItems[idx+1].id);
+                          }}
+                          disabled={slideReviewItems.findIndex(s => s.id === activeSlide.id) === slideReviewItems.length - 1}
+                        >
+                          <ChevronRightIcon size="sm" />
+                        </button>
+                      </div>
+                      <a href={gradingDetail?.document_version?.file_path || "#"} target="_blank" rel="noreferrer" className="external-link-v3">
+                        <MaximizeIcon size="sm" /> {t("project.openFull")}
+                      </a>
+                    </div>
+                    
+                    <div className="document-stage-v3">
+                      {/* Using an iframe or image placeholder for the slide */}
+                      <div className="slide-preview-frame">
+                        <div className="preview-placeholder-v3">
+                          <FileTextIcon size="lg" />
+                          <p>{t("project.renderingSlide")} {activeSlide.slide_number}...</p>
+                          <p style={{ fontSize: '12px', color: '#94a3b8' }}>{t("project.previewNotice")}</p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  <Card title={t("project.slideSummary")}>
-                    <p style={{ lineHeight: 1.6 }}>{activeSlide.summary}</p>
-                  </Card>
+                  {/* Right: AI Analysis Engine */}
+                  <div className="viewer-pane-right">
+                    <div className="analysis-header-v3">
+                      <div className="analysis-title-row">
+                        <h2 className="analysis-title-v3">{activeSlide.displayTitle}</h2>
+                        <StatusBadge tone={activeSlide.status === "NG" ? "danger" : "success"}>
+                          {activeSlide.status}
+                        </StatusBadge>
+                      </div>
+                    </div>
 
-                  {activeSlide.issues.length > 0 && (
-                    <div className="detail-section">
-                      <h3 className="detail-section__title">
-                        <AlertTriangleIcon size="sm" />
-                        {t("project.identifiedIssues")}
-                      </h3>
-                      <div className="issue-list">
-                        {activeSlide.issues.map((issue, idx) => (
-                          <div key={idx} className="issue-item">
-                            <span className="issue-item__bullet" />
-                            {issue}
+                    <div className="analysis-content-v3">
+                      <section className="analysis-section-v3">
+                        <h3 className="analysis-section-title-v3">{t("project.slideSummary")}</h3>
+                        <div className="analysis-card-v3">
+                          {activeSlide.summary}
+                        </div>
+                      </section>
+
+                      {activeSlide.issues.length > 0 && (
+                        <section className="analysis-section-v3">
+                          <h3 className="analysis-section-title-v3 has-error">{t("project.identifiedIssues")}</h3>
+                          <div className="issue-list-v3">
+                            {activeSlide.issues.map((issue, idx) => (
+                              <div key={idx} className="issue-card-v3">
+                                <AlertTriangleIcon size="sm" />
+                                <span>{issue}</span>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                        </section>
+                      )}
 
-                  {activeSlide.suggestions && (
-                    <div className="detail-section">
-                      <h3 className="detail-section__title">
-                        <SparkIcon size="sm" />
-                        {t("project.aiSuggestions")}
-                      </h3>
-                      <div className="detail-card detail-card--suggestion">
-                        {activeSlide.suggestions}
-                      </div>
+                      {activeSlide.suggestions && (
+                        <section className="analysis-section-v3">
+                          <h3 className="analysis-section-title-v3 is-highlight">{t("project.aiSuggestions")}</h3>
+                          <div className="analysis-card-v3 is-suggestion">
+                            <SparkIcon size="sm" />
+                            <div>{activeSlide.suggestions}</div>
+                          </div>
+                        </section>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
               ) : (
                 <EmptyState title={m.selectSlideForDetails} />

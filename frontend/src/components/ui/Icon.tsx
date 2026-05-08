@@ -43,6 +43,9 @@ import {
   Workflow,
   Zap,
   X,
+  Check,
+  Star,
+  Maximize,
   type LucideIcon,
   type LucideProps,
 } from "lucide-react";
@@ -95,7 +98,10 @@ const icons = {
   version: ListChecks,
   workflow: Workflow,
   zap: Zap,
-  checkCircle: CircleCheck,
+  check: Check,
+  checkCircle: Check,
+  star: Star,
+  maximize: Maximize,
   x: X,
 } satisfies Record<string, LucideIcon>;
 
@@ -308,4 +314,20 @@ export function ZapIcon(props: NamedIconProps) {
 
 export function CheckCircleIcon(props: NamedIconProps) {
   return <Icon name="checkCircle" {...props} />;
+}
+
+export function CheckIcon(props: NamedIconProps) {
+  return <Icon name="check" {...props} />;
+}
+
+export function StarIcon(props: NamedIconProps) {
+  return <Icon name="star" {...props} />;
+}
+
+export function FileTextIcon(props: NamedIconProps) {
+  return <Icon name="fileReview" {...props} />;
+}
+
+export function MaximizeIcon(props: NamedIconProps) {
+  return <Icon name="maximize" {...props} />;
 }
