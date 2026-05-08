@@ -128,6 +128,31 @@ VERSION_CONTEXT_COLUMNS = [
     "ng_slide_count",
 ]
 
+AUDIT_RUN_COLUMNS = [
+    "project_id",
+    "project_name",
+    "grading_run_id",
+    "status",
+    "error_message",
+    "document_id",
+    "document_type",
+    "document_name",
+    "document_version_id",
+    "document_version",
+    "score",
+    "total_score",
+    "prompt_level",
+    "evaluation_set_id",
+    "rubric_version",
+    "prompt_version",
+    "policy_version",
+    "prompt_hash",
+    "criteria_hash",
+    "policy_hash",
+    "required_rule_hash",
+    "graded_at",
+]
+
 
 def _column_name(index: int) -> str:
     result = []
@@ -470,35 +495,114 @@ def _build_version_context_rows(submissions: list[Any]) -> list[list[object]]:
     return rows
 
 
-def build_submissions_excel(submissions: list[Any]) -> bytes:
+def _build_audit_run_rows(submissions: list[Any]) -> list[list[object]]:
+    rows: list[list[object]] = [AUDIT_RUN_COLUMNS]
+    for submission in submissions:
+        run_history = list(getattr(submission, "run_history", []) or [])
+        if not run_history:
+            rows.append(
+                [
+                    submission.project_id,
+                    submission.project_name,
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                ]
+            )
+            continue
+        for run in run_history:
+            rows.append(
+                [
+                    submission.project_id,
+                    submission.project_name,
+                    getattr(run, "id", None),
+                    getattr(run, "status", None),
+                    getattr(run, "error_message", None),
+                    getattr(run, "document_id", None),
+                    getattr(run, "document_type", None),
+                    getattr(run, "document_name", None),
+                    getattr(run, "document_version_id", None),
+                    getattr(run, "document_version", None),
+                    getattr(run, "score", None),
+                    getattr(run, "total_score", None),
+                    getattr(run, "prompt_level", None),
+                    getattr(run, "evaluation_set_id", None),
+                    getattr(run, "rubric_version", None),
+                    getattr(run, "prompt_version", None),
+                    getattr(run, "policy_version", None),
+                    getattr(run, "prompt_hash", None),
+                    getattr(run, "criteria_hash", None),
+                    getattr(run, "policy_hash", None),
+                    getattr(run, "required_rule_hash", None),
+                    getattr(run, "graded_at", None),
+                ]
+            )
+    return rows
+
+
+def build_submissions_excel(submissions: list[Any], include_ai_details: bool = False) -> bytes:
     summary_rows = _build_summary_rows(submissions)
     criteria_rows = _build_criteria_rows(submissions)
-    feedback_rows = _build_feedback_rows(submissions)
-    slide_review_rows = _build_slide_review_rows(submissions)
     issue_summary_rows = _build_issue_summary_rows(submissions)
-    ng_slide_rows = _build_ng_slide_rows(submissions)
     version_context_rows = _build_version_context_rows(submissions)
+    audit_run_rows = _build_audit_run_rows(submissions)
 
     sheet1_xml, _ = _sheet_xml(summary_rows)
     sheet2_xml, _ = _sheet_xml(criteria_rows)
-    sheet3_xml, _ = _sheet_xml(feedback_rows)
-    sheet4_xml, _ = _sheet_xml(slide_review_rows)
-    sheet5_xml, _ = _sheet_xml(issue_summary_rows)
-    sheet6_xml, _ = _sheet_xml(ng_slide_rows)
-    sheet7_xml, _ = _sheet_xml(version_context_rows)
+    sheet3_xml, _ = _sheet_xml(issue_summary_rows)
+    sheet4_xml, _ = _sheet_xml(version_context_rows)
+    sheet5_xml, _ = _sheet_xml(audit_run_rows)
+
+    sheets: list[tuple[str, str]] = [
+        ("Summary", sheet1_xml),
+        ("CriteriaDetails", sheet2_xml),
+        ("IssueSummary", sheet3_xml),
+        ("VersionContext", sheet4_xml),
+        ("AuditRuns", sheet5_xml),
+    ]
+    if include_ai_details:
+        feedback_rows = _build_feedback_rows(submissions)
+        slide_review_rows = _build_slide_review_rows(submissions)
+        ng_slide_rows = _build_ng_slide_rows(submissions)
+        sheet6_xml, _ = _sheet_xml(feedback_rows)
+        sheet7_xml, _ = _sheet_xml(slide_review_rows)
+        sheet8_xml, _ = _sheet_xml(ng_slide_rows)
+        sheets.extend(
+            [
+                ("Feedback", sheet6_xml),
+                ("SlideReviews", sheet7_xml),
+                ("NGSlides", sheet8_xml),
+            ]
+        )
 
     content_types = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="xml" ContentType="application/xml"/>
   <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
-  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
-  <Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
-  <Override PartName="/xl/worksheets/sheet3.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
-  <Override PartName="/xl/worksheets/sheet4.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
-  <Override PartName="/xl/worksheets/sheet5.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
-  <Override PartName="/xl/worksheets/sheet6.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
-  <Override PartName="/xl/worksheets/sheet7.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+"""
+    worksheet_overrides = "".join(
+        f'  <Override PartName="/xl/worksheets/sheet{idx}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>\n'
+        for idx in range(1, len(sheets) + 1)
+    )
+    content_types += worksheet_overrides + """
   <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
   <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
   <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
@@ -516,30 +620,28 @@ def build_submissions_excel(submissions: list[Any]) -> bytes:
     workbook = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
  xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-  <sheets>
-    <sheet name="Summary" sheetId="1" r:id="rId1"/>
-    <sheet name="CriteriaDetails" sheetId="2" r:id="rId2"/>
-    <sheet name="Feedback" sheetId="3" r:id="rId3"/>
-    <sheet name="SlideReviews" sheetId="4" r:id="rId4"/>
-    <sheet name="IssueSummary" sheetId="5" r:id="rId5"/>
-    <sheet name="NGSlides" sheetId="6" r:id="rId6"/>
-    <sheet name="VersionContext" sheetId="7" r:id="rId7"/>
-  </sheets>
+"""
+    workbook_sheets = "".join(
+        f'    <sheet name="{name}" sheetId="{idx}" r:id="rId{idx}"/>\n'
+        for idx, (name, _) in enumerate(sheets, start=1)
+    )
+    workbook += f"""  <sheets>
+{workbook_sheets}  </sheets>
 </workbook>
 """
 
     workbook_rels = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
-  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>
-  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet3.xml"/>
-  <Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet4.xml"/>
-  <Relationship Id="rId5" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet5.xml"/>
-  <Relationship Id="rId6" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet6.xml"/>
-  <Relationship Id="rId7" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet7.xml"/>
-  <Relationship Id="rId8" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
-</Relationships>
 """
+    workbook_rels_entries = "".join(
+        f'  <Relationship Id="rId{idx}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet{idx}.xml"/>\n'
+        for idx in range(1, len(sheets) + 1)
+    )
+    workbook_rels += (
+        workbook_rels_entries
+        + f'  <Relationship Id="rId{len(sheets) + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>\n'
+        + "</Relationships>\n"
+    )
 
     styles = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
@@ -586,12 +688,7 @@ def build_submissions_excel(submissions: list[Any]) -> bytes:
         archive.writestr("xl/workbook.xml", workbook)
         archive.writestr("xl/_rels/workbook.xml.rels", workbook_rels)
         archive.writestr("xl/styles.xml", styles)
-        archive.writestr("xl/worksheets/sheet1.xml", sheet1_xml)
-        archive.writestr("xl/worksheets/sheet2.xml", sheet2_xml)
-        archive.writestr("xl/worksheets/sheet3.xml", sheet3_xml)
-        archive.writestr("xl/worksheets/sheet4.xml", sheet4_xml)
-        archive.writestr("xl/worksheets/sheet5.xml", sheet5_xml)
-        archive.writestr("xl/worksheets/sheet6.xml", sheet6_xml)
-        archive.writestr("xl/worksheets/sheet7.xml", sheet7_xml)
+        for idx, (_, sheet_xml) in enumerate(sheets, start=1):
+            archive.writestr(f"xl/worksheets/sheet{idx}.xml", sheet_xml)
 
     return stream.getvalue()

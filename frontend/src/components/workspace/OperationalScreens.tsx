@@ -17,6 +17,8 @@ import {
 } from "../ui/Icon";
 import { Button, Card, StatusBadge } from "../ui";
 import { EmptyState } from "../ui/States";
+import { emitUiAudit } from "../../auth/audit";
+import { canPerform, defaultPermissionFlags, type AppRole } from "../../auth/permissions";
 
 type OperationalRoute = "report" | "workflow" | "export" | "settings";
 
@@ -150,6 +152,13 @@ export default function OperationalScreen({
   const copy = SCREEN_COPY[lang] ?? SCREEN_COPY.vi;
   const screen = copy[route];
   const [exportMessage, setExportMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [includeAiDetails, setIncludeAiDetails] = useState(false);
+  const [exportProjectId, setExportProjectId] = useState("");
+  const [exportFromTime, setExportFromTime] = useState("");
+  const [exportToTime, setExportToTime] = useState("");
+  const exportModeLabel = lang === "ja" ? "出力モード" : lang === "en" ? "Export mode" : "Chế độ xuất";
+  const exportModeFast = lang === "ja" ? "高速出力（AI詳細なし）" : lang === "en" ? "Fast export (no detailed AI output)" : "Xuất nhanh (không kết quả AI chi tiết)";
+  const exportModeDetailed = lang === "ja" ? "詳細出力（AI結果を含む）" : lang === "en" ? "Detailed export (include AI output)" : "Xuất chi tiết (kèm kết quả AI)";
   const exportMutation = useMutation({
     mutationFn: exportSubmissionsExcel,
     onSuccess: ({ blob, filename }) => {
@@ -163,6 +172,8 @@ export default function OperationalScreen({
       });
     },
   });
+  const currentRole: AppRole = "admin";
+  const canExport = canPerform("review.export", { role: currentRole }, defaultPermissionFlags);
 
   const metrics = useMemo(() => {
     const reviewed = projects.filter((p) => p.latest_score !== null);
@@ -236,13 +247,70 @@ export default function OperationalScreen({
             <p style={{ color: 'var(--ds-color-text-muted)', marginBottom: '16px' }}>{screen.subtitle}</p>
             <Button 
               variant="primary" 
-              onClick={() => exportMutation.mutate()} 
-              disabled={exportMutation.isPending || projects.length === 0}
+              onClick={() => {
+                if (!canExport) {
+                  emitUiAudit({
+                    action: "review.export",
+                    outcome: "blocked",
+                    detail: "soft-guard",
+                    ts: new Date().toISOString(),
+                  });
+                  return;
+                }
+                emitUiAudit({
+                  action: "review.export",
+                  outcome: "allowed",
+                  detail: "trigger-export",
+                  ts: new Date().toISOString(),
+                });
+                exportMutation.mutate({
+                  includeAiDetails,
+                  projectId: exportProjectId.trim() || undefined,
+                  fromTime: exportFromTime || undefined,
+                  toTime: exportToTime || undefined,
+                });
+              }}
+              disabled={!canExport || exportMutation.isPending || projects.length === 0}
               isLoading={exportMutation.isPending}
               leftIcon={<DownloadIcon size="sm" />}
             >
               {copy.exportExcel}
             </Button>
+            <div style={{ marginTop: "12px" }}>
+              <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "6px" }}>{exportModeLabel}</label>
+              <select
+                className="ds-input"
+                value={includeAiDetails ? "detailed" : "fast"}
+                onChange={(e) => setIncludeAiDetails(e.target.value === "detailed")}
+                disabled={exportMutation.isPending}
+              >
+                <option value="fast">{exportModeFast}</option>
+                <option value="detailed">{exportModeDetailed}</option>
+              </select>
+            </div>
+            <div style={{ marginTop: "12px", display: "grid", gap: "8px" }}>
+              <input
+                className="ds-input"
+                placeholder="project_id (optional)"
+                value={exportProjectId}
+                onChange={(e) => setExportProjectId(e.target.value)}
+                disabled={exportMutation.isPending}
+              />
+              <input
+                className="ds-input"
+                type="datetime-local"
+                value={exportFromTime}
+                onChange={(e) => setExportFromTime(e.target.value)}
+                disabled={exportMutation.isPending}
+              />
+              <input
+                className="ds-input"
+                type="datetime-local"
+                value={exportToTime}
+                onChange={(e) => setExportToTime(e.target.value)}
+                disabled={exportMutation.isPending}
+              />
+            </div>
             {exportMessage && (
               <div style={{ marginTop: '12px' }}>
                 <StatusBadge tone={exportMessage.type === "success" ? "success" : "danger"}>

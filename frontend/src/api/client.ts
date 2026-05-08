@@ -270,7 +270,9 @@ export async function listProjectDocuments(projectId: string): Promise<DocumentL
     console.error(`[API] Fetch project documents failed: ${res.status} at ${url}`);
     throw createApiError("DOCUMENT_FETCH_FAILED", apiMessage("fetchSubmissionsFailed"), res.status, res.statusText);
   }
-  return res.json();
+  const data = await res.json();
+  const list = data?.documents || data?.items || (Array.isArray(data) ? data : []);
+  return list as DocumentListOut[];
 }
 
 export async function listDocumentVersions(documentId: number): Promise<VersionListOut[]> {
@@ -280,7 +282,9 @@ export async function listDocumentVersions(documentId: number): Promise<VersionL
     console.error(`[API] Fetch versions failed: ${res.status} at ${url}`);
     throw createApiError("VERSION_FETCH_FAILED", apiMessage("fetchSubmissionsFailed"), res.status, res.statusText);
   }
-  return res.json();
+  const data = await res.json();
+  const list = data?.versions || data?.items || (Array.isArray(data) ? data : []);
+  return list as VersionListOut[];
 }
 
 export async function listVersionGradings(documentVersionId: number): Promise<GradingListOut[]> {
@@ -290,7 +294,9 @@ export async function listVersionGradings(documentVersionId: number): Promise<Gr
     console.error(`[API] Fetch gradings failed: ${res.status} at ${url}`);
     throw createApiError("GRADING_FETCH_FAILED", apiMessage("fetchSubmissionsFailed"), res.status, res.statusText);
   }
-  return res.json();
+  const data = await res.json();
+  const list = data?.gradings || data?.items || (Array.isArray(data) ? data : []);
+  return list as GradingListOut[];
 }
 
 export async function getGradingRun(gradingRunId: number): Promise<GradingRunDetail> {
@@ -540,8 +546,19 @@ export async function bulkDeleteSubmissions(projectIds: string[]): Promise<{ del
   return response.json();
 }
 
-export async function exportSubmissionsExcel(): Promise<{ blob: Blob; filename: string }> {
-  const response = await fetch(`${API_BASE_URL}/exports/submissions.xlsx`);
+export async function exportSubmissionsExcel(
+  options: { includeAiDetails?: boolean; projectId?: string; fromTime?: string; toTime?: string } = {},
+): Promise<{ blob: Blob; filename: string }> {
+  const params = new URLSearchParams();
+  if (typeof options.includeAiDetails === "boolean") {
+    params.set("include_ai_details", String(options.includeAiDetails));
+  }
+  if (options.projectId) params.set("project_id", options.projectId);
+  if (options.fromTime) params.set("from_time", options.fromTime);
+  if (options.toTime) params.set("to_time", options.toTime);
+  const query = params.toString();
+  const url = `${API_BASE_URL}/exports/submissions.xlsx${query ? `?${query}` : ""}`;
+  const response = await fetch(url);
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: response.statusText }));

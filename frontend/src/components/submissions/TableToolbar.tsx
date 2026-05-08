@@ -79,6 +79,8 @@ export default function TableToolbar({
             options={docTypeOptions}
             value={documentTypeFilter}
             onChange={(e) => onDocumentTypeFilterChange(e.target.value as any)}
+            disabled
+            label={`${t("submissions.filterAllDocumentTypes")} (${t("common.comingSoon") || "Coming soon"})`}
           />
         </div>
         <div style={{ width: '160px' }}>
@@ -93,6 +95,8 @@ export default function TableToolbar({
             options={languageOptions}
             value={languageFilter}
             onChange={(e) => onLanguageFilterChange(e.target.value as any)}
+            disabled
+            label={`${t("submissions.filterAllLanguages")} (${t("common.comingSoon") || "Coming soon"})`}
           />
         </div>
       </div>
