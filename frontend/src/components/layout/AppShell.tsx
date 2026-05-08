@@ -1,4 +1,4 @@
-import { type ReactNode, cloneElement, isValidElement } from "react";
+import { type ReactNode, cloneElement, isValidElement, useEffect } from "react";
 import "./Layout.css";
 import { XIcon } from "../ui/Icon";
 
@@ -23,6 +23,16 @@ export default function AppShell({
   onToggleSidebar,
   onToggleCollapse
 }: AppShellProps) {
+  // Lock scroll when mobile sidebar is open
+  useEffect(() => {
+    if (isSidebarOpen) {
+      document.body.classList.add("is-sidebar-open");
+    } else {
+      document.body.classList.remove("is-sidebar-open");
+    }
+    return () => document.body.classList.remove("is-sidebar-open");
+  }, [isSidebarOpen]);
+
   // Inject props into sidebar and topbar if they're valid elements
   const sidebarWithProps = isValidElement(sidebar)
     ? cloneElement(sidebar as any, { isCollapsed })
@@ -46,7 +56,13 @@ export default function AppShell({
 
       <aside className={`app-sidebar ${isSidebarOpen ? 'is-open' : ''} ${isCollapsed ? 'app-sidebar--collapsed' : ''}`}>
         <div className="show-on-mobile" style={{ position: 'absolute', top: '12px', right: '12px', zIndex: 60 }}>
-          <button onClick={onCloseSidebar} className="mobile-toggle" style={{ color: 'white' }}>
+          <button 
+            type="button"
+            onClick={onCloseSidebar} 
+            className="mobile-toggle" 
+            style={{ color: 'white' }}
+            aria-label="Close Sidebar"
+          >
             <XIcon />
           </button>
         </div>
@@ -57,7 +73,11 @@ export default function AppShell({
         <header className="app-topbar">
           {topbarWithToggle}
         </header>
-        <main className="app-content">{children}</main>
+        <main className="app-content">
+          <div className="ds-container">
+            {children}
+          </div>
+        </main>
       </div>
     </div>
   );

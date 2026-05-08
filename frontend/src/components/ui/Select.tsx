@@ -19,19 +19,21 @@ export const Select: React.FC<SelectProps> = ({
   const selectId = id || generatedId;
   
   return (
-    <div className={`ds-input-group ${error ? 'has-error' : ''} ${className}`}>
+    <div className={`ds-input-group ${error ? 'has-error' : ''} ${props.disabled ? 'is-disabled' : ''} ${className}`}>
       {label && (
         <label htmlFor={selectId} className="ds-input-label">
           {label}
         </label>
       )}
-      <select id={selectId} className="ds-input" {...props}>
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
+      <div className={`ds-input-wrapper ${props.disabled ? 'is-disabled' : ''}`}>
+        <select id={selectId} className="ds-input" {...props}>
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </div>
       {error && <p className="ds-input-error">{error}</p>}
     </div>
   );

@@ -1,62 +1,147 @@
+/* Global Input & Control Standardization */
+
 .ds-input-group {
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-2);
+  gap: var(--ds-space-1);
   width: 100%;
 }
 
 .ds-input-label {
-  font-size: var(--ds-font-size-caption);
-  font-weight: var(--ds-font-weight-semibold);
+  font-size: 13px;
+  font-weight: 700;
   color: var(--ds-color-text-secondary);
+  margin-bottom: 2px;
+  margin-left: 2px;
+}
+
+.ds-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: var(--ds-control-height);
+  border-radius: var(--ds-radius-control);
+  border: 1px solid var(--ds-color-border);
+  background-color: var(--ds-color-bg-app);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0 var(--ds-space-4);
+}
+
+.ds-input-wrapper:has(input),
+.ds-input-wrapper:has(textarea) {
+  cursor: text;
+}
+
+.ds-input-wrapper:has(select) {
+  cursor: pointer;
+}
+
+.ds-input-wrapper:hover:not(.is-disabled) {
+  background-color: var(--ds-color-surface);
+  border-color: var(--ds-color-border-strong);
+}
+
+.ds-input-wrapper:focus-within:not(.is-disabled) {
+  background-color: var(--ds-color-surface);
+  border-color: var(--ds-color-primary);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08), 0 0 0 3px var(--ds-color-primary-soft);
+  transform: translateY(-1px);
+}
+
+/* Disabled State Standardization */
+.is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed !important;
+  background-color: var(--ds-color-bg-muted) !important;
+}
+
+.is-disabled .ds-input {
+  cursor: not-allowed !important;
+  pointer-events: none;
+}
+
+.ds-input-icon-left {
+  margin-right: var(--ds-space-3);
+  color: var(--ds-color-text-muted);
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  transition: color 0.3s ease;
+}
+
+.ds-input-wrapper:focus-within .ds-input-icon-left {
+  color: var(--ds-color-primary);
 }
 
 .ds-input {
-  height: var(--ds-control-height);
-  padding: 0 var(--ds-space-4);
-  border-radius: var(--ds-radius-control);
-  border: 1px solid var(--ds-color-border);
-  background-color: var(--ds-color-surface);
+  flex: 1;
+  height: 100%;
+  border: none;
+  background: transparent;
   font-family: var(--ds-font-family-base);
   font-size: var(--ds-font-size-body);
   color: var(--ds-color-text);
-  transition: all 0.2s;
+  padding: 0;
   width: 100%;
-}
-
-.ds-input:focus {
   outline: none;
-  border-color: var(--ds-color-primary);
-  box-shadow: 0 0 0 3px var(--ds-color-primary-soft);
 }
 
 .ds-input::placeholder {
   color: var(--ds-color-text-muted);
+  opacity: 0.8;
+}
+
+/* Select Specific Overrides within Wrapper */
+select.ds-input {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b' stroke-width='2.5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: calc(100% - 12px) center; /* Precise right alignment */
+  background-size: 14px;
+  padding-right: 36px; /* Expanded to prevent text-icon overlap */
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Ensure options have clean styling on supported browsers */
+select.ds-input option {
+  padding: var(--ds-space-2);
+  background-color: var(--ds-color-surface);
+  color: var(--ds-color-text);
 }
 
 .ds-textarea {
-  height: auto;
-  min-height: 100px;
-  padding: var(--ds-space-3) var(--ds-space-4);
+  padding-top: var(--ds-space-3);
+  padding-bottom: var(--ds-space-3);
+  min-height: 120px;
   resize: vertical;
+}
+
+/* States */
+.ds-input-group.has-error .ds-input-wrapper {
+  border-color: var(--ds-color-danger);
+  background-color: var(--ds-color-danger-soft);
 }
 
 .ds-input-error {
   font-size: 12px;
   color: var(--ds-color-danger);
-  margin-top: 2px;
+  margin-top: 4px;
+  margin-left: 2px;
 }
 
 .ds-input-helper {
   font-size: 12px;
   color: var(--ds-color-text-muted);
-  margin-top: 2px;
+  margin-top: 4px;
+  margin-left: 2px;
 }
 
-.has-error .ds-input {
-  border-color: var(--ds-color-danger);
-}
-
-.has-error .ds-input:focus {
-  box-shadow: 0 0 0 3px var(--ds-color-danger-soft);
+/* Compact Variant for Toolbars */
+.ds-input--sm .ds-input-wrapper {
+  height: var(--ds-control-height-sm);
+  padding: 0 var(--ds-space-3);
 }

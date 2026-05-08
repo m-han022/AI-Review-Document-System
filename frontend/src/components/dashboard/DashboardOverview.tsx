@@ -122,21 +122,24 @@ export default function DashboardOverview({ projects, onSelectProject }: Dashboa
   const handleOpenProject = (projectId: string) => onSelectProject?.(projectId);
 
   return (
-    <div className="dashboard-container">
-      {/* KPI Cards Section */}
+    <article className="dashboard-container">
       {/* Dashboard Header - Elite Polish */}
       <header className="dashboard-header-v4">
         <div className="header-text-v4">
-          <h1 className="header-title-v4">{t("dashboard.title") || "Dashboard"}</h1>
-          <p className="header-subtitle-v4">Chào mừng trở lại! Hệ thống đã ghi nhận <strong>{stats.completed}</strong> dự án mới hoàn thành.</p>
+          <h1 className="ds-title">{t("dashboard.title") || "Dashboard"}</h1>
+          <p className="ds-body">
+            Chào mừng trở lại! Hệ thống đã ghi nhận <strong>{stats.completed}</strong> dự án mới hoàn thành.
+          </p>
         </div>
         <div className="header-actions-v4">
-          <Button variant="primary" onClick={() => onSelectProject?.("")}>+ {t("project.createNew") || "Dự án mới"}</Button>
+          <Button variant="primary" onClick={() => onSelectProject?.("")}>
+            + {t("project.createNew") || "Dự án mới"}
+          </Button>
         </div>
       </header>
 
       {/* KPI Cards Section */}
-      <section className="dashboard-kpis">
+      <section className="dashboard-kpis" aria-label="Key Performance Indicators">
         <Card className="kpi-card" onClick={() => {}}>
           <div className="kpi-card__header">
             <div className="kpi-card__icon"><TargetIcon size="md" /></div>
@@ -174,7 +177,7 @@ export default function DashboardOverview({ projects, onSelectProject }: Dashboa
       </section>
 
       {/* Main Grid Section */}
-      <main className="dashboard-main-grid">
+      <div className="dashboard-main-grid">
         <section className="dashboard-main-stack">
           {/* Main Chart Card */}
           <Card 
@@ -231,7 +234,7 @@ export default function DashboardOverview({ projects, onSelectProject }: Dashboa
                   <tr>
                     <th>{t("dashboard.projectNameLabel")}</th>
                     <th>{t("dashboard.scoreLabel")}</th>
-                    <th>{t("dashboard.reviewedAtLabel")}</th>
+                    <th className="hide-on-mobile">{t("dashboard.reviewedAtLabel")}</th>
                     <th>{t("dashboard.statusLabel")}</th>
                   </tr>
                 </thead>
@@ -240,9 +243,9 @@ export default function DashboardOverview({ projects, onSelectProject }: Dashboa
                     const status = scoreStatus(p.latest_score);
                     return (
                       <tr key={p.project_id} onClick={() => handleOpenProject(p.project_id)} className="is-clickable">
-                        <td className="font-bold ds-text-truncate" style={{ maxWidth: '200px' }}>{shortName(p.project_name, 40)}</td>
+                        <td className="font-bold ds-text-truncate">{shortName(p.project_name, 40)}</td>
                         <td>{p.latest_score !== null ? `${Math.round(p.latest_score)}/100` : "—"}</td>
-                        <td className="text-muted">{formatUploadedAt(p.latest_updated_at, lang)}</td>
+                        <td className="text-muted hide-on-mobile">{formatUploadedAt(p.latest_updated_at, lang)}</td>
                         <td><StatusBadge tone={statusTone(status)}>{statusLabelMap[status]}</StatusBadge></td>
                       </tr>
                     );
@@ -258,14 +261,14 @@ export default function DashboardOverview({ projects, onSelectProject }: Dashboa
         {/* Sidebar Sections */}
         <aside className="dashboard-sidebar">
           <Card>
-            <div className="sidebar-section">
+            <section className="sidebar-section">
               <h3 className="sidebar-section__title">{t("dashboard.qualityDistribution")}</h3>
               <KPIProgressList data={distributionData} />
-            </div>
+            </section>
 
             <div className="sidebar-divider-v4" />
 
-            <div className="sidebar-section">
+            <section className="sidebar-section">
               <h3 className="sidebar-section__title">{t("dashboard.actionPanelTitle")}</h3>
               <div className="sidebar-action-stack">
                 {attentionItems.map((item) => (
@@ -275,15 +278,21 @@ export default function DashboardOverview({ projects, onSelectProject }: Dashboa
                   </div>
                 ))}
               </div>
-            </div>
+            </section>
 
             <div className="sidebar-divider-v4" />
 
-            <div className="sidebar-section">
+            <section className="sidebar-section">
               <h3 className="sidebar-section__title">{t("dashboard.highRiskWatchlist")}</h3>
               <div className="sidebar-risk-stack">
                 {highRiskProjects.map(p => (
-                  <div key={p.project_id} onClick={() => handleOpenProject(p.project_id)} className="risk-item">
+                  <div 
+                    key={p.project_id} 
+                    onClick={() => handleOpenProject(p.project_id)} 
+                    className="risk-item"
+                    role="button"
+                    tabIndex={0}
+                  >
                     <div className="risk-item__head">
                       <span className="risk-item__name">{shortName(p.project_name, 20)}</span>
                       <span className="risk-item__score">{p.latest_score !== null ? `${Math.round(p.latest_score)}%` : 'ERR'}</span>
@@ -292,10 +301,10 @@ export default function DashboardOverview({ projects, onSelectProject }: Dashboa
                   </div>
                 ))}
               </div>
-            </div>
+            </section>
           </Card>
         </aside>
-      </main>
-    </div>
+      </div>
+    </article>
   );
 }

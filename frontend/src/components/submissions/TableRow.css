@@ -1,101 +1,169 @@
-.table-row-project {
-  display: flex;
-  gap: var(--ds-space-3);
-  align-items: center;
+/* Table Row Premium V4 */
+
+.ds-table-row-v4 {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 1px solid var(--ds-color-border-faint);
 }
 
-.project-icon-box {
-  width: 28px;
-  height: 28px;
-  border-radius: var(--ds-radius-md);
-  background-color: var(--ds-color-bg-muted);
+.ds-table-row-v4:hover {
+  background-color: var(--ds-color-bg-muted-hover) !important;
+}
+
+.ds-table-row-v4.is-active {
+  background-color: var(--ds-color-primary-faint) !important;
+}
+
+/* Project Info Group */
+.table-row-project-v4 {
+  display: flex;
+  gap: var(--ds-space-4);
+  align-items: center;
+  padding: var(--ds-space-2) 0;
+}
+
+.project-icon-box-v4 {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--ds-color-bg-muted);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--ds-color-primary);
-  flex-shrink: 0;
+  color: var(--ds-color-text-muted);
+  transition: all 0.3s ease;
 }
 
-.project-info-stack {
+.project-icon-box-v4.has-score {
+  background: var(--ds-color-primary-soft);
+  color: var(--ds-color-primary);
+}
+
+.ds-table-row-v4:hover .project-icon-box-v4 {
+  transform: scale(1.05);
+}
+
+.project-info-stack-v4 {
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
 
-.project-name-text {
+.project-name-v4 {
   font-size: 14px;
   font-weight: 700;
-  color: var(--ds-color-text);
+  color: var(--ds-color-text-main);
+  margin-bottom: 2px;
 }
 
-.project-id-text {
+.project-id-v4 {
   font-size: 11px;
+  color: var(--ds-color-text-muted);
+  font-family: var(--ds-font-family-mono);
+  background: var(--ds-color-bg-muted);
+  padding: 1px 4px;
+  border-radius: 4px;
+  width: fit-content;
+}
+
+/* Cell Utilities */
+.table-cell-centered-v4 {
+  text-align: center;
+}
+
+.doc-count-badge-v4 {
+  font-weight: 700;
+  color: var(--ds-color-text-main);
+  background: var(--ds-color-bg-muted);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.table-cell-date-v4 {
+  font-size: 12px;
   color: var(--ds-color-text-muted);
 }
 
-.status-cell-stack {
+/* Score Widget V4 */
+.score-widget-v4 {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
+  width: 100px;
 }
 
-.error-message-mini {
-  font-size: 10px;
-  color: var(--ds-color-danger);
-  max-width: 140px;
-}
-
-.score-display-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  width: 80px;
-}
-
-.score-value-row {
+.score-numbers-v4 {
   display: flex;
   align-items: baseline;
   gap: 2px;
 }
 
-.score-main-value {
-  font-size: 14px;
-  font-weight: 700;
+.score-value-v4 {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
-.score-max-value {
-  font-size: 10px;
+.score-max-v4 {
+  font-size: 11px;
   color: var(--ds-color-text-muted);
+  font-weight: 500;
 }
 
-.score-progress-track {
-  height: 4px;
-  background-color: var(--ds-color-bg-muted);
-  border-radius: 2px;
+.score-bar-v4 {
+  height: 6px;
+  background: var(--ds-color-bg-muted);
+  border-radius: 3px;
   overflow: hidden;
 }
 
-.score-progress-bar {
+.score-bar-fill-v4 {
   height: 100%;
-  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 3px;
+  transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.row-actions-group {
+/* Action Buttons V4 */
+.row-actions-v4 {
   display: flex;
-  gap: 2px;
+  gap: 6px;
   justify-content: flex-end;
 }
 
-/* Compact Overrides */
-.ds-table--compact .project-icon-box {
-  width: 24px;
-  height: 24px;
+.action-btn-v4 {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--ds-color-text-muted);
+  transition: all 0.2s ease;
+  cursor: pointer;
 }
 
-.ds-table--compact .project-name-text {
-  font-size: 13px;
+.action-btn-v4:hover {
+  background: var(--ds-color-bg-muted);
+  color: var(--ds-color-text-main);
+  border-color: var(--ds-color-border);
 }
 
-.ds-table--compact .score-display-stack {
-  width: 60px;
+.action-btn-v4.primary:hover {
+  background: var(--ds-color-primary-soft);
+  color: var(--ds-color-primary);
+  border-color: var(--ds-color-primary-soft);
+}
+
+.action-btn-v4.danger:hover {
+  background: var(--ds-color-danger-light);
+  color: var(--ds-color-danger);
+  border-color: var(--ds-color-danger-light);
+}
+
+.action-btn-v4:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }

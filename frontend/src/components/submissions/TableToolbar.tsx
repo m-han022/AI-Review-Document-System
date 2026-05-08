@@ -1,8 +1,10 @@
-import type { DocumentType } from "../../constants/documentTypes";
-import type { LanguageCode } from "../../types";
+import { useId } from "react";
 import { useTranslation } from "../LanguageSelector";
-import { DownloadIcon, PlusIcon, TrashIcon } from "../ui/Icon";
+import { DownloadIcon, PlusIcon, SearchIcon, TrashIcon } from "../ui/Icon";
 import { Button, Input, Select } from "../ui";
+import type { LanguageCode } from "../types";
+import type { DocumentType } from "../constants/documentTypes";
+import "./TableToolbar.css";
 
 interface TableToolbarProps {
   selectedCount: number;
@@ -64,68 +66,77 @@ export default function TableToolbar({
   ];
 
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center', marginBottom: '20px' }}>
-      <div style={{ flex: '1', minWidth: '240px' }}>
+    <div className="submissions-toolbar-v4">
+      {/* Left: Search */}
+      <div className="toolbar-search-container-v4">
         <Input
           placeholder={t("submissions.searchPlaceholder")}
           value={searchQuery}
           onChange={(e) => onSearchQueryChange(e.target.value)}
+          leftIcon={<SearchIcon size="sm" />}
+          className="toolbar-search-v4"
         />
       </div>
 
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-        <div style={{ width: '160px' }}>
-          <Select
-            options={docTypeOptions}
-            value={documentTypeFilter}
-            onChange={(e) => onDocumentTypeFilterChange(e.target.value as any)}
-            disabled
-            label={`${t("submissions.filterAllDocumentTypes")} (${t("common.comingSoon") || "Coming soon"})`}
-          />
+      {/* Right: Filters & Actions */}
+      <div className="toolbar-filters-v4">
+        {/* Filters Group */}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <div style={{ minWidth: '180px' }}>
+            <Select
+              options={docTypeOptions}
+              value={documentTypeFilter}
+              onChange={(e) => onDocumentTypeFilterChange(e.target.value as any)}
+              title={t("submissions.filterAllDocumentTypes")}
+            />
+          </div>
+          <div style={{ minWidth: '160px' }}>
+            <Select
+              options={statusOptions}
+              value={statusFilter}
+              onChange={(e) => onStatusFilterChange(e.target.value as any)}
+            />
+          </div>
+          <div style={{ minWidth: '160px' }}>
+            <Select
+              options={languageOptions}
+              value={languageFilter}
+              onChange={(e) => onLanguageFilterChange(e.target.value as any)}
+              title={t("submissions.filterAllLanguages")}
+            />
+          </div>
         </div>
-        <div style={{ width: '160px' }}>
-          <Select
-            options={statusOptions}
-            value={statusFilter}
-            onChange={(e) => onStatusFilterChange(e.target.value as any)}
-          />
-        </div>
-        <div style={{ width: '160px' }}>
-          <Select
-            options={languageOptions}
-            value={languageFilter}
-            onChange={(e) => onLanguageFilterChange(e.target.value as any)}
-            disabled
-            label={`${t("submissions.filterAllLanguages")} (${t("common.comingSoon") || "Coming soon"})`}
-          />
-        </div>
-      </div>
 
-      <div style={{ display: 'flex', gap: '8px' }}>
-        <Button 
-          variant="primary" 
-          onClick={onCreateProject} 
-          disabled={isActionPending}
-        >
-          <PlusIcon size="sm" />
-          {t("submissions.createProjectNew")}
-        </Button>
-        <Button 
-          variant="outline" 
-          onClick={onExport} 
-          disabled={totalCount === 0 || exporting || isActionPending}
-          isLoading={exporting}
-        >
-          <DownloadIcon size="sm" />
-        </Button>
-        <Button 
-          variant="danger" 
-          onClick={onDeleteSelected} 
-          disabled={!hasSelection || isActionPending}
-        >
-          <TrashIcon size="sm" />
-          {hasSelection && <span>{selectedCount}</span>}
-        </Button>
+        {/* Action Group */}
+        <div className="toolbar-actions-v4">
+          <Button 
+            variant="primary" 
+            onClick={onCreateProject} 
+            disabled={isActionPending}
+            size="sm"
+          >
+            <PlusIcon size="sm" />
+            {t("submissions.createProjectNew")}
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={onExport} 
+            disabled={totalCount === 0 || exporting || isActionPending}
+            isLoading={exporting}
+            size="sm"
+          >
+            <DownloadIcon size="sm" />
+          </Button>
+          <Button 
+            variant="danger" 
+            onClick={onDeleteSelected} 
+            disabled={!hasSelection || isActionPending}
+            size="sm"
+          >
+            <TrashIcon size="sm" />
+            {hasSelection && <span style={{ marginLeft: '4px' }}>{selectedCount}</span>}
+          </Button>
+        </div>
       </div>
     </div>
   );

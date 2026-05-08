@@ -117,19 +117,31 @@ export default function SubmissionsTable({
 
   const filteredProjects = useMemo(() => {
     return projects.filter((project) => {
+      // Search logic
       const matchesSearch =
         project.project_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
         project.project_name.toLowerCase().includes(searchQuery.toLowerCase());
       
+      // Status filter
       const isCompleted = project.latest_score !== null;
       const matchesStatus =
         statusFilter === "all" ||
         (statusFilter === "completed" && isCompleted) ||
         (statusFilter === "pending" && !isCompleted);
 
-      return matchesSearch && matchesStatus;
+      // Document Type filter (Cast to any for property access)
+      const matchesDocType = 
+        documentTypeFilter === "all" || 
+        (project as any).document_type === documentTypeFilter;
+
+      // Language filter
+      const matchesLanguage = 
+        languageFilter === "all" || 
+        (project as any).language === languageFilter;
+
+      return matchesSearch && matchesStatus && matchesDocType && matchesLanguage;
     });
-  }, [projects, searchQuery, statusFilter]);
+  }, [projects, searchQuery, statusFilter, documentTypeFilter, languageFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProjects.length / PAGE_SIZE[variant === "dashboard" ? "dashboard" : variant === "reference" ? "reference" : "full"]));
   const pagedProjects = useMemo(() => {

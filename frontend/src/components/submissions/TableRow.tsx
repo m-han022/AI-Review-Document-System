@@ -66,7 +66,7 @@ export default function TableRow({
   const scoreColor = scoreValue >= 80 ? 'var(--ds-color-success)' : scoreValue >= 60 ? 'var(--ds-color-warning)' : 'var(--ds-color-danger)';
 
   return (
-    <tr className={`is-clickable ${isActive ? "is-active" : ""}`} onClick={() => onSelect(project.project_id)}>
+    <tr className={`ds-table-row-v4 ${isActive ? "is-active" : ""}`} onClick={() => onSelect(project.project_id)}>
       {showCheckbox && (
         <td onClick={(e) => e.stopPropagation()}>
           <input
@@ -79,21 +79,21 @@ export default function TableRow({
       )}
 
       <td>
-        <div className="table-row-project">
-          <div className="project-icon-box">
+        <div className="table-row-project-v4">
+          <div className={`project-icon-box-v4 ${latestScore !== null ? 'has-score' : ''}`}>
             <FileReviewIcon size="sm" />
           </div>
-          <div className="project-info-stack">
-            <strong className="project-name-text ds-text-truncate" title={project.project_name}>
+          <div className="project-info-stack-v4">
+            <strong className="project-name-v4 ds-text-truncate" title={project.project_name}>
               {project.project_name}
             </strong>
-            <span className="project-id-text">{project.project_id}</span>
+            <code className="project-id-v4">{project.project_id}</code>
           </div>
         </div>
       </td>
 
-      <td style={{ fontWeight: 600, color: 'var(--ds-color-text-muted)' }}>
-        {project.total_documents}
+      <td className="table-cell-centered-v4">
+        <span className="doc-count-badge-v4">{project.total_documents}</span>
       </td>
 
       <td>
@@ -102,33 +102,31 @@ export default function TableRow({
 
       <td>
         {latestScore !== null ? (
-          <div className="score-display-stack">
-            <div className="score-value-row">
-              <strong className="score-main-value" style={{ color: scoreColor }}>
-                {latestScore}
-              </strong>
-              <small className="score-max-value">/100</small>
+          <div className="score-widget-v4">
+            <div className="score-numbers-v4">
+              <span className="score-value-v4" style={{ color: scoreColor }}>{Math.round(latestScore)}</span>
+              <span className="score-max-v4">/100</span>
             </div>
-            <div className="score-progress-track">
+            <div className="score-bar-v4">
               <div 
-                className="score-progress-bar" 
+                className="score-bar-fill-v4" 
                 style={{ width: `${scoreValue}%`, backgroundColor: scoreColor }} 
               />
             </div>
           </div>
         ) : (
-          <span style={{ color: 'var(--ds-color-text-muted)' }}>—</span>
+          <span className="text-placeholder-v4">—</span>
         )}
       </td>
 
-      <td style={{ fontSize: '12px', color: 'var(--ds-color-text-muted)' }}>
+      <td className="table-cell-date-v4">
         {formatUploadedAt(project.latest_updated_at, lang)}
       </td>
 
       <td>
-        <div className="row-actions-group" onClick={(e) => e.stopPropagation()}>
+        <div className="row-actions-v4" onClick={(e) => e.stopPropagation()}>
           <button
-            className="ds-button ds-button--ghost ds-button--sm"
+            className="action-btn-v4"
             onClick={() => onGrade(project.project_id)}
             disabled={gradingId === project.project_id || isActionPending}
             title={t("submissions.regrade")}
@@ -137,7 +135,7 @@ export default function TableRow({
           </button>
           
           <button
-            className="ds-button ds-button--ghost ds-button--sm"
+            className="action-btn-v4 primary"
             onClick={() => onSelect(project.project_id)}
             title={t("submissions.viewResult")}
           >
@@ -145,7 +143,7 @@ export default function TableRow({
           </button>
 
           <button
-            className="ds-button ds-button--ghost ds-button--sm"
+            className="action-btn-v4"
             onClick={() => onEdit(project)}
             disabled={isActionPending}
             title={t("common.edit")}
@@ -154,8 +152,7 @@ export default function TableRow({
           </button>
 
           <button
-            className="ds-button ds-button--ghost ds-button--sm text-danger"
-            style={{ color: 'var(--ds-color-danger)' }}
+            className="action-btn-v4 danger"
             onClick={() => onDelete(project.project_id)}
             disabled={deletingId === project.project_id || isActionPending}
             title={t("common.delete")}

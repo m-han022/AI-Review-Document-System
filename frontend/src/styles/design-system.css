@@ -1,11 +1,11 @@
 :root {
-  /* Typography */
+  /* Typography Scale - Enterprise Readability */
   --ds-font-family-base: "Inter", "Noto Sans JP", system-ui, sans-serif;
-  --ds-font-size-caption: 13px;
-  --ds-font-size-body: 15px;
-  --ds-font-size-section: 19px;
-  --ds-font-size-title: 26px;
-  --ds-font-size-metric: 32px;
+  --ds-font-size-caption: 14px;
+  --ds-font-size-body: 16px;
+  --ds-font-size-section: 22px;
+  --ds-font-size-title: 32px;
+  --ds-font-size-metric: 40px;
   
   --ds-font-weight-regular: 400;
   --ds-font-weight-medium: 500;
@@ -18,14 +18,17 @@
   --ds-line-height-heading: 1.4;
   --ds-line-height-body: 1.6;
 
-  /* Spacing */
+  /* Spacing System (Refined 8px scale) */
   --ds-space-1: 4px;
   --ds-space-2: 8px;
   --ds-space-3: 12px;
   --ds-space-4: 16px;
   --ds-space-5: 24px;
   --ds-space-6: 32px;
-  --ds-space-section: 40px;
+  --ds-space-7: 48px;
+  --ds-space-8: 64px;
+  --ds-space-container: 40px;
+  --ds-space-section: 48px;
 
   /* Colors - Precise Figma Mappings */
   --ds-color-primary: #2563EB;
@@ -71,11 +74,12 @@
   --ds-shadow-lg: 0 10px 15px -3px rgba(16, 33, 63, 0.1), 0 4px 6px -4px rgba(16, 33, 63, 0.1);
   --ds-shadow-figma: 0 10px 16px rgba(16, 33, 63, 0.10);
 
-  /* Layout */
+  /* Layout Foundation */
   --ds-control-height: 44px;
   --ds-control-height-sm: 36px;
-  --ds-layout-sidebar-width: 260px;
+  --ds-layout-sidebar-width: 280px;
   --ds-layout-header-height: 64px;
+  --ds-layout-max-width: 1600px; /* Enterprise Expansion */
 
   /* Semantic aliases */
   --bg-app: var(--ds-color-bg-app);
@@ -141,9 +145,10 @@
 }
 
 .ds-container {
-  max-width: 1440px;
+  width: 100%;
+  max-width: var(--ds-layout-max-width);
   margin: 0 auto;
-  padding: 0 var(--ds-space-5);
+  padding: 0 var(--ds-space-container);
 }
 
 /* Tables */
@@ -233,8 +238,29 @@
     --ds-space-6: 24px;
   }
 
+@media (max-width: 1440px) {
+  :root {
+    --ds-space-container: 32px;
+    --ds-space-section: 40px;
+  }
+}
+
+@media (max-width: 1200px) {
+  :root {
+    --ds-space-container: 24px;
+    --ds-space-section: 32px;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --ds-space-container: 16px;
+    --ds-space-section: 24px;
+    --ds-layout-header-height: 56px;
+  }
+  
   .ds-container {
-    padding: 0 var(--ds-space-4);
+    padding: 0 var(--ds-space-container);
   }
 
   .ds-card {

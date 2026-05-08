@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Button } from "./Button";
 
 interface ConfirmDialogProps {
@@ -23,6 +24,17 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  useEffect(() => {
+    if (open) {
+      document.body.classList.add("is-modal-open");
+    } else {
+      document.body.classList.remove("is-modal-open");
+    }
+    return () => {
+      document.body.classList.remove("is-modal-open");
+    };
+  }, [open]);
+
   if (!open) {
     return null;
   }

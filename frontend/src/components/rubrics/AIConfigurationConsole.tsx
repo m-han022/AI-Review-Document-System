@@ -495,7 +495,7 @@ export default function AIConfigurationConsole() {
                     <pre style={{ 
                       padding: '16px', borderRadius: 'var(--ds-radius-md)', 
                       backgroundColor: 'var(--ds-color-bg-muted)', fontSize: '13px',
-                      whiteSpace: 'pre-wrap', maxHeight: '200px', overflowY: 'auto',
+                      whiteSpace: 'pre-wrap',
                       color: 'var(--ds-color-text-main)'
                     }}>
                       {selectedSet.rubric?.prompt?.vi || selectedSet.rubric?.prompt?.ja || ""}
@@ -506,7 +506,7 @@ export default function AIConfigurationConsole() {
                     <pre style={{ 
                       padding: '16px', borderRadius: 'var(--ds-radius-md)', 
                       backgroundColor: 'var(--ds-color-bg-muted)', fontSize: '13px',
-                      whiteSpace: 'pre-wrap', maxHeight: '300px', overflowY: 'auto',
+                      whiteSpace: 'pre-wrap',
                       color: 'var(--ds-color-text-main)'
                     }}>
                       {selectedSet.prompt?.content || ""}
@@ -547,7 +547,7 @@ export default function AIConfigurationConsole() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div style={{ 
                   padding: '16px', backgroundColor: 'var(--ds-color-bg-muted)', 
-                  borderRadius: 'var(--ds-radius-md)', maxHeight: '400px', overflowY: 'auto' 
+                  borderRadius: 'var(--ds-radius-md)'
                 }}>
                   <pre style={{ fontSize: '12px', whiteSpace: 'pre-wrap', color: 'var(--ds-color-text-main)' }}>
                     {renderSet(leftSet, t)}
@@ -555,7 +555,7 @@ export default function AIConfigurationConsole() {
                 </div>
                 <div style={{ 
                   padding: '16px', backgroundColor: 'var(--ds-color-bg-muted)', 
-                  borderRadius: 'var(--ds-radius-md)', maxHeight: '400px', overflowY: 'auto' 
+                  borderRadius: 'var(--ds-radius-md)'
                 }}>
                   <pre style={{ fontSize: '12px', whiteSpace: 'pre-wrap', color: 'var(--ds-color-text-main)' }}>
                     {renderSet(rightSet, t)}
