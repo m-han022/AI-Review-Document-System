@@ -7,6 +7,8 @@ import {
   listDocumentVersions, 
   listVersionGradings, 
   getGradingRun,
+  getSubmissionGradingRuns,
+  getSubmissionFileUrl,
   gradeSubmission,
   compareVersions,
   exportSubmissionsExcel
@@ -801,6 +803,7 @@ export default function ProjectCard({ projectId }: ProjectCardProps) {
                     <div className="viewer-toolbar-v3">
                       <div className="viewer-pagination-v3">
                         <button 
+                          type="button"
                           className="page-nav-btn" 
                           onClick={() => {
                             const idx = slideReviewItems.findIndex(s => s.id === activeSlide.id);
@@ -814,6 +817,7 @@ export default function ProjectCard({ projectId }: ProjectCardProps) {
                           Slide {activeSlide.slide_number} / {slideReviewItems.length}
                         </span>
                         <button 
+                          type="button"
                           className="page-nav-btn"
                           onClick={() => {
                             const idx = slideReviewItems.findIndex(s => s.id === activeSlide.id);
@@ -824,7 +828,7 @@ export default function ProjectCard({ projectId }: ProjectCardProps) {
                           <ChevronRightIcon size="sm" />
                         </button>
                       </div>
-                      <a href={gradingDetail?.document_version?.file_path || "#"} target="_blank" rel="noreferrer" className="external-link-v3">
+                      <a href={getSubmissionFileUrl(projectId, "inline")} target="_blank" rel="noreferrer" className="external-link-v3">
                         <MaximizeIcon size="sm" /> {t("project.openFull")}
                       </a>
                     </div>
@@ -832,11 +836,32 @@ export default function ProjectCard({ projectId }: ProjectCardProps) {
                     <div className="document-stage-v3">
                       {/* Using an iframe or image placeholder for the slide */}
                       <div className="slide-preview-frame">
-                        <div className="preview-placeholder-v3">
-                          <FileTextIcon size="lg" />
-                          <p>{t("project.renderingSlide")} {activeSlide.slide_number}...</p>
-                          <p style={{ fontSize: '12px', color: '#94a3b8' }}>{t("project.previewNotice")}</p>
-                        </div>
+                        {gradingDetail?.document_version?.file_path?.toLowerCase().endsWith('.pdf') ? (
+                          <iframe 
+                            src={getSubmissionFileUrl(projectId, "inline") + `#page=${activeSlide.slide_number}`}
+                            className="slide-iframe-v3"
+                            title={`Slide ${activeSlide.slide_number}`}
+                          />
+                        ) : (
+                          <div className="preview-placeholder-v3">
+                            <FileTextIcon size="lg" />
+                            <p>{t("project.renderingSlide")} {activeSlide.slide_number}...</p>
+                            <p style={{ fontSize: '12px', color: '#94a3b8' }}>{t("project.previewNotice")}</p>
+                            <Button 
+                              type="button"
+                              variant="secondary" 
+                              size="sm" 
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                window.open(getSubmissionFileUrl(projectId, "attachment"), '_blank');
+                              }}
+                              style={{ marginTop: '12px' }}
+                            >
+                              <DownloadIcon size="sm" /> {t("project.downloadToView")}
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

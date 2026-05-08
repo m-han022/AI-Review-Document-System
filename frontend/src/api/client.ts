@@ -1,4 +1,4 @@
-﻿import { API_BASE_URL, DEFAULT_UI_LANGUAGE, UI_LANGUAGE_STORAGE_KEY } from "../config";
+import { API_BASE_URL, DEFAULT_UI_LANGUAGE, UI_LANGUAGE_STORAGE_KEY } from "../config";
 import { normalizeLanguage } from "../locales/utils";
 import type {
   SubmissionDocument,
@@ -437,7 +437,7 @@ export async function gradeSubmission({
   evaluationSetId = null,
 }: GradeSubmissionParams) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 45000);
+  const timeoutId = setTimeout(() => controller.abort(), 90000);
   const params = new URLSearchParams({
     language: currentLanguage,
   });

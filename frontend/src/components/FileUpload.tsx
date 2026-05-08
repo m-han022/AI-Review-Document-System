@@ -121,6 +121,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
   const [dragActive, setDragActive] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadedProjectId, setUploadedProjectId] = useState<string | null>(null);
+  const [uploadedVersionId, setUploadedVersionId] = useState<number | null>(null);
   const [projectDescription, setProjectDescription] = useState("");
   const [reviewing, setReviewing] = useState(false);
   const [forceRegrade, setForceRegrade] = useState(false);
@@ -327,6 +328,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
       const result = await uploadMutation.mutateAsync(formData);
       setUploadProgress(100);
       setUploadedProjectId(result.project_id);
+      setUploadedVersionId(result.document_version_id);
       setUploadState("uploaded");
       setMessage({ text: `${copy.uploaded}: ${result.project_name}`, type: "success" });
     } catch (err) {
@@ -360,7 +362,9 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
     try {
       const result = (await reviewMutation.mutateAsync({
         projectId: uploadedProjectId,
+        documentVersionId: uploadedVersionId,
         force: forceRegrade,
+        evaluationSetId: selectedEvaluationSetId,
       })) as GradeResponse;
       setMessage({ text: `${copy.success}: ${result.score}/100`, type: "success" });
       setReviewErrorKind(null);

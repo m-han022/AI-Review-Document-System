@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Depends, Request
 from app.storage import store
-from app.models import GradeResponse, GradeRequest, SubmissionDocumentVersion, Submission, EvaluationSet
+from app.models import GradeResponse, GradeRequest, SubmissionDocumentVersion, Submission, EvaluationSet, SlideReviewOut
 from app.database import engine, get_session
 from app.config import settings
 from app.tasks import grade_document_version_task
@@ -195,38 +195,42 @@ async def _perform_grading(
             force=force
         )
         
-        # Re-fetch submission to get the latest run details
-        submission_record = store.get(project_id)
-        latest_run = submission_record.latest_run
+        # 3. Build response directly from service result to avoid out-of-sync re-fetches
+        submission = service.submission_repo.get_submission(project_id)
+        if not submission:
+             raise HTTPException(status_code=404, detail=f"Project not found after grading: {project_id}")
         
+        # Ensure we have a run_id
+        run_id = result.get("run_id") or result.get("grading_run_id")
+        if not run_id and submission.latest_grading_run_id:
+            run_id = submission.latest_grading_run_id
+            
         return GradeResponse(
             project_id=project_id,
-            project_name=submission_record.project_name,
-            run_id=latest_run.id,
-            score=latest_run.score,
-            status=latest_run.status,
-            document_version_id=latest_run.document_version_id,
-            document_version=latest_run.document_version,
-            rubric_version=latest_run.rubric_version,
-            rubric_hash=latest_run.rubric_hash,
-            gemini_model=latest_run.gemini_model,
-            prompt_version=latest_run.prompt_version,
-            prompt_level=latest_run.prompt_level,
-            evaluation_set_id=latest_run.evaluation_set_id,
-            policy_version=latest_run.policy_version,
-            policy_hash=latest_run.policy_hash,
-            required_rule_hash=latest_run.required_rule_hash,
-            prompt_hash=latest_run.prompt_hash,
-            criteria_hash=latest_run.criteria_hash,
-            grading_schema_version=latest_run.grading_schema_version,
-            criteria_scores={item.key: item.score for item in latest_run.criteria_results},
-            criteria_suggestions={
-                item.key: item.suggestion for item in latest_run.criteria_results if item.suggestion is not None
-            },
-            draft_feedback=latest_run.draft_feedback,
-            slide_reviews=latest_run.slide_reviews or [],
-            graded_at=latest_run.graded_at or datetime.now(timezone.utc).isoformat(),
-            language=submission_record.language,
+            project_name=submission.project_name,
+            run_id=run_id,
+            score=result.get("score"),
+            status=result.get("status", "COMPLETED"),
+            document_version_id=result.get("document_version_id"),
+            document_version=result.get("document_version"),
+            rubric_version=result.get("rubric_version"),
+            rubric_hash=result.get("rubric_hash"),
+            gemini_model=result.get("gemini_model"),
+            prompt_version=result.get("prompt_version"),
+            prompt_level=result.get("prompt_level"),
+            evaluation_set_id=result.get("evaluation_set_id"),
+            policy_version=result.get("policy_version"),
+            policy_hash=result.get("policy_hash"),
+            required_rule_hash=result.get("required_rule_hash"),
+            prompt_hash=result.get("prompt_hash"),
+            criteria_hash=result.get("criteria_hash"),
+            grading_schema_version=result.get("grading_schema_version"),
+            criteria_scores=result.get("criteria_scores"),
+            criteria_suggestions=result.get("criteria_suggestions"),
+            draft_feedback=result.get("draft_feedback"),
+            slide_reviews=[SlideReviewOut(id=0, **s) if isinstance(s, dict) else s for s in result.get("slide_reviews", [])],
+            graded_at=result.get("graded_at") or datetime.now(timezone.utc).isoformat(),
+            language=submission.language,
         )
     except ValueError as e:
         log_error(

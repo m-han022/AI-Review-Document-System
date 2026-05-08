@@ -217,7 +217,15 @@ class GradingService:
             cached_run = self.grading_repo.find_matching_run(submission.id, signature)
             if cached_run:
                 # Reuse cached results by creating a new run record (audit trail)
-                return self._reuse_cached_run(submission.id, version, cached_run)
+                run = self._reuse_cached_run(submission.id, version, cached_run)
+                
+                # IMPORTANT: Ensure submission is updated with the new cached run ID
+                submission.latest_grading_run_id = run.id if isinstance(run, GradingRun) else run.get("grading_run_id")
+                submission.status = "graded"
+                self.submission_repo.add(submission)
+                self.submission_repo.commit()
+                
+                return self._run_out(run) if isinstance(run, GradingRun) else run
 
         # 3. Create or fetch run
         if existing_run_id:
@@ -471,6 +479,7 @@ class GradingService:
             submission.latest_grading_run_id = new_run.id
             submission.status = "graded"
             self.submission_repo.add(submission)
+            self.submission_repo.commit()
         
         self.grading_repo.commit()
 
