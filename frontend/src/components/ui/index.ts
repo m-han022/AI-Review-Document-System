@@ -10,3 +10,4 @@ export * from './PageHeader';
 export * from './SectionBlock';
 export * from './States';
 export { default as ToastStack } from './ToastStack';
+export * from './ErrorBoundary';

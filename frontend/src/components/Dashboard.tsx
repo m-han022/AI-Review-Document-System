@@ -8,7 +8,7 @@ import { useTranslation } from "./LanguageSelector";
 import AppShell from "./layout/AppShell";
 import Sidebar, { type WorkspaceView } from "./layout/Sidebar";
 import Topbar from "./layout/Topbar";
-import { Card } from "./ui";
+import { Card, ErrorBoundary } from "./ui";
 import { EmptyState, ErrorState, LoadingState, SkeletonTable } from "./ui/States";
 import { toHumanErrorMessage } from "../utils/humanizeError";
 
@@ -224,11 +224,13 @@ export default function Dashboard() {
           );
         }
         return (
-          <ProjectCard
-            key={selectedProjectId}
-            projectId={selectedProjectId}
-            onBack={() => setActiveView("reviews")}
-          />
+          <ErrorBoundary fallbackTitle={t("project.reviewResult")}>
+            <ProjectCard
+              key={selectedProjectId}
+              projectId={selectedProjectId}
+              onBack={() => setActiveView("reviews")}
+            />
+          </ErrorBoundary>
         );
       case "rubrics":
         return (
@@ -253,12 +255,18 @@ export default function Dashboard() {
       case "settings":
         return (
           <Suspense fallback={<ViewFallback title={t("common.loading")} />}>
-            <OperationalScreen
-              route={activeView}
-              projects={projects}
-              onOpenReviews={() => setActiveView("reviews")}
-              onOpenUpload={() => setActiveView("upload")}
-            />
+            <ErrorBoundary>
+              <OperationalScreen
+                route={activeView as any}
+                projects={projects}
+                onOpenReviews={() => setActiveView("reviews")}
+                onOpenUpload={() => setActiveView("upload")}
+                onSelectProject={(projectId) => {
+                  setSelectedProjectId(projectId);
+                  setActiveView("detail");
+                }}
+              />
+            </ErrorBoundary>
           </Suspense>
         );
       case "dashboard":

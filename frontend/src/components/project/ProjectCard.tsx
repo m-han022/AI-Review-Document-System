@@ -1,5 +1,6 @@
 import { getDocumentTypeKey } from "../../constants/documentTypes";
 import { useTranslation } from "../LanguageSelector";
+import { getLocalizedText } from "../../locales/utils";
 import {
   DownloadIcon,
   RefreshIcon,
@@ -8,6 +9,7 @@ import {
   WorkflowIcon,
   AlertTriangleIcon,
   LayersIcon,
+  ArrowLeftIcon,
 } from "../ui/Icon";
 import ProjectReviewDialog from "./ProjectReviewDialog";
 import ProjectCriteriaTab from "./ProjectCriteriaTab";
@@ -70,7 +72,7 @@ function phase2Text(t: (key: string) => string) {
   };
 }
 
-export default function ProjectCard({ projectId }: ProjectCardProps) {
+export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
   const { lang, t } = useTranslation();
   const m = phase2Text(t);
   const { uiState, dataState, actions, derived } = useProjectReviewState({ projectId, lang, t });
@@ -132,6 +134,9 @@ export default function ProjectCard({ projectId }: ProjectCardProps) {
       {/* Toolbar */}
       <header className="project-toolbar-v3">
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <Button variant="ghost" size="sm" onClick={onBack} className="back-button-v3">
+            <ArrowLeftIcon size="sm" />
+          </Button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <StatusBadge tone={
               result?.status === "completed" || result?.status === "graded" ? "success" :
@@ -184,10 +189,10 @@ export default function ProjectCard({ projectId }: ProjectCardProps) {
         {/* Project Context Header */}
         <div className="sidebar-section-v3">
           <div className="project-id-badge">#{projectId.toString().slice(0, 8)}</div>
-          <h2 className="sidebar-project-title-v3">{currentProject?.project_name || projectId}</h2>
+          <h2 className="sidebar-project-title-v3">{getLocalizedText(currentProject?.project_name, lang) || projectId}</h2>
           <div className="system-context-pills">
-            <span className="context-pill">{gradingDetail?.document?.document_type || result?.document_version}</span>
-            <span className="context-pill">{result?.prompt_level}</span>
+            <span className="context-pill">{getLocalizedText(gradingDetail?.document?.document_type, lang) || getLocalizedText(result?.document_version, lang)}</span>
+            <span className="context-pill">{getLocalizedText(result?.prompt_level, lang)}</span>
           </div>
         </div>
 

@@ -7,6 +7,7 @@ import { API_BASE_URL } from "../../config";
 import type { Project, LanguageCode, Submission } from "../../types";
 import { useTranslation } from "../LanguageSelector";
 import { formatUploadedAt } from "../submissions/utils";
+import { getLocalizedText } from "../../locales/utils";
 import {
   DownloadIcon,
   EyeIcon,
@@ -17,9 +18,11 @@ import {
   WorkflowIcon,
   CalendarIcon,
   AlertCircleIcon,
+  AlertTriangleIcon,
+  Icon,
 } from "../ui/Icon";
 import { Button, Card, StatusBadge, Dialog } from "../ui";
-import { EmptyState } from "../ui/States";
+import { EmptyState, LoadingState } from "../ui/States";
 import { emitUiAudit } from "../../auth/audit";
 import { canPerform, defaultPermissionFlags, type AppRole } from "../../auth/permissions";
 
@@ -30,6 +33,7 @@ interface OperationalScreenProps {
   projects: Project[];
   onOpenReviews: () => void;
   onOpenUpload: () => void;
+  onSelectProject?: (projectId: string) => void;
 }
 
 const SCREEN_COPY = {
@@ -150,6 +154,7 @@ export default function OperationalScreen({
   projects,
   onOpenReviews,
   onOpenUpload,
+  onSelectProject,
 }: OperationalScreenProps) {
   const [activeRiskProject, setActiveRiskProject] = useState<Project | null>(null);
   const [riskContent, setRiskContent] = useState<string | null>(null);
@@ -200,15 +205,17 @@ export default function OperationalScreen({
 
   const handleProcess = async (project: Project) => {
     const score = project.latest_score ?? 0;
+    // Safety: Ensure we have a valid project ID
+    if (!project.project_id) return;
+
     if (score > 0 && score < 70) {
       setActiveRiskProject(project);
       setIsFetchingRisk(true);
       try {
         const detail: Submission = await getSubmission(project.project_id);
         const feedback = detail.latest_run?.draft_feedback;
-        const normalizedLang = lang === 'vi' ? 'vi' : lang === 'ja' ? 'ja' : 'en';
-        const riskText = feedback ? (feedback[normalizedLang] || feedback['en'] || Object.values(feedback)[0]) : null;
-        setRiskContent(riskText as string);
+        const riskText = feedback ? getLocalizedText(feedback, lang) : null;
+        setRiskContent(riskText);
       } catch (err) {
         console.error("Failed to fetch risk content:", err);
         setRiskContent(null);
@@ -216,7 +223,9 @@ export default function OperationalScreen({
         setIsFetchingRisk(false);
       }
     } else {
-      window.dispatchEvent(new CustomEvent("open-project-detail", { detail: project.project_id }));
+      const pid = String(project.project_id);
+      if (onSelectProject) onSelectProject(pid);
+      else window.dispatchEvent(new CustomEvent("open-project-detail", { detail: pid }));
     }
   };
 
@@ -342,17 +351,10 @@ export default function OperationalScreen({
           box-shadow: var(--ds-shadow-md);
           transform: translateX(4px);
         }
-        .workflow-quick-action {
-          position: absolute;
-          right: 12px;
-          top: 50%;
-          transform: translateY(-50%) translateX(10px);
-          opacity: 0;
-          transition: all 0.2s ease;
-        }
-        .workflow-item:hover .workflow-quick-action {
-          opacity: 1;
-          transform: translateY(-50%) translateX(0);
+        .workflow-item:hover { 
+          background: white; 
+          box-shadow: var(--ds-shadow-md);
+          transform: translateX(4px);
         }
         .risk-alert-box {
           background-color: #fef2f2;
@@ -404,7 +406,8 @@ export default function OperationalScreen({
             const pid = activeRiskProject.project_id;
             setActiveRiskProject(null);
             setRiskContent(null);
-            window.dispatchEvent(new CustomEvent("open-project-detail", { detail: pid }));
+            if (onSelectProject) onSelectProject(pid);
+            else window.dispatchEvent(new CustomEvent("open-project-detail", { detail: pid }));
           }}
           onCancel={() => {
             setActiveRiskProject(null);
@@ -428,7 +431,7 @@ export default function OperationalScreen({
             ) : riskContent ? (
               <div className="risk-alert-box">
                 <div className="risk-alert-title">
-                  <Icon name="alertTriangle" size={18} />
+                  <AlertTriangleIcon size="sm" />
                   <span>{lang === 'ja' ? 'AIによるリスク診断' : lang === 'en' ? 'AI Risk Assessment' : 'Chẩn đoán rủi ro từ AI'}</span>
                 </div>
                 <div className="risk-alert-content">{riskContent}</div>
@@ -606,9 +609,17 @@ export default function OperationalScreen({
                   const score = project.latest_score;
                   const reviewed = typeof score === "number";
                   return (
-                    <tr key={project.project_id}>
+                    <tr 
+                      key={project.project_id} 
+                      onClick={() => {
+                        if (onSelectProject) onSelectProject(project.project_id);
+                        else window.dispatchEvent(new CustomEvent("open-project-detail", { detail: project.project_id }));
+                      }}
+                      style={{ cursor: 'pointer' }}
+                      className="prod-history-row"
+                    >
                       <td>{project.project_id}</td>
-                      <td style={{ fontWeight: 600 }}>{project.project_name}</td>
+                      <td style={{ fontWeight: 600 }}>{getLocalizedText(project.project_name, lang)}</td>
                       <td>{project.total_documents}</td>
                       <td>{reviewed ? `${score}/100` : "—"}</td>
                       <td>{formatUploadedAt(project.latest_updated_at, lang)}</td>
@@ -672,29 +683,20 @@ function WorkflowColumn({
             <div 
               key={row.project_id} 
               className="workflow-item"
+              onClick={() => onProcess(row)}
               style={{ 
                 padding: '12px 16px',
-                borderLeft: `4px solid var(--ds-color-${tone})`
+                borderLeft: `4px solid var(--ds-color-${tone})`,
+                cursor: 'pointer'
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
                 {tone === 'warning' && <span className="pulse-badge" title="Cần xử lý gấp" />}
                 <div style={{ fontWeight: 600, fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>
-                  {row.project_name}
+                  {getLocalizedText(row.project_name, lang)}
                 </div>
               </div>
               <div style={{ fontSize: '12px', color: 'var(--ds-color-text-muted)' }}>{formatUploadedAt(row.latest_updated_at, lang)}</div>
-              
-              <div className="workflow-quick-action">
-                <Button 
-                  variant="primary" 
-                  size="sm" 
-                  style={{ fontSize: '11px', height: '24px', padding: '0 8px' }}
-                  onClick={() => onProcess(row)}
-                >
-                  {lang === 'ja' ? '対応する' : lang === 'en' ? 'Process Now' : 'Xử lý ngay'}
-                </Button>
-              </div>
             </div>
           ))
         ) : (
