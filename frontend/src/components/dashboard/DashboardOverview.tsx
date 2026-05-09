@@ -1,310 +1,368 @@
 import { useMemo } from "react";
+import { LineChart, Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip } from "recharts";
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  ResponsiveContainer,
-  Tooltip as RechartsTooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-
-import type { Project } from "../../types";
+  ShieldCheckIcon,
+  TargetIcon,
+  HistoryIcon,
+  FileTextIcon,
+  ActivityIcon,
+} from "../ui/Icon";
 import { useTranslation } from "../LanguageSelector";
+import type { Project } from "../../types";
 import { formatUploadedAt } from "../submissions/utils";
-import { FileReviewIcon, ShieldCheckIcon, TargetIcon } from "../ui/Icon";
-import { toBusinessStatus } from "../ui/businessStatus";
-import { EmptyState, StatusBadge } from "../ui/States";
-import { Card, Button } from "../ui";
-import { KPIProgressList } from "../ui/KPICharts";
 import "./DashboardOverview.css";
 
 interface DashboardOverviewProps {
   projects: Project[];
-  onSelectProject?: (projectId: string) => void;
+  onSelectProject: (projectId: string) => void;
   onOpenReviews?: () => void;
   onOpenExport?: () => void;
 }
 
-type ScoreStatus = "NO DATA" | "GOOD" | "WARNING" | "CRITICAL";
+const PROCESSING_STATUSES = new Set(["PENDING", "EXTRACTING", "GRADING"]);
 
-function scoreStatus(score: number | null): ScoreStatus {
-  if (score === null) return "NO DATA";
-  if (score >= 80) return "GOOD";
-  if (score >= 60) return "WARNING";
-  return "CRITICAL";
+function toStatusKey(status: string) {
+  const normalized = (status || "").toLowerCase();
+  if (["pending", "extracting", "grading", "completed", "failed"].includes(normalized)) {
+    return normalized as "pending" | "extracting" | "grading" | "completed" | "failed";
+  }
+  return "pending";
 }
 
-function statusTone(status: ScoreStatus): "muted" | "success" | "warning" | "danger" {
-  if (status === "GOOD") return "success";
-  if (status === "WARNING") return "warning";
-  if (status === "CRITICAL") return "danger";
-  return "muted";
+function formatDayKey(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
-function shortName(value: string, max = 24) {
-  return value.length > max ? `${value.slice(0, max - 3)}...` : value;
+function buildLast7DaysKeys(): string[] {
+  const today = new Date();
+  const keys: string[] = [];
+  for (let i = 6; i >= 0; i -= 1) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    keys.push(formatDayKey(d));
+  }
+  return keys;
 }
 
+export default function DashboardOverview({
+  projects,
+  onSelectProject,
+  onOpenReviews,
+  onOpenExport,
+}: DashboardOverviewProps) {
+  const { t, lang } = useTranslation();
 
-export default function DashboardOverview({ projects, onSelectProject }: DashboardOverviewProps) {
-  const { lang, t } = useTranslation();
-
-  const graded = useMemo(() => projects.filter((item) => typeof item.latest_score === "number"), [projects]);
-  
-  const statusLabelMap: Record<ScoreStatus, string> = {
-    "NO DATA": t("dashboard.statusPending"),
-    GOOD: t("dashboard.statusCompleted"),
-    WARNING: t("dashboard.statusWarning"),
-    CRITICAL: t("dashboard.statusCritical"),
-  };
-
-  const documentScoreBars = useMemo(
-    () =>
-      graded
-        .map((p) => ({ id: p.project_id, label: shortName(p.project_name, 18), score: Math.round(p.latest_score ?? 0) }))
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 10),
-    [graded],
-  );
-
-  const stats = useMemo(() => {
+  const analytics = useMemo(() => {
     const total = projects.length;
-    const completed = graded.length;
-    const avgScore = completed > 0 ? Math.round(graded.reduce((acc, p) => acc + (p.latest_score ?? 0), 0) / completed) : 0;
-    return { total, completed, avgScore };
-  }, [projects, graded]);
+    const reviewed = projects.filter((p) => p.latest_score !== null).length;
+    const criticalCount = projects.filter((p) => p.latest_score !== null && p.latest_score < 60).length;
+    const coverage = total > 0 ? Math.round((reviewed / total) * 100) : 0;
+    const scores = projects.map((p) => p.latest_score).filter((s): s is number => s !== null);
+    const healthIndex = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
 
-  const attention = useMemo(() => {
-    const failed = projects.filter((p) => toBusinessStatus(p.latest_status) === "attentionNeeded").length;
-    const processing = projects.filter((p) => toBusinessStatus(p.latest_status) === "processing").length;
-    const lowScore = projects.filter((p) => typeof p.latest_score === "number" && (p.latest_score ?? 0) < 60).length;
-    const notReviewed = projects.filter((p) => p.latest_score === null).length;
-    return { failed, processing, lowScore, notReviewed };
-  }, [projects]);
+    let nextStep = t("dashboardV6.nextStepUpload");
+    if (coverage < 100 && total > 0) nextStep = t("dashboardV6.nextStepReview", { count: total - reviewed });
+    else if (criticalCount > 0) nextStep = t("dashboardV6.nextStepCritical", { count: criticalCount });
+    else if (total > 0) nextStep = t("dashboardV6.nextStepStable");
 
-  const attentionItems = useMemo(() => {
-    const items = [
-      { key: "failed", tone: "danger" as const, count: attention.failed, label: t("dashboard.attention.failed") },
-      { key: "low", tone: "warning" as const, count: attention.lowScore, label: t("dashboard.attention.lowScore") },
-      { key: "processing", tone: "primary" as const, count: attention.processing, label: t("dashboard.attention.processing") },
-      { key: "notReviewed", tone: "muted" as const, count: attention.notReviewed, label: t("dashboard.attention.notReviewed") },
-    ];
-    return items.filter((item) => item.count > 0);
-  }, [attention, t]);
+    const byStatus = {
+      pending: projects.filter((p) => (p.latest_status || "").toUpperCase() === "PENDING").length,
+      extracting: projects.filter((p) => (p.latest_status || "").toUpperCase() === "EXTRACTING").length,
+      grading: projects.filter((p) => (p.latest_status || "").toUpperCase() === "GRADING").length,
+      completed: projects.filter((p) => (p.latest_status || "").toUpperCase() === "COMPLETED").length,
+      failed: projects.filter((p) => (p.latest_status || "").toUpperCase() === "FAILED").length,
+    };
 
-  const latestProjects = useMemo(
-    () => [...projects].sort((a, b) => new Date(b.latest_updated_at).getTime() - new Date(a.latest_updated_at).getTime()).slice(0, 8),
+    return { total, reviewed, criticalCount, coverage, healthIndex, nextStep, byStatus };
+  }, [projects, t]);
+
+  const highRiskProjects = useMemo(
+    () => projects.filter((p) => p.latest_score !== null && p.latest_score < 70).slice(0, 5),
     [projects],
   );
 
-  const distributionData = useMemo(() => {
-    const counts = { GOOD: 0, WARNING: 0, CRITICAL: 0 };
-    graded.forEach(p => {
-      const status = scoreStatus(p.latest_score);
-      if (status !== "NO DATA") counts[status]++;
-    });
-    return [
-      { key: "GOOD", label: t("dashboard.statusCompleted"), value: counts.GOOD, max: graded.length || 1 },
-      { key: "WARNING", label: t("dashboard.statusWarning"), value: counts.WARNING, max: graded.length || 1 },
-      { key: "CRITICAL", label: t("dashboard.statusCritical"), value: counts.CRITICAL, max: graded.length || 1 },
-    ];
-  }, [graded, t]);
+  const recentProjects = useMemo(
+    () =>
+      [...projects]
+        .sort((a, b) => new Date(b.latest_updated_at).getTime() - new Date(a.latest_updated_at).getTime())
+        .slice(0, 6),
+    [projects],
+  );
 
-  const highRiskProjects = useMemo(() => {
-    return projects
-      .filter(p => (p.latest_score !== null && p.latest_score < 60) || toBusinessStatus(p.latest_status) === "attentionNeeded")
-      .sort((a, b) => (a.latest_score ?? 0) - (b.latest_score ?? 0))
-      .slice(0, 3);
+  const processingProjects = useMemo(
+    () => projects.filter((p) => PROCESSING_STATUSES.has((p.latest_status || "").toUpperCase())),
+    [projects],
+  );
+  const qualityTrend = useMemo(() => {
+    return [...projects]
+      .filter((p) => p.latest_score !== null)
+      .sort((a, b) => new Date(a.latest_updated_at).getTime() - new Date(b.latest_updated_at).getTime())
+      .slice(-8)
+      .map((p) => ({
+        name: p.project_id,
+        score: p.latest_score as number,
+      }));
+  }, [projects]);
+  const sparklineSeries = useMemo(() => {
+    const days = buildLast7DaysKeys();
+    const byDay = new Map(
+      days.map((day) => [
+        day,
+        { day, coverageCount: 0, completedCount: 0, failedCount: 0, scoreSum: 0, scoreCount: 0 },
+      ]),
+    );
+
+    projects.forEach((p) => {
+      const d = new Date(p.latest_updated_at);
+      if (Number.isNaN(d.getTime())) return;
+      const key = formatDayKey(d);
+      const bucket = byDay.get(key);
+      if (!bucket) return;
+      if (p.latest_score !== null) {
+        bucket.coverageCount += 1;
+        bucket.scoreSum += p.latest_score;
+        bucket.scoreCount += 1;
+      }
+      if ((p.latest_status || "").toUpperCase() === "COMPLETED") bucket.completedCount += 1;
+      if ((p.latest_status || "").toUpperCase() === "FAILED") bucket.failedCount += 1;
+    });
+
+    const coverage = days.map((day) => ({
+      day,
+      value: Math.round((byDay.get(day)?.coverageCount ?? 0) / Math.max(projects.length, 1) * 100),
+    }));
+    const health = days.map((day) => {
+      const bucket = byDay.get(day);
+      const avg = bucket && bucket.scoreCount > 0 ? bucket.scoreSum / bucket.scoreCount : 0;
+      return { day, value: Math.round(avg) };
+    });
+    const risk = days.map((day) => ({ day, value: byDay.get(day)?.failedCount ?? 0 }));
+
+    return { coverage, health, risk };
   }, [projects]);
 
-  const handleOpenProject = (projectId: string) => onSelectProject?.(projectId);
+  const healthLabel = analytics.healthIndex > 80 ? t("dashboardV6.stabilityOptimal") : t("dashboardV6.stabilityMonitoring");
+  const urgentLabel = analytics.criticalCount > 0 ? t("dashboardV6.actionRequired") : t("dashboardV6.noUrgentRisks");
 
   return (
-    <article className="dashboard-container">
-      {/* Dashboard Header - Elite Polish */}
-      <header className="dashboard-header-v4">
-        <div className="header-text-v4">
-          <h1 className="ds-title">{t("dashboard.title") || "Dashboard"}</h1>
-          <p className="ds-body">
-            Chào mừng trở lại! Hệ thống đã ghi nhận <strong>{stats.completed}</strong> dự án mới hoàn thành.
-          </p>
-        </div>
-        <div className="header-actions-v4">
-          <Button variant="primary" onClick={() => onSelectProject?.("")}>
-            + {t("project.createNew") || "Dự án mới"}
-          </Button>
-        </div>
-      </header>
-
-      {/* KPI Cards Section */}
-      <section className="dashboard-kpis" aria-label="Key Performance Indicators">
-        <Card className="kpi-card" onClick={() => {}}>
-          <div className="kpi-card__header">
-            <div className="kpi-card__icon"><TargetIcon size="md" /></div>
-            <div className="kpi-card__badge-row">
-              <StatusBadge tone="primary">{t("dashboard.scoreLabel")}</StatusBadge>
-              <span className="kpi-trend kpi-trend--up">▲ 4.2%</span>
+    <div className="dashboard-overview-v6">
+      <section className="dashboard-hero-v6">
+        <div className="hero-stat">
+          <div className="hero-stat__label">{t("dashboardV6.governanceCoverage")}</div>
+          <div className="hero-stat__headline">
+            <div className="hero-stat__value">{analytics.coverage}%</div>
+            <div className="hero-sparkline" aria-hidden="true">
+              <ResponsiveContainer width="100%" height={40}>
+                <LineChart data={sparklineSeries.coverage}>
+                  <Line type="monotone" dataKey="value" stroke="var(--ds-color-primary)" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           </div>
-          <div className="kpi-card__value">{stats.avgScore} <span>/ 100</span></div>
-          <div className="kpi-card__label">{t("dashboard.avgScore")}</div>
-        </Card>
-
-        <Card className="kpi-card" onClick={() => {}}>
-          <div className="kpi-card__header">
-            <div className="kpi-card__icon"><FileReviewIcon size="md" /></div>
-            <div className="kpi-card__badge-row">
-              <StatusBadge tone="success">{t("dashboard.statusCompleted")}</StatusBadge>
-              <span className="kpi-trend kpi-trend--up">▲ 1</span>
+          <div className="hero-stat__meta">
+            <span className="hero-pill-badge hero-pill-badge--neutral">{t("dashboardV6.totalDocuments", { count: analytics.total })}</span>
+            <span className="hero-pill-badge hero-pill-badge--positive">▲ {analytics.reviewed}</span>
+          </div>
+        </div>
+        <div className="hero-stat">
+          <div className="hero-stat__label">{t("dashboardV6.operationalHealth")}</div>
+          <div className="hero-stat__headline">
+            <div className="hero-stat__value">{analytics.healthIndex}%</div>
+            <div className="hero-sparkline" aria-hidden="true">
+              <ResponsiveContainer width="100%" height={40}>
+                <LineChart data={sparklineSeries.health}>
+                  <Line type="monotone" dataKey="value" stroke="var(--ds-color-success)" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           </div>
-          <div className="kpi-card__value">{stats.total}</div>
-          <div className="kpi-card__label">{stats.completed} {t("dashboard.statusCompleted")}</div>
-        </Card>
-
-        <Card className="kpi-card" onClick={() => {}}>
-          <div className="kpi-card__header">
-            <div className="kpi-card__icon"><ShieldCheckIcon size="md" /></div>
-            <StatusBadge tone="warning" className={attention.failed > 0 ? 'pulse-warning' : ''}>
-              {t("common.status")}
-            </StatusBadge>
+          <div className="hero-stat__meta">
+            <span className="hero-pill-badge hero-pill-badge--neutral">{healthLabel}</span>
+            <span className="hero-pill-badge hero-pill-badge--positive">▲ {analytics.byStatus.completed}</span>
           </div>
-          <div className="kpi-card__value">{projects.length}</div>
-          <div className="kpi-card__label">{t("dashboard.activeProjects")}</div>
-        </Card>
+        </div>
+        <div className="hero-stat critical">
+          <div className="hero-stat__label">{t("dashboardV6.urgentIntervention")}</div>
+          <div className="hero-stat__headline">
+            <div className="hero-stat__value">{analytics.criticalCount}</div>
+            <div className="hero-sparkline" aria-hidden="true">
+              <ResponsiveContainer width="100%" height={40}>
+                <LineChart data={sparklineSeries.risk}>
+                  <Line type="monotone" dataKey="value" stroke="var(--ds-color-danger)" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          <div className="hero-stat__meta">
+            <span className="hero-pill-badge hero-pill-badge--negative">{urgentLabel}</span>
+            <span className="hero-pill-badge hero-pill-badge--negative">▲ {analytics.byStatus.failed}</span>
+          </div>
+        </div>
       </section>
 
-      {/* Main Grid Section */}
-      <div className="dashboard-main-grid">
-        <section className="dashboard-main-stack">
-          {/* Main Chart Card */}
-          <Card 
-            title={t("dashboard.scoreBarsTitle")} 
-            subtitle={t("dashboard.topProjects")}
-          >
-            <div className="dashboard-chart-container">
-              {documentScoreBars.length ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={documentScoreBars} margin={{ top: 20, right: 10, bottom: 40, left: -20 }}>
-                    <CartesianGrid stroke="var(--ds-color-border)" vertical={false} />
-                    <XAxis 
-                      dataKey="label" 
-                      tick={{ fill: "var(--ds-color-text-muted)", fontSize: 11 }} 
-                      interval={0} 
-                      angle={-25} 
-                      textAnchor="end" 
-                    />
-                    <YAxis 
-                      domain={[0, 100]} 
-                      tick={{ fill: "var(--ds-color-text-muted)", fontSize: 12 }} 
-                      width={40} 
-                    />
-                    <RechartsTooltip 
-                      contentStyle={{ 
-                        borderRadius: 'var(--ds-radius-md)', 
-                        border: '1px solid var(--ds-color-border)',
-                        boxShadow: 'var(--ds-shadow-md)'
-                      }}
-                    />
-                    <Bar dataKey="score" radius={[4, 4, 0, 0]} fill="var(--ds-color-primary)">
-                      {documentScoreBars.map((entry, index) => {
-                        const status = scoreStatus(entry.score);
-                        const color = status === "GOOD" ? "var(--ds-color-success)" : status === "WARNING" ? "var(--ds-color-warning)" : "var(--ds-color-danger)";
-                        return <Cell key={`cell-${index}`} fill={color} />;
-                      })}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <EmptyState title={t("dashboard.noData")} compact />
-              )}
-            </div>
-          </Card>
+      <section className="dashboard-section-v6">
+        <div className="section-header-v6">
+          <ShieldCheckIcon size="sm" />
+          <h3>{t("dashboardV6.executiveRiskOversight")}</h3>
+          <span className="next-step-pill">{analytics.nextStep}</span>
+        </div>
+        <div className="risk-grid-v6">
+          {highRiskProjects.length > 0 ? (
+            highRiskProjects.map((p) => (
+              <button key={p.project_id} className="risk-card-v6" type="button" onClick={() => onSelectProject(p.project_id)}>
+                <div className="risk-card-v6__main">
+                  <span className="id">{p.project_id}</span>
+                  <span className="name">{p.project_name}</span>
+                </div>
+                <div className={`risk-card-v6__score ${(p.latest_score ?? 0) < 20 ? "critical" : "neutral"}`}>
+                  {p.latest_score}%
+                </div>
+                <div className="risk-card-v6__action">
+                  <span className="pill">{t("dashboardV6.investigate")}</span>
+                </div>
+              </button>
+            ))
+          ) : (
+            <div className="empty-state-v6">{t("dashboardV6.noRiskIdentified")}</div>
+          )}
+        </div>
+      </section>
 
-          {/* Latest Activity Card */}
-          <Card 
-            title={t("dashboard.latestReviewsTitle")} 
-            subtitle={t("dashboard.latestActivity")}
-          >
-            <div className="ds-table-container">
-              <table className="ds-table ds-table--compact">
-                <thead>
-                  <tr>
-                    <th>{t("dashboard.projectNameLabel")}</th>
-                    <th>{t("dashboard.scoreLabel")}</th>
-                    <th className="hide-on-mobile">{t("dashboard.reviewedAtLabel")}</th>
-                    <th>{t("dashboard.statusLabel")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {latestProjects.length ? latestProjects.map((p) => {
-                    const status = scoreStatus(p.latest_score);
-                    return (
-                      <tr key={p.project_id} onClick={() => handleOpenProject(p.project_id)} className="is-clickable">
-                        <td className="font-bold ds-text-truncate">{shortName(p.project_name, 40)}</td>
-                        <td>{p.latest_score !== null ? `${Math.round(p.latest_score)}/100` : "—"}</td>
-                        <td className="text-muted hide-on-mobile">{formatUploadedAt(p.latest_updated_at, lang)}</td>
-                        <td><StatusBadge tone={statusTone(status)}>{statusLabelMap[status]}</StatusBadge></td>
-                      </tr>
-                    );
-                  }) : (
-                    <tr><td colSpan={4}><EmptyState title={t("dashboard.noData")} compact /></td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+      <div className="dashboard-grid-v6">
+        <section className="dashboard-section-v6">
+          <div className="section-header-v6">
+            <TargetIcon size="sm" />
+            <h3>{t("dashboardV6.strategicQualityBenchmarking")}</h3>
+          </div>
+          <div className="bench-matrix-v6">
+            {projects.length > 0 ? (
+              projects.slice(0, 4).map((p) => (
+                <button key={p.project_id} className="bench-item-v6" type="button" onClick={() => onSelectProject(p.project_id)}>
+                  <div className="label">{p.project_name}</div>
+                  <div className="bar-container">
+                    <div className="bar-fill" style={{ width: `${p.latest_score || 0}%` }} />
+                  </div>
+                  <div className="val">{p.latest_score ?? 0}%</div>
+                </button>
+              ))
+            ) : (
+              <div className="empty-state-v6">{t("dashboardV6.baselinePending")}</div>
+            )}
+          </div>
         </section>
 
-        {/* Sidebar Sections */}
-        <aside className="dashboard-sidebar">
-          <Card>
-            <section className="sidebar-section">
-              <h3 className="sidebar-section__title">{t("dashboard.qualityDistribution")}</h3>
-              <KPIProgressList data={distributionData} />
-            </section>
-
-            <div className="sidebar-divider-v4" />
-
-            <section className="sidebar-section">
-              <h3 className="sidebar-section__title">{t("dashboard.actionPanelTitle")}</h3>
-              <div className="sidebar-action-stack">
-                {attentionItems.map((item) => (
-                  <div key={item.key} className="sidebar-action-item">
-                    <span>{item.label}</span>
-                    <StatusBadge tone={item.tone}>{item.count}</StatusBadge>
+        <section className="dashboard-section-v6">
+          <div className="section-header-v6">
+            <HistoryIcon size="sm" />
+            <h3>{t("dashboardV6.verifiedAuditHistory")}</h3>
+          </div>
+          <div className="recent-list-v6">
+            {recentProjects.length > 0 ? (
+              recentProjects.map((p) => (
+                <button key={p.project_id} className="recent-item-v6" type="button" onClick={() => onSelectProject(p.project_id)}>
+                  <FileTextIcon size="sm" />
+                  <span className="name">{p.project_name}</span>
+                  <div className="status-group">
+                    <span className="status-text">{t(`status.${toStatusKey(p.latest_status)}`)}</span>
+                    <span className="score">{p.latest_score ?? "-"}</span>
+                    <span className="time">{formatUploadedAt(p.latest_updated_at, lang)}</span>
                   </div>
-                ))}
-              </div>
-            </section>
-
-            <div className="sidebar-divider-v4" />
-
-            <section className="sidebar-section">
-              <h3 className="sidebar-section__title">{t("dashboard.highRiskWatchlist")}</h3>
-              <div className="sidebar-risk-stack">
-                {highRiskProjects.map(p => (
-                  <div 
-                    key={p.project_id} 
-                    onClick={() => handleOpenProject(p.project_id)} 
-                    className="risk-item"
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <div className="risk-item__head">
-                      <span className="risk-item__name">{shortName(p.project_name, 20)}</span>
-                      <span className="risk-item__score">{p.latest_score !== null ? `${Math.round(p.latest_score)}%` : 'ERR'}</span>
-                    </div>
-                    <div className="risk-item__date">{t("dashboard.lastUpdate")}: {formatUploadedAt(p.latest_updated_at, lang)}</div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </Card>
-        </aside>
+                </button>
+              ))
+            ) : (
+              <div className="empty-state-v6">{t("common.noData")}</div>
+            )}
+          </div>
+        </section>
       </div>
-    </article>
+      <section className="dashboard-section-v6">
+        <div className="section-header-v6">
+          <ActivityIcon size="sm" />
+          <h3>{lang === "vi" ? "Xu hướng chất lượng theo thời gian" : "Quality Trend"}</h3>
+        </div>
+        <div className="trend-chart-v6">
+          {qualityTrend.length >= 2 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={qualityTrend} margin={{ top: 8, right: 8, left: -8, bottom: 8 }}>
+                <CartesianGrid stroke="var(--ds-color-border)" strokeDasharray="3 3" />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--ds-color-text-muted)" }} axisLine={false} tickLine={false} />
+                <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: "var(--ds-color-text-muted)" }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: 10,
+                    border: "1px solid var(--ds-color-border)",
+                    background: "var(--ds-color-surface)",
+                    color: "var(--ds-color-text)",
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="score"
+                  stroke="var(--ds-color-primary)"
+                  strokeWidth={2.5}
+                  dot={{ r: 3, fill: "var(--ds-color-primary)" }}
+                  activeDot={{ r: 4 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="empty-state-v6">
+              {lang === "vi" ? "Cần ít nhất 2 điểm dữ liệu để hiển thị xu hướng." : "Need at least two points to show trend."}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="dashboard-section-v6">
+        <div className="section-header-v6">
+          <ActivityIcon size="sm" />
+          <h3>{t("dashboardV6.aiThroughput")}</h3>
+        </div>
+        <div className="status-summary-v6">
+          <div className="status-pill">{t("status.pending")}: {analytics.byStatus.pending}</div>
+          <div className="status-pill">{t("status.extracting")}: {analytics.byStatus.extracting}</div>
+          <div className="status-pill">{t("status.grading")}: {analytics.byStatus.grading}</div>
+          <div className="status-pill">{t("status.completed")}: {analytics.byStatus.completed}</div>
+          <div className="status-pill">{t("status.failed")}: {analytics.byStatus.failed}</div>
+        </div>
+        <div className="queue-status-v6">
+          {processingProjects.length > 0 ? (
+            processingProjects.map((p) => (
+              <div key={p.project_id} className="queue-item-v6">
+                <span className="id">{p.project_name}</span>
+                <span className="status">{(p.latest_status || "").toUpperCase()}</span>
+                <div className="progress-mini"><div className="fill" /></div>
+              </div>
+            ))
+          ) : (
+            <div className="queue-empty queue-empty--rich">
+              <div className="queue-empty__icon" aria-hidden="true">
+                <ActivityIcon size="sm" />
+              </div>
+              <div className="queue-empty__title">
+                {lang === "vi" ? "Hệ thống đang sẵn sàng" : t("common.ready")}
+              </div>
+              <div className="queue-empty__text">
+                {lang === "vi"
+                  ? "Hệ thống đang sẵn sàng, chưa có dữ liệu cần xử lý."
+                  : t("dashboardV6.aiCapacityAvailable")}
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <div className="dashboard-actions-v6">
+        <button type="button" className="ds-action-btn" onClick={onOpenReviews}>
+          {t("submissions.title")}
+        </button>
+        <button type="button" className="ds-action-btn secondary" onClick={onOpenExport}>
+          {t("nav.export")}
+        </button>
+      </div>
+    </div>
   );
 }

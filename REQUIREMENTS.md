@@ -1,4 +1,4 @@
-﻿# REQUIREMENTS.md (v5 - ALIGNED WITH AGENTS v2)
+# REQUIREMENTS.md (v5.1 - ALIGNED WITH AGENTS v2.1)
 
 ## 🎯 Mục tiêu
 
@@ -250,6 +250,7 @@ System = versioned + immutable + auditable
 - Là mô tả tổng quan dự án
 - Không phải nội dung tài liệu
 - Dùng làm context bổ sung cho AI
+- Được lưu trữ bền vững (persisted) trong database cùng Project metadata
 
 ---
 
@@ -314,7 +315,7 @@ Khi gọi review:
   - hoặc dữ liệu derive trực tiếp từ state hiện tại
 - Không được thêm analytics/prediction/recommendation nếu backend không có nguồn dữ liệu thật tương ứng.
 
-### Allowed Signals
+### Allowed Signals (Implemented in DashboardOverview)
 
 - review failed count
 - retry count

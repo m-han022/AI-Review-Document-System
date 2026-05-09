@@ -8,6 +8,7 @@ import Badge from "./ui/Badge";
 import ConfirmDialog from "./ui/ConfirmDialog";
 import { RefreshIcon } from "./ui/Icon";
 import { useTranslation } from "./LanguageSelector";
+import { toHumanErrorMessage } from "../utils/humanizeError";
 
 interface GradeActionsProps {
   ungradedCount: number;
@@ -49,7 +50,7 @@ export default function GradeActions({ ungradedCount, totalCount }: GradeActions
           setActiveJobId(null);
         }
       } catch (err) {
-        setResult(err instanceof Error ? err.message : t("submissions.gradingFailed"));
+        setResult(toHumanErrorMessage(err, t("submissions.gradingFailed")));
         setGrading(false);
         setActiveJobId(null);
       }
@@ -70,7 +71,7 @@ export default function GradeActions({ ungradedCount, totalCount }: GradeActions
       setActiveJobId(res.job_id);
       setResult(`${force ? t("submissions.regrade") : t("submissions.grading")} 0/${res.total_count}`);
     } catch (err) {
-      setResult(err instanceof Error ? err.message : t("submissions.gradingFailed"));
+      setResult(toHumanErrorMessage(err, t("submissions.gradingFailed")));
       setGrading(false);
     }
   };

@@ -1,7 +1,7 @@
-import type { Project } from "../../types";
+﻿import type { Project } from "../../types";
 import { useTranslation } from "../LanguageSelector";
 import { toBusinessStatus } from "../ui/businessStatus";
-import { EditIcon, EyeIcon, FileReviewIcon, RefreshIcon, TrashIcon } from "../ui/Icon";
+import { DownloadIcon, EditIcon, EyeIcon, FileReviewIcon, RefreshIcon, TrashIcon } from "../ui/Icon";
 import { StatusBadge } from "../ui/States";
 import { formatUploadedAt } from "./utils";
 import "./TableRow.css";
@@ -19,6 +19,7 @@ interface TableRowProps {
   onGrade: (projectId: string) => void;
   onDelete: (projectId: string) => void;
   onEdit: (project: Project) => void;
+  onExportReport: (projectId: string) => void;
 }
 
 export default function TableRow({
@@ -34,6 +35,7 @@ export default function TableRow({
   onGrade,
   onDelete,
   onEdit,
+  onExportReport,
 }: TableRowProps) {
   const { t, lang } = useTranslation();
   const latestScore = project.latest_score;
@@ -59,11 +61,11 @@ export default function TableRow({
     if (businessStatus === "reviewReady") {
       return <StatusBadge tone="success">{t("statusBiz.reviewReady")}</StatusBadge>;
     }
-    
+
     return <StatusBadge tone="warning">{t("statusBiz.processing")}</StatusBadge>;
   };
 
-  const scoreColor = scoreValue >= 80 ? 'var(--ds-color-success)' : scoreValue >= 60 ? 'var(--ds-color-warning)' : 'var(--ds-color-danger)';
+  const scoreColor = scoreValue >= 80 ? "var(--ds-color-success)" : scoreValue >= 60 ? "var(--ds-color-warning)" : "var(--ds-color-danger)";
 
   return (
     <tr className={`ds-table-row-v4 ${isActive ? "is-active" : ""}`} onClick={() => onSelect(project.project_id)}>
@@ -80,7 +82,7 @@ export default function TableRow({
 
       <td>
         <div className="table-row-project-v4">
-          <div className={`project-icon-box-v4 ${latestScore !== null ? 'has-score' : ''}`}>
+          <div className={`project-icon-box-v4 ${latestScore !== null ? "has-score" : ""}`}>
             <FileReviewIcon size="sm" />
           </div>
           <div className="project-info-stack-v4">
@@ -96,9 +98,7 @@ export default function TableRow({
         <span className="doc-count-badge-v4">{project.total_documents}</span>
       </td>
 
-      <td>
-        {renderStatus()}
-      </td>
+      <td>{renderStatus()}</td>
 
       <td>
         {latestScore !== null ? (
@@ -108,10 +108,7 @@ export default function TableRow({
               <span className="score-max-v4">/100</span>
             </div>
             <div className="score-bar-v4">
-              <div 
-                className="score-bar-fill-v4" 
-                style={{ width: `${scoreValue}%`, backgroundColor: scoreColor }} 
-              />
+              <div className="score-bar-fill-v4" style={{ width: `${scoreValue}%`, backgroundColor: scoreColor }} />
             </div>
           </div>
         ) : (
@@ -119,43 +116,61 @@ export default function TableRow({
         )}
       </td>
 
-      <td className="table-cell-date-v4">
-        {formatUploadedAt(project.latest_updated_at, lang)}
-      </td>
+      <td className="table-cell-date-v4">{formatUploadedAt(project.latest_updated_at, lang)}</td>
 
       <td>
         <div className="row-actions-v4" onClick={(e) => e.stopPropagation()}>
           <button
+            type="button"
+            className="action-btn-v4 quick secondary"
+            onClick={() => onExportReport(project.project_id)}
+            disabled={isActionPending}
+            title={lang === "ja" ? "???????????" : "T?i xu?ng báo cáo"}
+            data-tooltip={lang === "ja" ? "???????????" : "T?i báo cáo"}
+          >
+            <DownloadIcon size="sm" />
+            <span>{lang === "ja" ? "????" : "Báo cáo"}</span>
+          </button>
+
+          <button
+            type="button"
             className="action-btn-v4"
             onClick={() => onGrade(project.project_id)}
             disabled={gradingId === project.project_id || isActionPending}
             title={t("submissions.regrade")}
+            data-tooltip={lang === "ja" ? "?????" : "Ch?m l?i"}
           >
             <RefreshIcon size="sm" className={gradingId === project.project_id ? "animate-spin" : ""} />
           </button>
-          
+
           <button
+            type="button"
             className="action-btn-v4 primary"
             onClick={() => onSelect(project.project_id)}
             title={t("submissions.viewResult")}
+            data-tooltip={lang === "ja" ? "?????" : "Xem k?t qu?"}
           >
             <EyeIcon size="sm" />
           </button>
 
           <button
+            type="button"
             className="action-btn-v4"
             onClick={() => onEdit(project)}
             disabled={isActionPending}
             title={t("common.edit")}
+            data-tooltip={lang === "ja" ? "??" : "Ch?nh s?a"}
           >
             <EditIcon size="sm" />
           </button>
 
           <button
+            type="button"
             className="action-btn-v4 danger"
             onClick={() => onDelete(project.project_id)}
             disabled={deletingId === project.project_id || isActionPending}
             title={t("common.delete")}
+            data-tooltip={lang === "ja" ? "??" : "Xóa"}
           >
             <TrashIcon size="sm" />
           </button>
@@ -164,3 +179,4 @@ export default function TableRow({
     </tr>
   );
 }
+

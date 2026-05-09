@@ -31,6 +31,7 @@ import {
   Menu,
   LayoutDashboard,
   RefreshCw,
+  Package,
   Settings,
   ShieldCheck,
   Sun,
@@ -42,10 +43,15 @@ import {
   Search,
   Workflow,
   Zap,
+  Activity,
+  Clock,
   X,
   Check,
   Star,
   Maximize,
+  AlertCircle,
+  BarChart3,
+  TrendingUp,
   type LucideIcon,
   type LucideProps,
 } from "lucide-react";
@@ -84,6 +90,7 @@ const icons = {
   moon: Moon,
   moreHorizontal: Ellipsis,
   plus: Plus,
+  package: Package,
   refresh: RefreshCw,
   settings: Settings,
   shieldCheck: ShieldCheck,
@@ -98,10 +105,15 @@ const icons = {
   version: ListChecks,
   workflow: Workflow,
   zap: Zap,
+  activity: Activity,
+  clock: Clock,
   check: Check,
   checkCircle: Check,
   star: Star,
   maximize: Maximize,
+  alertCircle: AlertCircle,
+  barChart: BarChart3,
+  trendingUp: TrendingUp,
   x: X,
 } satisfies Record<string, LucideIcon>;
 
@@ -330,4 +342,27 @@ export function FileTextIcon(props: NamedIconProps) {
 
 export function MaximizeIcon(props: NamedIconProps) {
   return <Icon name="maximize" {...props} />;
+}
+export function ActivityIcon(props: NamedIconProps) {
+  return <Icon name="activity" {...props} />;
+}
+
+export function ClockIcon(props: NamedIconProps) {
+  return <Icon name="clock" {...props} />;
+}
+
+export function AlertCircleIcon(props: NamedIconProps) {
+  return <Icon name="alertCircle" {...props} />;
+}
+
+export function BarChartIcon(props: NamedIconProps) {
+  return <Icon name="barChart" {...props} />;
+}
+
+export function TrendingUpIcon(props: NamedIconProps) {
+  return <Icon name="trendingUp" {...props} />;
+}
+
+export function PackageIcon(props: NamedIconProps) {
+  return <Icon name="package" {...props} />;
 }

@@ -1,9 +1,8 @@
-import { useId } from "react";
 import { useTranslation } from "../LanguageSelector";
 import { DownloadIcon, PlusIcon, SearchIcon, TrashIcon } from "../ui/Icon";
 import { Button, Input, Select } from "../ui";
-import type { LanguageCode } from "../types";
-import type { DocumentType } from "../constants/documentTypes";
+import type { LanguageCode } from "../../types";
+import type { DocumentType } from "../../constants/documentTypes";
 import "./TableToolbar.css";
 
 interface TableToolbarProps {
@@ -67,22 +66,19 @@ export default function TableToolbar({
 
   return (
     <div className="submissions-toolbar-v4">
-      {/* Left: Search */}
-      <div className="toolbar-search-container-v4">
-        <Input
-          placeholder={t("submissions.searchPlaceholder")}
-          value={searchQuery}
-          onChange={(e) => onSearchQueryChange(e.target.value)}
-          leftIcon={<SearchIcon size="sm" />}
-          className="toolbar-search-v4"
-        />
-      </div>
+      <div className="toolbar-groups-v4">
+        <div className="toolbar-search-container-v4">
+          <Input
+            placeholder={t("submissions.searchPlaceholder")}
+            value={searchQuery}
+            onChange={(e) => onSearchQueryChange(e.target.value)}
+            leftIcon={<SearchIcon size="sm" />}
+            className="toolbar-search-v4"
+          />
+        </div>
 
-      {/* Right: Filters & Actions */}
-      <div className="toolbar-filters-v4">
-        {/* Filters Group */}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <div style={{ minWidth: '180px' }}>
+        <div className="toolbar-filters-v4">
+          <div style={{ minWidth: "180px" }}>
             <Select
               options={docTypeOptions}
               value={documentTypeFilter}
@@ -90,14 +86,14 @@ export default function TableToolbar({
               title={t("submissions.filterAllDocumentTypes")}
             />
           </div>
-          <div style={{ minWidth: '160px' }}>
+          <div style={{ minWidth: "160px" }}>
             <Select
               options={statusOptions}
               value={statusFilter}
               onChange={(e) => onStatusFilterChange(e.target.value as any)}
             />
           </div>
-          <div style={{ minWidth: '160px' }}>
+          <div style={{ minWidth: "160px" }}>
             <Select
               options={languageOptions}
               value={languageFilter}
@@ -107,13 +103,13 @@ export default function TableToolbar({
           </div>
         </div>
 
-        {/* Action Group */}
         <div className="toolbar-actions-v4">
           <Button 
             variant="primary" 
             onClick={onCreateProject} 
             disabled={isActionPending}
-            size="sm"
+            size="md"
+            className="toolbar-action-btn-v4"
           >
             <PlusIcon size="sm" />
             {t("submissions.createProjectNew")}
@@ -123,7 +119,8 @@ export default function TableToolbar({
             onClick={onExport} 
             disabled={totalCount === 0 || exporting || isActionPending}
             isLoading={exporting}
-            size="sm"
+            size="md"
+            className="toolbar-action-btn-v4 toolbar-action-btn-v4--icon"
           >
             <DownloadIcon size="sm" />
           </Button>
@@ -131,10 +128,10 @@ export default function TableToolbar({
             variant="danger" 
             onClick={onDeleteSelected} 
             disabled={!hasSelection || isActionPending}
-            size="sm"
+            size="md"
+            className="toolbar-action-btn-v4 toolbar-action-btn-v4--icon"
           >
             <TrashIcon size="sm" />
-            {hasSelection && <span style={{ marginLeft: '4px' }}>{selectedCount}</span>}
           </Button>
         </div>
       </div>

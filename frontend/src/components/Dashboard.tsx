@@ -1,4 +1,4 @@
-import { Suspense, lazy, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { listProjects } from "../api/client";
@@ -10,6 +10,7 @@ import Sidebar, { type WorkspaceView } from "./layout/Sidebar";
 import Topbar from "./layout/Topbar";
 import { Card } from "./ui";
 import { EmptyState, ErrorState, LoadingState, SkeletonTable } from "./ui/States";
+import { toHumanErrorMessage } from "../utils/humanizeError";
 
 const DashboardOverview = lazy(() => import("./dashboard/DashboardOverview"));
 const FileUpload = lazy(() => import("./FileUpload"));
@@ -40,6 +41,18 @@ export default function Dashboard() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const custom = event as CustomEvent<string>;
+      const projectId = custom.detail;
+      if (!projectId) return;
+      setSelectedProjectId(projectId);
+      setActiveView("detail");
+    };
+    window.addEventListener("open-project-detail", handler as EventListener);
+    return () => window.removeEventListener("open-project-detail", handler as EventListener);
+  }, []);
 
   const { data: projectsData, isLoading, error } = useQuery({
     queryKey: projectsQueryKey,
@@ -153,7 +166,7 @@ export default function Dashboard() {
           <Card>
             <ErrorState 
               title={t("common.error")} 
-              description={error instanceof Error ? error.message : t("rubric.loadFailed")} 
+              description={toHumanErrorMessage(error, t("rubric.loadFailed"))} 
             />
           </Card>
         </div>

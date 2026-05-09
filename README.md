@@ -243,12 +243,11 @@ System = Versioned + Immutable + Auditable + Async (Production)
   - Missing keys: 0
   - Used-key missing: 0
   - Potential mojibake (VI/JA): 0
-- Frontend operational modules already implemented:
-  - Audit Dashboard
-  - Version Diff
-  - Export CSV
-  - Evaluation Set / Prompt Level flows
-  - Async grading status visibility
+- Operational modules implemented and stable:
+  - Enterprise AI Review Operations Dashboard (KPIs, Risk Watchlist)
+  - Advanced Project Context (project_description) supported in AI prompts
+  - Audit Dashboard & Version Diff
+  - Export CSV (Audit & Diff)
 
 ---
 
@@ -371,3 +370,12 @@ Quy tắc bắt buộc:
 - Runbook vận hành: `PHASE5_RUNBOOK.md`
 - Soak test checklist: `PHASE5_SOAK_TEST_CHECKLIST.md`
 - Game-day checklist: `PHASE5_GAME_DAY_CHECKLIST.md`
+
+---
+
+# 🛠️ Troubleshooting
+
+### Python 3.14 + Windows Installation Issue
+If `pip install -r requirements.txt` fails at `watchfiles` on Windows with Python 3.14:
+1. Use `backend/requirements_temp.txt` (filtered version) or manually install dependencies excluding `watchfiles`.
+2. Run backend without `--reload` if `watchfiles` is missing: `python -m uvicorn app.main:app --host 0.0.0.0 --port 8000`.

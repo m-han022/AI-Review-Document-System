@@ -122,7 +122,8 @@
       "warning": {
         "evaluation_set_changed": "Hai lần chấm dùng bộ tiêu chuẩn khác nhau.",
         "prompt_level_changed": "Hai lần chấm dùng mức đánh giá khác nhau."
-      }
+      },
+      "needsGrading": "Cần chấm điểm"
     },
     "auditDashboard": {
       "filterTitle": "Bộ lọc audit",
@@ -170,7 +171,8 @@
       "timeout": "Phản hồi quá lâu. Vui lòng thử lại."
     },
     "upload": {
-      "failed": "Tải file thất bại. Vui lòng thử lại."
+      "failed": "Tải file thất bại. Vui lòng thử lại.",
+      "projectNotFound": "Không tìm thấy dự án tương ứng."
     },
     "grading": {
       "failed": "Review thất bại. Vui lòng thử lại.",
@@ -286,7 +288,16 @@
     "queueNormal": "Ổn định"
   },
   "dashboard": {
-    "subtitle": "Theo dõi trạng thái review, tiến độ xử lý và danh sách tài liệu trong một workspace duy nhất.",
+    "title": "Bảng điều khiển hệ thống",
+    "subtitle": "Theo dõi hiệu năng AI, hàng đợi và chất lượng dự án thời gian thực.",
+    "aiEfficiency": "Hiệu suất AI",
+    "avgLatency": "Độ trễ trung bình",
+    "activeQueue": "Hàng đợi hoạt động",
+    "systemHealth": "Sức khỏe hệ thống",
+    "cacheHit": "{percent}% Cache Hit",
+    "runningTasks": "{count} tác vụ đang chạy",
+    "allServicesOnline": "Tất cả dịch vụ ổn định",
+    "commandCenter": "Trung tâm kiểm soát: {completed} dự án đã review, {action} cần xử lý ngay.",
     "qualityPageTitle": "Dashboard chất lượng dự án",
     "qualityPageSubtitle": "Theo dõi điểm số, trạng thái và tiến độ review từ các dự án mới nhất.",
     "noData": "Chưa có dự án được phân tích",
@@ -339,9 +350,16 @@
     "focusTitle": "Ưu tiên xử lý",
     "focusSubtitle": "Các tài liệu có điểm thấp nhất trong nhóm đã review.",
     "focusEmpty": "Chưa có tài liệu nào đủ dữ liệu để ưu tiên xử lý.",
-    "lowScoreCount": "Bài dưới 60 điểm",
-    "okSlides": "Slide OK",
-    "ngSlides": "Slide NG",
+    "lowScoreCount": "60 điểm trở xuống",
+    "okSlides": "Tài liệu OK",
+    "ngSlides": "Tài liệu NG",
+    "contextTitle": "Bối cảnh & Tóm tắt chiến lược",
+    "contextSubtitle": "Ngữ cảnh dự án và kết luận quan trọng từ AI.",
+    "alertsTitle": "Cảnh báo điều hành",
+    "alertsSubtitle": "Các phát hiện quan trọng cần chú ý ngay lập tức.",
+    "noStrategicData": "Chưa có đủ dữ liệu chiến lược để hiển thị.",
+    "topRecommendation": "Gợi ý hàng đầu",
+    "projectContext": "Ngữ cảnh dự án",
     "issueCategory": {
       "logic": "Thiếu logic / root cause",
       "quantitative": "Thiếu định lượng",
@@ -554,7 +572,6 @@
     "slideSuggestions": "Tư vấn sửa",
     "noSlideReviewsTitle": "Chưa có review theo từng slide",
     "noSlideReviewsText": "Hãy chạy lại review với prompt mới để hệ thống tạo nhận xét OK/NG cho từng slide hoặc page.",
-    "noIssuesDetected": "Không phát hiện vấn đề trên slide này.",
     "filterAll": "Tất cả",
     "filterWithSuggestions": "Có gợi ý sửa",
     "prioritySlides": "Cần xử lý trước",
@@ -615,7 +632,7 @@
       "criterion": "Điểm cho tiêu chí '{name}' dựa trên phân tích chi tiết của AI trên toàn bộ slide."
     },
     "identifiedIssues": "Vấn đề phát hiện",
-    "aiSuggestions": "Gợi ý từ AI",
+    "aiSuggestions": "AI của gợi ý",
     "namePlaceholder": "Nhập tên...",
     "descPlaceholder": "Nhập mô tả...",
     "riskAssessment": "Đánh giá rủi ro",
@@ -732,6 +749,9 @@
     "projectName": "Tên tài liệu",
     "filename": "Tên file",
     "score": "Tổng điểm",
+    "status": "Trạng thái",
+    "documents": "Tài liệu",
+    "lastUpdated": "Cập nhật",
     "deleteConfirm": "Bạn có chắc muốn xóa dự án này?",
     "bulkDeleteConfirm": "Bạn có chắc muốn xóa {count} dự án đã chọn?",
     "deleteAllConfirm": "Bạn có chắc muốn xóa toàn bộ {count} dự án hiện có?",
@@ -766,5 +786,37 @@
     "filterAllLanguages": "Tất cả ngôn ngữ",
     "createProjectNew": "Dự án mới",
     "viewResult": "Xem kết quả"
+  },
+  "dashboardV6": {
+    "governanceCoverage": "Độ phủ Quản trị",
+    "operationalHealth": "Chỉ số Sức khỏe Vận hành",
+    "urgentIntervention": "Can thiệp Khẩn cấp",
+    "totalDocuments": "{count} tổng số tài liệu",
+    "stabilityOptimal": "Ổn định: Tối ưu",
+    "stabilityMonitoring": "Ổn định: Đang theo dõi",
+    "actionRequired": "Cần xử lý ngay lập tức",
+    "noUrgentRisks": "Không có rủi ro khẩn cấp",
+    "executiveRiskOversight": "Giám sát Rủi ro Điều hành",
+    "strategicQualityBenchmarking": "Đo lường Chất lượng Chiến lược",
+    "verifiedAuditHistory": "Lịch sử Audit đã xác minh",
+    "operationalActivityFeed": "Luồng Hoạt động Vận hành",
+    "aiThroughput": "Thông lượng Xử lý AI",
+    "trustFramework": "Khung Tin cậy & Tuân thủ",
+    "auditTrustScore": "Điểm Tin cậy Audit",
+    "integrity": "Toàn vẹn",
+    "activePolicy": "Chính sách đang áp dụng",
+    "systemHealth": "Sức khỏe Hệ thống",
+    "highWorkload": "Tải trọng cao",
+    "stableEnvironment": "Môi trường ổn định",
+    "investigate": "Điều tra",
+    "optimized": "Đã tối ưu",
+    "requiresTuning": "Cần tinh chỉnh",
+    "noRiskIdentified": "Không có tài liệu rủi ro cao nào được xác định.",
+    "baselinePending": "Đang chờ dữ liệu đo lường.",
+    "aiCapacityAvailable": "AI Capacity: 100% Sẵn sàng. Hệ thống đã tối ưu.",
+    "nextStepReview": "Review thêm {count} tài liệu để đạt 100% compliance.",
+    "nextStepCritical": "Khẩn cấp: Xử lý {count} rủi ro để ổn định chất lượng.",
+    "nextStepStable": "Hệ thống ổn định. Tiếp tục giám sát tài liệu mới.",
+    "nextStepUpload": "Upload thêm tài liệu để bắt đầu review."
   }
 }

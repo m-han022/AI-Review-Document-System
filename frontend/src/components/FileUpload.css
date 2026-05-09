@@ -3,23 +3,89 @@
 .upload-layout-v3 {
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-8);
+  gap: var(--ds-space-3);
   width: 100%;
 }
 
 .upload-main-v3 {
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-6);
+  gap: var(--ds-space-3);
   width: 100%;
   min-width: 0;
+}
+
+.upload-container-v3 {
+  max-height: calc(100vh - 58px - (var(--ds-space-section) * 2));
+  overflow: hidden;
 }
 
 /* Ensure the document type grid fills the space beautifully in full-width mode */
 .prod-doc-type-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)) !important;
-  gap: var(--ds-space-4) !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: var(--ds-space-2) !important;
+}
+
+.upload-type-compact {
+  margin-bottom: 16px !important;
+}
+
+.upload-type-compact .ds-card__header {
+  padding-bottom: 0;
+}
+
+.upload-type-compact .ds-card__body {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.prod-doc-type-card {
+  display: flex;
+  align-items: flex-start;
+  text-align: left;
+  min-height: 64px;
+  padding: 6px 16px;
+  gap: 12px;
+  text-indent: 0 !important;
+}
+
+.prod-doc-type-card__icon,
+.prod-doc-type-card__help {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.prod-doc-type-card__copy {
+  gap: 2px;
+}
+
+.prod-doc-type-card__copy strong {
+  font-size: 10px;
+}
+
+.prod-doc-type-card__copy small {
+  font-size: 9px;
+  line-height: 1.12;
+}
+
+.prod-doc-type-card__copy em {
+  font-size: 8px;
+  line-height: 1.08;
+}
+
+.prod-doc-type-card:not(.is-active):hover {
+  background: color-mix(in srgb, var(--ds-color-bg-app) 88%, #ffffff 12%);
+  border-color: color-mix(in srgb, var(--ds-color-primary) 30%, var(--ds-color-border));
+  transform: translateY(-1px);
+  box-shadow: var(--ds-shadow-md);
+}
+
+.prod-doc-type-card:not(.is-active):hover .prod-doc-type-card__icon {
+  background: color-mix(in srgb, var(--ds-color-primary-soft) 70%, #ffffff 30%);
+  color: var(--ds-color-primary);
 }
 
 .prod-dropzone {
@@ -79,4 +145,157 @@
 .prod-dropzone__copy small {
   font-size: 12px;
   color: var(--ds-color-text-muted);
+}
+
+/* Stronger active state for selected document type */
+.prod-doc-type-card.is-active {
+  border: 2px solid var(--ds-color-primary) !important;
+  background: color-mix(in srgb, var(--ds-color-primary-soft) 70%, #ffffff 30%) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ds-color-primary) 18%, transparent) !important;
+}
+
+.prod-doc-type-card.is-active .prod-doc-type-card__icon {
+  background: var(--ds-color-primary);
+  color: #ffffff;
+}
+
+/* Merge "project select" and "upload file" into one tighter visual block */
+.upload-stage-compact .ds-card__header {
+  padding-bottom: var(--ds-space-2);
+}
+
+.upload-project-upload-group {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: var(--ds-space-2);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-md);
+  background: color-mix(in srgb, var(--ds-color-bg-app) 86%, #ffffff 14%);
+}
+
+.upload-project-select__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+.upload-project-select {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  margin-bottom: 20px !important;
+}
+
+.upload-project-upload-group .prod-dropzone {
+  min-height: 120px;
+  margin-top: 0;
+}
+
+.upload-stage-compact .ds-card__body {
+  padding-top: var(--ds-space-2);
+}
+
+.upload-stage-compact .mt-6 {
+  margin-top: var(--ds-space-3) !important;
+}
+
+.upload-container-v3 .prod-upload-steps {
+  gap: 8px;
+}
+
+.upload-container-v3 .prod-upload-step {
+  padding: 8px;
+}
+
+.upload-container-v3 .prod-upload-step span {
+  width: 24px;
+  height: 24px;
+}
+
+.upload-container-v3 .prod-upload-step strong {
+  font-size: 12px;
+}
+
+/* Human-centric reviewing feedback near action button */
+.prod-reviewing-inline {
+  font-size: 12px;
+  color: var(--ds-color-text-secondary);
+  font-weight: 600;
+}
+
+/* Consistent vertical rhythm around description, helper message and review button area */
+.upload-description-block {
+  margin-top: 24px;
+  margin-bottom: 24px;
+}
+
+.upload-description-block.mb-6 {
+  margin-bottom: 24px !important;
+}
+
+.upload-metadata-summary > * + * {
+  margin-top: 24px;
+}
+
+.prod-upload-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.prod-upload-btn-group__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.prod-upload-actions--sticky {
+  margin-top: 24px !important;
+  position: static;
+  z-index: auto;
+  padding-top: 0;
+  padding-bottom: 0;
+  background: transparent;
+  border-top: 0;
+  backdrop-filter: none;
+}
+
+/* Stronger drag-over feedback */
+.prod-dropzone.is-drag-active {
+  border-color: var(--ds-color-primary) !important;
+  border-width: 2px;
+  background: color-mix(in srgb, var(--ds-color-primary-soft) 72%, #ffffff 28%) !important;
+  box-shadow: inset 0 0 0 1px var(--ds-color-primary), 0 0 0 4px color-mix(in srgb, var(--ds-color-primary) 18%, transparent);
+}
+
+/* Validation feedback for missing project */
+.upload-project-select.has-error .ds-input,
+.upload-project-select.has-error select {
+  border-color: var(--ds-color-danger) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ds-color-danger) 14%, transparent);
+}
+
+.upload-project-select.is-shaking {
+  animation: upload-field-shake 0.46s ease-in-out;
+}
+
+.upload-project-select select.ds-input {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+@keyframes upload-field-shake {
+  0% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+  100% { transform: translateX(0); }
 }

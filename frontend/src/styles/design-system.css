@@ -95,6 +95,15 @@
   --ds-color-bg-app: #0F172A;
   --ds-color-surface: #1E293B;
   --ds-color-surface-hover: #334155;
+  --ds-color-primary: #4F8FEE;
+  --ds-color-primary-hover: #3E7BDD;
+  --ds-color-primary-soft: rgba(79, 143, 238, 0.16);
+  --ds-color-success: #3DBA8D;
+  --ds-color-success-soft: rgba(61, 186, 141, 0.16);
+  --ds-color-warning: #D9A341;
+  --ds-color-warning-soft: rgba(217, 163, 65, 0.16);
+  --ds-color-danger: #D96A6A;
+  --ds-color-danger-soft: rgba(217, 106, 106, 0.16);
   --ds-color-text: #F8FAFC;
   --ds-color-text-secondary: #CBD5E1;
   --ds-color-text-muted: #94A3B8;
@@ -237,6 +246,7 @@
     --ds-space-5: 16px;
     --ds-space-6: 24px;
   }
+}
 
 @media (max-width: 1440px) {
   :root {

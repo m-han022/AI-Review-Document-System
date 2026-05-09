@@ -1,0 +1,145 @@
+.version-diff-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  align-items: flex-start;
+}
+
+.version-diff-col {
+  min-width: 0;
+}
+
+.version-select-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.version-mini-summary {
+  display: flex;
+  gap: 16px;
+  padding: 8px 12px;
+  background: var(--ds-color-bg-muted);
+  border-radius: var(--ds-radius-md);
+  font-size: 12px;
+  color: var(--ds-color-text-secondary);
+}
+
+.version-mini-summary span {
+  display: flex;
+  gap: 4px;
+}
+
+.version-mini-summary strong {
+  color: var(--ds-color-text);
+  font-weight: 700;
+}
+
+@media (max-width: 1024px) {
+  .version-diff-layout {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+.prod-history-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.prod-history-table thead th {
+  position: sticky;
+  top: 0;
+  background-color: var(--ds-color-bg-muted);
+  z-index: 10;
+  box-shadow: inset 0 -1px 0 var(--ds-color-border-subtle);
+}
+
+.version-warning-text {
+  color: var(--ds-color-status-error);
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 4px;
+  display: block;
+}
+
+.version-diff-total-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.version-diff-total-scores {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+}
+
+.score-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.score-item .label {
+  font-size: 12px;
+  color: var(--ds-color-text-secondary);
+  margin-bottom: 4px;
+}
+
+.score-item .value {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--ds-color-text);
+  line-height: 1;
+}
+
+.score-arrow {
+  font-size: 24px;
+  color: var(--ds-color-text-muted);
+}
+
+.version-diff-total-delta {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.version-diff-total-delta .label {
+  font-size: 11px;
+  color: var(--ds-color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.delta-badge-lg {
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-size: 20px;
+  font-weight: 900;
+  min-width: 70px;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.delta-badge-lg.up {
+  background: var(--ds-color-status-success-muted);
+  color: var(--ds-color-status-success);
+}
+
+.delta-badge-lg.down {
+  background: var(--ds-color-status-error-muted);
+  color: var(--ds-color-status-error);
+}
+
+.delta-badge-lg.same {
+  background: var(--ds-color-bg-muted);
+  color: var(--ds-color-text-secondary);
+}
+
+.ds-table-row.high-delta {
+  background-color: rgba(67, 97, 238, 0.04); /* Subtle brand highlight */
+  border-left: 3px solid var(--ds-color-brand);
+}

@@ -136,13 +136,13 @@
 
 /* Topbar - Enterprise Spacing */
 .app-topbar {
-  height: var(--ds-layout-header-height);
+  height: 58px;
   background-color: var(--ds-color-surface);
   border-bottom: 1px solid var(--ds-color-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--ds-space-container);
+  padding: 0;
   z-index: 10;
   flex-shrink: 0;
 }
@@ -150,14 +150,14 @@
 .app-topbar__left {
   display: flex;
   align-items: center;
-  gap: var(--ds-space-6);
+  gap: var(--ds-space-4);
   min-width: 0;
 }
 
 .app-topbar__page-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -172,8 +172,8 @@
   font-size: 22px;
   font-weight: 800;
   color: var(--ds-color-text);
-  margin: 0;
-  line-height: 1.2;
+  margin: 0 0 4px 0;
+  line-height: 1.35;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -182,17 +182,18 @@
 
 .app-topbar__subtitle {
   font-size: 13px;
-  color: var(--ds-color-text-muted);
+  color: var(--ds-color-text-secondary);
   margin: 0;
+  line-height: 1.5;
 }
 
 .app-breadcrumb {
   display: flex;
   align-items: center;
-  gap: var(--ds-space-3);
+  gap: var(--ds-space-2);
   font-size: 14px;
   color: var(--ds-color-text-muted);
-  padding-left: var(--ds-space-6);
+  padding-left: var(--ds-space-4);
   border-left: 1px solid var(--ds-color-border);
   white-space: nowrap;
   min-width: 0;
@@ -229,6 +230,10 @@
   flex-shrink: 0;
 }
 
+.mobile-toggle {
+  display: none;
+}
+
 .app-content {
   flex: 1;
   overflow-y: auto;
@@ -244,6 +249,12 @@
 
 /* Sidebar Responsive Behavior */
 @media (max-width: 1024px) {
+  .mobile-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
   .app-sidebar {
     position: fixed;
     top: 0;
@@ -320,4 +331,14 @@ body.is-modal-open {
 
 .app-sidebar__nav::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
+}
+
+/* Interactive Card Polish */
+.ds-card--interactive {
+  transition: transform var(--ds-transition-base), box-shadow var(--ds-transition-base);
+}
+
+.ds-card--interactive:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--ds-shadow-md);
 }

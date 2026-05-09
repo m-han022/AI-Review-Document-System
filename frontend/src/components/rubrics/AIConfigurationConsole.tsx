@@ -24,6 +24,7 @@ import ConfirmDialog from "../ui/ConfirmDialog";
 import { Button, Card, Input, Select, StatusBadge } from "../ui";
 import { EmptyState, ErrorState, LoadingState } from "../ui/States";
 import { useTranslation } from "../LanguageSelector";
+import { toHumanErrorMessage } from "../../utils/humanizeError";
 
 const LEVELS = ["low", "medium", "high"] as const;
 type ConfigTab = "sets" | "create" | "compare";
@@ -293,7 +294,7 @@ export default function AIConfigurationConsole() {
     return (
       <ErrorState
         title={ui.loadFailed}
-        description={firstLoadError instanceof Error ? firstLoadError.message : String(firstLoadError || "")}
+        description={toHumanErrorMessage(firstLoadError, ui.loadFailed)}
       />
     );
   }
@@ -319,27 +320,54 @@ export default function AIConfigurationConsole() {
 
   return (
     <div className="workspace-stack">
-      <div className="governance-grid" style={{ marginBottom: 'var(--ds-space-5)' }}>
-        <Card title={ui.scopeDocumentType || t("sm.aiConfig.scopeDocumentType")}>
-          <Select 
-            value={documentType} 
-            onChange={(e) => setDocumentType(e.target.value)}
-            options={documentTypes.map(item => ({
-              value: item,
-              label: `${getDocumentTypeLabel(item, lang)} (${item})`
-            }))}
-          />
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: '1fr 1fr', 
+        gap: 'var(--ds-space-5)',
+        marginBottom: 'var(--ds-space-5)' 
+      }}>
+        <Card 
+          title={ui.scopeDocumentType || t("sm.aiConfig.scopeDocumentType")}
+          className="ds-card--interactive"
+          padding="var(--ds-space-3) var(--ds-space-5)"
+          headerAction={
+            <div style={{ width: '280px' }}>
+              <Select 
+                value={documentType} 
+                onChange={(e) => setDocumentType(e.target.value)}
+                options={documentTypes.map(item => ({
+                  value: item,
+                  label: `${getDocumentTypeLabel(item, lang)} (${item})`
+                }))}
+              />
+            </div>
+          }
+        >
+          <div style={{ fontSize: '13px', color: 'var(--ds-color-text-muted)' }}>
+            {"Xác định loại tài liệu và mục tiêu kiểm soát để AI áp dụng đúng bối cảnh đánh giá."}
+          </div>
         </Card>
 
-        <Card title={ui.scopeLevel || "Level"}>
-          <Select 
-            value={level} 
-            onChange={(e) => setLevel(e.target.value)}
-            options={LEVELS.map(item => ({
-              value: item,
-              label: getLevelLabel(item, lang)
-            }))}
-          />
+        <Card 
+          title={ui.scopeLevel || "Level"}
+          className="ds-card--interactive"
+          padding="var(--ds-space-3) var(--ds-space-5)"
+          headerAction={
+            <div style={{ width: '180px' }}>
+              <Select 
+                value={level} 
+                onChange={(e) => setLevel(e.target.value)}
+                options={LEVELS.map(item => ({
+                  value: item,
+                  label: getLevelLabel(item, lang)
+                }))}
+              />
+            </div>
+          }
+        >
+          <div style={{ fontSize: '13px', color: 'var(--ds-color-text-muted)' }}>
+            {"Điều chỉnh độ nghiêm ngặt và chiều sâu của các nhận xét AI (Thấp: hỗ trợ, Vừa: tiêu chuẩn, Cao: khắt khe)."}
+          </div>
         </Card>
       </div>
 
@@ -481,7 +509,7 @@ export default function AIConfigurationConsole() {
                       <Button variant="primary" size="sm" onClick={openCreateFromCurrent}>
                         {ui.createFromThisSet}
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => {
+                      <Button variant="primary" size="sm" onClick={() => {
                         setCompareLeftId(selectedSet.id);
                         setCompareRightId(activeSet?.id && activeSet.id !== selectedSet.id ? activeSet.id : "");
                         setActiveTab("compare");

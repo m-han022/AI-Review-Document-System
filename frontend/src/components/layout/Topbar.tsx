@@ -47,7 +47,7 @@ export default function Topbar({
         <button 
           className="ds-button ds-button--ghost ds-button--sm hide-on-mobile" 
           onClick={onToggleCollapse} 
-          style={{ marginRight: 'var(--ds-space-2)' }}
+          style={{ marginRight: 'var(--ds-space-2)', paddingLeft: 0 }}
           title="Toggle Sidebar"
         >
           <LayoutIcon size="sm" />

@@ -1,24 +1,29 @@
 /* Standardized Toolbar & Spacing System */
 
 .submissions-toolbar-v4 {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--ds-space-4);
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--ds-space-5) var(--ds-space-container); /* Align with page padding */
+  display: block;
+  padding: var(--ds-space-3) var(--ds-space-container);
   background-color: var(--ds-color-surface);
   border-bottom: 1px solid var(--ds-color-border);
   margin-bottom: 0; /* Let the container handle external spacing */
 }
 
+.toolbar-groups-v4 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2);
+}
+
 .toolbar-search-container-v4 {
-  flex: 1 1 320px;
-  max-width: 440px;
+  flex: 1 1 340px;
+  min-width: 280px;
+  max-width: 520px;
 }
 
 .toolbar-filters-v4 {
   display: flex;
+  flex: 1 1 520px;
   gap: var(--ds-space-3);
   flex-wrap: wrap;
   align-items: center;
@@ -32,12 +37,31 @@
   border-left: 1px solid var(--ds-color-border);
 }
 
+.toolbar-action-btn-v4 {
+  min-height: 44px;
+}
+
+.toolbar-action-btn-v4--icon {
+  min-width: 44px;
+  padding-inline: 0;
+  justify-content: center;
+}
+
 @media (max-width: 1024px) {
+  .toolbar-groups-v4 {
+    gap: var(--ds-space-2);
+  }
+
+  .toolbar-search-container-v4,
+  .toolbar-filters-v4 {
+    flex: 1 1 100%;
+    max-width: none;
+  }
+
   .toolbar-actions-v4 {
     border-left: none;
     padding-left: 0;
-    width: 100%;
-    justify-content: flex-end;
+    justify-content: flex-start;
   }
 }
 

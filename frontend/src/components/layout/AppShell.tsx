@@ -71,7 +71,9 @@ export default function AppShell({
 
       <div className="app-main">
         <header className="app-topbar">
-          {topbarWithToggle}
+          <div className="ds-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '100%', padding: 0 }}>
+            {topbarWithToggle}
+          </div>
         </header>
         <main className="app-content">
           <div className="ds-container">

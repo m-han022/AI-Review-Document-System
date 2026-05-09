@@ -11,6 +11,7 @@ import { useTranslation } from "../LanguageSelector";
 import { Button, Card, Input, Select, StatusBadge } from "../ui";
 import { PlusIcon } from "../ui/Icon";
 import { ErrorState, LoadingState } from "../ui/States";
+import { toHumanErrorMessage } from "../../utils/humanizeError";
 const RubricScoreAllocationChart = lazy(() => import("./charts/RubricScoreAllocationChart"));
 
 type FormState = RubricVersionPayload;
@@ -198,7 +199,7 @@ export default function RubricManagement() {
     onError: (mutationError) => {
       setMessage({
         type: "error",
-        text: mutationError instanceof Error ? mutationError.message : t("rubric.saveFailed"),
+        text: toHumanErrorMessage(mutationError, t("rubric.saveFailed")),
       });
     },
   });
@@ -213,7 +214,7 @@ export default function RubricManagement() {
     onError: (mutationError) => {
       setMessage({
         type: "error",
-        text: mutationError instanceof Error ? mutationError.message : t("rubric.activateFailed"),
+        text: toHumanErrorMessage(mutationError, t("rubric.activateFailed")),
       });
     },
   });
@@ -234,7 +235,7 @@ export default function RubricManagement() {
   }
 
   if (error) {
-    return <ErrorState title={t("rubric.loadFailed")} description={error instanceof Error ? error.message : t("rubric.loadFailed")} />;
+    return <ErrorState title={t("rubric.loadFailed")} description={toHumanErrorMessage(error, t("rubric.loadFailed"))} />;
   }
   return (
     <div className="workspace-stack">

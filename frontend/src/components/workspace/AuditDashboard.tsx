@@ -260,10 +260,10 @@ export default function AuditDashboard() {
           </div>
 
           <div className="audit-actions">
-            <Button variant="outline" onClick={() => dispatch({ type: "RESET_FILTERS" })}>
+            <Button variant="ghost" onClick={() => dispatch({ type: "RESET_FILTERS" })} size="sm">
               {t("sm.auditDashboard.reset")}
             </Button>
-            <Button variant="outline" onClick={fetchRows}>
+            <Button variant="outline" onClick={fetchRows} size="sm">
               {t("sm.common.retry")}
             </Button>
             <Button 
@@ -271,6 +271,7 @@ export default function AuditDashboard() {
               onClick={runExport} 
               disabled={!canExport || isExporting}
               isLoading={isExporting}
+              size="sm"
             >
               {t("submissions.exportExcel")}
             </Button>

@@ -7,8 +7,7 @@ interface TableHeaderProps {
 }
 
 export default function TableHeader({ showCheckbox, allSelected, onToggleSelectAll }: TableHeaderProps) {
-  const { t, lang } = useTranslation();
-  const isJa = lang === "ja";
+  const { t } = useTranslation();
 
   return (
     <thead>
@@ -23,11 +22,11 @@ export default function TableHeader({ showCheckbox, allSelected, onToggleSelectA
             />
           </th>
         )}
-        <th>{isJa ? "Project ID / Name" : "Mã / Tên Dự án"}</th>
-        <th>{isJa ? "Documents" : "Tài liệu"}</th>
-        <th>{isJa ? "Status" : "Trạng thái"}</th>
-        <th>{isJa ? "Score" : "Điểm"}</th>
-        <th>{isJa ? "Last Updated" : "Cập nhật cuối"}</th>
+        <th>{t("submissions.projectId")} / {t("submissions.projectName")}</th>
+        <th>{t("submissions.documents")}</th>
+        <th>{t("submissions.status")}</th>
+        <th>{t("submissions.score")}</th>
+        <th>{t("submissions.lastUpdated")}</th>
         <th style={{ textAlign: "right" }}>{t("common.actions")}</th>
       </tr>
     </thead>

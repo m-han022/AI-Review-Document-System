@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { bulkDeleteSubmissions, deleteSubmission, gradeSubmission } from "../api/client";
+import { bulkDeleteSubmissions, deleteSubmission, exportSubmissionsExcel, gradeSubmission } from "../api/client";
 import { projectsQueryKey } from "../query";
 import type { Project, LanguageCode } from "../types";
 import type { DocumentType } from "../constants/documentTypes";
@@ -16,6 +16,7 @@ import TableFooter from "./submissions/TableFooter";
 import ProjectCreateDialog from "./project/ProjectCreateDialog";
 import ProjectEditDialog from "./project/ProjectEditDialog";
 import { EmptyState } from "./ui/States";
+import { toHumanErrorMessage } from "../utils/humanizeError";
 
 interface SubmissionsTableProps {
   projects: Project[];
@@ -178,9 +179,26 @@ export default function SubmissionsTable({
       await gradeMutation.mutateAsync({ projectId, force: true });
       pushToast("success", t("submissions.gradingSuccess"));
     } catch (error) {
-      pushToast("danger", error instanceof Error ? error.message : t("submissions.gradingFailed"));
+      pushToast("danger", toHumanErrorMessage(error, t("submissions.gradingFailed")));
     } finally {
       setGradingId(null);
+    }
+  };
+
+  const handleExportProjectReport = async (projectId: string) => {
+    try {
+      const { blob, filename } = await exportSubmissionsExcel({ projectId });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename || `project_${projectId}_report.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      pushToast("success", t("submissions.exportSuccess"));
+    } catch (error) {
+      pushToast("danger", t("submissions.exportFailed"));
     }
   };
 
@@ -208,7 +226,7 @@ export default function SubmissionsTable({
       }
       pushToast("success", t("submissions.deleteSuccess"));
     } catch (error) {
-      pushToast("danger", error instanceof Error ? error.message : t("submissions.deleteFailed"));
+      pushToast("danger", toHumanErrorMessage(error, t("submissions.deleteFailed")));
     } finally {
       setDeletingId(null);
       setPendingDelete(null);
@@ -263,6 +281,7 @@ export default function SubmissionsTable({
                 onGrade={handleGrade}
                 onDelete={(id) => openDeleteDialog([id], "single")}
                 onEdit={(p) => setEditingProject(p)}
+                onExportReport={handleExportProjectReport}
               />
             ))
           ) : (

@@ -4,6 +4,7 @@ import "./States.css";
 import {
   AlertTriangleIcon,
   FileReviewIcon,
+  PackageIcon,
   RefreshIcon,
   ShieldCheckIcon,
   UploadIcon,
@@ -18,20 +19,23 @@ interface StatePanelProps {
   action?: ReactNode;
   tone?: StateTone;
   compact?: boolean;
+  icon?: ReactNode;
 }
 
-function StatePanel({ title, description, action, tone = "default", compact = false }: StatePanelProps) {
+function StatePanel({ title, description, action, tone = "default", compact = false, icon }: StatePanelProps) {
   return (
     <div className={`ui-state ui-state--${tone} ${compact ? "ui-state--compact" : ""}`.trim()}>
       <span className="ui-state__icon" aria-hidden="true">
-        {tone === "danger" ? (
-          <AlertTriangleIcon size="md" />
-        ) : tone === "success" ? (
-          <ShieldCheckIcon size="md" />
-        ) : tone === "warning" ? (
-          <AlertTriangleIcon size="md" />
-        ) : (
-          <FileReviewIcon size="md" />
+        {icon ? icon : (
+          tone === "danger" ? (
+            <AlertTriangleIcon size="md" />
+          ) : tone === "success" ? (
+            <ShieldCheckIcon size="md" />
+          ) : tone === "warning" ? (
+            <AlertTriangleIcon size="md" />
+          ) : (
+            <FileReviewIcon size="md" />
+          )
         )}
       </span>
       <div className="ui-state__copy">
@@ -44,7 +48,7 @@ function StatePanel({ title, description, action, tone = "default", compact = fa
 }
 
 export function EmptyState(props: StatePanelProps) {
-  return <StatePanel {...props} />;
+  return <StatePanel {...props} icon={props.icon || <PackageIcon size="md" style={{ opacity: 0.4, border: '2px dashed currentColor', borderRadius: '8px', padding: '8px' }} />} />;
 }
 
 export function LoadingState({ title, description }: Pick<StatePanelProps, "title" | "description">) {
