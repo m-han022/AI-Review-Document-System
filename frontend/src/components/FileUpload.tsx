@@ -128,6 +128,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
   const [pendingDuplicateFile, setPendingDuplicateFile] = useState<File | null>(null);
   const [projectFieldPulse, setProjectFieldPulse] = useState(false);
   const [reviewDone, setReviewDone] = useState<{ projectId: string; score: number | null | undefined; isPending: boolean } | null>(null);
+  const [activeStep, setActiveStep] = useState(0);
   const [fieldErrors, setFieldErrors] = useState<{
     project?: string;
     file?: string;
@@ -377,6 +378,9 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
       });
       setReviewErrorKind(null);
       setMessage(null);
+      
+      // Advance to result step
+      setActiveStep(2);
 
       // Async mode (USE_CELERY=true): navigate immediately, result screen will poll for status
       if (isPending) {
@@ -429,353 +433,319 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
 
   return (
     <div className="upload-container-v3" aria-label={copy.title}>
-      <main className="upload-layout-v3">
-        <section className="upload-main-v3">
-          {/* Stepper */}
+      {/* Step 1: Selection & Flow Overview */}
+      <div className="upload-header-section">
+        <div className="ds-container">
           <div className="upload-stepper">
             {steps.map((step, i) => (
-              <div key={i} className={`upload-stepper__item ${
-                i < currentStep ? "is-done" : i === currentStep ? "is-active" : "is-pending"
-              }`}>
+              <div 
+                key={i} 
+                className={`upload-stepper__item ${
+                  i < activeStep ? "is-done" : i === activeStep ? "is-active" : "is-pending"
+                } ${(!documentType && i > 0) || reviewing ? "is-disabled" : "is-clickable"}`.trim()}
+                onClick={() => {
+                  if (!reviewing && (i === 0 || (documentType && i <= activeStep))) {
+                    setActiveStep(i);
+                  }
+                }}
+              >
                 <div className="upload-stepper__circle">
-                  {i < currentStep ? <span>✓</span> : <span>{step.icon}</span>}
+                  {i < activeStep ? <span>✓</span> : <span>{step.icon}</span>}
                 </div>
                 <span className="upload-stepper__label">{step.label}</span>
                 {i < steps.length - 1 && <div className="upload-stepper__line" />}
               </div>
             ))}
           </div>
+        </div>
+      </div>
 
-          <Card 
-            title={copy.chooseType}
-            subtitle={undefined}
-            className="mb-3 upload-type-compact"
-          >
-            <div className="prod-doc-type-grid">
-              {DOCUMENT_TYPE_OPTIONS.map((option) => {
-                const cardCopy = DOCUMENT_CARD_COPY[lang][option.id];
-                const Icon = getDocumentIcon(option.id);
-                const isSelected = documentType === option.id;
+      {/* Main Content Area - Wizard Steps */}
+      <div className="upload-main-v4">
+        <div className="ds-container upload-wizard-container">
+          {/* STEP 0: Selection */}
+          {activeStep === 0 && (
+            <div className="upload-step-view animate-fade-in">
+              <Card 
+                title={copy.chooseType}
+                subtitle={undefined}
+                className="upload-type-compact"
+              >
+                <div className="prod-doc-type-grid">
+                  {DOCUMENT_TYPE_OPTIONS.map((option) => {
+                    const cardCopy = DOCUMENT_CARD_COPY[lang][option.id];
+                    const Icon = getDocumentIcon(option.id);
+                    const isSelected = documentType === option.id;
 
-                return (
-                  <button
-                    className={`prod-doc-type-card ${isSelected ? "is-active" : ""}`.trim()}
-                    type="button"
-                    key={option.id}
-                    onClick={() => {
-                      if (uploadState !== "uploading" && !reviewing) {
-                        setDocumentType(option.id);
-                        setMessage(null);
-                      }
-                    }}
-                    disabled={uploadState === "uploading" || reviewing}
-                  >
-                    <span className="prod-doc-type-card__icon" aria-hidden="true">
-                      <Icon size="sm" />
-                    </span>
-                    <span className="prod-doc-type-card__copy">
-                      <strong>{cardCopy.title}</strong>
-                      <small>{cardCopy.description}</small>
-                      <em>{cardCopy.example}</em>
-                    </span>
-                    <Tooltip content={cardCopy.tooltip}>
-                      <span className="prod-doc-type-card__help" aria-label={copy.scoringHintAria}>
-                        <HelpIcon size="sm" />
-                      </span>
-                    </Tooltip>
-                  </button>
-                );
-              })}
-            </div>
-          </Card>
-
-          <Card
-            title={copy.uploadFile}
-            subtitle={documentType ? undefined : copy.disabledHelper}
-            headerAction={
-              <StatusBadge tone={uploadState === "uploaded" ? "success" : uploadState === "error" ? "danger" : "muted"}>
-                {uploadState === "uploaded" ? copy.uploaded : uploadState.toUpperCase()}
-              </StatusBadge>
-            }
-            className="mb-4 upload-stage-compact"
-          >
-            <input
-              ref={inputRef}
-              type="file"
-              accept=".pdf,.pptx"
-              onChange={(event) => void handleFileChange(event)}
-              disabled={!documentType || uploadState === "uploading" || reviewing}
-              hidden
-            />
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              <div className={`prod-field upload-project-select ${fieldErrors.project ? "has-error" : ""} ${projectFieldPulse ? "is-shaking" : ""}`.trim()}>
-                <div className="upload-project-select__head">
-                  <label className="ds-input-label">{copy.projectSelect}</label>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowCreateProjectDialog(true)}
-                    disabled={uploadState === "uploading" || reviewing}
-                  >
-                    {`+ ${copy.createProjectNew}`}
-                  </Button>
+                    return (
+                      <button
+                        className={`prod-doc-type-card ${isSelected ? "is-active" : ""}`.trim()}
+                        type="button"
+                        key={option.id}
+                        onClick={() => {
+                          setDocumentType(option.id);
+                          setMessage(null);
+                          setActiveStep(1);
+                        }}
+                      >
+                        <span className="prod-doc-type-card__icon" aria-hidden="true">
+                          <Icon size="sm" />
+                        </span>
+                        <span className="prod-doc-type-card__copy">
+                          <strong>{cardCopy.title}</strong>
+                          <small>{cardCopy.description}</small>
+                          <em>{cardCopy.example}</em>
+                        </span>
+                        <Tooltip content={cardCopy.tooltip}>
+                          <span className="prod-doc-type-card__help" aria-label={copy.scoringHintAria}>
+                            <HelpIcon size="sm" />
+                          </span>
+                        </Tooltip>
+                      </button>
+                    );
+                  })}
                 </div>
-                
-                <Select
-                  options={[
-                    { value: "", label: `-- ${copy.selectExistingProject} --` },
-                    ...projects.map(p => ({ value: p.project_id, label: `${p.project_id} - ${p.project_name}` }))
-                  ]}
-                  value={selectedExistingProjectId || ""}
-                  onChange={(e) => {
-                    const pid = e.target.value;
-                    setSelectedExistingProjectId(pid || null);
-                    setFieldErrors((prev) => ({ ...prev, project: undefined }));
-                    const p = projects.find(proj => proj.project_id === pid);
-                    if (p) {
-                      setProjectDescription(p.project_description || "");
-                    }
-                  }}
-                  error={fieldErrors.project}
-                />
-                
-                {projects.length === 0 ? (
-                  <div className="upload-project-select__empty">
-                    <EmptyState
-                      title={copy.noProjectAvailable}
-                      description={copy.createProjectBeforeUpload}
-                      tone="warning"
-                      compact
-                      action={
+              </Card>
+            </div>
+          )}
+
+          {/* STEP 1: Upload & Config */}
+          {activeStep === 1 && (
+            <div className="upload-step-view animate-fade-in">
+              <Card
+                title={copy.uploadFile}
+                headerAction={
+                  <Button variant="ghost" size="sm" onClick={() => setActiveStep(0)}>
+                    ← {lang === "ja" ? "戻る" : "Quay lại"}
+                  </Button>
+                }
+                className="upload-stage-compact"
+              >
+                <div className="upload-wizard-grid">
+                  <div className="upload-wizard-col-left">
+                    <div className={`upload-project-section ${fieldErrors.project ? "has-error" : ""} ${projectFieldPulse ? "is-shaking" : ""}`.trim()}>
+                      <label className="ds-input-label">{copy.projectSelect}</label>
+                      <div className="upload-project-input-group">
+                        <Select
+                          className={fieldErrors.project ? "has-error" : ""}
+                          options={[
+                            { value: "", label: `-- ${copy.selectExistingProject} --` },
+                            ...projects.map(p => ({ value: p.project_id, label: `${p.project_id} - ${p.project_name}` }))
+                          ]}
+                          value={selectedExistingProjectId || ""}
+                          onChange={(e) => {
+                            const pid = e.target.value;
+                            setSelectedExistingProjectId(pid || null);
+                            setFieldErrors((prev) => ({ ...prev, project: undefined }));
+                            const p = projects.find(proj => proj.project_id === pid);
+                            if (p) {
+                              setProjectDescription(p.project_description || "");
+                            }
+                          }}
+                          error={fieldErrors.project}
+                        />
                         <Button
+                          variant="secondary"
+                          size="sm"
                           onClick={() => setShowCreateProjectDialog(true)}
                           disabled={uploadState === "uploading" || reviewing}
+                          className="upload-project-add-btn"
+                          title={copy.createProjectNew}
                         >
-                          {copy.createProject}
+                          +
                         </Button>
-                      }
+                      </div>
+                    </div>
+
+                    <div className="upload-description-header">
+                      <label className="ds-input-label">{copy.projectDescription}</label>
+                    </div>
+                    <Input
+                      multiline
+                      rows={4}
+                      placeholder={copy.projectDescriptionHint}
+                      value={projectDescription}
+                      onChange={(e) => setProjectDescription(e.target.value)}
+                      disabled={uploadState === "uploading" || reviewing}
+                      className="upload-project-description-area"
                     />
                   </div>
-                ) : null}
-              </div>
 
-              <div className="upload-project-upload-group">
-                {uploadState === "uploading" ? (
-                  <div className="prod-dropzone prod-dropzone--uploading">
-                    <div className="prod-dropzone__spinner" aria-label="Uploading">
-                      <svg viewBox="0 0 50 50" width="48" height="48">
-                        <circle cx="25" cy="25" r="20" fill="none" stroke="var(--ds-color-border)" strokeWidth="4" />
-                        <circle cx="25" cy="25" r="20" fill="none" stroke="var(--ds-color-primary)" strokeWidth="4"
-                          strokeDasharray="125.6"
-                          strokeDashoffset={125.6 - (uploadProgress / 100) * 125.6}
-                          strokeLinecap="round" transform="rotate(-90 25 25)"
-                          style={{ transition: "stroke-dashoffset 0.3s ease" }} />
-                      </svg>
-                      <span className="prod-dropzone__pct">{uploadProgress}%</span>
+                  <div className="upload-wizard-col-right">
+                    <div className="upload-project-upload-group">
+                      <input
+                        ref={inputRef}
+                        type="file"
+                        accept=".pdf,.pptx"
+                        onChange={(event) => void handleFileChange(event)}
+                        disabled={!documentType || uploadState === "uploading" || reviewing}
+                        hidden
+                      />
+                      {uploadState === "uploading" ? (
+                        <div className="prod-dropzone prod-dropzone--uploading">
+                          <div className="prod-dropzone__spinner" aria-label="Uploading">
+                            <svg viewBox="0 0 50 50" width="48" height="48">
+                              <circle cx="25" cy="25" r="20" fill="none" stroke="var(--ds-color-border)" strokeWidth="4" />
+                              <circle cx="25" cy="25" r="20" fill="none" stroke="var(--ds-color-primary)" strokeWidth="4"
+                                strokeDasharray="125.6"
+                                strokeDashoffset={125.6 - (uploadProgress / 100) * 125.6}
+                                strokeLinecap="round" transform="rotate(-90 25 25)"
+                                style={{ transition: "stroke-dashoffset 0.3s ease" }} />
+                            </svg>
+                            <span className="prod-dropzone__pct">{uploadProgress}%</span>
+                          </div>
+                          <span className="prod-dropzone__copy">
+                            <strong>{selectedFile?.name}</strong>
+                            <small>{copy.uploading}...</small>
+                          </span>
+                        </div>
+                      ) : uploadState === "uploaded" && selectedFile ? (
+                        <div className="prod-dropzone prod-dropzone--success">
+                          <div className="prod-dropzone__success-icon">✓</div>
+                          <span className="prod-dropzone__copy">
+                            <strong>{selectedFile.name}</strong>
+                            <small>{formatFileSize(selectedFile.size)}</small>
+                          </span>
+                          <button type="button" className="prod-dropzone__replace" onClick={openFilePicker} disabled={reviewing}>
+                            {copy.replace}
+                          </button>
+                        </div>
+                      ) : (
+                        <label
+                          className={`prod-dropzone ${dragActive ? "is-drag-active" : ""} ${!documentType || reviewing ? "is-disabled" : ""}`.trim()}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            openFilePicker();
+                          }}
+                          onDragEnter={(event) => {
+                            event.preventDefault();
+                            if (documentType && !reviewing) setDragActive(true);
+                          }}
+                          onDragOver={(event) => {
+                            event.preventDefault();
+                            if (documentType && !reviewing) setDragActive(true);
+                          }}
+                          onDragLeave={(event) => {
+                            event.preventDefault();
+                            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragActive(false);
+                          }}
+                          onDrop={(event) => void handleDrop(event)}
+                        >
+                          <UploadCloudIcon size="lg" />
+                          <span className="prod-dropzone__copy">
+                            <strong>{dragActive ? copy.dragTitle : copy.idleTitle}</strong>
+                            <span>{copy.idleLink}</span>
+                          </span>
+                        </label>
+                      )}
                     </div>
-                    <span className="prod-dropzone__copy">
-                      <strong>{selectedFile?.name}</strong>
-                      <small style={{ color: "var(--ds-color-text-muted)" }}>{copy.uploading}...</small>
-                    </span>
                   </div>
-                ) : uploadState === "uploaded" && selectedFile ? (
-                  <div className="prod-dropzone prod-dropzone--success">
-                    <div className="prod-dropzone__success-icon">✓</div>
-                    <span className="prod-dropzone__copy">
-                      <strong style={{ color: "var(--ds-color-success-dark)" }}>{selectedFile.name}</strong>
-                      <small style={{ color: "var(--ds-color-text-muted)" }}>{formatFileSize(selectedFile.size)}</small>
-                    </span>
-                    <button type="button" className="prod-dropzone__replace" onClick={openFilePicker} disabled={reviewing}>
-                      {copy.replace}
-                    </button>
-                  </div>
-                ) : (
-                  <label
-                    className={`prod-dropzone ${dragActive ? "is-drag-active" : ""} ${!documentType || reviewing ? "is-disabled" : ""}`.trim()}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      openFilePicker();
-                    }}
-                    onDragEnter={(event) => {
-                      event.preventDefault();
-                      if (documentType && !reviewing) setDragActive(true);
-                    }}
-                    onDragOver={(event) => {
-                      event.preventDefault();
-                      if (documentType && !reviewing) setDragActive(true);
-                    }}
-                    onDragLeave={(event) => {
-                      event.preventDefault();
-                      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragActive(false);
-                    }}
-                    onDrop={(event) => void handleDrop(event)}
-                  >
-                    <span className="prod-dropzone__icon" aria-hidden="true">
-                      <UploadCloudIcon size="lg" />
-                    </span>
-                    <span className="prod-dropzone__copy">
-                      <strong>{dragActive ? copy.dragTitle : copy.idleTitle}</strong>
-                      <span>{copy.idleLink}</span>
-                      <small>{copy.idleHint}</small>
-                    </span>
-                  </label>
-                )}
-              </div>
-            </div>
-
-            {fieldErrors.file && <ErrorState title={copy.uploadFailed} description={fieldErrors.file} compact />}
-
-
-
-            {uploadState === "error" && !fieldErrors.file && (
-              <ErrorState
-                title={copy.uploadFailed}
-                description={message?.text}
-                compact
-                action={
-                  <div className="prod-upload-error-actions">
-                    <Button variant="secondary" onClick={() => void retryUpload()} disabled={!selectedFile}>
-                      {copy.retry}
-                    </Button>
-                    <Button variant="outline" onClick={openFilePicker}>
-                      {copy.chooseOther}
-                    </Button>
-                  </div>
-                }
-              />
-            )}
-            
-              <div className="upload-description-header" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                <label className="ds-input-label" style={{ marginBottom: 0 }}>{copy.projectDescription}</label>
-                <Tooltip content={copy.projectDescriptionHint}>
-                  <span style={{ cursor: 'help', color: 'var(--ds-color-primary)' }}>
-                    <HelpIcon size="sm" />
-                  </span>
-                </Tooltip>
-              </div>
-              <Input
-                multiline
-                placeholder={copy.projectDescriptionHint}
-                value={projectDescription}
-                onChange={(e) => setProjectDescription(e.target.value)}
-                disabled={uploadState === "uploading" || reviewing}
-              />
-
-            <div className="prod-upload-actions prod-upload-actions--sticky">
-              <div className="upload-metadata-summary">
-                {/* Always show evaluation set badge (Auto if not resolved yet) */}
-                <div className="ds-chip-muted" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 12px', borderRadius: '100px', background: 'var(--ds-color-bg-muted)', fontSize: '13px' }}>
-                  <ShieldCheckIcon size="sm" />
-                  <span>{t("upload.evaluationSet")}:</span>
-                  <strong>
-                    {selectedEvaluationSetId
-                      ? (evaluationSets.find(s => s.id === selectedEvaluationSetId)?.name || "Auto")
-                      : "Auto"}
-                  </strong>
                 </div>
 
-                <Tooltip content={globalDefaults?.policies["medium"]?.[lang] || "..."}>
-                  <div className="ds-chip-muted" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 12px', borderRadius: '100px', background: 'var(--ds-color-bg-muted)', fontSize: '13px', marginLeft: '8px', cursor: 'help' }}>
-                    <HelpIcon size="sm" />
-                    <span>{lang === "ja" ? "評価レベル" : "Mức độ"}:</span>
-                    <strong>Medium</strong>
-                  </div>
-                </Tooltip>
-
-                <Tooltip content={globalDefaults?.required_rules?.map((r: any, i: number) => `${i+1}. ${r[lang] || r.en}`).join("\n") || "..."}>
-                  <div className="ds-chip-muted" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 12px', borderRadius: '100px', background: 'var(--ds-color-bg-muted)', fontSize: '13px', marginLeft: '8px', cursor: 'help' }}>
-                    <ClipboardCheckIcon size="sm" />
-                    <span>{lang === "ja" ? "基本ルール" : "Quy tắc"}:</span>
-                    <strong>{globalDefaults?.required_rules?.length || 0}</strong>
-                  </div>
-                </Tooltip>
-
-                {!canStartReview && !reviewDone && <p className="ds-caption mt-2">{copy.disabledHelper}</p>}
-                
-                {documentType && scopedEvaluationSets.length === 0 && !reviewing && !reviewDone && (
-                  <div className="ds-alert ds-alert--warning mt-3" style={{ fontSize: '12px', padding: '8px 12px', borderLeft: '3px solid var(--ds-color-warning)' }}>
-                    <div style={{ fontWeight: 600, marginBottom: '2px' }}>⚠️ {lang === "ja" ? "未セットアップ" : "Chưa thiết lập"}</div>
-                    <div>
-                      {lang === "ja" 
-                        ? "この資料タイプの評価基準がまだありません。初回実行時にAIが自動構成を試みます。"
-                        : "Chưa có bộ tiêu chuẩn cho loại tài liệu này. Hệ thống sẽ tự động khởi tạo khi bạn bắt đầu review."}
+                <div className="upload-actions-group">
+                  <div className="upload-metadata-summary">
+                    <div className="ds-chip-muted">
+                      <ShieldCheckIcon size="sm" />
+                      <span>{t("upload.evaluationSet")}:</span>
+                      <strong>
+                        {selectedEvaluationSetId
+                          ? (evaluationSets.find(s => s.id === selectedEvaluationSetId)?.name || "Auto")
+                          : "Auto"}
+                      </strong>
                     </div>
-                  </div>
-                )}
 
-                {/* Review done: sync mode with score */}
-                {reviewDone && !reviewDone.isPending && (
-                  <div className="upload-review-done-banner">
-                    <div className="upload-review-done-banner__score">
-                      <span className="upload-review-done-banner__score-label">
-                        {lang === "ja" ? "合計スコア" : "Tổng điểm"}
-                      </span>
-                      <span className="upload-review-done-banner__score-value" style={{
-                        color: (reviewDone.score ?? 0) < 60 ? "var(--ds-color-danger)"
-                          : (reviewDone.score ?? 0) < 80 ? "var(--ds-color-warning-dark)"
-                          : "var(--ds-color-success-dark)"
-                      }}>
-                        {reviewDone.score ?? "—"}<small>/100</small>
-                      </span>
-                    </div>
-                    <div className="upload-review-done-banner__actions">
-                      <span style={{ color: "var(--ds-color-success-dark)", fontWeight: 600, fontSize: 13 }}>✓ {lang === "ja" ? "レビュー完了" : "Review hoàn tất"}</span>
-                      <button
-                        type="button"
-                        className="upload-review-done-banner__cta"
-                        onClick={() => onReviewComplete?.(reviewDone.projectId)}
-                      >
-                        {lang === "ja" ? "詳細を見る →" : "Xem kết quả chi tiết →"}
-                      </button>
-                    </div>
-                  </div>
-                )}
+                    <Tooltip content={globalDefaults?.policies["medium"]?.[lang] || "..."}>
+                      <div className="ds-chip-muted" style={{ cursor: 'help' }}>
+                        <HelpIcon size="sm" />
+                        <span>Medium</span>
+                      </div>
+                    </Tooltip>
 
-                {message && uploadState !== "error" && (
-                  message.type === "success" ? (
-                    <SuccessState title={message.text} compact />
-                  ) : (
-                    <ErrorState title={message.text} compact />
-                  )
-                )}
-              </div>
-              <div className="prod-upload-btn-group">
-                <label className="ds-checkbox-control prod-upload-btn-group__checkbox">
-                  <input
-                    type="checkbox"
-                    checked={forceRegrade}
-                    onChange={(e) => setForceRegrade(e.target.checked)}
-                    disabled={reviewing || uploadState === "uploading"}
-                  />
-                  <span>{copy.rerunWithoutCache}</span>
-                </label>
-                <Button
-                  onClick={() => void handleReview()}
-                  disabled={!canStartReview || reviewing}
-                  isLoading={reviewing}
-                  size="lg"
-                  className={canStartReview && !reviewing ? "btn-pulse" : ""}
-                >
-                  {reviewing ? reviewingMessage : copy.startReview}
-                </Button>
-                {reviewing && <span className="prod-reviewing-inline">{reviewingMessage}</span>}
-              </div>
+                    {message && uploadState !== "error" && (
+                      <div style={{ marginLeft: 'auto' }}>
+                        <StatusBadge tone={message.type === "success" ? "success" : "danger"}>
+                          {message.text}
+                        </StatusBadge>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="prod-upload-btn-group">
+                    <label className="ds-checkbox-control prod-upload-btn-group__checkbox">
+                      <input
+                        type="checkbox"
+                        checked={forceRegrade}
+                        onChange={(e) => setForceRegrade(e.target.checked)}
+                        disabled={reviewing || uploadState === "uploading"}
+                      />
+                      <span>{copy.rerunWithoutCache}</span>
+                    </label>
+                    <Button
+                      onClick={() => void handleReview()}
+                      disabled={!canStartReview || reviewing}
+                      isLoading={reviewing}
+                      size="lg"
+                      className={canStartReview && !reviewing ? "btn-pulse" : ""}
+                    >
+                      {reviewing ? reviewingMessage : copy.startReview}
+                    </Button>
+                  </div>
+                </div>
+              </Card>
             </div>
+          )}
 
-            {reviewing && (
-              <div className="prod-processing mt-4">
-                {(["read", "extract", "grade", "recommend"] as ProcessingStep[]).map((step) => (
-                  <div className={`prod-processing__step ${processingStep === step ? "is-active" : ""}`.trim()} key={step}>
-                    <span />
-                    <strong>{copy.processingSteps[step]}</strong>
+          {/* STEP 2: Processing & Result */}
+          {activeStep === 2 && (
+            <div className="upload-step-view animate-fade-in">
+              <Card 
+                title={reviewing ? lang === "ja" ? "AI レビュー中" : "AI đang chấm điểm" : lang === "ja" ? "レビュー結果" : "Kết quả review"}
+                className="upload-result-compact"
+                headerAction={
+                  !reviewing && (
+                    <Button variant="ghost" size="sm" onClick={() => setActiveStep(1)}>
+                      ← {lang === "ja" ? "再アップロード" : "Tải lên lại"}
+                    </Button>
+                  )
+                }
+              >
+                {reviewing ? (
+                  <div className="upload-wizard-processing">
+                    <div className="prod-processing">
+                      {(["read", "extract", "grade", "recommend"] as ProcessingStep[]).map((step) => (
+                        <div className={`prod-processing__step ${processingStep === step ? "is-active" : ""}`.trim()} key={step}>
+                          <span />
+                          <strong>{copy.processingSteps[step]}</strong>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </Card>
-        </section>
-      </main>
+                ) : reviewDone ? (
+                  <div className="upload-wizard-result">
+                    <div className="upload-result-hero">
+                      <div className="upload-result-hero__score">
+                        <span className={`upload-result-hero__value ${(reviewDone.score ?? 0) < 60 ? "is-danger" : "is-success"}`}>
+                          {reviewDone.score ?? "—"}
+                          <small>/100</small>
+                        </span>
+                        <label>{lang === "ja" ? "総合スコア" : "Điểm tổng quát"}</label>
+                      </div>
+                      <div className="upload-result-hero__actions">
+                        <Button size="lg" variant="primary" onClick={() => onReviewComplete?.(reviewDone.projectId)}>
+                          {lang === "ja" ? "詳細レポートを見る" : "Xem báo cáo chi tiết"} →
+                        </Button>
+                        <p>{lang === "ja" ? "AI がドキュメントを分析し、改善案を生成しました。" : "AI đã phân tích tài liệu và đưa ra các đề xuất cải thiện."}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                   <EmptyState title="No data" description="Please complete step 1" />
+                )}
+              </Card>
+            </div>
+          )}
+        </div>
+      </div>
 
       <ProjectCreateDialog
         open={showCreateProjectDialog}

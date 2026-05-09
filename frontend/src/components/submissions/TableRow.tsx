@@ -1,4 +1,4 @@
-﻿import type { Project } from "../../types";
+import type { Project } from "../../types";
 import { useTranslation } from "../LanguageSelector";
 import { toBusinessStatus } from "../ui/businessStatus";
 import { DownloadIcon, EditIcon, EyeIcon, FileReviewIcon, RefreshIcon, TrashIcon } from "../ui/Icon";
@@ -125,20 +125,20 @@ export default function TableRow({
             className="action-btn-v4 quick secondary"
             onClick={() => onExportReport(project.project_id)}
             disabled={isActionPending}
-            title={lang === "ja" ? "???????????" : "T?i xu?ng báo cáo"}
-            data-tooltip={lang === "ja" ? "???????????" : "T?i báo cáo"}
+            title={t("common.tooltips.download")}
+            data-tooltip={t("common.tooltips.download")}
           >
             <DownloadIcon size="sm" />
-            <span>{lang === "ja" ? "????" : "Báo cáo"}</span>
+            <span>{t("nav.export")}</span>
           </button>
 
           <button
             type="button"
             className="action-btn-v4"
             onClick={() => onGrade(project.project_id)}
-            disabled={gradingId === project.project_id || isActionPending}
-            title={t("submissions.regrade")}
-            data-tooltip={lang === "ja" ? "?????" : "Ch?m l?i"}
+            disabled={gradingId === project.project_id || isActionPending || project.total_documents === 0}
+            title={project.total_documents === 0 ? t("common.tooltips.noDocumentsToGrade") : t("common.tooltips.regrade")}
+            data-tooltip={project.total_documents === 0 ? t("common.tooltips.noDocumentsToGrade") : t("common.tooltips.regrade")}
           >
             <RefreshIcon size="sm" className={gradingId === project.project_id ? "animate-spin" : ""} />
           </button>
@@ -147,8 +147,8 @@ export default function TableRow({
             type="button"
             className="action-btn-v4 primary"
             onClick={() => onSelect(project.project_id)}
-            title={t("submissions.viewResult")}
-            data-tooltip={lang === "ja" ? "?????" : "Xem k?t qu?"}
+            title={t("common.tooltips.view")}
+            data-tooltip={t("common.tooltips.view")}
           >
             <EyeIcon size="sm" />
           </button>
@@ -158,8 +158,8 @@ export default function TableRow({
             className="action-btn-v4"
             onClick={() => onEdit(project)}
             disabled={isActionPending}
-            title={t("common.edit")}
-            data-tooltip={lang === "ja" ? "??" : "Ch?nh s?a"}
+            title={t("common.tooltips.edit")}
+            data-tooltip={t("common.tooltips.edit")}
           >
             <EditIcon size="sm" />
           </button>
@@ -169,8 +169,8 @@ export default function TableRow({
             className="action-btn-v4 danger"
             onClick={() => onDelete(project.project_id)}
             disabled={deletingId === project.project_id || isActionPending}
-            title={t("common.delete")}
-            data-tooltip={lang === "ja" ? "??" : "Xóa"}
+            title={t("common.tooltips.delete")}
+            data-tooltip={t("common.tooltips.delete")}
           >
             <TrashIcon size="sm" />
           </button>

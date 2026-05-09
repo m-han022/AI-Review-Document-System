@@ -2,10 +2,13 @@
 .app-shell {
   display: flex;
   height: 100vh;
-  width: 100%;
+  height: 100dvh;
+  width: 100vw;
   background-color: var(--ds-color-bg-app);
   overflow: hidden;
-  position: relative;
+  position: fixed;
+  top: 0;
+  left: 0;
 }
 
 /* Sidebar */
@@ -238,13 +241,51 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: var(--ds-space-section) 0;
+  padding: var(--ds-space-section) 0 80px 0; /* Extra padding bottom for Sticky Action Bar */
   background-color: var(--ds-color-bg-app);
   display: flex;
   flex-direction: column;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
-  scroll-padding-top: var(--ds-layout-header-height); /* Offset for sticky context */
+  position: relative;
+}
+
+/* Standardized Page-Level Sticky Header */
+.ds-sticky-header {
+  position: sticky;
+  top: calc(-1 * var(--ds-space-section));
+  left: 0;
+  right: 0;
+  z-index: var(--ds-z-sticky);
+  background: rgba(251, 252, 255, 0.9);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--ds-color-border);
+  padding: var(--ds-space-4) 0;
+  margin-top: calc(-1 * var(--ds-space-section));
+  margin-bottom: var(--ds-space-section);
+}
+
+/* Standardized Global Sticky Action Bar */
+.ds-sticky-action-bar {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--ds-z-sticky);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--ds-color-border);
+  box-shadow: 0 -4px 12px rgba(15, 23, 42, 0.06);
+  padding: var(--ds-space-4) 0;
+  margin-top: auto;
+  transition: all 0.3s ease;
+}
+
+.ds-sticky-action-bar .ds-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-4);
 }
 
 /* Sidebar Responsive Behavior */
@@ -331,6 +372,25 @@ body.is-modal-open {
 
 .app-sidebar__nav::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
+}
+
+/* Custom Scrollbar for Main Content */
+.app-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.app-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.app-content::-webkit-scrollbar-thumb {
+  background: var(--ds-color-border-strong);
+  border-radius: 20px;
+  border: 2px solid var(--ds-color-bg-app);
+}
+
+.app-content::-webkit-scrollbar-thumb:hover {
+  background: var(--ds-color-text-muted);
 }
 
 /* Interactive Card Polish */

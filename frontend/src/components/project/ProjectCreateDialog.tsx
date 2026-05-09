@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createProject } from "../../api/client";
+import { useState, useEffect } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createProject, listProjects } from "../../api/client";
 import { projectsQueryKey } from "../../query";
 import { useTranslation } from "../LanguageSelector";
 import BaseModal from "../ui/BaseModal";
@@ -21,6 +21,39 @@ export default function ProjectCreateDialog({ open, onClose, onCreated }: Projec
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Fetch existing projects to suggest next ID
+  const { data: existingProjects } = useQuery({
+    queryKey: projectsQueryKey,
+    queryFn: () => listProjects(1000, 0),
+    enabled: open,
+  });
+
+  useEffect(() => {
+    if (open && existingProjects && !id) {
+      // Suggest next ID based on pattern Pxxx
+      const pIds = existingProjects
+        .map(p => p.project_id)
+        .filter(pid => /^P\d+$/.test(pid))
+        .map(pid => {
+          const m = pid.match(/\d+/);
+          return m ? parseInt(m[0]) : 0;
+        });
+      
+      const maxId = pIds.length > 0 ? Math.max(...pIds) : 0;
+      const nextId = `P${String(maxId + 1).padStart(3, '0')}`;
+      setId(nextId);
+    }
+  }, [open, existingProjects, id]);
+
+  useEffect(() => {
+    if (!open) {
+      setId("");
+      setName("");
+      setDescription("");
+      setError(null);
+    }
+  }, [open]);
 
   const titleText = t("project.createTitle");
   const nameText = t("project.name");
@@ -46,11 +79,17 @@ export default function ProjectCreateDialog({ open, onClose, onCreated }: Projec
       setError(null);
     },
     onError: (err: any) => {
-      setError(err?.message || "Failed to create project");
+      const msg = err?.message || "";
+      if (msg.includes("already exists")) {
+        setError(t("project.errorAlreadyExists") || `Project ID ${id} đã tồn tại. Vui lòng chọn ID khác.`);
+      } else {
+        setError(msg || "Failed to create project");
+      }
     }
   });
 
   const handleSave = async () => {
+    setError(null);
     if (!id || !name) {
       setError("ID and Name are required");
       return;
@@ -59,7 +98,7 @@ export default function ProjectCreateDialog({ open, onClose, onCreated }: Projec
     try {
       await createMutation.mutateAsync({ id, name, description });
     } catch (err) {
-      console.error(err);
+      // Error handled by useMutation onError
     } finally {
       setLoading(false);
     }

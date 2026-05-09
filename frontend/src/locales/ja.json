@@ -31,7 +31,17 @@
     "back": "戻る",
     "noData": "データなし",
     "yes": "はい",
-    "no": "いいえ"
+    "no": "いいえ",
+    "tooltips": {
+      "edit": "編集",
+      "delete": "削除",
+      "view": "詳細を見る",
+      "download": "レポートをダウンロード",
+      "export": "データを出力",
+      "history": "履歴を表示",
+      "regrade": "再採点",
+      "noDocumentsToGrade": "採点対象の資料がありません"
+    }
   },
   "sm": {
     "common": {

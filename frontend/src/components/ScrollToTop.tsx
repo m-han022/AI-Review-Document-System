@@ -8,19 +8,25 @@ export default function ScrollToTop() {
   const { t } = useTranslation();
 
   useEffect(() => {
+    const scrollContainer = document.getElementById("main-scroll-container");
+    if (!scrollContainer) return;
+
     const toggleVisibility = () => {
-      setIsVisible(window.scrollY > 300);
+      setIsVisible(scrollContainer.scrollTop > 300);
     };
 
-    window.addEventListener("scroll", toggleVisibility);
-    return () => window.removeEventListener("scroll", toggleVisibility);
+    scrollContainer.addEventListener("scroll", toggleVisibility);
+    return () => scrollContainer.removeEventListener("scroll", toggleVisibility);
   }, []);
 
   const scrollToTop = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: "auto",
-    });
+    const scrollContainer = document.getElementById("main-scroll-container");
+    if (scrollContainer) {
+      scrollContainer.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    }
   };
 
   if (!isVisible) {

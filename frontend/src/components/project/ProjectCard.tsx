@@ -15,7 +15,7 @@ import ProjectReviewDialog from "./ProjectReviewDialog";
 import ProjectCriteriaTab from "./ProjectCriteriaTab";
 import ProjectSlidesTab from "./ProjectSlidesTab";
 import type { ProjectCriteriaTabViewModel, ProjectSlidesTabViewModel } from "./projectCard.viewModels";
-import { LoadingState, EmptyState, StatusBadge } from "../ui/States";
+import { EmptyState, StatusBadge } from "../ui/States";
 import { Button, Select } from "../ui";
 import {
   formatDateTime,
@@ -23,8 +23,7 @@ import {
 } from "./projectCard.helpers";
 import { useProjectReviewState } from "./useProjectReviewState";
 import "./ProjectCard.css";
-
-
+import { Tooltip } from "../ui/States";
 
 interface ProjectCardProps {
   projectId: string;
@@ -72,6 +71,48 @@ function phase2Text(t: (key: string) => string) {
   };
 }
 
+function ProjectCardSkeleton() {
+  return (
+    <div className="project-layout-v3 ds-skeleton-wrapper">
+      <header className="project-toolbar-v3">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
+          <div className="ds-skeleton" style={{ width: '32px', height: '32px', borderRadius: '4px' }} />
+          <div className="ds-skeleton" style={{ width: '100px', height: '20px', borderRadius: '4px' }} />
+          <div className="ds-skeleton" style={{ width: '80px', height: '24px', borderRadius: '12px' }} />
+        </div>
+      </header>
+      <div className="project-sidebar-v3">
+        <div className="sidebar-section-v3">
+          <div className="ds-skeleton" style={{ width: '40%', height: '12px', marginBottom: '8px' }} />
+          <div className="ds-skeleton" style={{ width: '80%', height: '20px', marginBottom: '12px' }} />
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <div className="ds-skeleton" style={{ width: '60px', height: '18px' }} />
+            <div className="ds-skeleton" style={{ width: '60px', height: '18px' }} />
+          </div>
+        </div>
+        <div className="sidebar-section-v3" style={{ height: '300px' }}>
+          <div className="ds-skeleton" style={{ width: '100%', height: '36px', marginBottom: '12px' }} />
+          <div className="ds-skeleton" style={{ width: '100%', height: '36px', marginBottom: '12px' }} />
+          <div className="ds-skeleton" style={{ width: '100%', height: '36px', marginBottom: '12px' }} />
+        </div>
+      </div>
+      <div className="project-main-v3">
+        <div className="metrics-row-v3">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="metric-card-v3">
+              <div className="ds-skeleton" style={{ width: '40%', height: '12px', marginBottom: '8px' }} />
+              <div className="ds-skeleton" style={{ width: '60%', height: '24px' }} />
+            </div>
+          ))}
+        </div>
+        <div className="ds-card" style={{ height: '400px', padding: '24px' }}>
+          <div className="ds-skeleton" style={{ width: '100%', height: '100%' }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
   const { lang, t } = useTranslation();
   const m = phase2Text(t);
@@ -103,7 +144,8 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
   const { rerunMutation, exportMutation } = actions;
   const { result, slideReviewItems, ngSlideCount, orderedScores, feedbackSections, activeSlide, isInitialLoading, riskLevel, topInsight } = derived;
 
-  if (loadingDocs || isInitialLoading) return <LoadingState title={m.loadingDocuments} />;
+  if (loadingDocs || isInitialLoading) return <ProjectCardSkeleton />;
+
   const criteriaViewModel: ProjectCriteriaTabViewModel = {
     lang,
     gradingDetail,
@@ -132,12 +174,12 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
   return (
     <div className="project-layout-v3">
       {/* Toolbar */}
-      <header className="project-toolbar-v3" style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(255, 255, 255, 0.95)", backdropFilter: "blur(8px)", borderBottom: "1px solid var(--ds-color-border)" }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <Button variant="ghost" size="sm" onClick={onBack} className="back-button-v3">
+      <header className="project-toolbar-v3">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--ds-space-3)' }}>
+          <Button variant="ghost" size="sm" onClick={onBack} style={{ padding: '4px' }}>
             <ArrowLeftIcon size="sm" />
           </Button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--ds-space-2)' }}>
             <StatusBadge tone={
               result?.status === "completed" || result?.status === "graded" ? "success" :
               result?.status === "failed" ? "danger" :
@@ -145,14 +187,22 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
             }>
               {result?.status ? getStatusLabel(result.status, t) : t("project.pending")}
             </StatusBadge>
-            {result?.status === "failed" && result?.error_message && (
-              <span style={{ fontSize: '12px', color: 'var(--ds-color-danger)' }} title={result.error_message}>
-                {result.error_message}
-              </span>
-            )}
+            
             {result?.total_score != null && (
-              <div style={{ display: "flex", alignItems: "center", background: "var(--ds-color-surface)", padding: "2px 10px", borderRadius: "16px", border: "1px solid var(--ds-color-border)", boxShadow: "0 1px 2px rgba(0,0,0,0.05)", marginLeft: "8px" }}>
-                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--ds-color-text-title)" }}>{t("project.totalScore")}: <span style={{ color: result.total_score < 60 ? "var(--ds-color-danger)" : result.total_score < 80 ? "var(--ds-color-warning-dark)" : "var(--ds-color-success-dark)" }}>{result.total_score}</span></span>
+              <div style={{ 
+                display: "flex", 
+                alignItems: "center", 
+                background: "var(--ds-color-bg-app)", 
+                padding: "2px 10px", 
+                borderRadius: "var(--ds-radius-pill)", 
+                border: "1px solid var(--ds-color-border)",
+                fontSize: "13px",
+                fontWeight: 600
+              }}>
+                <span style={{ color: "var(--ds-color-text-muted)", marginRight: '4px' }}>{t("project.totalScore")}:</span>
+                <span style={{ color: result.total_score < 60 ? "var(--ds-color-danger)" : result.total_score < 80 ? "var(--ds-color-warning)" : "var(--ds-color-success)" }}>
+                  {result.total_score}
+                </span>
               </div>
             )}
           </div>
@@ -193,21 +243,32 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
       <aside className="project-sidebar-v3">
         {/* Project Context Header */}
         <div className="sidebar-section-v3">
-          <div className="project-id-badge">#{projectId.toString().slice(0, 8)}</div>
-          <h2 className="sidebar-project-title-v3">{getLocalizedText(currentProject?.project_name, lang) || projectId}</h2>
-          <div className="system-context-pills">
-            <span className="context-pill">{getLocalizedText(gradingDetail?.document?.document_type, lang) || getLocalizedText(result?.document_version, lang)}</span>
-            <span className="context-pill">{getLocalizedText(result?.prompt_level, lang)}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="ds-caption" style={{ fontWeight: 700, opacity: 0.5 }}>#{projectId.toString().slice(0, 8)}</div>
+          </div>
+          <h2 className="sidebar-project-title-v3" title={getLocalizedText(currentProject?.project_name, lang)}>
+            {getLocalizedText(currentProject?.project_name, lang) || projectId}
+          </h2>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            <StatusBadge tone="muted">{getLocalizedText(gradingDetail?.document?.document_type, lang) || "—"}</StatusBadge>
+            <StatusBadge tone="primary">{getLocalizedText(result?.prompt_level, lang) || "—"}</StatusBadge>
           </div>
           
           {currentProject?.project_description && (
-            <div className="project-context-brief mt-3" style={{ padding: '8px 12px', background: 'var(--ds-color-bg-muted)', borderRadius: '8px', fontSize: '12px', borderLeft: '3px solid var(--ds-color-primary)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: 'var(--ds-color-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <div style={{ 
+              padding: '10px', 
+              background: 'var(--ds-color-bg-app)', 
+              borderRadius: 'var(--ds-radius-md)', 
+              fontSize: '12px', 
+              borderLeft: '3px solid var(--ds-color-primary)',
+              marginTop: 'var(--ds-space-2)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: 'var(--ds-color-text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 <TargetIcon size="xs" />
-                <span>{lang === "ja" ? "プロジェクトの背景" : "Bối cảnh dự án"}</span>
+                <span>{lang === "ja" ? "コンテキスト" : "Bối cảnh"}</span>
               </div>
               <Tooltip content={currentProject.project_description}>
-                <p style={{ margin: 0, color: 'var(--ds-color-text-main)', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: '1.4' }}>
+                <p style={{ margin: 0, color: 'var(--ds-color-text-secondary)', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: '1.5' }}>
                   {currentProject.project_description}
                 </p>
               </Tooltip>
@@ -215,10 +276,12 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
           )}
         </div>
 
-        {/* Selection Group (Compact) */}
+        {/* Selection Group */}
         <div className="sidebar-section-v3">
-          <span className="sidebar-header-v3">{t("project.context")}</span>
-          <div className="selection-group-v3">
+          <span className="ds-caption" style={{ fontWeight: 700, textTransform: 'uppercase', color: 'var(--ds-color-text-muted)' }}>
+            {t("project.context")}
+          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ds-space-2)' }}>
             <Select 
               value={selectedDocumentId || ""} 
               onChange={(e) => {
@@ -256,116 +319,78 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
           </div>
         </div>
 
-        {/* Slide Navigator with Filter */}
-        <div className="sidebar-section-v3" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          <div className="sidebar-header-row-v3" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <span className="sidebar-header-v3" style={{ margin: 0 }}>{t("project.slideList")} ({slideReviewItems.length})</span>
+        {/* Slide Navigator */}
+        <div className="sidebar-section-v3" style={{ flex: 1, minHeight: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <span className="ds-caption" style={{ fontWeight: 700, textTransform: 'uppercase', color: 'var(--ds-color-text-muted)' }}>
+              {t("project.slideList")}
+            </span>
             <button 
               type="button"
               className={`filter-badge-v3 ${filterNG ? 'is-active' : ''}`}
               onClick={() => setFilterNG(!filterNG)}
-              style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '12px', cursor: 'pointer' }}
+              style={{ 
+                fontSize: '10px', 
+                padding: '2px 8px', 
+                borderRadius: 'var(--ds-radius-pill)', 
+                cursor: 'pointer',
+                border: '1px solid var(--ds-color-border)',
+                background: filterNG ? 'var(--ds-color-danger-soft)' : 'transparent',
+                color: filterNG ? 'var(--ds-color-danger)' : 'var(--ds-color-text-muted)',
+                fontWeight: 600
+              }}
             >
-              {filterNG ? "Showing NG" : "Filter NG"}
+              {filterNG ? "NG Only" : "Show All"}
             </button>
           </div>
           
           <div className="slide-grid-v3">
-            <style>{`
-              .slide-grid-item-v3.has-custom-tooltip {
-                position: relative;
-                overflow: visible !important;
-              }
-              .custom-slide-tooltip {
-                visibility: hidden;
-                opacity: 0;
-                position: absolute;
-                bottom: calc(100% + 8px);
-                left: 50%;
-                transform: translateX(-50%) translateY(4px);
-                background: var(--ds-color-surface-overlay, #1e293b);
-                color: #fff;
-                padding: 10px 14px;
-                border-radius: 8px;
-                font-size: 13px;
-                width: max-content;
-                max-width: 240px;
-                box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-                pointer-events: none;
-                transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-                z-index: 1000;
-                text-align: left;
-                line-height: 1.5;
-                font-weight: normal;
-              }
-              .custom-slide-tooltip::after {
-                content: '';
-                position: absolute;
-                top: 100%;
-                left: 50%;
-                margin-left: -6px;
-                border-width: 6px;
-                border-style: solid;
-                border-color: var(--ds-color-surface-overlay, #1e293b) transparent transparent transparent;
-              }
-              .slide-grid-item-v3.has-custom-tooltip:hover .custom-slide-tooltip {
-                visibility: visible;
-                opacity: 1;
-                transform: translateX(-50%) translateY(0);
-              }
-              .slide-grid-item-v3.is-active {
-                border: 2px solid var(--ds-color-primary-dark) !important;
-                background-color: var(--ds-color-primary-soft) !important;
-                font-weight: bold;
-                box-shadow: 0 0 0 2px var(--ds-color-primary-light);
-              }
-            `}</style>
             {slideReviewItems
               .filter(item => !filterNG || item.status === "NG")
               .map((item) => {
+                const isActive = selectedSlideId === item.id;
+                const isNG = item.status === "NG";
                 const tooltipText = item.issues?.length > 0 ? item.issues[0] : item.summary;
+                
                 return (
-                  <button
+                  <div 
                     key={item.id}
-                    type="button"
-                    className={`slide-grid-item-v3 ${selectedSlideId === item.id ? "is-active" : ""} is-${item.status.toLowerCase()} ${item.status === "NG" ? "has-custom-tooltip" : ""}`}
+                    className={`slide-grid-item-v3 ${isActive ? 'is-active' : ''} ${isNG ? 'is-ng' : ''}`}
                     onClick={() => {
                       setSelectedSlideId(item.id);
                       setActiveTab("slides");
                     }}
-                    title={item.status !== "NG" ? `Slide ${item.slide_number}: ${item.status}` : undefined}
                   >
-                    <span className="slide-number-v3">{item.slide_number}</span>
-                    {item.status === "NG" && (
-                      <>
-                        <div className="ng-indicator-v3" />
-                        <div className="custom-slide-tooltip">
-                          <strong style={{ display: 'block', marginBottom: '4px', color: '#94a3b8' }}>Slide {item.slide_number}</strong>
-                          <span style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{tooltipText}</span>
-                        </div>
-                      </>
+                    {item.slide_number}
+                    {isNG && (
+                      <div className="custom-slide-tooltip">
+                        <strong style={{ display: 'block', marginBottom: '4px', color: 'var(--ds-color-primary-soft)' }}>Slide {item.slide_number}</strong>
+                        {tooltipText}
+                      </div>
                     )}
-                  </button>
+                  </div>
                 );
               })}
           </div>
         </div>
 
-        {/* Audit Timeline */}
+        {/* Timeline */}
         <div className="sidebar-section-v3">
-          <span className="sidebar-header-v3">{t("project.auditTimeline")}</span>
+          <span className="ds-caption" style={{ fontWeight: 700, textTransform: 'uppercase', color: 'var(--ds-color-text-muted)' }}>
+            {t("project.auditTimeline")}
+          </span>
           <div className="audit-timeline-v3">
             <div className="timeline-item-v3 is-completed">
-              <div className="timeline-marker-v3"><ShieldCheckIcon size="sm" /></div>
+              <div className="timeline-marker-v3"><ShieldCheckIcon size="xs" /></div>
               <div className="timeline-content-v3">
-                <span className="timeline-label-v3">Uploaded</span>
+                <span className="timeline-label-v3">Upload</span>
                 <span className="timeline-time-v3">{formatDateTime(currentVersion?.uploaded_at, lang)}</span>
               </div>
             </div>
             <div className="timeline-item-v3 is-active">
-              <div className="timeline-marker-v3"><LayersIcon size="sm" /></div>
+              <div className="timeline-marker-v3"><WorkflowIcon size="xs" /></div>
               <div className="timeline-content-v3">
-                <span className="timeline-label-v3">AI Graded</span>
+                <span className="timeline-label-v3">Review</span>
                 <span className="timeline-time-v3">{result?.prompt_version || "v1"} • {result?.prompt_level}</span>
               </div>
             </div>
@@ -375,68 +400,51 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
 
       {/* Main Content Workspace */}
       <main className="project-main-v3">
-        {/* Top Actionable Insight (100-Point Feature) */}
+        {/* Insight Card */}
         {result && topInsight && (
-          <div className={`insight-card-v3 ${topInsight.type === "success" ? "insight-card-v3--success" : ""}`}>
-            <div className="insight-card-v3__icon">
+          <div className={`insight-card-v3 ${topInsight.type === "success" ? "insight-card-v3--success" : ""}`} 
+               style={{ padding: 'var(--ds-space-4)', borderRadius: 'var(--ds-radius-card)', background: topInsight.type === "success" ? 'var(--ds-color-success-soft)' : 'var(--ds-color-danger-soft)', border: '1px solid var(--ds-color-border)', display: 'flex', gap: 'var(--ds-space-4)', alignItems: 'center' }}>
+            <div style={{ color: topInsight.type === "success" ? 'var(--ds-color-success)' : 'var(--ds-color-danger)' }}>
               {topInsight.type === "success" ? <ShieldCheckIcon size="lg" /> : <AlertTriangleIcon size="lg" />}
             </div>
-            <div className="insight-card-v3__content">
-              <div className="insight-card-v3__title">{topInsight.title}</div>
-              <div className="insight-card-v3__message">{topInsight.message}</div>
+            <div style={{ flex: 1 }}>
+              <div className="ds-section" style={{ fontSize: '15px', marginBottom: '2px' }}>{topInsight.title}</div>
+              <div className="ds-body" style={{ fontSize: '13px' }}>{topInsight.message}</div>
             </div>
-            {topInsight.type !== "success" && (
-              <Button variant="ghost" size="sm" onClick={() => setActiveTab("criteria")}>
-                {t("project.expand")}
-              </Button>
-            )}
           </div>
         )}
 
-        {/* Executive Dashboard Expanded */}
+        {/* Metrics Dashboard */}
         <div className="metrics-row-v3">
           <div className="metric-card-v3">
-            <div className="metric-icon-wrapper">
-              <TargetIcon size="sm" />
-            </div>
-            <div className="metric-card-v3__label">{t("project.metaScore")}</div>
-            <div className="metric-card-v3__value" style={{ color: 'var(--ds-color-primary)' }}>
+            <div className="ds-caption" style={{ fontWeight: 700 }}>{t("project.metaScore")}</div>
+            <div className="ds-title" style={{ color: 'var(--ds-color-primary)', fontSize: '32px' }}>
               {result?.total_score ?? "—"}
             </div>
           </div>
           <div className="metric-card-v3">
-            <div className={`metric-icon-wrapper ${ngSlideCount > 0 ? 'pulse-danger' : ''}`} style={{ background: ngSlideCount > 0 ? 'var(--ds-color-danger-soft)' : 'var(--ds-color-success-soft)', color: ngSlideCount > 0 ? 'var(--ds-color-danger)' : 'var(--ds-color-success)' }}>
-              <ShieldCheckIcon size="sm" />
-            </div>
-            <div className="metric-card-v3__label">{t("project.documentStatus")}</div>
-            <div className="metric-card-v3__value">
+            <div className="ds-caption" style={{ fontWeight: 700 }}>{t("project.documentStatus")}</div>
+            <div style={{ marginTop: '4px' }}>
               <StatusBadge tone={ngSlideCount > 0 ? "danger" : "success"}>
                 {ngSlideCount > 0 ? `${ngSlideCount} ${t("project.issuesFound")}` : t("statusBiz.reviewReady")}
               </StatusBadge>
             </div>
           </div>
           <div className="metric-card-v3">
-            <div className="metric-icon-wrapper" style={{ background: '#f1f5f9', color: '#64748b' }}>
-              <WorkflowIcon size="sm" />
-            </div>
-            <div className="metric-card-v3__label">{t("project.metaGradedAt")}</div>
-            <div className="metric-card-v3__value" style={{ fontSize: '14px' }}>
+            <div className="ds-caption" style={{ fontWeight: 700 }}>{t("project.metaGradedAt")}</div>
+            <div className="ds-body" style={{ marginTop: '4px', fontWeight: 600 }}>
               {formatDateTime(result?.graded_at, lang)}
             </div>
           </div>
           <div className="metric-card-v3">
-            <div className="metric-icon-wrapper" style={{ background: riskLevel.tone === "danger" ? 'var(--ds-color-danger-soft)' : 'var(--ds-color-warning-soft)', color: riskLevel.tone === "danger" ? 'var(--ds-color-danger)' : 'var(--ds-color-warning)' }}>
-              <AlertTriangleIcon size="sm" />
-            </div>
-            <div className="metric-card-v3__label">{t("project.metaRisk")}</div>
-            <div className="metric-card-v3__value">
+            <div className="ds-caption" style={{ fontWeight: 700 }}>{t("project.metaRisk")}</div>
+            <div style={{ marginTop: '4px' }}>
               <StatusBadge tone={riskLevel.tone}>{riskLevel.label}</StatusBadge>
             </div>
           </div>
         </div>
 
-
-        {/* Primary Tabs */}
+        {/* Tab Selection */}
         <div className="ds-tabs">
           <button 
             className={`ds-tabs__item ${activeTab === "criteria" ? "is-active" : ""}`}
@@ -452,7 +460,7 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
           </button>
         </div>
 
-        {/* Workspace Content */}
+        {/* Tab Content */}
         <section className="workspace-content-v3">
           {activeTab === "criteria" ? (
             <ProjectCriteriaTab
@@ -494,7 +502,7 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
           title={t("project.viewPromptUsed")}
           closeLabel={t("common.close")}
         >
-          <pre style={{ whiteSpace: 'pre-wrap', padding: '16px', backgroundColor: 'var(--ds-color-bg-muted)', borderRadius: 'var(--ds-radius-md)' }}>
+          <pre style={{ whiteSpace: 'pre-wrap', padding: '16px', backgroundColor: 'var(--ds-color-bg-app)', borderRadius: 'var(--ds-radius-md)', fontSize: '13px', border: '1px solid var(--ds-color-border)' }}>
             {promptUsedText}
           </pre>
         </ProjectReviewDialog>
@@ -502,5 +510,3 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
     </div>
   );
 }
-
-

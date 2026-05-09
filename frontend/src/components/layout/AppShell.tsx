@@ -75,7 +75,7 @@ export default function AppShell({
             {topbarWithToggle}
           </div>
         </header>
-        <main className="app-content">
+        <main id="main-scroll-container" className="app-content">
           <div className="ds-container">
             {children}
           </div>

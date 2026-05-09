@@ -115,4 +115,16 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(
+        "app.main:app", 
+        host="0.0.0.0", 
+        port=8000, 
+        reload=True, 
+        reload_dirs=["app"],
+        reload_excludes=[
+            "*.db", "*.db-journal", "*.db-wal", "*.db-shm", 
+            "**/*.db", "**/*.db-journal", "**/*.db-wal", "**/*.db-shm",
+            "data", "data/*", "**/data/**", 
+            "uploads", "uploads/*", "**/uploads/**"
+        ]
+    )

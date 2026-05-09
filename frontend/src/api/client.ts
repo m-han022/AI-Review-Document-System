@@ -380,58 +380,72 @@ export async function createProject(payload: {
   project_name: string;
   project_description?: string;
 }): Promise<Project> {
-  const res = await fetch(`${API_BASE_URL}/projects`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const text = await res.text();
-  let body: any = null;
-  if (text) {
-    try {
-      body = JSON.parse(text);
-    } catch {
-      body = text;
+  try {
+    const res = await fetch(`${API_BASE_URL}/projects`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const text = await res.text();
+    let body: any = null;
+    if (text) {
+      try {
+        body = JSON.parse(text);
+      } catch {
+        body = text;
+      }
     }
+    if (!res.ok) {
+      const detail =
+        (body && typeof body === "object" && "detail" in body ? String(body.detail) : null) ||
+        (typeof body === "string" ? body : null) ||
+        `Failed to create project (HTTP ${res.status})`;
+      throw new Error(detail);
+    }
+    if (body && typeof body === "object") return body as Project;
+    throw new Error("Create project succeeded but response body is empty");
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("Failed to fetch")) {
+      throw createApiError("NETWORK_UNREACHABLE", apiMessage("cannotConnect"));
+    }
+    throw error;
   }
-  if (!res.ok) {
-    const detail =
-      (body && typeof body === "object" && "detail" in body ? String(body.detail) : null) ||
-      (typeof body === "string" ? body : null) ||
-      `Failed to create project (HTTP ${res.status})`;
-    throw new Error(detail);
-  }
-  if (body && typeof body === "object") return body as Project;
-  throw new Error("Create project succeeded but response body is empty");
 }
 
 export async function updateProject(
   projectId: string,
   payload: { project_name: string; project_description?: string }
 ): Promise<Project> {
-  const res = await fetch(`${API_BASE_URL}/projects/${encodeURIComponent(projectId)}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const text = await res.text();
-  let body: any = null;
-  if (text) {
-    try {
-      body = JSON.parse(text);
-    } catch {
-      body = text;
+  try {
+    const res = await fetch(`${API_BASE_URL}/projects/${encodeURIComponent(projectId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const text = await res.text();
+    let body: any = null;
+    if (text) {
+      try {
+        body = JSON.parse(text);
+      } catch {
+        body = text;
+      }
     }
+    if (!res.ok) {
+      const detail =
+        (body && typeof body === "object" && "detail" in body ? String(body.detail) : null) ||
+        (typeof body === "string" ? body : null) ||
+        `Failed to update project (HTTP ${res.status})`;
+      throw new Error(detail);
+    }
+    if (body && typeof body === "object") return body as Project;
+    throw new Error("Update project succeeded but response body is empty");
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("Failed to fetch")) {
+      throw createApiError("NETWORK_UNREACHABLE", apiMessage("cannotConnect"));
+    }
+    throw error;
   }
-  if (!res.ok) {
-    const detail =
-      (body && typeof body === "object" && "detail" in body ? String(body.detail) : null) ||
-      (typeof body === "string" ? body : null) ||
-      `Failed to update project (HTTP ${res.status})`;
-    throw new Error(detail);
-  }
-  if (body && typeof body === "object") return body as Project;
-  throw new Error("Update project succeeded but response body is empty");
 }
 
 export async function gradeSubmission({
@@ -521,29 +535,43 @@ export async function getGradeJob(jobId: string) {
 }
 
 export async function deleteSubmission(projectId: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/submissions/${projectId}`, {
-    method: 'DELETE',
-  });
-  
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || apiMessage("deleteSubmissionFailed"));
+  try {
+    const response = await fetch(`${API_BASE_URL}/submissions/${projectId}`, {
+      method: 'DELETE',
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || apiMessage("deleteSubmissionFailed"));
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("Failed to fetch")) {
+      throw createApiError("NETWORK_UNREACHABLE", apiMessage("cannotConnect"));
+    }
+    throw error;
   }
 }
 
 export async function bulkDeleteSubmissions(projectIds: string[]): Promise<{ deleted: string[], failed: string[] }> {
-  const response = await fetch(`${API_BASE_URL}/submissions/bulk-delete`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ project_ids: projectIds }),
-  });
-  
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || apiMessage("deleteSubmissionsFailed"));
+  try {
+    const response = await fetch(`${API_BASE_URL}/submissions/bulk-delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ project_ids: projectIds }),
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || apiMessage("deleteSubmissionsFailed"));
+    }
+    
+    return response.json();
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("Failed to fetch")) {
+      throw createApiError("NETWORK_UNREACHABLE", apiMessage("cannotConnect"));
+    }
+    throw error;
   }
-  
-  return response.json();
 }
 
 export async function exportSubmissionsExcel(

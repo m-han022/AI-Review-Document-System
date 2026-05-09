@@ -76,7 +76,7 @@ Phù hợp cho môi trường thật hoặc staging.
 # Backend
 cd backend
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --reload-dir app --reload-exclude "data/*" --reload-exclude "uploads/*"
 
 # Frontend
 cd frontend

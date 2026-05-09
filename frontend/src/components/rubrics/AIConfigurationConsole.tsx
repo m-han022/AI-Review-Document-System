@@ -363,71 +363,91 @@ export default function AIConfigurationConsole() {
 
   return (
     <div className="workspace-stack">
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: '1fr 1fr', 
-        gap: 'var(--ds-space-5)',
-        marginBottom: 'var(--ds-space-5)' 
-      }}>
-        <Card 
-          title={ui.scopeDocumentType || t("sm.aiConfig.scopeDocumentType")}
-          className="ds-card--interactive"
-          padding="var(--ds-space-3) var(--ds-space-5)"
-          headerAction={
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '380px' }}>
-              <div style={{ flex: 1 }}>
-                <Select 
-                  value={documentType} 
-                  onChange={(e) => setDocumentType(e.target.value)}
-                  options={documentTypes.map(item => ({
-                    value: item,
-                    label: `${getDocumentTypeLabel(item, lang)} (${item})`
-                  }))}
-                />
+      <Card className="ds-card--header-bar" padding="var(--ds-space-3) var(--ds-space-4)">
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          gap: 'var(--ds-space-6)'
+        }}>
+          {/* Left: Document Type Scope */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--ds-space-4)', flex: 1 }}>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span className="ds-caption" style={{ fontWeight: 700, color: 'var(--ds-color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px' }}>
+                {ui.scopeDocumentType || "Document Type"}
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '420px' }}>
+                <div style={{ flex: 1 }}>
+                  <Select 
+                    value={documentType} 
+                    onChange={(e) => setDocumentType(e.target.value)}
+                    options={documentTypes.map(item => ({
+                      value: item,
+                      label: `${getDocumentTypeLabel(item, lang)} (${item})`
+                    }))}
+                  />
+                </div>
+                <Button 
+                  variant="secondary" 
+                  size="sm" 
+                  onClick={() => setIsNewTypeModalOpen(true)}
+                  title="Thêm loại tài liệu mới"
+                  style={{ height: 'var(--ds-control-height)' }}
+                >
+                  +
+                </Button>
               </div>
-              <Button 
-                variant="secondary" 
-                size="sm" 
-                onClick={() => setIsNewTypeModalOpen(true)}
-                title="Thêm loại tài liệu mới"
-              >
-                +
-              </Button>
             </div>
-          }
-        >
-          <div style={{ fontSize: '13px', color: 'var(--ds-color-text-muted)' }}>
-            {"Xác định loại tài liệu và mục tiêu kiểm soát để AI áp dụng đúng bối cảnh đánh giá."}
-          </div>
-        </Card>
 
-        <Card 
-          title={ui.scopeLevel || "Level"}
-          className="ds-card--interactive"
-          padding="var(--ds-space-3) var(--ds-space-5)"
-          headerAction={
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Tooltip content={globalDefaults?.policies[level]?.[lang] || "..."}>
-                <InfoIcon size={16} style={{ color: 'var(--ds-color-primary)', cursor: 'help' }} />
-              </Tooltip>
-              <div style={{ width: '180px' }}>
-                <Select 
-                  value={level} 
-                  onChange={(e) => setLevel(e.target.value)}
-                  options={LEVELS.map(item => ({
-                    value: item,
-                    label: getLevelLabel(item, lang)
-                  }))}
-                />
+            {/* Middle: Level Scope */}
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span className="ds-caption" style={{ fontWeight: 700, color: 'var(--ds-color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px' }}>
+                {ui.scopeLevel || "Evaluation Level"}
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '220px' }}>
+                <div style={{ flex: 1 }}>
+                  <Select 
+                    value={level} 
+                    onChange={(e) => setLevel(e.target.value)}
+                    options={LEVELS.map(item => ({
+                      value: item,
+                      label: getLevelLabel(item, lang)
+                    }))}
+                  />
+                </div>
+                <Tooltip content={globalDefaults?.policies[level]?.[lang] || "..."}>
+                  <div style={{ 
+                    width: '32px', 
+                    height: '32px', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    borderRadius: 'var(--ds-radius-full)',
+                    backgroundColor: 'var(--ds-color-bg-app)',
+                    color: 'var(--ds-color-primary)',
+                    cursor: 'help'
+                  }}>
+                    <InfoIcon size={16} />
+                  </div>
+                </Tooltip>
               </div>
             </div>
-          }
-        >
-          <div style={{ fontSize: '13px', color: 'var(--ds-color-text-muted)' }}>
-            {"Điều chỉnh độ nghiêm ngặt và chiều sâu của các nhận xét AI (Thấp: hỗ trợ, Vừa: tiêu chuẩn, Cao: khắt khe)."}
           </div>
-        </Card>
-      </div>
+
+          {/* Right: Quick Guide Toggle */}
+          <div style={{ display: 'flex', alignItems: 'center', alignSelf: 'flex-end', height: 'var(--ds-control-height)' }}>
+            <Button 
+              variant={showGuide ? "primary" : "outline"}
+              size="sm"
+              onClick={() => setShowGuide((prev) => !prev)}
+              style={{ gap: '8px' }}
+            >
+              <HelpIcon size="xs" />
+              {showGuide ? ui.quickGuideHide : ui.quickGuideShow}
+            </Button>
+          </div>
+        </div>
+      </Card>
 
       <div ref={guideRef} className="ai-config-guide" style={{ marginBottom: 'var(--ds-space-5)' }}>
         <Button 
@@ -499,7 +519,7 @@ export default function AIConfigurationConsole() {
       <main>
         {activeTab === "sets" && (
           <div className="governance-explorer">
-            <aside className="governance-explorer__sidebar" style={{ width: '340px' }}>
+            <aside className="governance-explorer__sidebar" style={{ width: '300px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                 <h3 className="detail-section__title">{ui.sectionSetList}</h3>
                 <Button variant="primary" size="sm" onClick={openCreateFromCurrent} disabled={!activeDetails}>

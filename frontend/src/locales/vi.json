@@ -12,6 +12,7 @@
     "actions": "Thao tác",
     "status": "Trạng thái",
     "error": "Lỗi",
+    "success": "Thành công",
     "noValue": "—",
     "localeCode": "vi-VN",
     "confirmDeleteTitle": "Xác nhận xóa",
@@ -32,7 +33,17 @@
     "noData": "Không có dữ liệu",
     "yes": "Có",
     "no": "Không",
-    "improveAction": "Hành động cải thiện"
+    "improveAction": "Hành động cải thiện",
+    "tooltips": {
+      "edit": "Chỉnh sửa",
+      "delete": "Xóa",
+      "view": "Xem chi tiết",
+      "download": "Tải xuống báo cáo",
+      "export": "Xuất dữ liệu",
+      "history": "Xem lịch sử",
+      "regrade": "Chấm điểm lại",
+      "noDocumentsToGrade": "Chưa có tài liệu để chấm điểm"
+    }
   },
   "sm": {
     "common": {
