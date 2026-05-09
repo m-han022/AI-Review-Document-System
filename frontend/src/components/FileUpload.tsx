@@ -8,6 +8,7 @@ import {
   listEvaluationSets,
   listProjectDocuments,
   listDocumentVersions,
+  getGlobalDefaults,
 } from "../api/client";
 import { DOCUMENT_TYPE_OPTIONS, type DocumentType } from "../constants/documentTypes";
 import { DOCUMENT_CARD_COPY, UPLOAD_COPY } from "../constants/uploadCopy";
@@ -126,6 +127,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
   const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
   const [pendingDuplicateFile, setPendingDuplicateFile] = useState<File | null>(null);
   const [projectFieldPulse, setProjectFieldPulse] = useState(false);
+  const [reviewDone, setReviewDone] = useState<{ projectId: string; score: number | null | undefined; isPending: boolean } | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{
     project?: string;
     file?: string;
@@ -146,9 +148,13 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
     documentType &&
       uploadedProjectId &&
       uploadState === "uploaded" &&
-      selectedEvaluationSetId &&
-      !reviewing 
+      !reviewing
   );
+  
+  const { data: globalDefaults } = useQuery({
+    queryKey: ["global-defaults"],
+    queryFn: getGlobalDefaults,
+  });
   
   const { data: evaluationSetsData } = useQuery({
     queryKey: ["upload-evaluation-sets", effectiveDocumentType],
@@ -222,6 +228,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
     setMessage(null);
     setReviewErrorKind(null);
     setFieldErrors({});
+    setReviewDone(null);  // clear stale review result when file is replaced
     resetInput();
   };
 
@@ -343,25 +350,39 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
       window.setTimeout(() => setProjectFieldPulse(false), 520);
       return;
     }
-    if (!uploadedProjectId || !documentType || !selectedEvaluationSetId || uploadState !== "uploaded") {
+    // Fix: removed selectedEvaluationSetId guard - backend auto-resolves it per AGENTS.md
+    if (!uploadedProjectId || !documentType || uploadState !== "uploaded") {
       setMessage({ text: copy.disabledHelper, type: "error" });
       return;
     }
     setReviewing(true);
     setProcessingStep("read");
-    setMessage(null);
+    setMessage(null);  // clear upload success message to avoid confusion
     setFieldErrors({});
+    setReviewDone(null);
 
     try {
       const result = (await reviewMutation.mutateAsync({
         projectId: uploadedProjectId,
         documentVersionId: uploadedVersionId,
         force: forceRegrade,
-        evaluationSetId: selectedEvaluationSetId,
+        evaluationSetId: selectedEvaluationSetId ?? undefined,
       })) as GradeResponse;
-      setMessage({ text: `${copy.success}: ${result.score}/100`, type: "success" });
+
+      const isPending = (result.status ?? "").toLowerCase() === "pending";
+      setReviewDone({
+        projectId: result.project_id,
+        score: result.score,
+        isPending,
+      });
       setReviewErrorKind(null);
-      onReviewComplete?.(result.project_id);
+      setMessage(null);
+
+      // Async mode (USE_CELERY=true): navigate immediately, result screen will poll for status
+      if (isPending) {
+        onReviewComplete?.(result.project_id);
+      }
+      // Sync mode (USE_CELERY=false): show success inline with score + view-details button
     } catch (err) {
       const mapped = mapReviewErrorByCode(err, t);
       setReviewErrorKind(mapped.kind);
@@ -392,10 +413,39 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
     resetInput();
   };
 
+  // Stepper logic
+  const currentStep = (() => {
+    if (!documentType) return 0;
+    if (uploadState !== "uploaded") return 1;
+    if (!selectedExistingProjectId) return 2;
+    return 3;
+  })();
+  const steps = [
+    { label: lang === "ja" ? "資料タイプ選択" : lang === "en" ? "Select Type" : "Chọn loại tài liệu", icon: "📄" },
+    { label: lang === "ja" ? "ファイルをアップロード" : lang === "en" ? "Upload File" : "Tải tệp lên", icon: "☁" },
+    { label: lang === "ja" ? "プロジェクト設定" : lang === "en" ? "Setup Project" : "Thiết lập dự án", icon: "⚙" },
+    { label: lang === "ja" ? "レビュー開始" : lang === "en" ? "Ready" : "Sẵn sàng", icon: "🚀" },
+  ];
+
   return (
     <div className="upload-container-v3" aria-label={copy.title}>
       <main className="upload-layout-v3">
         <section className="upload-main-v3">
+          {/* Stepper */}
+          <div className="upload-stepper">
+            {steps.map((step, i) => (
+              <div key={i} className={`upload-stepper__item ${
+                i < currentStep ? "is-done" : i === currentStep ? "is-active" : "is-pending"
+              }`}>
+                <div className="upload-stepper__circle">
+                  {i < currentStep ? <span>✓</span> : <span>{step.icon}</span>}
+                </div>
+                <span className="upload-stepper__label">{step.label}</span>
+                {i < steps.length - 1 && <div className="upload-stepper__line" />}
+              </div>
+            ))}
+          </div>
+
           <Card 
             title={copy.chooseType}
             subtitle={undefined}
@@ -511,63 +561,72 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
               </div>
 
               <div className="upload-project-upload-group">
-                <label
-                  className={`prod-dropzone ${dragActive ? "is-drag-active" : ""} ${!documentType || uploadState === "uploading" || reviewing ? "is-disabled" : ""}`.trim()}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    openFilePicker();
-                  }}
-                  onDragEnter={(event) => {
-                    event.preventDefault();
-                    if (documentType && uploadState !== "uploading" && !reviewing) setDragActive(true);
-                  }}
-                  onDragOver={(event) => {
-                    event.preventDefault();
-                    if (documentType && uploadState !== "uploading" && !reviewing) setDragActive(true);
-                  }}
-                  onDragLeave={(event) => {
-                    event.preventDefault();
-                    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragActive(false);
-                  }}
-                  onDrop={(event) => void handleDrop(event)}
-                >
-                  <span className="prod-dropzone__icon" aria-hidden="true">
-                    <UploadCloudIcon size="lg" />
-                  </span>
-                  <span className="prod-dropzone__copy">
-                    <strong>{dragActive ? copy.dragTitle : copy.idleTitle}</strong>
-                    <span>{copy.idleLink}</span>
-                    <small>{copy.idleHint}</small>
-                  </span>
-                </label>
+                {uploadState === "uploading" ? (
+                  <div className="prod-dropzone prod-dropzone--uploading">
+                    <div className="prod-dropzone__spinner" aria-label="Uploading">
+                      <svg viewBox="0 0 50 50" width="48" height="48">
+                        <circle cx="25" cy="25" r="20" fill="none" stroke="var(--ds-color-border)" strokeWidth="4" />
+                        <circle cx="25" cy="25" r="20" fill="none" stroke="var(--ds-color-primary)" strokeWidth="4"
+                          strokeDasharray="125.6"
+                          strokeDashoffset={125.6 - (uploadProgress / 100) * 125.6}
+                          strokeLinecap="round" transform="rotate(-90 25 25)"
+                          style={{ transition: "stroke-dashoffset 0.3s ease" }} />
+                      </svg>
+                      <span className="prod-dropzone__pct">{uploadProgress}%</span>
+                    </div>
+                    <span className="prod-dropzone__copy">
+                      <strong>{selectedFile?.name}</strong>
+                      <small style={{ color: "var(--ds-color-text-muted)" }}>{copy.uploading}...</small>
+                    </span>
+                  </div>
+                ) : uploadState === "uploaded" && selectedFile ? (
+                  <div className="prod-dropzone prod-dropzone--success">
+                    <div className="prod-dropzone__success-icon">✓</div>
+                    <span className="prod-dropzone__copy">
+                      <strong style={{ color: "var(--ds-color-success-dark)" }}>{selectedFile.name}</strong>
+                      <small style={{ color: "var(--ds-color-text-muted)" }}>{formatFileSize(selectedFile.size)}</small>
+                    </span>
+                    <button type="button" className="prod-dropzone__replace" onClick={openFilePicker} disabled={reviewing}>
+                      {copy.replace}
+                    </button>
+                  </div>
+                ) : (
+                  <label
+                    className={`prod-dropzone ${dragActive ? "is-drag-active" : ""} ${!documentType || reviewing ? "is-disabled" : ""}`.trim()}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      openFilePicker();
+                    }}
+                    onDragEnter={(event) => {
+                      event.preventDefault();
+                      if (documentType && !reviewing) setDragActive(true);
+                    }}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      if (documentType && !reviewing) setDragActive(true);
+                    }}
+                    onDragLeave={(event) => {
+                      event.preventDefault();
+                      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragActive(false);
+                    }}
+                    onDrop={(event) => void handleDrop(event)}
+                  >
+                    <span className="prod-dropzone__icon" aria-hidden="true">
+                      <UploadCloudIcon size="lg" />
+                    </span>
+                    <span className="prod-dropzone__copy">
+                      <strong>{dragActive ? copy.dragTitle : copy.idleTitle}</strong>
+                      <span>{copy.idleLink}</span>
+                      <small>{copy.idleHint}</small>
+                    </span>
+                  </label>
+                )}
               </div>
             </div>
 
             {fieldErrors.file && <ErrorState title={copy.uploadFailed} description={fieldErrors.file} compact />}
 
-            {uploadState === "uploading" && selectedFile && (
-              <div className="prod-upload-progress">
-                <div className="prod-upload-progress__head">
-                  <strong>{selectedFile.name}</strong>
-                  <span>{copy.uploading}... {uploadProgress}%</span>
-                </div>
-                <div className="prod-upload-progress__bar" aria-hidden="true">
-                  <span style={{ width: `${uploadProgress}%` }} />
-                </div>
-              </div>
-            )}
 
-            {uploadState === "uploaded" && selectedFile && (
-              <FilePreview
-                filename={selectedFile.name}
-                sizeLabel={formatFileSize(selectedFile.size)}
-                statusLabel={`✓ ${copy.uploaded}`}
-                replaceLabel={copy.replace}
-                onReplace={openFilePicker}
-                onRemove={resetFile}
-                disabled={reviewing}
-              />
-            )}
 
             {uploadState === "error" && !fieldErrors.file && (
               <ErrorState
@@ -587,27 +646,92 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
               />
             )}
             
-            <div className="upload-description-block mb-6">
+              <div className="upload-description-header" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                <label className="ds-input-label" style={{ marginBottom: 0 }}>{copy.projectDescription}</label>
+                <Tooltip content={copy.projectDescriptionHint}>
+                  <span style={{ cursor: 'help', color: 'var(--ds-color-primary)' }}>
+                    <HelpIcon size="sm" />
+                  </span>
+                </Tooltip>
+              </div>
               <Input
-                label={copy.projectDescription}
                 multiline
                 placeholder={copy.projectDescriptionHint}
                 value={projectDescription}
                 onChange={(e) => setProjectDescription(e.target.value)}
                 disabled={uploadState === "uploading" || reviewing}
               />
-            </div>
 
             <div className="prod-upload-actions prod-upload-actions--sticky">
               <div className="upload-metadata-summary">
-                {selectedEvaluationSetId && (
-                  <div className="ds-chip-muted" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 12px', borderRadius: '100px', background: 'var(--ds-color-bg-muted)', fontSize: '13px' }}>
-                    <ShieldCheckIcon size="sm" />
-                    <span>{t("upload.evaluationSet")}:</span>
-                    <strong>{evaluationSets.find(s => s.id === selectedEvaluationSetId)?.name || "Auto"}</strong>
+                {/* Always show evaluation set badge (Auto if not resolved yet) */}
+                <div className="ds-chip-muted" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 12px', borderRadius: '100px', background: 'var(--ds-color-bg-muted)', fontSize: '13px' }}>
+                  <ShieldCheckIcon size="sm" />
+                  <span>{t("upload.evaluationSet")}:</span>
+                  <strong>
+                    {selectedEvaluationSetId
+                      ? (evaluationSets.find(s => s.id === selectedEvaluationSetId)?.name || "Auto")
+                      : "Auto"}
+                  </strong>
+                </div>
+
+                <Tooltip content={globalDefaults?.policies["medium"]?.[lang] || "..."}>
+                  <div className="ds-chip-muted" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 12px', borderRadius: '100px', background: 'var(--ds-color-bg-muted)', fontSize: '13px', marginLeft: '8px', cursor: 'help' }}>
+                    <HelpIcon size="sm" />
+                    <span>{lang === "ja" ? "評価レベル" : "Mức độ"}:</span>
+                    <strong>Medium</strong>
+                  </div>
+                </Tooltip>
+
+                <Tooltip content={globalDefaults?.required_rules?.map((r: any, i: number) => `${i+1}. ${r[lang] || r.en}`).join("\n") || "..."}>
+                  <div className="ds-chip-muted" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 12px', borderRadius: '100px', background: 'var(--ds-color-bg-muted)', fontSize: '13px', marginLeft: '8px', cursor: 'help' }}>
+                    <ClipboardCheckIcon size="sm" />
+                    <span>{lang === "ja" ? "基本ルール" : "Quy tắc"}:</span>
+                    <strong>{globalDefaults?.required_rules?.length || 0}</strong>
+                  </div>
+                </Tooltip>
+
+                {!canStartReview && !reviewDone && <p className="ds-caption mt-2">{copy.disabledHelper}</p>}
+                
+                {documentType && scopedEvaluationSets.length === 0 && !reviewing && !reviewDone && (
+                  <div className="ds-alert ds-alert--warning mt-3" style={{ fontSize: '12px', padding: '8px 12px', borderLeft: '3px solid var(--ds-color-warning)' }}>
+                    <div style={{ fontWeight: 600, marginBottom: '2px' }}>⚠️ {lang === "ja" ? "未セットアップ" : "Chưa thiết lập"}</div>
+                    <div>
+                      {lang === "ja" 
+                        ? "この資料タイプの評価基準がまだありません。初回実行時にAIが自動構成を試みます。"
+                        : "Chưa có bộ tiêu chuẩn cho loại tài liệu này. Hệ thống sẽ tự động khởi tạo khi bạn bắt đầu review."}
+                    </div>
                   </div>
                 )}
-                {!canStartReview && <p className="ds-caption mt-2">{copy.disabledHelper}</p>}
+
+                {/* Review done: sync mode with score */}
+                {reviewDone && !reviewDone.isPending && (
+                  <div className="upload-review-done-banner">
+                    <div className="upload-review-done-banner__score">
+                      <span className="upload-review-done-banner__score-label">
+                        {lang === "ja" ? "合計スコア" : "Tổng điểm"}
+                      </span>
+                      <span className="upload-review-done-banner__score-value" style={{
+                        color: (reviewDone.score ?? 0) < 60 ? "var(--ds-color-danger)"
+                          : (reviewDone.score ?? 0) < 80 ? "var(--ds-color-warning-dark)"
+                          : "var(--ds-color-success-dark)"
+                      }}>
+                        {reviewDone.score ?? "—"}<small>/100</small>
+                      </span>
+                    </div>
+                    <div className="upload-review-done-banner__actions">
+                      <span style={{ color: "var(--ds-color-success-dark)", fontWeight: 600, fontSize: 13 }}>✓ {lang === "ja" ? "レビュー完了" : "Review hoàn tất"}</span>
+                      <button
+                        type="button"
+                        className="upload-review-done-banner__cta"
+                        onClick={() => onReviewComplete?.(reviewDone.projectId)}
+                      >
+                        {lang === "ja" ? "詳細を見る →" : "Xem kết quả chi tiết →"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {message && uploadState !== "error" && (
                   message.type === "success" ? (
                     <SuccessState title={message.text} compact />
@@ -628,9 +752,10 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                 </label>
                 <Button
                   onClick={() => void handleReview()}
-                  disabled={reviewing || uploadState === "uploading"}
+                  disabled={!canStartReview || reviewing}
                   isLoading={reviewing}
                   size="lg"
+                  className={canStartReview && !reviewing ? "btn-pulse" : ""}
                 >
                   {reviewing ? reviewingMessage : copy.startReview}
                 </Button>

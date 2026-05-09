@@ -8,6 +8,15 @@ from app.config import settings
 GEMINI_API_KEYS = settings.gemini_api_keys
 GEMINI_MODEL = settings.gemini_model
 
+def get_model_for_level(level: str) -> str:
+    """Returns the optimal Gemini model based on the prompt level."""
+    # high -> Pro for deep reasoning and strict governance
+    if level.lower() == "high":
+        # Check if a specific pro model is set in env, else default to 1.5 Pro
+        return "gemini-1.5-pro"
+    # low/medium -> Flash for speed and cost efficiency
+    return GEMINI_MODEL
+
 # Track key usage
 _key_usage = {key: {"last_used": 0, "error_count": 0} for key in GEMINI_API_KEYS}
 _current_key_index = 0
@@ -142,11 +151,11 @@ class GeminiMultiKeyClient:
                 
                 if _is_rate_limit_error(error_msg):
                     saw_rate_limit = True
-                    print(f"[Gemini] {_key_label(self.current_key)} rate limited, trying next key...")
+                    print(f"[Gemini] {_key_label(self.current_key)} rate limited for {model}, trying next key...")
                     mark_key_error(self.current_key)
                     self._init_client()
                     if attempt < max_retries - 1:
-                        time.sleep(2)
+                        time.sleep(1) # Reduced sleep for faster rotation
                 elif _is_auth_error(error_msg):
                     print(f"[Gemini] Authentication failed with {_key_label(self.current_key)}, trying next key...")
                     if self.current_key:
@@ -166,21 +175,39 @@ class GeminiMultiKeyClient:
                     print(f"[Gemini] Request failed with {_key_label(self.current_key)}: {e}")
                     raise
         
+        # --- FALLBACK LOGIC ---
+        # If we reach here, it means all keys failed for the requested model.
+        # If the requested model was Pro, try one last time with Flash.
+        if saw_rate_limit and model == "gemini-1.5-pro":
+            print(f"[Gemini] CRITICAL: All keys rate limited for Pro. Falling back to Flash: {GEMINI_MODEL}")
+            try:
+                # One last attempt with Flash using a fresh key
+                self._init_client()
+                response = self.client.models.generate_content(
+                    model=GEMINI_MODEL,
+                    contents=contents,
+                    config=config
+                )
+                print(f"[Gemini] Fallback to Flash successful.")
+                return response
+            except Exception as fe:
+                print(f"[Gemini] Fallback to Flash also failed: {fe}")
+                raise last_error # Raise the original Pro error if fallback fails
+
         if auth_failed_keys and len(set(auth_failed_keys)) == len(GEMINI_API_KEYS):
             raise RuntimeError(
                 "All Gemini API keys failed authentication. "
-                "Please verify GEMINI_API_KEYS and the Google AI project/API access."
+                "Please verify GEMINI_API_KEYS."
             )
 
         if saw_transient_service_error:
             raise RuntimeError(
-                "Gemini service is temporarily unavailable or overloaded. "
-                "Please try again in a moment."
+                "Gemini service is temporarily unavailable. Please try again."
             ) from last_error
 
         if saw_rate_limit:
             raise RuntimeError(
-                "All Gemini API keys are rate limited. "
+                f"All Gemini API keys are rate limited for model {model}. "
                 "Please wait 1 minute and try again."
             ) from last_error
 

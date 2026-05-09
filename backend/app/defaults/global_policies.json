@@ -1,0 +1,14 @@
+{
+  "low": {
+    "vi": "Đánh giá ở mức PMO thấp: tập trung vào lỗi rõ ràng, khả năng đọc hiểu, thiếu thông tin quan trọng và hành động sửa trực tiếp.",
+    "ja": "PMO低レベル評価：明らかなエラー、読みやすさ、重要な情報の欠落、および trực tiếp な修正アクションに焦点を当てます。"
+  },
+  "medium": {
+    "vi": "Đánh giá ở mức PMO vừa: ngoài lỗi rõ ràng, phân tích tính nhất quán, độ đủ bằng chứng, tác động vận hành và khả năng phòng ngừa tái diễn.",
+    "ja": "PMO中レベル評価：明らかなエラーに加え、一貫性、エビデンスの十分性、運用への影響、および再発防止策を分析します。"
+  },
+  "high": {
+    "vi": "Đánh giá ở mức PMO cao: áp dụng chuẩn quản trị nghiêm ngặt, kiểm tra logic nguyên nhân gốc, KPI, owner, deadline, policy, risk và khả năng audit.",
+    "ja": "PMO高レベル評価：厳格なガバナンス基準を適用し、根本原因のロジック、KPI、責任者、期限、ポリシー、リスク、および監査可能性を検証します。"
+  }
+}

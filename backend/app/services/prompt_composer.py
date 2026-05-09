@@ -19,16 +19,22 @@ class FinalPromptBundle:
     required_rule_hash: str
     evaluation_set_id: Optional[int] = None
 
+from pathlib import Path
+DEFAULTS_DIR = Path(__file__).resolve().parent.parent / "defaults"
+
+def _load_global_rules() -> list[str]:
+    path = DEFAULTS_DIR / "global_rules.json"
+    if not path.exists():
+        raise RuntimeError(f"CRITICAL: Configuration file missing at {path}. System cannot start.")
+
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        raise RuntimeError(f"CRITICAL: Failed to parse {path}: {str(e)}")
+
 # Centralized Required Rules
-REQUIRED_RULES = [
-    "IMPORTANT RULES:",
-    "1. JSON ONLY: Your entire response must be a single valid JSON object.",
-    "2. NO MARKDOWN: Do not wrap JSON in code blocks (e.g., no ```json).",
-    "3. NO HALLUCINATION: Only use information provided in the document content.",
-    "4. BILINGUAL: All text fields must have both 'vi' and 'ja' translations.",
-    "5. SCHEMA COMPLIANCE: Strictly follow the requested output schema.",
-    "6. COMPREHENSIVENESS: You MUST review and include EVERY slide/page from the input in the 'slide_reviews' array. Do not skip any slide numbers. If a slide is OK, mark it as 'OK'.",
-]
+REQUIRED_RULES = _load_global_rules()
 
 
 def get_active_required_rule_set(session: Session) -> RequiredRuleSet:
@@ -52,7 +58,7 @@ def get_active_required_rule_set(session: Session) -> RequiredRuleSet:
 
 OUTPUT_SCHEMA_HINT = (
     "\n\nReturn JSON: {score:int, criteria_scores:{key:number}, "
-    "criteria_suggestions:{vi:{key:str},ja:{key:str}}, "
+    "criteria_suggestions:{vi:{key:str},ja:{key:str}} (Provide detailed reasoning, issues found AND actionable suggestions), "
     "draft_feedback:{vi:str,ja:str}, "
     "slide_reviews:[{slide_number:int,status:'OK'|'NG',"
     "title:{vi:str,ja:str},summary:{vi:str,ja:str},"
@@ -78,14 +84,22 @@ class PromptComposer:
         rubric_text: str,
         policy: EvaluationPolicy,
         prompt_version: PromptVersion,
-        required_rules_content: Optional[list[str]] = None,
+        rules_set: RequiredRuleSet,
         required_rule_hash: Optional[str] = None,
     ) -> FinalPromptBundle:
         
         # 1. Required Rules
-        active_rules = required_rules_content or REQUIRED_RULES
-        rules_text = "\n".join(active_rules)
-        rules_hash = required_rule_hash or stable_hash(active_rules)
+        rules_list = parse_required_rules_content(rules_set.content)
+        # Extract 'en' for AI instructions
+        ai_rules = []
+        for r in rules_list:
+            if isinstance(r, dict):
+                ai_rules.append(r.get("en", r.get("vi", str(r))))
+            else:
+                ai_rules.append(str(r))
+        
+        rules_text = "\n".join(ai_rules)
+        rules_hash = required_rule_hash or stable_hash(rules_list)
         
         # 2. Build components
         parts = [
@@ -119,13 +133,10 @@ def parse_required_rules_content(raw_content: Optional[str]) -> list[str]:
         return REQUIRED_RULES
     try:
         loaded = json.loads(raw_content)
-        if isinstance(loaded, list) and all(isinstance(item, str) for item in loaded):
+        if isinstance(loaded, list):
             return loaded
-        # Support JSON-object style required rules (for schema-driven rulesets).
-        # Render as one readable JSON block instead of falling back to defaults.
         if isinstance(loaded, dict):
-            pretty = json.dumps(loaded, ensure_ascii=False, indent=2)
-            return [pretty]
+            return [json.dumps(loaded, ensure_ascii=False, indent=2)]
     except Exception:
         pass
     return REQUIRED_RULES

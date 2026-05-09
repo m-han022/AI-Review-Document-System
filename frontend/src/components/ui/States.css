@@ -115,6 +115,13 @@
   animation: ds-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+.ui-tooltip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* Tooltip Content Enhancement */
 .ui-tooltip__content {
   position: absolute;
@@ -123,19 +130,20 @@
   transform: translateX(-50%) translateY(10px);
   background-color: #1e293b; /* Premium Dark Background */
   color: #ffffff; /* High Contrast White */
-  padding: 8px 12px;
+  padding: 10px 14px;
   border-radius: 8px;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 500;
   white-space: pre-wrap;
   width: max-content;
-  max-width: 240px;
+  max-width: 320px;
   z-index: 2000;
   opacity: 0;
   visibility: hidden;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
   border: 1px solid #334155;
 }
 

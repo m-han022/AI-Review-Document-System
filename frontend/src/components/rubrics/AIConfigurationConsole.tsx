@@ -15,12 +15,14 @@ import {
   listMgmtPolicies,
   listMgmtPrompts,
   listMgmtRubrics,
+  getGlobalDefaults,
 } from "../../api/client";
 import { AI_CONFIG_COPY } from "../../constants/aiConfigCopy";
 import { getDocumentTypeLabel, getLevelLabel } from "../../constants/uiLabels";
 import { mapErrorCodeToI18nKey } from "../../locales/errorMapping";
 import type { EvaluationSet } from "../../types";
 import ConfirmDialog from "../ui/ConfirmDialog";
+import BaseModal from "../ui/BaseModal";
 import { Button, Card, Input, Select, StatusBadge } from "../ui";
 import { EmptyState, ErrorState, LoadingState } from "../ui/States";
 import { useTranslation } from "../LanguageSelector";
@@ -28,6 +30,9 @@ import { toHumanErrorMessage } from "../../utils/humanizeError";
 
 const LEVELS = ["low", "medium", "high"] as const;
 type ConfigTab = "sets" | "create" | "compare";
+
+import { Tooltip } from "../ui/States";
+import { HelpIcon, ClipboardCheckIcon, InfoIcon } from "../ui/Icon";
 
 function renderSet(setItem: any, t: any) {
   if (!setItem) return t("common.noData");
@@ -64,6 +69,9 @@ export default function AIConfigurationConsole() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [activeTab, setActiveTab] = useState<ConfigTab>("sets");
   const [showGuide, setShowGuide] = useState(false);
+  const [isNewTypeModalOpen, setIsNewTypeModalOpen] = useState(false);
+  const [newTypeName, setNewTypeName] = useState("");
+  const [selectedTemplate, setSelectedTemplate] = useState("");
 
   const guideRef = useRef<HTMLDivElement | null>(null);
 
@@ -110,6 +118,11 @@ export default function AIConfigurationConsole() {
   const { data: evaluationSets = [], isLoading: loadingSets, error: setsError } = useQuery({
     queryKey: ["mgmt-evaluation-sets", documentType, level],
     queryFn: () => listEvaluationSets(documentType, level),
+  });
+  const { data: globalDefaults } = useQuery({
+    queryKey: ["global-defaults", "v2"], // Force refetch after backend fix
+    queryFn: getGlobalDefaults,
+    staleTime: 0,
   });
   const { data: activeSet } = useQuery({
     queryKey: ["mgmt-evaluation-set-active", documentType, level],
@@ -254,8 +267,9 @@ export default function AIConfigurationConsole() {
     setChangeRequiredRules(false);
     setNewRubricContent(activeDetails?.rubric?.prompt?.vi || activeDetails?.rubric?.prompt?.ja || "");
     setNewPromptContent(activeDetails?.prompt?.content || "");
-    setNewPolicyContent(activeDetails?.policy?.content || "");
-    setNewRequiredRulesContent((requiredRulesData?.rules || []).join("\n"));
+    setNewRequiredRulesContent((requiredRulesData?.rules || []).map((r: any) => 
+      typeof r === 'string' ? r : (r[lang] || r.vi || r.en || "")
+    ).join("\n"));
     setCreateStep(1);
     setActiveTab("create");
   };
@@ -272,7 +286,36 @@ export default function AIConfigurationConsole() {
     setNewRubricContent(activeRubric?.prompt?.vi || activeRubric?.prompt?.ja || "");
     setNewPromptContent("");
     setNewPolicyContent("");
-    setNewRequiredRulesContent((requiredRulesData?.rules || []).join("\n"));
+    setNewRequiredRulesContent((requiredRulesData?.rules || []).map((r: any) => 
+      typeof r === 'string' ? r : (r[lang] || r.vi || r.en || "")
+    ).join("\n"));
+  };
+
+  const bootstrapMutation = useMutation({
+    mutationFn: (vars: { type: string; level: string }) => bootstrapEvaluationSet({
+      document_type: vars.type,
+      level: vars.level,
+      name: `${vars.type}-${vars.level}-auto-v1`
+    }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["mgmt-rubrics"] });
+      queryClient.invalidateQueries({ queryKey: ["mgmt-evaluation-sets"] });
+      setDocumentType(data.document_type);
+      setLevel(data.level);
+      setIsNewTypeModalOpen(false);
+      setNewTypeName("");
+      setSelectedTemplate("");
+      setMessage({ type: "success", text: "Khởi tạo loại tài liệu mới thành công!" });
+    },
+    onError: (error) => {
+      setMessage({ type: "error", text: "Lỗi khởi tạo: " + mapConfigErrorMessage(error) });
+    }
+  });
+
+  const handleCreateNewType = () => {
+    const typeToCreate = newTypeName || selectedTemplate;
+    if (!typeToCreate) return;
+    bootstrapMutation.mutate({ type: typeToCreate, level: level });
   };
 
   useEffect(() => {
@@ -331,15 +374,25 @@ export default function AIConfigurationConsole() {
           className="ds-card--interactive"
           padding="var(--ds-space-3) var(--ds-space-5)"
           headerAction={
-            <div style={{ width: '280px' }}>
-              <Select 
-                value={documentType} 
-                onChange={(e) => setDocumentType(e.target.value)}
-                options={documentTypes.map(item => ({
-                  value: item,
-                  label: `${getDocumentTypeLabel(item, lang)} (${item})`
-                }))}
-              />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '380px' }}>
+              <div style={{ flex: 1 }}>
+                <Select 
+                  value={documentType} 
+                  onChange={(e) => setDocumentType(e.target.value)}
+                  options={documentTypes.map(item => ({
+                    value: item,
+                    label: `${getDocumentTypeLabel(item, lang)} (${item})`
+                  }))}
+                />
+              </div>
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                onClick={() => setIsNewTypeModalOpen(true)}
+                title="Thêm loại tài liệu mới"
+              >
+                +
+              </Button>
             </div>
           }
         >
@@ -353,15 +406,20 @@ export default function AIConfigurationConsole() {
           className="ds-card--interactive"
           padding="var(--ds-space-3) var(--ds-space-5)"
           headerAction={
-            <div style={{ width: '180px' }}>
-              <Select 
-                value={level} 
-                onChange={(e) => setLevel(e.target.value)}
-                options={LEVELS.map(item => ({
-                  value: item,
-                  label: getLevelLabel(item, lang)
-                }))}
-              />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Tooltip content={globalDefaults?.policies[level]?.[lang] || "..."}>
+                <InfoIcon size={16} style={{ color: 'var(--ds-color-primary)', cursor: 'help' }} />
+              </Tooltip>
+              <div style={{ width: '180px' }}>
+                <Select 
+                  value={level} 
+                  onChange={(e) => setLevel(e.target.value)}
+                  options={LEVELS.map(item => ({
+                    value: item,
+                    label: getLevelLabel(item, lang)
+                  }))}
+                />
+              </div>
             </div>
           }
         >
@@ -690,6 +748,35 @@ export default function AIConfigurationConsole() {
                         />
                       )}
                     </div>
+
+                    <div className="detail-section">
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', marginBottom: '8px' }}>
+                        <input type="checkbox" checked={changeRequiredRules} onChange={(e) => setChangeRequiredRules(e.target.checked)} style={{ width: '18px', height: '18px' }} />
+                        <span style={{ fontWeight: 600 }}>{ui.changeRules}</span>
+                      </label>
+                      {changeRequiredRules && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <div style={{ 
+                            padding: '10px 12px', 
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)', 
+                            color: '#ef4444', 
+                            fontSize: '12px', 
+                            borderRadius: '6px',
+                            border: '1px solid rgba(239, 68, 68, 0.2)',
+                            fontWeight: 500
+                          }}>
+                            {ui.rulesWarning}
+                          </div>
+                          <textarea 
+                            className="ds-input ds-input--textarea" 
+                            value={newRequiredRulesContent} 
+                            onChange={(e) => setNewRequiredRulesContent(e.target.value)} 
+                            rows={4} 
+                            style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--ds-color-border)', fontFamily: 'inherit' }}
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
@@ -743,6 +830,82 @@ export default function AIConfigurationConsole() {
           createSetMutation.mutate(true);
         }}
       />
+      {/* New Document Type Modal */}
+      <BaseModal
+        open={isNewTypeModalOpen}
+        onClose={() => setIsNewTypeModalOpen(false)}
+        title="Thêm loại tài liệu mới"
+        subtitle="Khởi tạo cấu trúc đánh giá AI cho một loại tài liệu chưa có trong hệ thống."
+        size="md"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setIsNewTypeModalOpen(false)}>Hủy</Button>
+            <Button 
+              variant="primary"
+              isLoading={bootstrapMutation.isPending}
+              disabled={!selectedTemplate && !newTypeName}
+              onClick={handleCreateNewType}
+            >
+              Khởi tạo ngay
+            </Button>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 500, color: 'var(--ds-color-text-title)' }}>
+              Chọn từ mẫu sẵn có:
+            </label>
+            <Select 
+              value={selectedTemplate}
+              onChange={(e) => {
+                setSelectedTemplate(e.target.value);
+                if (e.target.value) setNewTypeName("");
+              }}
+              options={[
+                { value: "", label: "-- Chọn mẫu tiêu chuẩn --" },
+                ...Object.entries(globalDefaults?.rubric_templates || {}).map(([key, t]: [string, any]) => {
+                  const labelObj = t.label || {};
+                  const localizedLabel = labelObj[lang] || labelObj["vi"] || labelObj["en"] || key;
+                  return {
+                    value: key,
+                    label: `${localizedLabel} (${key})`
+                  };
+                })
+              ]}
+            />
+          </div>
+
+          <div style={{ textAlign: 'center', color: 'var(--ds-color-text-muted)', fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ flex: 1, height: '1px', background: 'var(--ds-color-border)' }} />
+            <span>HOẶC</span>
+            <div style={{ flex: 1, height: '1px', background: 'var(--ds-color-border)' }} />
+          </div>
+
+          <Input 
+            label="Tên mã loại tài liệu tự định nghĩa:"
+            value={newTypeName}
+            onChange={(e) => {
+              setNewTypeName(e.target.value);
+              if (e.target.value) setSelectedTemplate("");
+            }}
+            placeholder="e.g. security-audit"
+          />
+          
+          <div style={{ 
+            padding: '12px', 
+            backgroundColor: 'var(--ds-color-bg-muted)', 
+            borderRadius: 'var(--ds-radius-md)',
+            fontSize: '13px',
+            color: 'var(--ds-color-text-muted)',
+            display: 'flex',
+            gap: '10px'
+          }}>
+            <InfoIcon size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+            <p style={{ margin: 0 }}>Sau khi khởi tạo, hệ thống sẽ tự động tạo bộ đánh giá mẫu (v1) cho loại tài liệu này ở tất cả các cấp độ.</p>
+          </div>
+        </div>
+      </BaseModal>
     </div>
   );
 }

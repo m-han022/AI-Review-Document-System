@@ -20,15 +20,10 @@ def get_grading_service(session: Session = Depends(get_session)) -> GradingServi
     grading_repo = GradingRepository(session)
     return GradingService(sub_repo, grading_repo)
 
-def _ensure_active_evaluation_set(session: Session, document_type: str, level: str) -> EvaluationSet | None:
-    lvl = normalize_prompt_level(level)
-    return session.exec(
-        select(EvaluationSet).where(
-            EvaluationSet.document_type == document_type,
-            EvaluationSet.level == lvl,
-            EvaluationSet.status == "active",
-        )
-    ).first()
+from app.services.evaluation_set_service import ensure_active_evaluation_set
+
+def _ensure_active_evaluation_set(session: Session, document_type: str, level: str) -> EvaluationSet:
+    return ensure_active_evaluation_set(session, document_type, level)
 
 async def _perform_grading(
     service: GradingService,

@@ -132,7 +132,7 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
   return (
     <div className="project-layout-v3">
       {/* Toolbar */}
-      <header className="project-toolbar-v3">
+      <header className="project-toolbar-v3" style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(255, 255, 255, 0.95)", backdropFilter: "blur(8px)", borderBottom: "1px solid var(--ds-color-border)" }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <Button variant="ghost" size="sm" onClick={onBack} className="back-button-v3">
             <ArrowLeftIcon size="sm" />
@@ -149,6 +149,11 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
               <span style={{ fontSize: '12px', color: 'var(--ds-color-danger)' }} title={result.error_message}>
                 {result.error_message}
               </span>
+            )}
+            {result?.total_score != null && (
+              <div style={{ display: "flex", alignItems: "center", background: "var(--ds-color-surface)", padding: "2px 10px", borderRadius: "16px", border: "1px solid var(--ds-color-border)", boxShadow: "0 1px 2px rgba(0,0,0,0.05)", marginLeft: "8px" }}>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--ds-color-text-title)" }}>{t("project.totalScore")}: <span style={{ color: result.total_score < 60 ? "var(--ds-color-danger)" : result.total_score < 80 ? "var(--ds-color-warning-dark)" : "var(--ds-color-success-dark)" }}>{result.total_score}</span></span>
+              </div>
             )}
           </div>
         </div>
@@ -194,6 +199,20 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
             <span className="context-pill">{getLocalizedText(gradingDetail?.document?.document_type, lang) || getLocalizedText(result?.document_version, lang)}</span>
             <span className="context-pill">{getLocalizedText(result?.prompt_level, lang)}</span>
           </div>
+          
+          {currentProject?.project_description && (
+            <div className="project-context-brief mt-3" style={{ padding: '8px 12px', background: 'var(--ds-color-bg-muted)', borderRadius: '8px', fontSize: '12px', borderLeft: '3px solid var(--ds-color-primary)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: 'var(--ds-color-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <TargetIcon size="xs" />
+                <span>{lang === "ja" ? "プロジェクトの背景" : "Bối cảnh dự án"}</span>
+              </div>
+              <Tooltip content={currentProject.project_description}>
+                <p style={{ margin: 0, color: 'var(--ds-color-text-main)', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: '1.4' }}>
+                  {currentProject.project_description}
+                </p>
+              </Tooltip>
+            </div>
+          )}
         </div>
 
         {/* Selection Group (Compact) */}
@@ -252,23 +271,83 @@ export default function ProjectCard({ projectId, onBack }: ProjectCardProps) {
           </div>
           
           <div className="slide-grid-v3">
+            <style>{`
+              .slide-grid-item-v3.has-custom-tooltip {
+                position: relative;
+                overflow: visible !important;
+              }
+              .custom-slide-tooltip {
+                visibility: hidden;
+                opacity: 0;
+                position: absolute;
+                bottom: calc(100% + 8px);
+                left: 50%;
+                transform: translateX(-50%) translateY(4px);
+                background: var(--ds-color-surface-overlay, #1e293b);
+                color: #fff;
+                padding: 10px 14px;
+                border-radius: 8px;
+                font-size: 13px;
+                width: max-content;
+                max-width: 240px;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+                pointer-events: none;
+                transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+                z-index: 1000;
+                text-align: left;
+                line-height: 1.5;
+                font-weight: normal;
+              }
+              .custom-slide-tooltip::after {
+                content: '';
+                position: absolute;
+                top: 100%;
+                left: 50%;
+                margin-left: -6px;
+                border-width: 6px;
+                border-style: solid;
+                border-color: var(--ds-color-surface-overlay, #1e293b) transparent transparent transparent;
+              }
+              .slide-grid-item-v3.has-custom-tooltip:hover .custom-slide-tooltip {
+                visibility: visible;
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+              }
+              .slide-grid-item-v3.is-active {
+                border: 2px solid var(--ds-color-primary-dark) !important;
+                background-color: var(--ds-color-primary-soft) !important;
+                font-weight: bold;
+                box-shadow: 0 0 0 2px var(--ds-color-primary-light);
+              }
+            `}</style>
             {slideReviewItems
               .filter(item => !filterNG || item.status === "NG")
-              .map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={`slide-grid-item-v3 ${selectedSlideId === item.id ? "is-active" : ""} is-${item.status.toLowerCase()}`}
-                  onClick={() => {
-                    setSelectedSlideId(item.id);
-                    setActiveTab("slides");
-                  }}
-                  title={`Slide ${item.slide_number}: ${item.status}`}
-                >
-                  <span className="slide-number-v3">{item.slide_number}</span>
-                  {item.status === "NG" && <div className="ng-indicator-v3" />}
-                </button>
-              ))}
+              .map((item) => {
+                const tooltipText = item.issues?.length > 0 ? item.issues[0] : item.summary;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={`slide-grid-item-v3 ${selectedSlideId === item.id ? "is-active" : ""} is-${item.status.toLowerCase()} ${item.status === "NG" ? "has-custom-tooltip" : ""}`}
+                    onClick={() => {
+                      setSelectedSlideId(item.id);
+                      setActiveTab("slides");
+                    }}
+                    title={item.status !== "NG" ? `Slide ${item.slide_number}: ${item.status}` : undefined}
+                  >
+                    <span className="slide-number-v3">{item.slide_number}</span>
+                    {item.status === "NG" && (
+                      <>
+                        <div className="ng-indicator-v3" />
+                        <div className="custom-slide-tooltip">
+                          <strong style={{ display: 'block', marginBottom: '4px', color: '#94a3b8' }}>Slide {item.slide_number}</strong>
+                          <span style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{tooltipText}</span>
+                        </div>
+                      </>
+                    )}
+                  </button>
+                );
+              })}
           </div>
         </div>
 

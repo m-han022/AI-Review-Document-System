@@ -1,0 +1,68 @@
+[
+  {
+    "id": 1,
+    "en": "JSON ONLY: Your entire response must be a single valid JSON object.",
+    "vi": "Chỉ dùng JSON: Phản hồi của bạn phải là một đối tượng JSON hợp lệ duy nhất.",
+    "ja": "JSON形式のみ：レスポンスは単一の有効なJSONオブジェクトである必要があります。"
+  },
+  {
+    "id": 2,
+    "en": "NO MARKDOWN: Do not wrap JSON in code blocks (e.g., no ```json).",
+    "vi": "Không dùng Markdown: Không bao bọc JSON trong các khối mã (ví dụ: không có ```json).",
+    "ja": "マークダウン禁止：JSONをコードブロック（例：```json）で囲まないでください。"
+  },
+  {
+    "id": 3,
+    "en": "NO HALLUCINATION: Only use information provided in the document content.",
+    "vi": "Không ảo tưởng: Chỉ sử dụng thông tin được cung cấp trong nội dung tài liệu.",
+    "ja": "ハルシネーション禁止：ドキュメントの内容に含まれる情報のみを使用してください。"
+  },
+  {
+    "id": 4,
+    "en": "BILINGUAL: All text fields must have both 'vi' and 'ja' translations.",
+    "vi": "Song ngữ: Tất cả các trường văn bản phải có cả bản dịch tiếng Việt và tiếng Nhật.",
+    "ja": "二ヶ国語対応：すべてのテキストフィールドにベトナム語と日本語の両方の翻訳を含める必要があります。"
+  },
+  {
+    "id": 5,
+    "en": "SCHEMA COMPLIANCE: Strictly follow the requested output schema.",
+    "vi": "Tuân thủ Schema: Tuân thủ nghiêm ngặt cấu trúc đầu ra được yêu cầu.",
+    "ja": "スキーマ準拠：要求された出力スキーマに厳密に従ってください。"
+  },
+  {
+    "id": 6,
+    "en": "COMPREHENSIVENESS: You MUST review and include EVERY slide/page from the input in the 'slide_reviews' array. Do not skip any slide numbers. If a slide is OK, mark it as 'OK'.",
+    "vi": "Tính toàn diện: Bạn PHẢI xem xét và bao gồm TẤT CẢ các slide/trang trong kết quả. Không bỏ sót slide nào.",
+    "ja": "網羅性：入力されたすべてのスライド/ページを確認し、結果に含める必要があります。スライドをスキップしないでください。"
+  },
+  {
+    "id": 7,
+    "en": "DETAILED REASONING: For 'criteria_suggestions', you MUST provide the 'WHY' (specific issues/reasons) before providing the 'HOW' (actionable suggestions).",
+    "vi": "Lập luận chi tiết: Bạn PHẢI cung cấp 'TẠI SAO' (lý do cụ thể) trước khi cung cấp 'LÀM THẾ NÀO' (đề xuất hành động).",
+    "ja": "詳細な推論：アクションの提案（HOW）を行う trước khi, 必ず具体的な理由（WHY）を giải thích してください。"
+  },
+  {
+    "id": 8,
+    "en": "NO PLACEHOLDERS: Do not use bracketed placeholders like [Insert name]. State missing info clearly.",
+    "vi": "Không dùng ký tự giữ chỗ: Không dùng các ký tự như [Insert name]. Hãy nêu rõ thông tin nếu bị thiếu.",
+    "ja": "プレースホルダー禁止：[名前を挿入]のようなプレースホルダーを使用しないでください。情報가不足している場合は具体的に記述してください。"
+  },
+  {
+    "id": 9,
+    "en": "LOGICAL CONSISTENCY: The 'total_score' MUST be the exact mathematical sum of all scores in 'criteria_results'.",
+    "vi": "Nhất quán toán học: Điểm 'total_score' PHẢI bằng tổng chính xác của tất cả các điểm thành phần.",
+    "ja": "論理的一貫性：'total_score'は、すべての構成要素のスコアの合計と正確に一致する必要があります。"
+  },
+  {
+    "id": 10,
+    "en": "EVIDENCE-BASED: For every 'NG' status, you MUST cite a specific text or element from the slide as evidence.",
+    "vi": "Dựa trên dẫn chứng: Với mỗi trạng thái 'NG', bạn PHẢI dẫn chứng văn bản hoặc yếu tố cụ thể từ slide đó.",
+    "ja": "エビデンスに基づく評価：'NG'（不適合）判定の場合、必ずそのスライドから具体的なテキストや要素をエビデンスとして引用してください。"
+  },
+  {
+    "id": 11,
+    "en": "PROFESSIONAL TONE: Use objective, fact-based language. Avoid subjective or emotional adjectives.",
+    "vi": "Văn phong chuyên nghiệp: Sử dụng ngôn ngữ khách quan, dựa trên sự thật. Tránh các tính từ cảm tính hoặc chủ quan.",
+    "ja": "プロフェッショナルな語調：事実に基づく客観的な言葉を使用してください。主観적または感情的な形容詞は避けてください。"
+  }
+]

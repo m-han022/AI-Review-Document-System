@@ -62,7 +62,7 @@ export function useProjectReviewState({ projectId, lang, t }: UseProjectReviewSt
     enabled: selectedDocumentId !== null && selectedDocumentId !== undefined,
     staleTime: 0,
   });
-  const { data: gradings = [], isLoading: loadingGradings } = useQuery<GradingListOut[]>({
+  const { data: gradings = [], isLoading: loadingGradings, isFetching: fetchingGradings } = useQuery<GradingListOut[]>({
     queryKey: ["version-gradings", selectedVersionId],
     queryFn: () => listVersionGradings(selectedVersionId!),
     enabled: !!selectedVersionId,
@@ -130,6 +130,7 @@ export function useProjectReviewState({ projectId, lang, t }: UseProjectReviewSt
   }, [versions, selectedVersionId, loadingVersions]);
 
   useEffect(() => {
+    if (fetchingGradings) return;
     if (gradings.length > 0) {
       const currentExists = gradings.some((g) => g.grading_run_id === selectedGradingId);
       if (!currentExists) {
@@ -139,7 +140,7 @@ export function useProjectReviewState({ projectId, lang, t }: UseProjectReviewSt
     } else if (!loadingGradings) {
       setSelectedGradingId(null);
     }
-  }, [gradings, selectedGradingId, loadingGradings]);
+  }, [gradings, selectedGradingId, loadingGradings, fetchingGradings]);
 
   const currentProject = (projectList || []).find((p: any) => p.project_id === projectId);
   const currentVersion = versions.find((v) => v.document_version_id === selectedVersionId);
@@ -151,7 +152,10 @@ export function useProjectReviewState({ projectId, lang, t }: UseProjectReviewSt
         force: true,
         evaluationSetId: gradingDetail?.grading_run?.evaluation_set_id ?? undefined,
       }),
-    onSuccess: async () => {
+    onSuccess: async (data) => {
+      if (data && data.run_id) {
+        setSelectedGradingId(data.run_id);
+      }
       setActionMessage({ tone: "success", text: t("project.rerunSuccess") });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: projectsQueryKey }),

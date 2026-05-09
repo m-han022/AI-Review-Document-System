@@ -3,7 +3,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createProject } from "../../api/client";
 import { projectsQueryKey } from "../../query";
 import { useTranslation } from "../LanguageSelector";
-import Dialog from "../ui/Dialog";
+import BaseModal from "../ui/BaseModal";
+import { Button } from "../ui";
 import { Input } from "../ui/Input";
 
 interface ProjectCreateDialogProps {
@@ -65,21 +66,28 @@ export default function ProjectCreateDialog({ open, onClose, onCreated }: Projec
   };
 
   return (
-    <Dialog
+    <BaseModal
       open={open}
+      onClose={onClose}
       title={titleText}
-      onConfirm={handleSave}
-      onCancel={onClose}
-      confirmLabel={createText}
-      cancelLabel={cancelText}
-      isLoading={loading}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose} disabled={loading}>
+            {cancelText}
+          </Button>
+          <Button variant="primary" onClick={handleSave} isLoading={loading}>
+            {createText}
+          </Button>
+        </>
+      }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
         {error && (
           <div style={{ 
             padding: '12px', borderRadius: 'var(--ds-radius-md)', 
-            backgroundColor: 'var(--ds-color-danger-light)', 
-            color: 'var(--ds-color-danger)', fontSize: '13px' 
+            backgroundColor: 'var(--ds-color-danger-soft)', 
+            color: 'var(--ds-color-danger)', fontSize: '13px',
+            border: '1px solid var(--ds-color-danger-light)'
           }}>
             {error}
           </div>
@@ -109,9 +117,10 @@ export default function ProjectCreateDialog({ open, onClose, onCreated }: Projec
             onChange={(e) => setDescription(e.target.value)}
             placeholder={t("project.descPlaceholder") || "Mô tả chi tiết dự án..."}
             rows={4}
+            style={{ minHeight: '120px' }}
           />
         </div>
       </div>
-    </Dialog>
+    </BaseModal>
   );
 }

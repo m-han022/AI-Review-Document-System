@@ -34,6 +34,7 @@ class UploadService:
         file_path: str,
         extracted_text: str,
         content_hash: str,
+        binary_hash: str | None = None,
         uploaded_at: str,
     ) -> Submission:
         # 1. Get project (Submission) - Project must exist beforehand as per updated rules
@@ -135,6 +136,7 @@ class UploadService:
             file_path=file_path,
             extracted_text=extracted_text,
             content_hash=content_hash,
+            binary_hash=binary_hash,
             language=language,
             uploaded_at=uploaded_at,
             is_latest=True,

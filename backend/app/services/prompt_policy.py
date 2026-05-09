@@ -19,26 +19,30 @@ class PromptPolicyBundle:
     required_rule_hash: str
 
 
+import os
+from pathlib import Path
+
+DEFAULTS_DIR = Path(__file__).resolve().parent.parent / "defaults"
+
 LEVEL_LABELS = {
     "low": "PMO thấp",
     "medium": "PMO vừa",
     "high": "PMO cao",
 }
 
-POLICY_TEXT = {
-    "low": (
-        "Đánh giá ở mức PMO thấp: tập trung vào lỗi rõ ràng, khả năng đọc hiểu, "
-        "thiếu thông tin quan trọng và hành động sửa trực tiếp."
-    ),
-    "medium": (
-        "Đánh giá ở mức PMO vừa: ngoài lỗi rõ ràng, phân tích tính nhất quán, "
-        "độ đủ bằng chứng, tác động vận hành và khả năng phòng ngừa tái diễn."
-    ),
-    "high": (
-        "Đánh giá ở mức PMO cao: áp dụng chuẩn quản trị nghiêm ngặt, kiểm tra "
-        "logic nguyên nhân gốc, KPI, owner, deadline, policy, risk và khả năng audit."
-    ),
-}
+# Load policies from defaults directory (MANDATORY)
+def _load_global_policies() -> dict[str, str]:
+    path = DEFAULTS_DIR / "global_policies.json"
+    if not path.exists():
+        raise RuntimeError(f"CRITICAL: Configuration file missing at {path}. System cannot start.")
+    
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        raise RuntimeError(f"CRITICAL: Failed to parse {path}: {str(e)}")
+
+POLICY_TEXT = _load_global_policies()
 
 def normalize_prompt_level(prompt_level: str | None) -> str:
     normalized = (prompt_level or "medium").strip().lower()
@@ -70,11 +74,16 @@ def get_active_policy(level: str) -> EvaluationPolicy:
         ).first()
         
         if not policy:
-            # Seed default if not exists
+            # If it doesn't exist, create it from the global policy templates (JSON)
+            policy_content = POLICY_TEXT.get(level, "")
+            if isinstance(policy_content, dict):
+                # Use 'vi' as default for bootstrap
+                policy_content = policy_content.get("vi", "")
+
             policy = EvaluationPolicy(
                 level=level,
                 version="v1",
-                content=POLICY_TEXT[level],
+                content=policy_content,
                 status="active",
                 created_at=_now()
             )

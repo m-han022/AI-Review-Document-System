@@ -1,4 +1,6 @@
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { type ReactNode } from "react";
+import BaseModal from "../ui/BaseModal";
+import { Button } from "../ui";
 
 interface ProjectReviewDialogProps {
   title: ReactNode;
@@ -17,45 +19,25 @@ export default function ProjectReviewDialog({
   score,
   closeLabel,
 }: ProjectReviewDialogProps) {
-  const titleId = useId();
-  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    closeButtonRef.current?.focus();
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [onClose]);
-
   return (
-    <div className="detail-summary-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}>
-      <div className="detail-summary-dialog__backdrop" onClick={onClose} />
-      <div className={`detail-summary-dialog__card ${wide ? "detail-summary-dialog__card--wide" : ""}`.trim()}>
-        <div className="detail-summary-dialog__header">
-          <div>
-            <h3 id={titleId}>{title}</h3>
-            {score ? <span className="detail-summary-dialog__score">{score}</span> : null}
-          </div>
-          <button
-            ref={closeButtonRef}
-            className="btn-secondary btn-secondary--compact"
-            type="button"
-            onClick={onClose}
-            aria-label={closeLabel}
-          >
-            {closeLabel}
-          </button>
-        </div>
+    <BaseModal
+      open={true}
+      onClose={onClose}
+      title={typeof title === "string" ? title : "Review Details"}
+      subtitle={score ? (typeof score === "string" ? score : undefined) : undefined}
+      size={wide ? "lg" : "md"}
+      footer={
+        <Button variant="primary" onClick={onClose}>
+          {closeLabel}
+        </Button>
+      }
+    >
+      <div className="detail-summary-content">
+        {!score && typeof title !== "string" && (
+          <div style={{ marginBottom: '16px' }}>{title}</div>
+        )}
         {children}
       </div>
-    </div>
+    </BaseModal>
   );
 }

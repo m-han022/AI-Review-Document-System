@@ -1,0 +1,114 @@
+.ds-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: ds-fade-in 0.2s ease-out;
+}
+
+.ds-modal {
+  background: var(--ds-color-surface);
+  border-radius: var(--ds-radius-xl);
+  box-shadow: var(--ds-shadow-2xl);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  width: 90%;
+  position: relative;
+  animation: ds-modal-slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid var(--ds-color-border);
+}
+
+/* Sizes */
+.ds-modal--sm { max-width: 400px; }
+.ds-modal--md { max-width: 600px; }
+.ds-modal--lg { max-width: 800px; }
+.ds-modal--xl { max-width: 1000px; }
+.ds-modal--full { max-width: 95vw; height: 90vh; }
+
+.ds-modal__header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--ds-color-border);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.ds-modal__title-group {
+  flex: 1;
+}
+
+.ds-modal__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--ds-color-text-title);
+  line-height: 1.2;
+}
+
+.ds-modal__subtitle {
+  margin: 4px 0 0;
+  font-size: 0.875rem;
+  color: var(--ds-color-text-muted);
+}
+
+.ds-modal__close-btn {
+  background: transparent;
+  border: none;
+  color: var(--ds-color-text-muted);
+  cursor: pointer;
+  padding: 8px;
+  margin-top: -8px;
+  margin-right: -8px;
+  border-radius: var(--ds-radius-md);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ds-modal__close-btn:hover {
+  background-color: var(--ds-color-bg-muted);
+  color: var(--ds-color-text-main);
+}
+
+.ds-modal__body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.ds-modal__footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--ds-color-border);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  background-color: var(--ds-color-bg-muted);
+  border-bottom-left-radius: var(--ds-radius-xl);
+  border-bottom-right-radius: var(--ds-radius-xl);
+}
+
+@keyframes ds-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ds-modal-slide-up {
+  from { 
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

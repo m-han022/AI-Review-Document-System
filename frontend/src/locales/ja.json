@@ -186,7 +186,7 @@
       "fetchFailed": "バージョン情報を取得できませんでした。"
     },
     "evaluationSet": {
-      "required": "レビュー前に評価セットを選択してください。",
+      "required": "このドキュメントタイプの有効な評価セットがありません。管理者に連絡して設定を完了してください。",
       "invalid": "評価セットが無効です。",
       "inactive": "評価セットが未アクティブです。",
       "scopeMismatch": "選択した資料タイプと評価セットが一致しません。",
@@ -463,7 +463,7 @@
     "totalDocuments": "資料数",
     "tabOverview": "概要",
     "tabSlides": "スライド別",
-    "criteriaScores": "基準別スコア",
+    "criteriaScores": "総合評価",
     "feedbackPreview": "フィードバック要約",
     "viewFullFeedback": "全文を見る",
     "issuesFound": "検出された課題",
@@ -540,7 +540,7 @@
     "notGradedText": "採点を実行すると、総合点と改善提案が表示されます。",
     "reviewResult": "レビュー結果",
     "reviewDetailSubtitle": "詳細レビュー結果",
-    "executiveSummary": "Executive Summary",
+    "executiveSummary": "AI総評",
     "documents": "ドキュメント一覧",
     "versions": "バージョン一覧",
     "gradingRuns": "採点履歴",
@@ -607,7 +607,7 @@
       "unavailableDescription": "別タブで開くか、ファイルをダウンロードしてください。"
     },
     "slideList": "スライド一覧",
-    "slideDetails": "スライド詳細",
+    "slideDetails": "詳細評価",
     "gradingHistory": "採点履歴",
     "visualDistribution": "スコア分布の可視化",
     "scoreOverview": "スコア概要",

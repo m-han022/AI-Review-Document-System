@@ -17,11 +17,34 @@ from app.services.prompt_composer import (
     parse_required_rules_content,
 )
 from app.services.prompt_policy import _now, normalize_prompt_level
+from app.services.evaluation_set_service import bootstrap_evaluation_set_logic, _next_set_version_label, _archive_active_sets
 
 router = APIRouter()
 
 
+@router.get("/defaults/v2/global")
+def get_global_defaults():
+    from app.services.prompt_policy import POLICY_TEXT
+    from app.services.prompt_composer import REQUIRED_RULES
+    from app.rubric import RUBRIC_TEMPLATES
+    
+    # Fallback if constant is empty for some reason
+    templates = RUBRIC_TEMPLATES
+    if not templates:
+        templates = {
+            "project-review": { "label": { "vi": "Review Dự án", "ja": "プロジェクトレビュー" } },
+            "bug-analysis": { "label": { "vi": "Phân tích Bug", "ja": "バグ分析" } }
+        }
+        
+    return {
+        "policies": POLICY_TEXT,
+        "required_rules": REQUIRED_RULES,
+        "rubric_templates": templates
+    }
+
+
 class RubricOut(BaseModel):
+
     id: int
     document_type: str
     version: str
@@ -145,16 +168,7 @@ def _archive_active_rubrics(session: Session, document_type: str) -> None:
         old.active = False
         old.updated_at = _now()
 
-def _archive_active_sets(session: Session, document_type: str, level: str) -> None:
-    old_sets = session.exec(
-        select(EvaluationSet).where(
-            EvaluationSet.document_type == document_type,
-            EvaluationSet.level == level,
-            EvaluationSet.status == "active",
-        )
-    ).all()
-    for old in old_sets:
-        old.status = "archived"
+# Removed redundant _archive_active_sets (imported from evaluation_set_service)
 
 
 def _evaluation_set_detail(session: Session, row: EvaluationSet) -> EvaluationSetDetailOut:
@@ -759,51 +773,18 @@ async def activate_evaluation_set(set_id: int, session: Session = Depends(get_se
 
 @router.post("/evaluation-sets/bootstrap")
 async def bootstrap_evaluation_set(payload: EvaluationSetBootstrapIn, session: Session = Depends(get_session)):
-    lvl = normalize_prompt_level(payload.level)
-    existing = session.exec(
-        select(EvaluationSet).where(
-            EvaluationSet.document_type == payload.document_type,
-            EvaluationSet.level == lvl,
+    try:
+        row = bootstrap_evaluation_set_logic(
+            session=session,
+            document_type=payload.document_type,
+            level=payload.level,
+            name=payload.name
         )
-    ).first()
-    if existing:
-        return EvaluationSetOut(**existing.model_dump())
-
-    rubric = session.exec(
-        select(Rubric).where(Rubric.document_type == payload.document_type, Rubric.status == "active")
-    ).first()
-    prompt = session.exec(
-        select(PromptVersion).where(
-            PromptVersion.document_type == payload.document_type,
-            PromptVersion.level == lvl,
-            PromptVersion.status == "active",
-        )
-    ).first()
-    policy = session.exec(
-        select(EvaluationPolicy).where(EvaluationPolicy.level == lvl, EvaluationPolicy.status == "active")
-    ).first()
-
-    if not rubric or not prompt or not policy:
-        raise HTTPException(status_code=400, detail="Cannot bootstrap: missing active rubric/prompt/policy for scope")
-
-    active_rule_set = get_active_required_rule_set(session)
-    row = EvaluationSet(
-        name=payload.name or f"{payload.document_type}-{lvl}-set-v1",
-        document_type=payload.document_type,
-        level=lvl,
-        rubric_version_id=rubric.id or 0,
-        prompt_version_id=prompt.id or 0,
-        policy_version_id=policy.id or 0,
-        required_rule_set_id=active_rule_set.id,
-        required_rules_version=active_rule_set.version,
-        required_rule_hash=active_rule_set.hash,
-        version_label=_next_set_version_label(session, payload.document_type, lvl),
-        status="active",
-        created_at=_now(),
-    )
-    _archive_active_sets(session, payload.document_type, lvl)
-    session.add(row); session.commit(); session.refresh(row)
-    return EvaluationSetOut(**row.model_dump())
+        return EvaluationSetOut(**row.model_dump())
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Bootstrap failed: {str(e)}")
 class RequiredRuleSetOut(BaseModel):
     id: int
     version: str

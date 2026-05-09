@@ -14,6 +14,15 @@ RUBRIC_PROMPT_KEY = "vi"
 SUPPORTED_RUBRIC_LANGUAGES = ("vi", "ja")
 RUBRICS_DIR = Path(__file__).resolve().parent / "rubrics"
 ACTIVE_VERSIONS_FILE = RUBRICS_DIR / "active_versions.json"
+DEFAULTS_DIR = Path(__file__).resolve().parent / "defaults"
+RUBRIC_TEMPLATES_FILE = DEFAULTS_DIR / "rubric_templates.json"
+
+RUBRIC_TEMPLATES = {}
+if RUBRIC_TEMPLATES_FILE.exists():
+    try:
+        RUBRIC_TEMPLATES = json.loads(RUBRIC_TEMPLATES_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        RUBRIC_TEMPLATES = {}
 
 
 def _now() -> str:
@@ -204,11 +213,12 @@ def seed_rubrics_from_files() -> None:
         return
 
     with Session(engine) as session:
+        # We now check for new types even if some rubrics exist
         existing_count = session.exec(select(Rubric.id).limit(1)).first()
-        if existing_count is not None:
-            return
-
-        active_versions: dict[str, str] = {}
+        
+        # Legacy seeding from folders only runs once
+        if existing_count is None:
+            active_versions: dict[str, str] = {}
         if ACTIVE_VERSIONS_FILE.exists():
             active_versions = json.loads(ACTIVE_VERSIONS_FILE.read_text(encoding="utf-8"))
 
@@ -236,11 +246,19 @@ def seed_rubrics_from_files() -> None:
                         prompt[language] = prompt_path.read_text(encoding="utf-8").strip()
                 prompt = _normalize_prompt(prompt)
 
+                version = version_dir.name
+                # Check for specific (type, version) combination
+                existing = session.exec(
+                    select(Rubric).where(Rubric.document_type == document_type, Rubric.version == version)
+                ).first()
+                if existing:
+                    continue
+
                 rubric = Rubric(
                     document_type=document_type,
-                    version=version_dir.name,
-                    active=version_dir.name == active_version,
-                    status="active" if version_dir.name == active_version else "archived",
+                    version=version,
+                    active=version == active_version,
+                    status="active" if version == active_version else "archived",
                     prompt=prompt,
                     created_at=timestamp,
                     updated_at=timestamp,
@@ -266,3 +284,42 @@ def seed_rubrics_from_files() -> None:
                     )
 
         session.commit()
+
+        # Seed from rubric_templates.json (CENTRALIZED)
+        if RUBRIC_TEMPLATES_FILE.exists():
+            templates = json.loads(RUBRIC_TEMPLATES_FILE.read_text(encoding="utf-8"))
+            timestamp = _now()
+            for doc_type, template in templates.items():
+                version = template.get("version", "v1")
+                # Check for specific (type, version) combination
+                existing = session.exec(
+                    select(Rubric).where(Rubric.document_type == doc_type, Rubric.version == version)
+                ).first()
+                if existing:
+                    continue
+
+                rubric = Rubric(
+                    document_type=doc_type,
+                    version=template.get("version", "v1"),
+                    active=True,
+                    status="active",
+                    prompt=_normalize_prompt(template.get("instruction", {})),
+                    created_at=timestamp,
+                    updated_at=timestamp,
+                )
+                session.add(rubric)
+                session.commit()
+                session.refresh(rubric)
+
+                for index, criterion in enumerate(template.get("criteria", [])):
+                    session.add(
+                        RubricCriterionRecord(
+                            rubric_id=rubric.id,
+                            key=criterion["key"],
+                            max_score=float(criterion["max_score"]),
+                            label_vi=criterion.get("label", {}).get("vi", criterion["key"]),
+                            label_ja=criterion.get("label", {}).get("ja", criterion["key"]),
+                            sort_order=index,
+                        )
+                    )
+            session.commit()

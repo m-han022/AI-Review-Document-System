@@ -103,6 +103,7 @@ export type AIConfigCopy = {
   policyHelp: string;
   rulesHelp: string;
   setNameSummary: string;
+  rulesWarning: string;
 };
 
 export const AI_CONFIG_COPY: Record<LanguageCode, AIConfigCopy> = {
@@ -207,6 +208,7 @@ export const AI_CONFIG_COPY: Record<LanguageCode, AIConfigCopy> = {
     policyHelp: "Define strictness and score deduction rules.",
     rulesHelp: "Mandatory output constraints AI must always follow.",
     setNameSummary: "Set Name",
+    rulesWarning: "注意：これはシステムの安定性を確保するための必須ルールであるため、変更しないことをお勧めします。",
   },
   vi: {
     loading: "Đang tải AI Configuration Console...",
@@ -311,6 +313,7 @@ export const AI_CONFIG_COPY: Record<LanguageCode, AIConfigCopy> = {
     policyHelp: "Quy định mức nghiêm ngặt khi chấm và cách trừ điểm theo thiếu sót.",
     rulesHelp: "Các ràng buộc bắt buộc AI luôn phải tuân thủ (ví dụ định dạng đầu ra).",
     setNameSummary: "Tên bộ",
+    rulesWarning: "Lưu ý: Không nên sửa nội dung này vì đây là các quy tắc hệ thống bắt buộc đảm bảo tính ổn định của kết quả AI.",
   },
   en: {
     loading: "Loading AI Configuration Console...",
@@ -413,5 +416,6 @@ export const AI_CONFIG_COPY: Record<LanguageCode, AIConfigCopy> = {
     policyHelp: "Define strictness levels and point deduction rules.",
     rulesHelp: "Mandatory system constraints for AI output.",
     setNameSummary: "Set Name",
+    rulesWarning: "Warning: Changing this content is not recommended as these are mandatory system rules ensuring AI output stability.",
   },
 };

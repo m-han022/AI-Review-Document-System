@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import BaseModal from "./BaseModal";
 import { Button } from "./Button";
 
 interface ConfirmDialogProps {
@@ -11,6 +11,7 @@ interface ConfirmDialogProps {
   isLoading?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  tone?: "danger" | "primary" | "warning";
 }
 
 export default function ConfirmDialog({
@@ -23,61 +24,39 @@ export default function ConfirmDialog({
   isLoading = false,
   onConfirm,
   onCancel,
+  tone = "danger",
 }: ConfirmDialogProps) {
-  useEffect(() => {
-    if (open) {
-      document.body.classList.add("is-modal-open");
-    } else {
-      document.body.classList.remove("is-modal-open");
-    }
-    return () => {
-      document.body.classList.remove("is-modal-open");
-    };
-  }, [open]);
-
-  if (!open) {
-    return null;
-  }
-
   return (
-    <div className="dialog-backdrop" role="presentation" onClick={onCancel}>
-      <div
-        className="dialog-card"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="confirm-dialog-title"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="dialog-card__header">
-          <h3 id="confirm-dialog-title">{title}</h3>
-          <p style={{ marginTop: '8px', color: 'var(--ds-color-text-muted)', fontSize: '14px' }}>
-            {description}
-          </p>
-        </div>
-
-        {details?.length ? (
-          <div className="dialog-card__content" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-            {details.map((detail) => (
-              <span key={detail} style={{ 
-                padding: '4px 8px', borderRadius: 'var(--ds-radius-sm)', 
-                backgroundColor: 'var(--ds-color-bg-muted)', fontSize: '12px',
-                color: 'var(--ds-color-text-main)', border: '1px solid var(--ds-color-border)'
-              }}>
-                {detail}
-              </span>
-            ))}
-          </div>
-        ) : null}
-
-        <div className="dialog-card__actions">
-          <Button variant="outline" onClick={onCancel} disabled={isLoading}>
+    <BaseModal
+      open={open}
+      onClose={onCancel}
+      title={title}
+      subtitle={description}
+      size="sm"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onCancel} disabled={isLoading}>
             {cancelLabel}
           </Button>
-          <Button variant="danger" onClick={onConfirm} isLoading={isLoading}>
+          <Button variant={tone === "danger" ? "danger" : tone === "warning" ? "warning" : "primary"} onClick={onConfirm} isLoading={isLoading}>
             {confirmLabel}
           </Button>
+        </>
+      }
+    >
+      {details?.length ? (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          {details.map((detail) => (
+            <span key={detail} style={{ 
+              padding: '4px 8px', borderRadius: 'var(--ds-radius-sm)', 
+              backgroundColor: 'var(--ds-color-bg-muted)', fontSize: '12px',
+              color: 'var(--ds-color-text-main)', border: '1px solid var(--ds-color-border)'
+            }}>
+              {detail}
+            </span>
+          ))}
         </div>
-      </div>
-    </div>
+      ) : null}
+    </BaseModal>
   );
 }

@@ -104,7 +104,23 @@ async def upload_project(
         with open(save_path, "wb") as saved_file:
             saved_file.write(content)
 
-        extracted_text = extract_text_from_file(str(save_path))
+        binary_hash = hashlib.md5(content).hexdigest()
+        extracted_text = ""
+        
+        from sqlmodel import Session, select
+        from app.database import engine
+        from app.models import SubmissionDocumentVersion
+        
+        with Session(engine) as session:
+            statement = select(SubmissionDocumentVersion).where(SubmissionDocumentVersion.binary_hash == binary_hash)
+            existing = session.exec(statement).first()
+            if existing:
+                print(f"[Upload] Reusing extracted text for binary_hash: {binary_hash}")
+                extracted_text = existing.extracted_text
+
+        if not extracted_text:
+            extracted_text = extract_text_from_file(str(save_path))
+        
         if not extracted_text.strip():
             raise HTTPException(status_code=400, detail=MESSAGES[ui_language]["empty_pdf"])
 
@@ -125,6 +141,7 @@ async def upload_project(
             file_path=str(save_path),
             extracted_text=extracted_text,
             content_hash=hashlib.md5(extracted_text.encode()).hexdigest(),
+            binary_hash=binary_hash,
             uploaded_at=datetime.now(timezone.utc).isoformat(),
         )
         log_event(

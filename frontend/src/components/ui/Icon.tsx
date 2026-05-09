@@ -50,6 +50,7 @@ import {
   Star,
   Maximize,
   AlertCircle,
+  Info,
   BarChart3,
   TrendingUp,
   type LucideIcon,
@@ -112,6 +113,7 @@ const icons = {
   star: Star,
   maximize: Maximize,
   alertCircle: AlertCircle,
+  info: Info,
   barChart: BarChart3,
   trendingUp: TrendingUp,
   x: X,
@@ -320,6 +322,10 @@ export function XIcon(props: NamedIconProps) {
   return <Icon name="x" {...props} />;
 }
 
+export function CloseIcon(props: NamedIconProps) {
+  return <Icon name="x" {...props} />;
+}
+
 export function ZapIcon(props: NamedIconProps) {
   return <Icon name="zap" {...props} />;
 }
@@ -353,6 +359,10 @@ export function ClockIcon(props: NamedIconProps) {
 
 export function AlertCircleIcon(props: NamedIconProps) {
   return <Icon name="alertCircle" {...props} />;
+}
+
+export function InfoIcon(props: NamedIconProps) {
+  return <Icon name="info" {...props} />;
 }
 
 export function BarChartIcon(props: NamedIconProps) {

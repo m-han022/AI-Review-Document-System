@@ -9,7 +9,7 @@ from sqlmodel import Session, select
 from app.config import settings
 from app.database import engine
 from app.rubric import get_active_rubric_version, get_rubric, get_rubric_criteria_config, _select_rubric
-from app.services.gemini_manager import get_gemini_client
+from app.services.gemini_manager import get_gemini_client, get_model_for_level
 from app.services.prompt_policy import get_prompt_policy_bundle, normalize_prompt_level, stable_hash
 from app.models import EvaluationSet, Rubric, PromptVersion, EvaluationPolicy, RequiredRuleSet
 from app.services.prompt_composer import PromptComposer, get_active_required_rule_set, parse_required_rules_content
@@ -47,7 +47,7 @@ GRADING_SCHEMA_VERSION = "v2_full_coverage"
 
 BILINGUAL_SCHEMA = (
     "\n\nReturn JSON: {score:int, criteria_scores:{key:number}, "
-    "criteria_suggestions:{vi:{key:str},ja:{key:str}}, "
+    "criteria_suggestions:{vi:{key:str},ja:{key:str}} (Provide detailed reasoning, issues found AND actionable suggestions), "
     "draft_feedback:{vi:str,ja:str}, "
     "slide_reviews:[{slide_number:int,status:'OK'|'NG',"
     "title:{vi:str,ja:str},summary:{vi:str,ja:str},"
@@ -180,11 +180,11 @@ def build_grading_signature(
     
     # Use PromptComposer to build final prompt and get metadata
     bundle = PromptComposer.compose(
-        rubric=rubric_obj, # This might be None if fallback used, but compose handles it or we should fix it
+        rubric=rubric_obj, 
         rubric_text=rubric_text,
         policy=policy,
         prompt_version=prompt_ver,
-        required_rules_content=parse_required_rules_content(required_rule_set.content),
+        rules_set=required_rule_set,
         required_rule_hash=required_rule_set.hash
     )
 
@@ -203,7 +203,7 @@ def build_grading_signature(
         "required_rule_hash": bundle.required_rule_hash,
         "required_rule_set_id": required_rule_set.id,
         "criteria_hash": _stable_json_hash({"keys": criteria_keys, "max_scores": max_scores}),
-        "gemini_model": settings.gemini_model,
+        "gemini_model": get_model_for_level(normalized_prompt_level),
         "grading_schema_version": GRADING_SCHEMA_VERSION,
         "project_description_hash": _get_text_hash(project_description or ""),
         "final_system_instruction": bundle.full_prompt,
@@ -392,17 +392,66 @@ def grade_submission(
 
     cache_key = _build_cache_key(signature)
 
+    required_keys, max_scores = _get_criteria_config(document_type, signature["rubric_version"])
+    
+    # 1. Check Memory Cache
     if use_cache and not refresh_cache and cache_key in _grading_cache:
         return _grading_cache[cache_key]
+    
+    # 2. Check Database Cache (Persistent)
+    if use_cache and not refresh_cache:
+        from app.storage import store
+        existing_run = store.find_matching_run(signature.get("project_id") or "", signature)
+        if existing_run and existing_run.status == "completed":
+            print(f"[Grading] Persistent cache hit for {cache_key}")
+            # Format back to result_data structure
+            result_data = {
+                "score": existing_run.score,
+                "total_score": existing_run.total_score,
+                "content_hash": signature["content_hash"],
+                "document_version_id": existing_run.document_version_id,
+                "rubric_version": existing_run.rubric_version,
+                "rubric_hash": existing_run.rubric_hash,
+                "gemini_model": existing_run.gemini_model,
+                "prompt_version": existing_run.prompt_version,
+                "prompt_level": existing_run.prompt_level,
+                "policy_version": existing_run.policy_version,
+                "policy_hash": existing_run.policy_hash,
+                "required_rule_hash": existing_run.required_rule_hash,
+                "prompt_hash": existing_run.prompt_hash,
+                "criteria_hash": existing_run.criteria_hash,
+                "grading_schema_version": existing_run.grading_schema_version,
+                "project_description_hash": signature.get("project_description_hash"),
+                "final_prompt_snapshot": existing_run.final_prompt_snapshot,
+                "evaluation_set_id": existing_run.evaluation_set_id,
+                "criteria_scores": {item.key: item.score for item in existing_run.criteria_results},
+                "criteria_suggestions": {
+                    "vi": {item.key: item.suggestion.get("vi", "") for item in existing_run.criteria_results if item.suggestion},
+                    "ja": {item.key: item.suggestion.get("ja", "") for item in existing_run.criteria_results if item.suggestion}
+                },
+                "draft_feedback": existing_run.draft_feedback or {"vi": "", "ja": ""},
+                "slide_reviews": [
+                    {
+                        "slide_number": s.slide_number,
+                        "status": s.status,
+                        "title": s.title,
+                        "summary": s.summary,
+                        "issues": s.issues,
+                        "suggestions": s.suggestions
+                    } for s in existing_run.slide_reviews
+                ]
+            }
+            _grading_cache[cache_key] = result_data
+            return result_data
 
     system_instruction = signature["final_system_instruction"]
     prompt_prefix = PROMPT_PREFIXES.get(language, PROMPT_PREFIXES["ja"])
-    required_keys, max_scores = _get_criteria_config(document_type, signature["rubric_version"])
     
     client = get_gemini_client()
+    target_model = signature.get("gemini_model") or get_model_for_level(prompt_level or "medium")
 
     response = client.generate_content(
-        model=settings.gemini_model,
+        model=target_model,
         contents=(
             f"{prompt_prefix}\n\n"
             "ADDITIONAL PROJECT CONTEXT (FOR REFERENCE ONLY):\n"

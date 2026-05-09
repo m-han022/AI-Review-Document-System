@@ -924,3 +924,16 @@ export async function bootstrapEvaluationSet(payload: {
   return res.json();
 }
 
+export interface GlobalDefaults {
+  policies: any;
+  required_rules: any[];
+  rubric_templates: Record<string, any>;
+}
+
+export async function getGlobalDefaults(): Promise<GlobalDefaults> {
+  const res = await fetch(`${API_BASE_URL}/mgmt/defaults/v2/global`);
+  if (!res.ok) throw new Error(`Failed to fetch global defaults: ${res.statusText}`);
+  return res.json();
+}
+
+

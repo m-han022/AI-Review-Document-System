@@ -1,3 +1,4 @@
+from __future__ import annotations
 from pydantic import BaseModel
 from sqlalchemy import UniqueConstraint
 from sqlmodel import SQLModel, Field, Column, JSON
@@ -17,7 +18,7 @@ class Submission(SQLModel, table=True):
     As per AGENTS.md v2, this should not contain document-specific data.
     Legacy fields are kept for backward compatibility.
     """
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     project_id: str = Field(index=True, unique=True)
     project_name: str
     
@@ -45,7 +46,7 @@ class SubmissionDocument(SQLModel, table=True):
         UniqueConstraint("submission_id", "document_type", "document_name", name="uq_submission_document_identity"),
     )
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     submission_id: int = Field(foreign_key="submission.id", index=True)
     document_type: str = Field(index=True)
     document_name: str = Field(index=True)
@@ -60,7 +61,7 @@ class SubmissionDocumentVersion(SQLModel, table=True):
         UniqueConstraint("document_id", "document_version", name="uq_document_version"),
     )
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     submission_id: int = Field(foreign_key="submission.id", index=True)
     document_id: Optional[int] = Field(default=None, foreign_key="submission_document.id", index=True)
     document_version: str = Field(index=True)
@@ -69,6 +70,7 @@ class SubmissionDocumentVersion(SQLModel, table=True):
     file_path: Optional[str] = None
     extracted_text: str
     content_hash: str = Field(index=True)
+    binary_hash: Optional[str] = Field(default=None, index=True)
     language: str = Field(default="ja", index=True)
     uploaded_at: str = ""
     is_latest: bool = Field(default=True, index=True)
@@ -77,7 +79,7 @@ class SubmissionDocumentVersion(SQLModel, table=True):
 class Rubric(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("document_type", "version", name="uq_rubric_document_type_version"),)
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     document_type: str = Field(index=True)
     version: str = Field(index=True)
     active: bool = Field(default=False, index=True)
@@ -90,7 +92,7 @@ class Rubric(SQLModel, table=True):
 class RubricCriterionRecord(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("rubric_id", "key", name="uq_rubric_criterion_key"),)
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     rubric_id: int = Field(foreign_key="rubric.id", index=True)
     key: str = Field(index=True)
     max_score: float
@@ -102,7 +104,7 @@ class RubricCriterionRecord(SQLModel, table=True):
 class EvaluationPolicy(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("level", "version", name="uq_policy_level_version"),)
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     level: str = Field(index=True)
     version: str = Field(index=True)
     content: str
@@ -116,7 +118,7 @@ class RequiredRuleSet(SQLModel, table=True):
         UniqueConstraint("hash", name="uq_required_rule_set_hash"),
     )
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     version: str = Field(index=True)
     hash: str = Field(index=True)
     content: str
@@ -127,7 +129,7 @@ class RequiredRuleSet(SQLModel, table=True):
 class PromptVersion(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("document_type", "level", "version", name="uq_prompt_type_level_version"),)
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     document_type: str = Field(index=True)
     level: str = Field(index=True)
     version: str = Field(index=True)
@@ -138,7 +140,7 @@ class PromptVersion(SQLModel, table=True):
 class EvaluationSet(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("document_type", "level", "name", name="uq_evalset_scope_name"),)
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     name: str = Field(index=True)
     document_type: str = Field(index=True)
     level: str = Field(index=True)
@@ -154,7 +156,7 @@ class EvaluationSet(SQLModel, table=True):
 
 
 class GradingRun(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     submission_id: int = Field(foreign_key="submission.id", index=True)
     document_version_id: Optional[int] = Field(default=None, foreign_key="submission_document_version.id", index=True)
     document_version: Optional[str] = Field(default=None, index=True)
@@ -187,7 +189,7 @@ class GradingRun(SQLModel, table=True):
 class GradingCriteriaResult(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("grading_run_id", "criterion_key", name="uq_grading_run_criterion"),)
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     grading_run_id: int = Field(foreign_key="gradingrun.id", index=True)
     criterion_key: str = Field(index=True)
     score: float
@@ -198,7 +200,7 @@ class GradingCriteriaResult(SQLModel, table=True):
 class GradingSlideReview(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("grading_run_id", "slide_number", name="uq_grading_run_slide"),)
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     grading_run_id: int = Field(foreign_key="gradingrun.id", index=True)
     slide_number: int = Field(index=True)
     status: str = Field(default="NG", index=True)
