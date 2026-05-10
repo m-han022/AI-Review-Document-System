@@ -63,12 +63,6 @@ export default function DashboardOverview({
     const scores = projects.map((p) => p.latest_score).filter((s): s is number => s !== null);
     const healthIndex = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
 
-    let nextStep = t("dashboardV6.nextStepUpload");
-    if (byStatus.failed > 0) nextStep = t("dashboard.attention.failed");
-    else if (coverage < 100 && total > 0) nextStep = t("dashboardV6.nextStepReview", { count: total - reviewed });
-    else if (criticalCount > 0) nextStep = t("dashboardV6.nextStepCritical", { count: criticalCount });
-    else if (total > 0) nextStep = t("dashboardV6.nextStepStable");
-
     const byStatus = {
       pending: projects.filter((p) => (p.latest_status || "").toUpperCase() === "PENDING").length,
       extracting: projects.filter((p) => (p.latest_status || "").toUpperCase() === "EXTRACTING").length,
@@ -76,6 +70,12 @@ export default function DashboardOverview({
       completed: projects.filter((p) => (p.latest_status || "").toUpperCase() === "COMPLETED").length,
       failed: projects.filter((p) => (p.latest_status || "").toUpperCase() === "FAILED").length,
     };
+
+    let nextStep = t("dashboardV6.nextStepUpload");
+    if (byStatus.failed > 0) nextStep = t("dashboard.attention.failed");
+    else if (coverage < 100 && total > 0) nextStep = t("dashboardV6.nextStepReview", { count: total - reviewed });
+    else if (criticalCount > 0) nextStep = t("dashboardV6.nextStepCritical", { count: criticalCount });
+    else if (total > 0) nextStep = t("dashboardV6.nextStepStable");
 
     return { total, reviewed, criticalCount, coverage, healthIndex, nextStep, byStatus };
   }, [projects, t]);
