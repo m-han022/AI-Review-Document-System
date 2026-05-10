@@ -590,58 +590,57 @@ export default function OperationalScreen({
         </div>
       )}
 
-      <Card title={copy.latest}>
-        <div className="prod-table-wrap">
-          <table className="prod-history-table">
-            <thead>
+      <h3 className="ds-title-h3" style={{ marginBottom: '16px', marginTop: '24px' }}>{copy.latest}</h3>
+      <div className="ds-table-container">
+        <table className="ds-table">
+          <thead>
+            <tr>
+              <th>{t("submissions.projectId")}</th>
+              <th>{t("project.projectName")}</th>
+              <th>{t("project.totalDocuments")}</th>
+              <th>{t("project.totalScore")}</th>
+              <th>{t("project.reviewedAt")}</th>
+              <th>{t("common.status")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {latestRows.length ? (
+              latestRows.map((project) => {
+                const score = project.latest_score;
+                const reviewed = typeof score === "number";
+                return (
+                  <tr 
+                    key={project.project_id} 
+                    onClick={() => {
+                      if (onSelectProject) onSelectProject(project.project_id);
+                      else window.dispatchEvent(new CustomEvent("open-project-detail", { detail: project.project_id }));
+                    }}
+                    style={{ cursor: 'pointer' }}
+                    className="ds-table-row-v4"
+                  >
+                    <td>{project.project_id}</td>
+                    <td style={{ fontWeight: 600 }}>{getLocalizedText(project.project_name, lang)}</td>
+                    <td>{project.total_documents}</td>
+                    <td>{reviewed ? `${score}/100` : "—"}</td>
+                    <td>{formatUploadedAt(project.latest_updated_at, lang)}</td>
+                    <td>
+                      <StatusBadge tone={reviewed ? "success" : "warning"}>
+                        {reviewed ? copy.reviewed : copy.pending}
+                      </StatusBadge>
+                    </td>
+                  </tr>
+                );
+              })
+            ) : (
               <tr>
-                <th>{t("submissions.projectId")}</th>
-                <th>{t("project.projectName")}</th>
-                <th>{t("project.totalDocuments")}</th>
-                <th>{t("project.totalScore")}</th>
-                <th>{t("project.reviewedAt")}</th>
-                <th>{t("common.status")}</th>
+                <td colSpan={6}>
+                  <EmptyState title={copy.noData} compact />
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {latestRows.length ? (
-                latestRows.map((project) => {
-                  const score = project.latest_score;
-                  const reviewed = typeof score === "number";
-                  return (
-                    <tr 
-                      key={project.project_id} 
-                      onClick={() => {
-                        if (onSelectProject) onSelectProject(project.project_id);
-                        else window.dispatchEvent(new CustomEvent("open-project-detail", { detail: project.project_id }));
-                      }}
-                      style={{ cursor: 'pointer' }}
-                      className="prod-history-row"
-                    >
-                      <td>{project.project_id}</td>
-                      <td style={{ fontWeight: 600 }}>{getLocalizedText(project.project_name, lang)}</td>
-                      <td>{project.total_documents}</td>
-                      <td>{reviewed ? `${score}/100` : "—"}</td>
-                      <td>{formatUploadedAt(project.latest_updated_at, lang)}</td>
-                      <td>
-                        <StatusBadge tone={reviewed ? "success" : "warning"}>
-                          {reviewed ? copy.reviewed : copy.pending}
-                        </StatusBadge>
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan={6}>
-                    <EmptyState title={copy.noData} compact />
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

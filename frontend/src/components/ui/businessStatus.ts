@@ -15,3 +15,11 @@ export function businessStatusTone(status: BusinessStatus): "success" | "warning
   return "warning";
 }
 
+export type BusinessStatusIcon = "check" | "alert" | "refresh" | "download";
+
+export function businessStatusIcon(status: BusinessStatus): BusinessStatusIcon {
+  if (status === "reviewReady") return "check";
+  if (status === "attentionNeeded") return "alert";
+  if (status === "exporting") return "download";
+  return "refresh";
+}

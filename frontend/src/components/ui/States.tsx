@@ -72,18 +72,27 @@ interface SkeletonTableProps {
 
 export function SkeletonTable({ rows = 4, cols = 4 }: SkeletonTableProps) {
   return (
-    <div className="ui-skeleton-table" aria-hidden="true">
-      {Array.from({ length: rows }).map((_, rowIdx) => (
-        <div
-          key={`row-${rowIdx}`}
-          className="ui-skeleton-table__row"
-          style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
-        >
-          {Array.from({ length: cols }).map((__, colIdx) => (
-            <span key={`cell-${rowIdx}-${colIdx}`} className="ui-skeleton-table__cell ds-skeleton" />
+    <div className="ds-table-container" aria-hidden="true">
+      <table className="ds-table ds-table--compact">
+        <thead>
+          <tr>
+            {Array.from({ length: cols }).map((_, i) => (
+              <th key={i}><span className="ds-skeleton" style={{ width: '60%', height: '12px' }} /></th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: rows }).map((_, rowIdx) => (
+            <tr key={`row-${rowIdx}`} className="ds-table-row-v4">
+              {Array.from({ length: cols }).map((__, colIdx) => (
+                <td key={`cell-${rowIdx}-${colIdx}`}>
+                  <span className="ds-skeleton" style={{ width: colIdx === 0 ? '80%' : '40%', height: '14px' }} />
+                </td>
+              ))}
+            </tr>
           ))}
-        </div>
-      ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -180,8 +189,24 @@ interface StatusBadgeProps {
   children: ReactNode;
   tone?: StateTone | "muted";
   className?: string;
+  icon?: ReactNode;
 }
 
-export function StatusBadge({ children, tone = "muted", className = "" }: StatusBadgeProps) {
-  return <span className={`ui-status-badge ui-status-badge--${tone} ${className}`}>{children}</span>;
+export function StatusBadge({ children, tone = "muted", className = "", icon }: StatusBadgeProps) {
+  return (
+    <span className={`ui-status-badge ui-status-badge--${tone} ${className}`}>
+      {icon && <span className="ui-status-badge__icon" aria-hidden="true">{icon}</span>}
+      {children}
+    </span>
+  );
+}
+
+export function FieldError({ message, className = "" }: { message?: string; className?: string }) {
+  if (!message) return null;
+  return (
+    <div className={`ui-field-error ${className}`.trim()}>
+      <AlertTriangleIcon size="xs" />
+      <span>{message}</span>
+    </div>
+  );
 }

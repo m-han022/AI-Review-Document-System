@@ -40,6 +40,7 @@
       "export": "データを出力",
       "history": "履歴を表示",
       "regrade": "再採点",
+      "grade": "プロジェクト全体を採点",
       "noDocumentsToGrade": "採点対象の資料がありません"
     }
   },

@@ -64,7 +64,8 @@ export default function DashboardOverview({
     const healthIndex = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
 
     let nextStep = t("dashboardV6.nextStepUpload");
-    if (coverage < 100 && total > 0) nextStep = t("dashboardV6.nextStepReview", { count: total - reviewed });
+    if (byStatus.failed > 0) nextStep = t("dashboard.attention.failed");
+    else if (coverage < 100 && total > 0) nextStep = t("dashboardV6.nextStepReview", { count: total - reviewed });
     else if (criticalCount > 0) nextStep = t("dashboardV6.nextStepCritical", { count: criticalCount });
     else if (total > 0) nextStep = t("dashboardV6.nextStepStable");
 

@@ -60,6 +60,17 @@
   background-color: var(--ds-color-border);
 }
 
+.ds-button--danger {
+  background-color: var(--ds-color-danger);
+  color: white;
+}
+
+.ds-button--danger:hover:not(:disabled) {
+  background-color: var(--ds-color-danger-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--ds-shadow-md);
+}
+
 .ds-button--outline {
   background-color: transparent;
   color: var(--ds-color-primary);

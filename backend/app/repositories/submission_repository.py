@@ -44,6 +44,16 @@ class SubmissionRepository:
             .order_by(col(SubmissionDocumentVersion.id).desc())
         ).first()
 
+    def get_all_latest_document_versions(self, submission_id: int) -> list[SubmissionDocumentVersion]:
+        return list(self.session.exec(
+            select(SubmissionDocumentVersion)
+            .where(
+                SubmissionDocumentVersion.submission_id == submission_id,
+                SubmissionDocumentVersion.is_latest == True,
+            )
+            .order_by(col(SubmissionDocumentVersion.id).desc())
+        ).all())
+
     def get_latest_document_version_by_project(self, project_id: str) -> Optional[SubmissionDocumentVersion]:
         submission = self.get_submission(project_id)
         if not submission:

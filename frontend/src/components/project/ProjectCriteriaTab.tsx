@@ -175,58 +175,90 @@ export default function ProjectCriteriaTab({
             </div>
           </section>
 
-
-          {/* Block 2: Detailed Evaluation Table */}
           <section className="analysis-table-v4">
-            <Card style={{ padding: '0', overflow: 'hidden', border: '1px solid var(--ds-color-border)' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <header className="section-header-v3" style={{ marginBottom: '16px' }}>
+              <h2 className="section-title-v3">
+                <SparkIcon size="sm" /> {t("project.criteriaDetailTitle") || "Phân tích chi tiết từng tiêu chí"}
+              </h2>
+            </header>
+            <div className="ds-table-container">
+              <table className="ds-table">
                 <thead>
-                  <tr style={{ background: '#F8FAFC', borderBottom: '1px solid var(--ds-color-border)' }}>
-                    <th style={{ padding: '16px', fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', width: '25%' }}>
-                      {t("project.criteria") || "Tiêu chí"}
-                    </th>
-                    <th style={{ padding: '16px', fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', width: '15%', textAlign: 'center' }}>
-                      {t("project.metaScore") || "Điểm"}
-                    </th>
-                    <th style={{ padding: '16px', fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>
-                      {t("project.detailedBreakdown") || "Đánh giá chi tiết từ AI"}
-                    </th>
+                  <tr>
+                    <th style={{ width: '22%' }}>{t("project.criteria") || "Tiêu chí"}</th>
+                    <th style={{ width: '12%', textAlign: 'center' }}>{t("project.metaScore") || "Điểm"}</th>
+                    <th>{t("project.feedbackTitle") || "Nhận xét & Đề xuất từ AI"}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {criteriaWithEvaluations.map((item, idx) => (
-                    <tr key={idx} style={{ borderBottom: idx < criteriaWithEvaluations.length - 1 ? '1px solid var(--ds-color-border)' : 'none' }}>
-                      <td style={{ padding: '16px' }}>
+                    <tr key={idx} className="ds-table-row-v4">
+                      <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                           <div style={{ 
                             width: '32px', height: '32px', borderRadius: '8px', 
-                            background: '#F1F5F9', 
+                            background: item.value / item.max >= 0.8 ? 'rgba(16, 185, 129, 0.1)' : item.value / item.max >= 0.5 ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)', 
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            color: 'var(--ds-color-primary)'
+                            color: item.value / item.max >= 0.8 ? '#10B981' : item.value / item.max >= 0.5 ? '#F59E0B' : '#EF4444'
                           }}>
                             <item.Icon size="xs" />
                           </div>
-                          <span style={{ fontWeight: 600, fontSize: '14px', color: '#334155' }}>{item.label}</span>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontWeight: 700, fontSize: '13.5px', color: '#1E293B' }}>{item.label}</span>
+                            <span style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 600 }}>{item.key}</span>
+                          </div>
                         </div>
                       </td>
-                      <td style={{ padding: '16px', textAlign: 'center' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                          <span style={{ fontWeight: 700, fontSize: '16px', color: item.value / item.max >= 0.8 ? '#10B981' : item.value / item.max >= 0.5 ? '#F59E0B' : '#EF4444' }}>
+                      <td style={{ textAlign: 'center' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <div style={{ fontSize: '18px', fontWeight: 800, color: item.value / item.max >= 0.8 ? '#10B981' : item.value / item.max >= 0.5 ? '#F59E0B' : '#EF4444' }}>
                             {item.value}
-                          </span>
-                          <span style={{ fontSize: '11px', color: '#94A3B8' }}>/ {item.max}</span>
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>/ {item.max}</div>
                         </div>
                       </td>
-                      <td style={{ padding: '16px' }}>
-                        <p style={{ fontSize: '13.5px', lineHeight: '1.6', color: '#475569', margin: 0 }}>
-                          {item.evaluation}
-                        </p>
+                      <td>
+                        <div style={{ 
+                          fontSize: '13.5px', 
+                          lineHeight: '1.6', 
+                          color: '#334155', 
+                          margin: 0,
+                          whiteSpace: 'pre-wrap'
+                        }}>
+                          {item.evaluation.split('\n').map((para, pidx) => (
+                            <p key={pidx} style={{ marginBottom: '8px' }}>
+                              {para.startsWith('-') || para.startsWith('•') 
+                                ? <span style={{ display: 'block', paddingLeft: '12px', position: 'relative' }}>
+                                    <span style={{ position: 'absolute', left: 0, color: 'var(--ds-color-primary)' }}>•</span>
+                                    {para.substring(1).trim()}
+                                  </span>
+                                : para
+                              }
+                            </p>
+                          ))}
+                        </div>
+                        {item.value / item.max < 0.7 && (
+                          <div style={{ 
+                            marginTop: '12px', 
+                            padding: '8px 12px', 
+                            background: 'var(--ds-color-primary-soft)', 
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            color: 'var(--ds-color-primary-dark)',
+                            fontWeight: 600,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}>
+                            <SparkIcon size="xs" /> {t("project.improveScoreBlock") || "Để tăng điểm:"} Rà soát lại các slide NG liên quan đến tiêu chí này.
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </Card>
+            </div>
           </section>
         </>
       ) : (

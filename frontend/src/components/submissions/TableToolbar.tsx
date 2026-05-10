@@ -65,76 +65,69 @@ export default function TableToolbar({
   ];
 
   return (
-    <div className="submissions-toolbar-v4">
-      <div className="toolbar-groups-v4">
-        <div className="toolbar-search-container-v4">
-          <Input
-            placeholder={t("submissions.searchPlaceholder")}
-            value={searchQuery}
-            onChange={(e) => onSearchQueryChange(e.target.value)}
-            leftIcon={<SearchIcon size="sm" />}
-            className="toolbar-search-v4"
+    <div className="toolbar-groups-v4">
+      <div className="toolbar-search-container-v4">
+        <Input
+          placeholder={t("submissions.searchPlaceholder")}
+          value={searchQuery}
+          onChange={(e) => onSearchQueryChange(e.target.value)}
+          leftIcon={<SearchIcon size="sm" />}
+          className="toolbar-search-v4"
+        />
+      </div>
+
+      <div className="toolbar-filters-v4">
+        <div style={{ minWidth: "160px" }}>
+          <Select
+            options={statusOptions}
+            value={statusFilter}
+            onChange={(e) => onStatusFilterChange(e.target.value as any)}
           />
         </div>
-
-        <div className="toolbar-filters-v4">
-          <div style={{ minWidth: "180px" }}>
-            <Select
-              options={docTypeOptions}
-              value={documentTypeFilter}
-              onChange={(e) => onDocumentTypeFilterChange(e.target.value as any)}
-              title={t("submissions.filterAllDocumentTypes")}
-            />
-          </div>
-          <div style={{ minWidth: "160px" }}>
-            <Select
-              options={statusOptions}
-              value={statusFilter}
-              onChange={(e) => onStatusFilterChange(e.target.value as any)}
-            />
-          </div>
-          <div style={{ minWidth: "160px" }}>
-            <Select
-              options={languageOptions}
-              value={languageFilter}
-              onChange={(e) => onLanguageFilterChange(e.target.value as any)}
-              title={t("submissions.filterAllLanguages")}
-            />
-          </div>
-        </div>
-
-        <div className="toolbar-actions-v4">
-          <Button 
-            variant="primary" 
-            onClick={onCreateProject} 
-            disabled={isActionPending}
-            size="md"
-            className="toolbar-action-btn-v4"
-          >
-            <PlusIcon size="sm" />
-            {t("submissions.createProjectNew")}
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={onExport} 
-            disabled={totalCount === 0 || exporting || isActionPending}
-            isLoading={exporting}
-            size="md"
-            className="toolbar-action-btn-v4 toolbar-action-btn-v4--icon"
-          >
-            <DownloadIcon size="sm" />
-          </Button>
-          <Button 
-            variant="danger" 
-            onClick={onDeleteSelected} 
-            disabled={!hasSelection || isActionPending}
-            size="md"
-            className="toolbar-action-btn-v4 toolbar-action-btn-v4--icon"
-          >
-            <TrashIcon size="sm" />
-          </Button>
+        <div style={{ minWidth: "160px" }}>
+          <Select
+            options={languageOptions}
+            value={languageFilter}
+            onChange={(e) => onLanguageFilterChange(e.target.value as any)}
+            title={t("submissions.filterAllLanguages")}
+          />
         </div>
       </div>
+
+      <div className="toolbar-actions-v4">
+        <Button 
+          variant="primary" 
+          onClick={onCreateProject} 
+          disabled={isActionPending}
+          size="md"
+          className="toolbar-action-btn-v4"
+        >
+          <PlusIcon size="sm" />
+          {t("submissions.createProjectNew")}
+        </Button>
+        <Button 
+          variant="primary" 
+          onClick={onExport} 
+          disabled={totalCount === 0 || exporting || isActionPending}
+          isLoading={exporting}
+          size="md"
+          className="toolbar-action-btn-v4"
+        >
+          <DownloadIcon size="sm" />
+          {t("submissions.exportExcel") || "Xuất Excel"}
+        </Button>
+        <Button 
+          variant="danger" 
+          onClick={onDeleteSelected} 
+          disabled={!hasSelection || isActionPending}
+          size="md"
+          className="toolbar-action-btn-v4"
+        >
+          <TrashIcon size="sm" />
+          {t("submissions.deleteSelected") || "Xóa đã chọn"}
+        </Button>
+      </div>
     </div>
+
   );
 }

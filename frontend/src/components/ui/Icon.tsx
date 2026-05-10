@@ -1,5 +1,6 @@
 import {
   ArrowLeft,
+  ArrowRight,
   ArrowUp,
   ArrowDown,
   Minus,
@@ -64,6 +65,7 @@ const ICON_STROKE_WIDTH = 1.5;
 const icons = {
   alertTriangle: TriangleAlert,
   arrowLeft: ArrowLeft,
+  arrowRight: ArrowRight,
   arrowUp: ArrowUp,
   arrowDown: ArrowDown,
   minus: Minus,
@@ -164,6 +166,10 @@ export function ArrowUpIcon(props: NamedIconProps) {
 
 export function ArrowDownIcon(props: NamedIconProps) {
   return <Icon name="arrowDown" {...props} />;
+}
+
+export function ArrowRightIcon(props: NamedIconProps) {
+  return <Icon name="arrowRight" {...props} />;
 }
 
 export function MinusIcon(props: NamedIconProps) {

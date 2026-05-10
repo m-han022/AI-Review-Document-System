@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1600" height="1000" viewBox="0 0 1600 1000" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="14" flood-color="#0F172A" flood-opacity="0.08"/>
+    </filter>
+    <linearGradient id="nav" x1="0" y1="0" x2="0" y2="1000">
+      <stop stop-color="#071B35"/>
+      <stop offset="1" stop-color="#0B1220"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#60A5FA"/>
+    </linearGradient>
+    <style>
+      .bg { fill:#F6F8FB; }
+      .panel { fill:#FFFFFF; stroke:#E2E8F0; stroke-width:1.2; filter:url(#shadow); }
+      .panel-flat { fill:#FFFFFF; stroke:#E2E8F0; stroke-width:1.2; }
+      .title { font:700 26px Inter, Arial, sans-serif; fill:#0F172A; }
+      .h2 { font:700 18px Inter, Arial, sans-serif; fill:#0F172A; }
+      .h3 { font:700 14px Inter, Arial, sans-serif; fill:#111827; }
+      .body { font:400 12px Inter, Arial, sans-serif; fill:#475569; }
+      .muted { font:400 11px Inter, Arial, sans-serif; fill:#64748B; }
+      .small { font:600 10px Inter, Arial, sans-serif; fill:#64748B; letter-spacing:.02em; }
+      .metric { font:700 32px Inter, Arial, sans-serif; fill:#0F172A; }
+      .navtext { font:600 12px Inter, Arial, sans-serif; fill:#CBD5E1; }
+      .navactive { font:700 12px Inter, Arial, sans-serif; fill:#FFFFFF; }
+      .link { font:700 12px Inter, Arial, sans-serif; fill:#2563EB; }
+      .badge-green { fill:#DCFCE7; stroke:#86EFAC; }
+      .badge-red { fill:#FEE2E2; stroke:#FCA5A5; }
+      .badge-amber { fill:#FEF3C7; stroke:#FCD34D; }
+      .badge-blue { fill:#DBEAFE; stroke:#93C5FD; }
+      .badge-text-green { font:700 10px Inter, Arial, sans-serif; fill:#15803D; }
+      .badge-text-red { font:700 10px Inter, Arial, sans-serif; fill:#DC2626; }
+      .badge-text-amber { font:700 10px Inter, Arial, sans-serif; fill:#D97706; }
+      .badge-text-blue { font:700 10px Inter, Arial, sans-serif; fill:#2563EB; }
+      .line { stroke:#E2E8F0; stroke-width:1; }
+      .bar-bg { stroke:#E5E7EB; stroke-width:8; stroke-linecap:round; }
+      .bar-red { stroke:#EF4444; stroke-width:8; stroke-linecap:round; }
+      .bar-blue { stroke:#2563EB; stroke-width:8; stroke-linecap:round; }
+      .bar-green { stroke:#22C55E; stroke-width:8; stroke-linecap:round; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1600" height="1000"/>
+
+  <!-- Sidebar -->
+  <rect x="0" y="0" width="210" height="1000" fill="url(#nav)"/>
+  <rect x="22" y="24" width="32" height="32" rx="8" fill="url(#blue)"/>
+  <text x="31" y="45" font-family="Inter, Arial" font-size="15" font-weight="800" fill="white">AI</text>
+  <text x="66" y="45" font-family="Inter, Arial" font-size="16" font-weight="800" fill="white">AI Review</text>
+
+  <rect x="16" y="92" width="178" height="42" rx="10" fill="#1D4ED8" opacity=".9"/>
+  <circle cx="36" cy="113" r="7" fill="#BFDBFE"/>
+  <text x="58" y="117" class="navactive">Tổng quan</text>
+
+  <g class="navtext">
+    <circle cx="36" cy="165" r="6" fill="#64748B"/><text x="58" y="169">Tài liệu</text>
+    <circle cx="36" cy="215" r="6" fill="#64748B"/><text x="58" y="219">Phiên bản</text>
+    <circle cx="36" cy="265" r="6" fill="#64748B"/><text x="58" y="269">Review</text>
+    <circle cx="36" cy="315" r="6" fill="#64748B"/><text x="58" y="319">Bộ tiêu chuẩn</text>
+    <circle cx="36" cy="365" r="6" fill="#64748B"/><text x="58" y="369">Khung tiêu chí</text>
+    <circle cx="36" cy="415" r="6" fill="#64748B"/><text x="58" y="419">Prompt AI</text>
+    <circle cx="36" cy="465" r="6" fill="#64748B"/><text x="58" y="469">So sánh phiên bản</text>
+    <circle cx="36" cy="515" r="6" fill="#64748B"/><text x="58" y="519">Báo cáo</text>
+    <circle cx="36" cy="565" r="6" fill="#64748B"/><text x="58" y="569">Nhật ký hoạt động</text>
+    <circle cx="36" cy="615" r="6" fill="#64748B"/><text x="58" y="619">Cấu hình</text>
+  </g>
+  <rect x="16" y="910" width="178" height="52" rx="12" fill="#0F2747" stroke="#1E3A5F"/>
+  <text x="58" y="935" class="navtext">Trợ giúp</text>
+  <text x="58" y="952" class="muted">Tài liệu hướng dẫn</text>
+
+  <!-- Topbar -->
+  <rect x="210" y="0" width="1390" height="70" fill="#FFFFFF" stroke="#E2E8F0"/>
+  <rect x="246" y="18" width="172" height="34" rx="10" fill="#FFFFFF" stroke="#CBD5E1"/>
+  <text x="266" y="40" class="body">Tất cả dự án</text>
+  <path d="M390 32 L398 40 L406 32" stroke="#64748B" stroke-width="2" fill="none"/>
+  <rect x="1255" y="18" width="150" height="34" rx="10" fill="#FFFFFF" stroke="#CBD5E1"/>
+  <text x="1282" y="40" class="body">20/05/2025</text>
+  <circle cx="1434" cy="35" r="17" fill="#EFF6FF" stroke="#BFDBFE"/>
+  <text x="1425" y="40" font-family="Inter, Arial" font-size="12" font-weight="700" fill="#2563EB">TN</text>
+  <text x="1462" y="31" class="h3">Tan Nguyen</text>
+  <text x="1462" y="48" class="muted">Project Manager</text>
+
+  <!-- Main content -->
+  <text x="246" y="116" class="title">Bảng điều khiển hệ thống</text>
+  <text x="246" y="140" class="body">Theo dõi hiệu năng AI, hàng đợi và chất lượng dự án theo thời gian thực.</text>
+
+  <!-- KPI cards -->
+  <g>
+    <rect x="246" y="165" width="250" height="122" rx="14" class="panel"/>
+    <rect x="270" y="190" width="48" height="48" rx="13" fill="#EFF6FF"/>
+    <text x="338" y="202" class="small">DỰ ÁN ĐANG REVIEW</text>
+    <text x="338" y="236" class="metric">12</text>
+    <text x="374" y="236" font-family="Inter, Arial" font-size="20" font-weight="700" fill="#64748B">/12</text>
+    <text x="338" y="266" class="muted">+2 so với tuần trước</text>
+
+    <rect x="516" y="165" width="250" height="122" rx="14" class="panel"/>
+    <rect x="540" y="190" width="48" height="48" rx="13" fill="#FEE2E2"/>
+    <text x="608" y="202" class="small">CÓ ĐIỂM THẤP XUỐNG</text>
+    <text x="608" y="236" class="metric" fill="#DC2626">2</text>
+    <text x="608" y="266" class="muted">Cần kiểm tra và cải thiện</text>
+
+    <rect x="786" y="165" width="250" height="122" rx="14" class="panel"/>
+    <rect x="810" y="190" width="48" height="48" rx="13" fill="#ECFDF5"/>
+    <text x="878" y="202" class="small">AI EFFICIENCY</text>
+    <text x="878" y="236" class="metric">82%</text>
+    <text x="878" y="266" class="muted">Hiệu suất AI trung bình</text>
+
+    <rect x="1056" y="165" width="250" height="122" rx="14" class="panel"/>
+    <rect x="1080" y="190" width="48" height="48" rx="13" fill="#F0FDFA"/>
+    <text x="1148" y="202" class="small">HỆ THỐNG ỔN ĐỊNH</text>
+    <text x="1148" y="236" class="metric">99.2%</text>
+    <text x="1148" y="266" class="muted">Uptime 7 ngày qua</text>
+  </g>
+
+  <!-- Quality overview -->
+  <rect x="246" y="312" width="520" height="285" rx="14" class="panel"/>
+  <text x="270" y="348" class="h2">Tổng quan chất lượng</text>
+  <text x="270" y="372" class="body">Chất lượng review theo dự án</text>
+  <line x1="270" y1="400" x2="742" y2="400" class="line"/>
+  <text x="270" y="455" class="h3">P003</text>
+  <text x="705" y="455" class="h3">43/100</text>
+  <line x1="270" y1="480" x2="720" y2="480" class="bar-bg"/>
+  <line x1="270" y1="480" x2="492" y2="480" class="bar-red"/>
+  <text x="270" y="535" class="h3">P001</text>
+  <text x="705" y="535" class="h3">41/100</text>
+  <line x1="270" y1="560" x2="720" y2="560" class="bar-bg"/>
+  <line x1="270" y1="560" x2="484" y2="560" class="bar-red"/>
+  <text x="270" y="582" class="link">Xem chi tiết →</text>
+
+  <!-- Issue structure -->
+  <rect x="786" y="312" width="310" height="285" rx="14" class="panel"/>
+  <text x="810" y="348" class="h2">Cơ cấu vấn đề</text>
+  <text x="810" y="372" class="body">Phân loại nguyên nhân chính</text>
+  <rect x="810" y="398" width="260" height="60" rx="12" fill="#F8FAFC"/>
+  <rect x="826" y="414" width="32" height="32" rx="8" fill="#EEF2FF"/>
+  <text x="872" y="424" class="h3">Thiếu logic / root cause</text>
+  <text x="872" y="444" class="badge-text-red">2 common projects</text>
+  <rect x="810" y="474" width="260" height="60" rx="12" fill="#F8FAFC"/>
+  <rect x="826" y="490" width="32" height="32" rx="8" fill="#EEF2FF"/>
+  <text x="872" y="500" class="h3">Thiếu định lượng</text>
+  <text x="872" y="520" class="badge-text-red">2 common projects</text>
+  <rect x="810" y="550" width="260" height="60" rx="12" fill="#F8FAFC"/>
+  <rect x="826" y="566" width="32" height="32" rx="8" fill="#EEF2FF"/>
+  <text x="872" y="576" class="h3">Thiếu ảnh hưởng</text>
+  <text x="872" y="596" class="badge-text-red">2 common projects</text>
+
+  <!-- Right column -->
+  <rect x="1120" y="312" width="360" height="270" rx="14" class="panel"/>
+  <text x="1144" y="348" class="h2">Bối cảnh &amp; Tóm tắt chiến lược</text>
+  <rect x="1144" y="380" width="312" height="82" rx="10" class="panel-flat"/>
+  <text x="1164" y="408" class="h3">【デザイン】OGIS Re-evaluate the project</text>
+  <text x="1164" y="428" class="h3">20250424 2</text>
+  <text x="1164" y="450" class="body">Chia sẻ đã có hiệu chỉnh logic dễ hiểu rõ.</text>
+  <rect x="1144" y="478" width="312" height="82" rx="10" class="panel-flat"/>
+  <text x="1164" y="506" class="h3">【要件システム】フェーズ改善のまとめ</text>
+  <text x="1164" y="526" class="h3">Vol (1)</text>
+  <text x="1164" y="548" class="body">Chia sẻ đã có hiệu chỉnh logic dễ hiểu rõ.</text>
+
+  <rect x="1120" y="604" width="360" height="220" rx="14" class="panel"/>
+  <text x="1144" y="638" class="h2">Cảnh báo điều hành</text>
+  <circle cx="1450" cy="633" r="12" fill="#FEE2E2"/><text x="1446" y="637" class="badge-text-red">2</text>
+  <rect x="1144" y="662" width="312" height="62" rx="10" fill="#FFFBEB" stroke="#FED7AA"/>
+  <line x1="1144" y1="662" x2="1144" y2="724" stroke="#F97316" stroke-width="4"/>
+  <text x="1164" y="690" class="h3">Điểm thấp bất thường</text>
+  <text x="1164" y="710" class="body">Cần báo lỗi review</text>
+  <rect x="1144" y="742" width="312" height="62" rx="10" fill="#FFFBEB" stroke="#FED7AA"/>
+  <line x1="1144" y1="742" x2="1144" y2="804" stroke="#F97316" stroke-width="4"/>
+  <text x="1164" y="770" class="h3">Độ che phủ AI xuống thấp</text>
+  <text x="1164" y="790" class="body">Cần kiểm tra bộ tiêu chuẩn</text>
+
+  <!-- Priority table -->
+  <rect x="246" y="624" width="850" height="250" rx="14" class="panel"/>
+  <text x="270" y="660" class="h2">Ưu tiên xử lý</text>
+  <text x="270" y="684" class="body">Các tài liệu có điểm thấp nhất trong nhóm đã review.</text>
+  <rect x="270" y="714" width="802" height="40" fill="#F8FAFC"/>
+  <text x="292" y="739" class="small">DỰ ÁN</text>
+  <text x="450" y="739" class="small">TÊN TÀI LIỆU</text>
+  <text x="802" y="739" class="small">ĐIỂM</text>
+  <text x="920" y="739" class="small">TRẠNG THÁI</text>
+  <line x1="270" y1="754" x2="1072" y2="754" class="line"/>
+  <text x="292" y="790" class="body">P003</text>
+  <text x="450" y="790" class="h3">【要件システム】フェーズ改善のまとめ Vol (1)</text>
+  <text x="802" y="790" class="body">42/100</text>
+  <rect x="920" y="772" width="86" height="24" rx="7" class="badge-amber"/>
+  <text x="936" y="788" class="badge-text-amber">COMPLETED</text>
+  <line x1="270" y1="812" x2="1072" y2="812" class="line"/>
+  <text x="292" y="848" class="body">P001</text>
+  <text x="450" y="848" class="h3">【デザイン】OGIS Re-evaluate the project 20250424 2</text>
+  <text x="802" y="848" class="body">41/100</text>
+  <rect x="920" y="830" width="86" height="24" rx="7" class="badge-amber"/>
+  <text x="936" y="846" class="badge-text-amber">COMPLETED</text>
+
+  <!-- Today overview bottom -->
+  <rect x="246" y="902" width="1234" height="76" rx="14" class="panel"/>
+  <text x="270" y="934" class="h2">Tổng quan hoạt động hôm nay</text>
+  <text x="270" y="962" class="h3">124 tài liệu đã review</text>
+  <text x="500" y="962" class="h3">18 hàng đợi xử lý</text>
+  <text x="720" y="962" class="h3">106 hoàn thành</text>
+  <text x="940" y="962" class="h3">6 thất bại</text>
+  <text x="1160" y="962" class="h3">1.4s thời gian AI TB</text>
+  <rect x="1348" y="924" width="108" height="34" rx="9" fill="#2563EB"/>
+  <text x="1372" y="946" font-family="Inter, Arial" font-size="12" font-weight="700" fill="white">Báo cáo →</text>
+</svg>

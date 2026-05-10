@@ -8,6 +8,7 @@ import Badge from "../ui/Badge";
 import { 
   ArrowUpIcon, 
   ArrowDownIcon, 
+  ArrowRightIcon,
   MinusIcon,
   ShieldCheckIcon,
   TargetIcon,
@@ -159,7 +160,9 @@ export default function VersionComparison({ data }: VersionComparisonProps) {
                 <div style={{ fontSize: '12px', color: '#64748b' }}>{data.base_version.version}</div>
                 <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{scoreA ?? "—"}</div>
               </div>
-              <div style={{ fontSize: '20px', color: '#94a3b8' }}>→</div>
+              <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8' }}>
+                <ArrowRightIcon size="sm" />
+              </div>
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: '12px', color: '#64748b' }}>{data.compare_version.version}</div>
                 <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{scoreB ?? "—"}</div>
@@ -180,7 +183,7 @@ export default function VersionComparison({ data }: VersionComparisonProps) {
                       {data.base_run?.slide_reviews?.filter(s => s.status === "OK").length ?? 0}
                    </div>
                 </div>
-                <div style={{ fontSize: '20px', color: '#94a3b8' }}>→</div>
+                <div style={{ fontSize: '20px', color: '#94a3b8' }}><ArrowRightIcon size="sm" /></div>
                 <div style={{ textAlign: 'center' }}>
                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#10b981' }}>
                       {data.compare_run?.slide_reviews?.filter(s => s.status === "OK").length ?? 0}
@@ -202,7 +205,7 @@ export default function VersionComparison({ data }: VersionComparisonProps) {
                       {data.base_run?.slide_reviews?.filter(s => s.status === "NG").length ?? 0}
                    </div>
                 </div>
-                <div style={{ fontSize: '20px', color: '#94a3b8' }}>→</div>
+                <div style={{ fontSize: '20px', color: '#94a3b8' }}><ArrowRightIcon size="sm" /></div>
                 <div style={{ textAlign: 'center' }}>
                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#ef4444' }}>
                       {data.compare_run?.slide_reviews?.filter(s => s.status === "NG").length ?? 0}
@@ -221,40 +224,42 @@ export default function VersionComparison({ data }: VersionComparisonProps) {
       <SectionBlock style={{ marginBottom: '24px' }}>
         <SectionBlock.Header title={t("compare.criteriaComparison")} />
         <SectionBlock.Body className="p-0">
-          <table className="comparison-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-              <tr>
-                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#64748b' }}>{t("rubric.criteria")}</th>
-                <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#64748b' }}>{data.base_version.version}</th>
-                <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#64748b' }}>{data.compare_version.version}</th>
-                <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#64748b' }}>{t("common.status")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.criteria_deltas.map(({ key, base_score, compare_score, delta, status }) => {
-                const Icon = getCriterionIcon(key);
-                return (
-                  <tr key={key} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '12px 16px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Icon size="sm" style={{ color: '#94a3b8' }} />
-                        <span style={{ fontWeight: '500' }}>{getCriterionLabel(key)}</span>
-                      </div>
-                    </td>
-                    <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                      {base_score !== null ? base_score : "—"}
-                    </td>
-                    <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                      {compare_score !== null ? compare_score : "—"}
-                    </td>
-                    <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                      {renderStatusBadge(status, delta)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="ds-table-container">
+            <table className="ds-table">
+              <thead>
+                <tr>
+                  <th>{t("rubric.criteria")}</th>
+                  <th style={{ textAlign: 'right' }}>{data.base_version.version}</th>
+                  <th style={{ textAlign: 'right' }}>{data.compare_version.version}</th>
+                  <th style={{ textAlign: 'right' }}>{t("common.status")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.criteria_deltas.map(({ key, base_score, compare_score, delta, status }) => {
+                  const Icon = getCriterionIcon(key);
+                  return (
+                    <tr key={key} className="ds-table-row-v4">
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <Icon size="sm" style={{ color: '#94a3b8' }} />
+                          <span style={{ fontWeight: '500' }}>{getCriterionLabel(key)}</span>
+                        </div>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        {base_score !== null ? base_score : "—"}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        {compare_score !== null ? compare_score : "—"}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        {renderStatusBadge(status, delta)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </SectionBlock.Body>
       </SectionBlock>
 

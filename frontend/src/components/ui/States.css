@@ -10,6 +10,13 @@
   text-transform: uppercase;
   letter-spacing: 0.03em;
   white-space: nowrap;
+  gap: 4px;
+}
+
+.ui-status-badge__icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .ui-status-badge--muted {
@@ -167,3 +174,22 @@
   visibility: visible;
   transform: translateX(-50%) translateY(0);
 }
+
+.ui-field-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ds-color-danger);
+  font-size: 12px;
+  font-weight: 500;
+  margin-top: 4px;
+  animation: ds-shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes ds-shake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+  40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+

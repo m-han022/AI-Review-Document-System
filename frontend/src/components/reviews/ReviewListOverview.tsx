@@ -1,4 +1,4 @@
-﻿import { useMemo } from "react";
+import { useMemo } from "react";
 import type { Project } from "../../types";
 import { useTranslation } from "../LanguageSelector";
 import SubmissionsTable from "../SubmissionsTable";
@@ -79,23 +79,6 @@ export default function ReviewListOverview({
 
   return (
     <div className="review-list-container">
-      <header className="review-list-header-v4">
-        <div className="header-text-v4">
-          <h1 className="header-title-v4">{t("submissions.title") || "Tất cả dự án"}</h1>
-          <p className="header-subtitle-v4">
-            {t("submissions.subtitle") || "Theo dõi danh sách dự án, trạng thái review và mở chi tiết từng dự án."}
-            {projects.length > 0 && (
-              <> • <strong>{t("submissions.count", { count: projects.length })}</strong></>
-            )}
-          </p>
-        </div>
-        <div className="header-actions-v4">
-          <Button variant="primary" onClick={onCreateProject}>
-            <PlusIcon size="sm" />
-            {t("submissions.createProjectNew") || "Dự án mới"}
-          </Button>
-        </div>
-      </header>
 
       <div className="review-list-kpis">
         <Card className="kpi-card-v4">
@@ -171,19 +154,14 @@ export default function ReviewListOverview({
             <h2 className="list-title-v4">{t("dashboard.reviewList.listTitle") || "Danh sách tài liệu"}</h2>
             <p className="list-subtitle-v4">{t("dashboard.reviewList.listSubtitle") || "Danh sách tài liệu đã tải lên và kết quả review chi tiết"}</p>
           </div>
-          <div className="list-header-right">
-            <StatusBadge tone="primary">{projects.length} {t("submissions.activeProjects") || "Dự án đang chạy"}</StatusBadge>
-          </div>
         </header>
 
-        <div className="ds-table-card-v4">
-          <SubmissionsTable
-            projects={projects}
-            activeProjectId={activeProjectId ?? null}
-            onSelectProject={onSelectProject}
-            variant="full"
-          />
-        </div>
+        <SubmissionsTable
+          projects={projects}
+          activeProjectId={activeProjectId ?? null}
+          onSelectProject={onSelectProject}
+          variant="full"
+        />
       </section>
     </div>
   );

@@ -16,6 +16,8 @@ import TableFooter from "./submissions/TableFooter";
 import ProjectCreateDialog from "./project/ProjectCreateDialog";
 import ProjectEditDialog from "./project/ProjectEditDialog";
 import { EmptyState } from "./ui/States";
+import { Button } from "./ui";
+import { PlusIcon } from "./ui/Icon";
 import { toHumanErrorMessage } from "../utils/humanizeError";
 
 interface SubmissionsTableProps {
@@ -236,7 +238,7 @@ export default function SubmissionsTable({
   const isActionPending = gradeMutation.isPending || deleteMutation.isPending || bulkDeleteMutation.isPending;
 
   return (
-    <div className="ds-table-container">
+    <div className="submissions-table-wrap">
       {variant !== "dashboard" && (
         <TableToolbar
           selectedCount={selectedIds.size}
@@ -258,56 +260,67 @@ export default function SubmissionsTable({
         />
       )}
 
-      <table className={`ds-table ${variant === "dashboard" || variant === "reference" ? "ds-table--compact" : ""}`}>
-        <TableHeader
-          allSelected={pagedProjects.length > 0 && selectedIds.size === pagedProjects.length}
-          onToggleSelectAll={toggleSelectAll}
-          showCheckbox={!isDashboardVariant}
-        />
-        <tbody>
-          {pagedProjects.length ? (
-            pagedProjects.map((project) => (
-              <TableRow
-                key={project.project_id}
-                project={project}
-                isActive={project.project_id === activeProjectId}
-                isSelected={selectedIds.has(project.project_id)}
-                showCheckbox={!isDashboardVariant}
-                gradingId={gradingId}
-                deletingId={deletingId}
-                isActionPending={isActionPending}
-                onSelect={handleSelectProject}
-                onToggleSelect={toggleSelect}
-                onGrade={handleGrade}
-                onDelete={(id) => openDeleteDialog([id], "single")}
-                onEdit={(p) => setEditingProject(p)}
-                onExportReport={handleExportProjectReport}
-              />
-            ))
-          ) : (
-            <tr>
-              <td colSpan={7} style={{ padding: 0 }}>
-                <EmptyState title={t("submissions.noSubmissions")} compact />
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+      <div className="ds-table-container">
+        <table className={`ds-table ${variant === "dashboard" || variant === "reference" ? "ds-table--compact" : ""}`}>
+          <TableHeader
+            allSelected={pagedProjects.length > 0 && selectedIds.size === pagedProjects.length}
+            onToggleSelectAll={toggleSelectAll}
+            showCheckbox={!isDashboardVariant}
+          />
+          <tbody>
+            {pagedProjects.length ? (
+              pagedProjects.map((project) => (
+                <TableRow
+                  key={project.project_id}
+                  project={project}
+                  isActive={project.project_id === activeProjectId}
+                  isSelected={selectedIds.has(project.project_id)}
+                  showCheckbox={!isDashboardVariant}
+                  gradingId={gradingId}
+                  deletingId={deletingId}
+                  isActionPending={isActionPending}
+                  onSelect={handleSelectProject}
+                  onToggleSelect={toggleSelect}
+                  onGrade={handleGrade}
+                  onDelete={(id) => openDeleteDialog([id], "single")}
+                  onEdit={(p) => setEditingProject(p)}
+                  onExportReport={handleExportProjectReport}
+                />
+              ))
+            ) : (
+              <tr>
+                <td colSpan={7} style={{ padding: 0 }}>
+                  <EmptyState 
+                    title={t("submissions.noSubmissions")} 
+                    description={t("submissions.noSubmissionsDesc") || "Bắt đầu bằng cách tạo dự án đầu tiên của bạn."}
+                    compact 
+                    action={
+                      <Button variant="primary" size="sm" onClick={() => setShowCreateDialog(true)}>
+                        <PlusIcon size="xs" /> {t("submissions.createProjectNew")}
+                      </Button>
+                    }
+                  />
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
 
-      {variant !== "dashboard" && (
-        <TableFooter
-          totalCount={filteredProjects.length}
-          resultSummary={t("submissions.count", { count: filteredProjects.length })}
-          currentPage={currentPage}
-          canGoPrevious={currentPage > 1}
-          canGoNext={currentPage < totalPages}
-          previousLabel={lang === "ja" ? "前へ" : "Trước"}
-          nextLabel={lang === "ja" ? "次へ" : "Tiếp"}
-          onPrevious={() => setCurrentPage(p => Math.max(1, p - 1))}
-          onNext={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-          variant={variant === "reference" ? "reference" : "default"}
-        />
-      )}
+        {variant !== "dashboard" && (
+          <TableFooter
+            totalCount={filteredProjects.length}
+            resultSummary={t("submissions.count", { count: filteredProjects.length })}
+            currentPage={currentPage}
+            canGoPrevious={currentPage > 1}
+            canGoNext={currentPage < totalPages}
+            previousLabel={lang === "ja" ? "前へ" : "Trước"}
+            nextLabel={lang === "ja" ? "次へ" : "Tiếp"}
+            onPrevious={() => setCurrentPage(p => Math.max(1, p - 1))}
+            onNext={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            variant={variant === "reference" ? "reference" : "default"}
+          />
+        )}
+      </div>
 
       {pendingDelete && (
         <ConfirmDialog

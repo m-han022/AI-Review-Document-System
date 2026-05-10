@@ -6,6 +6,7 @@ import { useTranslation } from "../LanguageSelector";
 import BaseModal from "../ui/BaseModal";
 import { Button } from "../ui";
 import { Input } from "../ui/Input";
+import { FieldError } from "../ui/States";
 
 interface ProjectCreateDialogProps {
   open: boolean;
@@ -121,16 +122,7 @@ export default function ProjectCreateDialog({ open, onClose, onCreated }: Projec
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-        {error && (
-          <div style={{ 
-            padding: '12px', borderRadius: 'var(--ds-radius-md)', 
-            backgroundColor: 'var(--ds-color-danger-soft)', 
-            color: 'var(--ds-color-danger)', fontSize: '13px',
-            border: '1px solid var(--ds-color-danger-light)'
-          }}>
-            {error}
-          </div>
-        )}
+        <FieldError message={error} />
         
         <Input
           label="ID (e.g. P123)"

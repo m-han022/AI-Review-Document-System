@@ -28,7 +28,7 @@ import {
   UploadCloudIcon,
 } from "./ui/Icon";
 
-import { EmptyState, ErrorState, FilePreview, StatusBadge, SuccessState, Tooltip } from "./ui/States";
+import { EmptyState, ErrorState, FieldError, FilePreview, StatusBadge, SuccessState, Tooltip } from "./ui/States";
 import { Button, Card, Input, Select } from "./ui";
 import "./FileUpload.css";
 
@@ -632,6 +632,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                           </span>
                         </label>
                       )}
+                      <FieldError message={fieldErrors.file} />
                     </div>
                   </div>
                 </div>

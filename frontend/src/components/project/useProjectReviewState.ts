@@ -39,7 +39,7 @@ export function useProjectReviewState({ projectId, lang, t }: UseProjectReviewSt
   const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null);
   const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null);
   const [selectedGradingId, setSelectedGradingId] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<"criteria" | "slides" | "analysis">("criteria");
+  const [activeTab, setActiveTab] = useState<"overview" | "criteria" | "slides">("overview");
   const [selectedSlideId, setSelectedSlideId] = useState<number | null>(null);
   const [filterNG, setFilterNG] = useState(false);
   const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
@@ -253,6 +253,29 @@ export function useProjectReviewState({ projectId, lang, t }: UseProjectReviewSt
     };
   }, [result, orderedScores, slideReviewItems, t]);
 
+  const scrollToSection = (tab: "overview" | "criteria" | "slides") => {
+    setActiveTab(tab);
+    
+    // Give React a frame to update classes if needed, though sections are always rendered
+    setTimeout(() => {
+      const el = document.getElementById(`section-${tab}`);
+      const scrollContainer = document.getElementById("main-scroll-container");
+      
+      if (el && scrollContainer) {
+        const containerRect = scrollContainer.getBoundingClientRect();
+        const elRect = el.getBoundingClientRect();
+        
+        // Calculate position relative to container's current scroll position
+        const targetScrollTop = scrollContainer.scrollTop + (elRect.top - containerRect.top) - 60;
+        
+        scrollContainer.scrollTo({ 
+          top: targetScrollTop, 
+          behavior: 'smooth' 
+        });
+      }
+    }, 0);
+  };
+
   return useMemo(() => ({
     uiState: {
       selectedDocumentId,
@@ -272,10 +295,11 @@ export function useProjectReviewState({ projectId, lang, t }: UseProjectReviewSt
       promptUsedOpen,
       setPromptUsedOpen,
       promptUsedText,
-      hoveredCriterion,
-      setHoveredCriterion,
-      comparisonMode,
-      setComparisonMode,
+       hoveredCriterion,
+       setHoveredCriterion,
+       comparisonMode,
+       setComparisonMode,
+       scrollToSection,
     },
     dataState: {
       documents,
@@ -309,6 +333,7 @@ export function useProjectReviewState({ projectId, lang, t }: UseProjectReviewSt
   }), [
     selectedDocumentId, selectedVersionId, selectedGradingId, activeTab, selectedSlideId,
     filterNG, summaryDialogOpen, promptUsedOpen, promptUsedText, hoveredCriterion, comparisonMode,
+    scrollToSection,
     documents, sortedDocuments, loadingDocs, docsError, versions, loadingVersions, gradings,
     loadingGradings, gradingDetail, currentProject, currentVersion,
     result, slideReviewItems, ngSlideCount, orderedScores, feedbackSections, activeSlide,

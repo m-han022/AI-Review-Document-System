@@ -1,8 +1,10 @@
 /* Project Workspace Layout Standardized */
 
 .project-layout-v3 {
-  display: block;
+  display: flex;
+  flex-direction: column;
   width: 100%;
+  min-height: min-content; /* Ensure it grows with content */
 }
 
 
@@ -18,7 +20,7 @@
 .project-main-v3 {
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-4); /* Further reduced for density */
+  gap: var(--ds-space-6); /* Increased to match Dashboard spacing */
   min-width: 0;
 }
 
@@ -26,7 +28,7 @@
 .insights-panel-v4 {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: var(--ds-space-4);
+  gap: var(--ds-space-6);
   align-items: stretch;
 }
 
@@ -133,6 +135,10 @@
   border-radius: var(--ds-radius-card);
   padding: 12px 16px;
   box-shadow: var(--ds-shadow-sm);
+  position: sticky;
+  top: 0;
+  z-index: 110;
+  margin-bottom: var(--ds-space-2);
 }
 
 .analytical-header-v4__selectors {
@@ -464,22 +470,26 @@
   }
 }
 
-/* Slides Tab Split Layout v4 */
+/* Slides Tab Split Layout v4 - Adjusted for Single Scroll */
 .slides-tab-layout-v4 {
   display: flex;
-  height: 100%;
   background: var(--ds-color-surface);
   border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-card);
-  overflow: hidden;
+  overflow: visible; /* Let parent scroll */
+  min-height: 600px;
 }
 
 .tab-slide-navigator-v4 {
-  width: 140px; /* Reduced width for mini sidebar */
+  width: 140px;
   border-right: 1px solid var(--ds-color-border);
   display: flex;
   flex-direction: column;
   background: var(--ds-color-bg-app);
+  position: sticky;
+  top: 56px; /* Offset for Sticky Tabs height (~56px) */
+  height: fit-content;
+  max-height: calc(100vh - 140px);
 }
 
 .tab-slide-navigator-v4__header {
@@ -546,7 +556,7 @@
 
 .analysis-workspace-v4 {
   flex: 1;
-  overflow-y: auto;
+  overflow: visible; /* Remove internal scroll for Single Scroll layout */
 }
 
 /* JSON Viewer */
@@ -673,6 +683,39 @@
   margin-bottom: var(--ds-space-2);
 }
 
+.ds-tabs.sticky-tabs {
+  position: sticky;
+  top: 60px; /* Aligned with sticky analytical-header-v4 */
+  z-index: 105;
+  background: var(--ds-color-bg-app);
+  width: 100%;
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  margin-bottom: 24px;
+  padding: 12px 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+.workspace-single-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding-bottom: 100px;
+}
+
+.scroll-section {
+  scroll-margin-top: 140px; /* Offset for sticky topbar + sticky tabs */
+  padding-top: 12px;
+}
+
+.section-divider {
+  margin: 48px 0;
+  border: none;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--ds-color-border-subtle), transparent);
+}
+
 .ds-tabs__item {
   padding: 8px 20px;
   border-radius: 8px;
@@ -711,4 +754,151 @@
   padding: 0 5px;
   border-radius: 10px;
   font-weight: 700;
+}
+
+/* --- AI Evaluation Enhancement Styles --- */
+
+.ai-verdict-banner {
+  background: linear-gradient(135deg, var(--ds-color-primary-soft) 0%, #f8fafc 100%);
+  border: 1px solid var(--ds-color-primary-light);
+  border-radius: var(--ds-radius-card);
+  padding: var(--ds-space-4) var(--ds-space-6);
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-4);
+  box-shadow: var(--ds-shadow-sm);
+  margin-bottom: var(--ds-space-2);
+}
+
+.ai-verdict-banner__icon {
+  width: 48px;
+  height: 48px;
+  background: var(--ds-color-primary);
+  color: white;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(var(--ds-color-primary-rgb), 0.2);
+}
+
+.ai-verdict-banner__content {
+  flex: 1;
+}
+
+.ai-verdict-banner__title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ds-color-primary);
+  margin-bottom: 4px;
+}
+
+.ai-verdict-banner__text {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ds-color-text);
+  line-height: 1.5;
+}
+
+/* Action Checklist Styles */
+.action-checklist-v4 {
+  background: var(--ds-color-surface);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-card);
+  overflow: hidden;
+  box-shadow: var(--ds-shadow-sm);
+}
+
+.action-checklist-v4__header {
+  background: var(--ds-color-bg-app);
+  padding: var(--ds-space-3) var(--ds-space-4);
+  border-bottom: 1px solid var(--ds-color-border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--ds-color-text);
+}
+
+.action-checklist-v4__list {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.action-checklist-v4__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(0,0,0,0.03);
+  transition: background 0.2s;
+}
+
+.action-checklist-v4__item:last-child {
+  border-bottom: none;
+}
+
+.action-checklist-v4__item:hover {
+  background: var(--ds-color-bg-app);
+}
+
+.action-checklist-v4__checkbox {
+  margin-top: 3px;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--ds-color-primary);
+  cursor: pointer;
+}
+
+.action-checklist-v4__content {
+  flex: 1;
+}
+
+.action-checklist-v4__text {
+  font-size: 13.5px;
+  color: var(--ds-color-text);
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+
+.action-checklist-v4__meta {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ds-color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.action-checklist-v4__tag {
+  padding: 1px 6px;
+  background: var(--ds-color-bg-app);
+  border: 1px solid var(--ds-color-border);
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+/* Metadata Tag Styles */
+.meta-tag-v4 {
+  padding: 2px 8px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.meta-tag-v4 i {
+  font-size: 12px;
+  color: var(--ds-color-primary);
 }

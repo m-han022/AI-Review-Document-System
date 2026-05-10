@@ -12,18 +12,19 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--ds-space-2);
+  justify-content: flex-start;
+  gap: var(--ds-space-3);
+  width: 100%;
 }
 
 .toolbar-search-container-v4 {
-  flex: 1 1 340px;
+  flex: 0 1 520px;
   min-width: 280px;
-  max-width: 520px;
 }
 
 .toolbar-filters-v4 {
   display: flex;
-  flex: 1 1 520px;
+  flex: 0 1 auto;
   gap: var(--ds-space-3);
   flex-wrap: wrap;
   align-items: center;
@@ -31,10 +32,10 @@
 
 .toolbar-actions-v4 {
   display: flex;
+  flex: 1 1 auto;
+  justify-content: flex-end;
   gap: var(--ds-space-2);
   align-items: center;
-  padding-left: var(--ds-space-4);
-  border-left: 1px solid var(--ds-color-border);
 }
 
 .toolbar-action-btn-v4 {
@@ -49,35 +50,21 @@
 
 @media (max-width: 1024px) {
   .toolbar-groups-v4 {
-    gap: var(--ds-space-2);
+  .toolbar-main-row-v4 {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .toolbar-search-container-v4,
   .toolbar-filters-v4 {
-    flex: 1 1 100%;
+    flex: 1 1 auto;
     max-width: none;
   }
 
   .toolbar-actions-v4 {
-    border-left: none;
-    padding-left: 0;
     justify-content: flex-start;
   }
 }
-
-/* Page & Section Spacing Overrides */
-.review-list-container {
-  gap: var(--ds-space-8); /* Significant breathing room between KPI and List */
-}
-
-.review-list-main {
-  gap: var(--ds-space-6);
-}
-
-.list-section-header {
-  margin-bottom: var(--ds-space-2);
-}
-
 .ds-table-card-v4 {
   margin-top: var(--ds-space-2);
 }

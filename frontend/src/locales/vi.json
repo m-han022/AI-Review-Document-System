@@ -42,6 +42,7 @@
       "export": "Xuất dữ liệu",
       "history": "Xem lịch sử",
       "regrade": "Chấm điểm lại",
+      "grade": "Chấm điểm toàn bộ dự án",
       "noDocumentsToGrade": "Chưa có tài liệu để chấm điểm"
     }
   },

@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useReducer, useState } from "react";
 import "./AuditDashboard.css";
+import { RefreshIcon, AlertCircleIcon } from "../ui/Icon";
 
 import { exportAuditRunsCsv, getAuditRunDetail, listAuditRuns } from "../../api/client";
 import type { GradingRunDetail, GradingRunHistory } from "../../types";
 import { useTranslation } from "../LanguageSelector";
 import { Button, Card, Input, Select, StatusBadge } from "../ui";
 import { EmptyState, LoadingState } from "../ui/States";
+import TableFooter from "../submissions/TableFooter";
 
 type UiStatus = "idle" | "loading" | "ready" | "empty" | "error";
 type DetailStatus = "idle" | "loading" | "ready" | "error";
@@ -209,6 +211,31 @@ export default function AuditDashboard() {
   };
   const handleSelectRun = (runId: number) => dispatch({ type: "SELECT_RUN", runId });
 
+  const handleRetry = async () => {
+    if (!state.selectedRunDetail) return;
+    const { grading_run, submission, document_version } = state.selectedRunDetail;
+    
+    try {
+      dispatch({ type: "DETAIL_START" });
+      const { gradeSubmission } = await import("../../api/client");
+      await gradeSubmission({
+        projectId: submission.project_id,
+        documentVersionId: document_version?.id,
+        evaluationSetId: grading_run.evaluation_set_id ?? undefined,
+        promptLevel: grading_run.prompt_level ?? undefined,
+        force: true
+      });
+      // Refresh list after retry
+      fetchRows();
+      // Detail will stay in loading/ready based on new fetch
+    } catch (err) {
+      dispatch({
+        type: "DETAIL_ERROR",
+        message: err instanceof Error ? err.message : t("api.grading.failed")
+      });
+    }
+  };
+
   return (
     <div className="audit-container">
       <section aria-label={t("sm.auditDashboard.filterTitle")}>
@@ -280,74 +307,61 @@ export default function AuditDashboard() {
       </section>
 
       <section aria-label={t("sm.auditDashboard.tableTitle")}>
-        <Card title={t("sm.auditDashboard.tableTitle")}>
-          <div className="ds-table-container">
-            <table className="ds-table ds-table--compact">
-              <thead>
-                <tr>
-                  <th>{t("sm.audit.gradingRun")}</th>
-                  <th>{t("sm.audit.document")}</th>
-                  <th>{t("sm.audit.version")}</th>
-                  <th>{t("project.totalScore")}</th>
-                  <th>{t("common.status")}</th>
-                  <th>{t("project.reviewedAt")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {state.status === "loading" ? (
-                  <tr><td colSpan={6}><LoadingState title={t("common.loading")} /></td></tr>
-                ) : state.status === "empty" ? (
-                  <tr><td colSpan={6}><EmptyState title={t("sm.auditDashboard.empty")} compact /></td></tr>
-                ) : (
-                  state.rows.map((row) => (
-                    <tr
-                      key={row.id}
-                      onClick={() => handleSelectRun(row.id)}
-                      className={`audit-table-row ${state.selectedRunId === row.id ? 'is-active' : ''}`}
-                    >
-                      <td>#{row.id}</td>
-                      <td className="ds-text-truncate" style={{ maxWidth: '160px' }}>{row.document_name || t("common.noValue")}</td>
-                      <td>{row.document_version || t("common.noValue")}</td>
-                      <td className="font-bold">{typeof row.total_score === "number" ? `${row.total_score}/100` : "—"}</td>
-                      <td>
-                        <StatusBadge tone={mapStatusTone(row.status)}>
-                          {renderStatusLabel(row.status, t)}
-                        </StatusBadge>
-                      </td>
-                      <td className="text-muted" style={{ fontSize: '11px' }}>
-                        {row.graded_at ? new Date(row.graded_at).toLocaleString() : "—"}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+        <div className="ds-table-container">
+          <table className="ds-table ds-table--compact">
+            <thead>
+              <tr>
+                <th>{t("sm.audit.gradingRun")}</th>
+                <th>{t("sm.audit.document")}</th>
+                <th>{t("sm.audit.version")}</th>
+                <th>{t("project.totalScore")}</th>
+                <th>{t("common.status")}</th>
+                <th>{t("project.reviewedAt")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {state.status === "loading" ? (
+                <tr><td colSpan={6}><LoadingState title={t("common.loading")} /></td></tr>
+              ) : state.status === "empty" ? (
+                <tr><td colSpan={6}><EmptyState title={t("sm.auditDashboard.empty")} compact /></td></tr>
+              ) : (
+                state.rows.map((row) => (
+                  <tr
+                    key={row.id}
+                    onClick={() => handleSelectRun(row.id)}
+                    className={`ds-table-row-v4 ${state.selectedRunId === row.id ? 'is-active' : ''}`}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <td>#{row.id}</td>
+                    <td className="ds-text-truncate" style={{ maxWidth: '160px' }}>{row.document_name || t("common.noValue")}</td>
+                    <td>{row.document_version || t("common.noValue")}</td>
+                    <td className="font-bold">{typeof row.total_score === "number" ? `${row.total_score}/100` : "—"}</td>
+                    <td>
+                      <StatusBadge tone={mapStatusTone(row.status)}>
+                        {renderStatusLabel(row.status, t)}
+                      </StatusBadge>
+                    </td>
+                    <td className="text-muted" style={{ fontSize: '11px' }}>
+                      {row.graded_at ? new Date(row.graded_at).toLocaleString() : "—"}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
 
-          <div className="audit-pagination">
-            <div className="audit-pagination-info">
-              Showing {state.rows.length} results
-            </div>
-            <div className="audit-pagination-btns">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                disabled={!canGoPrev}
-                onClick={() => dispatch({ type: "SET_FILTER", key: "offset", value: Math.max(0, state.filters.offset - state.filters.limit) })}
-              >
-                {t("sm.auditDashboard.prevPage")}
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                disabled={!canGoNext}
-                onClick={() => dispatch({ type: "SET_FILTER", key: "offset", value: state.filters.offset + state.filters.limit })}
-              >
-                {t("sm.auditDashboard.nextPage")}
-              </Button>
-            </div>
-          </div>
-        </Card>
+          <TableFooter
+            totalCount={state.rows.length}
+            resultSummary={`Showing ${state.rows.length} results`}
+            currentPage={Math.floor(state.filters.offset / state.filters.limit) + 1}
+            canGoPrevious={canGoPrev}
+            canGoNext={canGoNext}
+            onPrevious={() => dispatch({ type: "SET_FILTER", key: "offset", value: Math.max(0, state.filters.offset - state.filters.limit) })}
+            onNext={() => dispatch({ type: "SET_FILTER", key: "offset", value: state.filters.offset + state.filters.limit })}
+            previousLabel={t("sm.auditDashboard.prevPage")}
+            nextLabel={t("sm.auditDashboard.nextPage")}
+          />
+        </div>
       </section>
 
       <section aria-label={t("sm.auditDashboard.detailTitle")}>
@@ -362,6 +376,35 @@ export default function AuditDashboard() {
               <DetailField label={t("sm.auditDashboard.promptLevel")} value={state.selectedRunDetail.grading_run.prompt_level || t("common.noValue")} />
               <DetailField label={t("common.status")} value={renderStatusLabel(state.selectedRunDetail.grading_run.status, t)} />
               <DetailField label={t("project.totalScore")} value={state.selectedRunDetail.grading_run.total_score ?? state.selectedRunDetail.grading_run.score ?? t("common.noValue")} />
+              
+              {state.selectedRunDetail.grading_run.status.toUpperCase() === "FAILED" && (
+                <div className="audit-detail-error-block" style={{ gridColumn: '1 / -1', marginTop: '16px' }}>
+                  <div style={{ 
+                    padding: '16px', 
+                    background: 'rgba(239, 68, 68, 0.05)', 
+                    border: '1px solid rgba(239, 68, 68, 0.2)', 
+                    borderRadius: '12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ds-color-danger)', fontWeight: 700 }}>
+                      <AlertCircleIcon size="xs" /> {t("common.error")}
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#64748B', lineHeight: 1.5 }}>
+                      {state.selectedRunDetail.grading_run.error_message || t("api.grading.failed")}
+                    </div>
+                    <Button 
+                      variant="primary" 
+                      onClick={handleRetry} 
+                      size="sm" 
+                      style={{ alignSelf: 'flex-start' }}
+                    >
+                      <RefreshIcon size="xs" /> {t("sm.common.retry")}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </article>
           ) : (
             <EmptyState title={t("sm.auditDashboard.selectRun")} description={t("sm.auditDashboard.selectRunDesc")} compact />

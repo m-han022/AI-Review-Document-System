@@ -1,7 +1,7 @@
 import type { Project } from "../../types";
 import { useTranslation } from "../LanguageSelector";
 import { toBusinessStatus } from "../ui/businessStatus";
-import { DownloadIcon, EditIcon, EyeIcon, FileReviewIcon, RefreshIcon, TrashIcon } from "../ui/Icon";
+import { AlertCircleIcon, CheckCircleIcon, DownloadIcon, EditIcon, EyeIcon, FileReviewIcon, RefreshIcon, TrashIcon } from "../ui/Icon";
 import { StatusBadge } from "../ui/States";
 import { formatUploadedAt } from "./utils";
 import "./TableRow.css";
@@ -48,7 +48,9 @@ export default function TableRow({
     if (status === "FAILED") {
       return (
         <div className="status-cell-stack">
-          <StatusBadge tone="danger">{t("statusBiz.attentionNeeded")}</StatusBadge>
+          <StatusBadge tone="danger" icon={<AlertCircleIcon size="xs" />}>
+            {t("statusBiz.attentionNeeded")}
+          </StatusBadge>
           {project.latest_error_message && (
             <span className="error-message-mini ds-text-truncate" title={project.latest_error_message}>
               {project.latest_error_message}
@@ -59,10 +61,18 @@ export default function TableRow({
     }
 
     if (businessStatus === "reviewReady") {
-      return <StatusBadge tone="success">{t("statusBiz.reviewReady")}</StatusBadge>;
+      return (
+        <StatusBadge tone="success" icon={<CheckCircleIcon size="xs" />}>
+          {t("statusBiz.reviewReady")}
+        </StatusBadge>
+      );
     }
 
-    return <StatusBadge tone="warning">{t("statusBiz.processing")}</StatusBadge>;
+    return (
+      <StatusBadge tone="warning" icon={<RefreshIcon size="xs" className="animate-spin" />}>
+        {t("statusBiz.processing")}
+      </StatusBadge>
+    );
   };
 
   const scoreColor = scoreValue >= 80 ? "var(--ds-color-success)" : scoreValue >= 60 ? "var(--ds-color-warning)" : "var(--ds-color-danger)";
@@ -122,35 +132,28 @@ export default function TableRow({
         <div className="row-actions-v4" onClick={(e) => e.stopPropagation()}>
           <button
             type="button"
-            className="action-btn-v4 quick secondary"
-            onClick={() => onExportReport(project.project_id)}
-            disabled={isActionPending}
-            title={t("common.tooltips.download")}
-            data-tooltip={t("common.tooltips.download")}
-          >
-            <DownloadIcon size="sm" />
-            <span>{t("nav.export")}</span>
-          </button>
-
-          <button
-            type="button"
-            className="action-btn-v4"
-            onClick={() => onGrade(project.project_id)}
-            disabled={gradingId === project.project_id || isActionPending || project.total_documents === 0}
-            title={project.total_documents === 0 ? t("common.tooltips.noDocumentsToGrade") : t("common.tooltips.regrade")}
-            data-tooltip={project.total_documents === 0 ? t("common.tooltips.noDocumentsToGrade") : t("common.tooltips.regrade")}
-          >
-            <RefreshIcon size="sm" className={gradingId === project.project_id ? "animate-spin" : ""} />
-          </button>
-
-          <button
-            type="button"
             className="action-btn-v4 primary"
             onClick={() => onSelect(project.project_id)}
             title={t("common.tooltips.view")}
             data-tooltip={t("common.tooltips.view")}
           >
             <EyeIcon size="sm" />
+          </button>
+
+          <button
+            type="button"
+            className="action-btn-v4"
+            style={{ color: 'var(--ds-color-primary)' }}
+            onClick={() => onGrade(project.project_id)}
+            disabled={gradingId === project.project_id || isActionPending}
+            title={t("common.tooltips.grade")}
+            data-tooltip={t("common.tooltips.grade")}
+          >
+            {gradingId === project.project_id ? (
+              <RefreshIcon size="sm" className="animate-spin" />
+            ) : (
+              <FileReviewIcon size="sm" />
+            )}
           </button>
 
           <button

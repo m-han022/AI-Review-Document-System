@@ -8,8 +8,9 @@ import { useTranslation } from "./LanguageSelector";
 import AppShell from "./layout/AppShell";
 import Sidebar, { type WorkspaceView } from "./layout/Sidebar";
 import Topbar from "./layout/Topbar";
-import { Card, ErrorBoundary } from "./ui";
 import { EmptyState, ErrorState, LoadingState, SkeletonTable } from "./ui/States";
+import { PlusIcon } from "./ui/Icon";
+import { Button, Card, ErrorBoundary } from "./ui";
 import { toHumanErrorMessage } from "../utils/humanizeError";
 
 const DashboardOverview = lazy(() => import("./dashboard/DashboardOverview"));
@@ -220,10 +221,18 @@ export default function Dashboard() {
         if (!selectedProjectId) {
           return (
             <Card title={t("project.reviewResult")}>
-              <EmptyState title={t("submissions.noSubmissions")} />
+              <EmptyState 
+                title={t("submissions.noSubmissions")} 
+                action={
+                  <Button variant="primary" onClick={() => setActiveView("upload")}>
+                    <PlusIcon size="xs" /> {t("submissions.createProjectNew")}
+                  </Button>
+                }
+              />
             </Card>
           );
         }
+
         return (
           <ErrorBoundary fallbackTitle={t("project.reviewResult")}>
             <ProjectCard
@@ -291,6 +300,7 @@ export default function Dashboard() {
 
   const handleBreadcrumbClick = (index: number) => {
     if (index === 0) setActiveView("reviews");
+    else if (index === 1 && activeView === "detail") setActiveView("reviews");
   };
 
   return (

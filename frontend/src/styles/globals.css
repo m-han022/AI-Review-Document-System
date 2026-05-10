@@ -4,14 +4,18 @@
 
 html {
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 body {
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
+  margin: 0;
 }
 #root {
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   font-family: "Noto Sans JP", "Inter", "Noto Sans", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;

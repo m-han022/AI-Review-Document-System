@@ -83,6 +83,8 @@ export default function Topbar({
             type="button"
             className="ds-button ds-button--ghost ds-button--sm"
             onClick={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
+            aria-label={theme === "dark" ? "Chuyển sang chế độ sáng" : "Chuyển sang chế độ tối"}
+            title={theme === "dark" ? "Chuyển sang chế độ sáng" : "Chuyển sang chế độ tối"}
           >
             {theme === "dark" ? <SunIcon size="md" /> : <MoonIcon size="md" />}
           </button>

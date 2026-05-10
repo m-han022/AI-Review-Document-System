@@ -44,189 +44,118 @@ async def _perform_grading(
         evaluation_set_id=evaluation_set_id,
         force=force,
     )
-    # 1. Resolve document_version_id if not provided
-    if document_version_id is None:
-        version = service.submission_repo.get_latest_document_version_by_project(project_id) # I need to add this method or use store
-        if not version:
-            # Fallback to store for backward compatibility or if service doesn't have it yet
-            version = store.get_document_version(project_id)
-        if not version:
-            raise HTTPException(status_code=404, detail="Document version not found")
-        document_version_id = version.id
+    
+    submission = service.submission_repo.get_submission(project_id)
+    if not submission:
+        raise HTTPException(status_code=404, detail=f"Project not found: {project_id}")
+
+    # 1. Resolve versions to grade
+    target_versions: list[SubmissionDocumentVersion] = []
+    if document_version_id is not None:
+        v = service.submission_repo.get_document_version_by_id(document_version_id)
+        if not v:
+            raise HTTPException(status_code=404, detail=f"Version not found: {document_version_id}")
+        target_versions = [v]
+    else:
+        # Batch mode: Get all latest versions for all documents in project
+        target_versions = service.submission_repo.get_all_latest_document_versions(submission.id)
+        if not target_versions:
+             raise HTTPException(status_code=404, detail="No documents found in project to grade")
 
     try:
-        resolved_version = service.submission_repo.get_document_version_by_id(document_version_id)
-        if not resolved_version:
-            raise HTTPException(status_code=404, detail=f"Version not found: {document_version_id}")
-        resolved_doc = service.submission_repo.get_document_for_version(resolved_version)
-        resolved_document_type = resolved_doc.document_type if resolved_doc else "project-review"
+        last_result = None
+        triggered_count = 0
 
-        if evaluation_set_id is not None:
-            eval_set = service.submission_repo.session.get(EvaluationSet, evaluation_set_id)
-            if not eval_set:
-                raise HTTPException(status_code=422, detail=f"Invalid evaluation_set_id: {evaluation_set_id} (not found)")
-            if eval_set.status != "active":
-                raise HTTPException(status_code=422, detail=f"Invalid evaluation_set_id: {evaluation_set_id} (status must be active)")
-            if eval_set.document_type != resolved_document_type:
-                raise HTTPException(
-                    status_code=422,
-                    detail=(
-                        f"Invalid evaluation_set_id: {evaluation_set_id} "
-                        f"(document_type mismatch: expected '{resolved_document_type}', got '{eval_set.document_type}')"
-                    ),
-                )
-        else:
-            # Auto-ensure active evaluation set for this scope to keep review flow zero-config for end users.
-            auto_set = _ensure_active_evaluation_set(
-                service.submission_repo.session,
-                resolved_document_type,
-                prompt_level,
-            )
-            evaluation_set_id = auto_set.id if auto_set else None
-
-        if evaluation_set_id is None:
-            raise HTTPException(
-                status_code=422,
-                detail=(
-                    f"evaluation_set_id is required for document_type '{resolved_document_type}' "
-                    f"and level '{normalize_prompt_level(prompt_level)}'. "
-                    "Please create/activate an evaluation set first."
-                ),
-            )
-
-        # 2. Check if we should use Celery
-        if settings.use_celery:
-            # Create a PENDING run record first
-            submission = service.submission_repo.get_submission(project_id)
-            if not submission:
-                raise HTTPException(status_code=404, detail=f"Project not found: {project_id}")
+        for version in target_versions:
+            doc = service.submission_repo.get_document_for_version(version)
+            document_type = doc.document_type if doc else "project-review"
             
-            version = service.submission_repo.get_document_version_by_id(document_version_id)
-            if not version:
-                raise HTTPException(status_code=404, detail=f"Version not found: {document_version_id}")
-
-            existing_run = service.grading_repo.find_active_grading_run(
-                document_version_id=version.id,
-                prompt_level=prompt_level,
-                evaluation_set_id=evaluation_set_id,
-            )
-            if existing_run:
-                inc_counter(
-                    "grading_run_reused_total",
-                    document_type=resolved_document_type,
-                    prompt_level=prompt_level,
-                    status=(existing_run.status or "PENDING"),
+            # Resolve evaluation set for this specific document_type
+            current_eval_set_id = evaluation_set_id
+            if current_eval_set_id is None:
+                auto_set = _ensure_active_evaluation_set(
+                    service.submission_repo.session,
+                    document_type,
+                    prompt_level,
                 )
-                log_event(
-                    "grading_run_reused",
+                current_eval_set_id = auto_set.id if auto_set else None
+
+            if current_eval_set_id is None:
+                log_event("grading_skipped_no_eval_set", project_id=project_id, document_type=document_type, version_id=version.id)
+                continue
+
+            # Check if we should use Celery
+            if settings.use_celery:
+                # Dispatch task for each document
+                run = service.create_pending_run(
+                    submission_id=submission.id,
+                    document_version_id=version.id,
+                    document_version=version.document_version,
+                    rubric_version=rubric_version or "latest",
+                    prompt_level=prompt_level,
+                    content_hash=version.content_hash,
+                    evaluation_set_id=current_eval_set_id,
+                )
+                
+                grade_document_version_task.delay(
                     project_id=project_id,
                     document_version_id=version.id,
-                    grading_run_id=existing_run.id,
-                    reason="active_run_exists",
-                    evaluation_set_id=evaluation_set_id,
+                    grading_run_id=run.id,
+                    prompt_level=prompt_level,
+                    rubric_version=rubric_version,
+                    evaluation_set_id=current_eval_set_id,
+                    force=force,
+                    request_id=req_id,
                 )
-                return GradeResponse(
+                triggered_count += 1
+                last_result = GradeResponse(
                     project_id=project_id,
                     project_name=submission.project_name,
-                    run_id=existing_run.id,
-                    status=existing_run.status,
+                    run_id=run.id,
+                    status="PENDING",
                     document_version_id=version.id,
                     document_version=version.document_version,
                     prompt_level=prompt_level,
-                    evaluation_set_id=evaluation_set_id,
+                    evaluation_set_id=current_eval_set_id,
                     language=submission.language,
                 )
-            
-            # Create run in PENDING status
-            run = service.create_pending_run(
-                submission_id=submission.id,
-                document_version_id=version.id,
-                document_version=version.document_version,
-                rubric_version=rubric_version or "latest", # Will be resolved in task
-                prompt_level=prompt_level,
-                content_hash=version.content_hash,
-                evaluation_set_id=evaluation_set_id,
-            )
-            
-            # Dispatch Celery task
-            grade_document_version_task.delay(
-                project_id=project_id,
-                document_version_id=document_version_id,
-                grading_run_id=run.id,
-                prompt_level=prompt_level,
-                rubric_version=rubric_version,
-                evaluation_set_id=evaluation_set_id,
-                force=force,
-                request_id=req_id,
-            )
-            log_event(
-                "grading_run_created",
-                project_id=project_id,
-                document_version_id=version.id,
-                grading_run_id=run.id,
-                status="PENDING",
-                evaluation_set_id=evaluation_set_id,
-            )
-            
-            return GradeResponse(
-                project_id=project_id,
-                project_name=submission.project_name,
-                run_id=run.id,
-                status="PENDING",
-                document_version_id=version.id,
-                document_version=version.document_version,
-                prompt_level=prompt_level,
-                evaluation_set_id=evaluation_set_id,
-                language=submission.language,
+            else:
+                # Synchronous execution (looping might be slow)
+                result_data = service.run_grading(
+                    project_id=project_id,
+                    document_version_id=version.id,
+                    prompt_level=prompt_level,
+                    rubric_version=rubric_version,
+                    evaluation_set_id=current_eval_set_id,
+                    force=force
+                )
+                triggered_count += 1
+                last_result = GradeResponse(
+                    project_id=project_id,
+                    project_name=submission.project_name,
+                    run_id=result_data.get("run_id") or result_data.get("grading_run_id"),
+                    score=result_data.get("score"),
+                    status=result_data.get("status", "COMPLETED"),
+                    document_version_id=result_data.get("document_version_id"),
+                    document_version=result_data.get("document_version"),
+                    rubric_version=result_data.get("rubric_version"),
+                    evaluation_set_id=result_data.get("evaluation_set_id"),
+                    language=submission.language,
+                )
+        
+        if triggered_count == 0:
+             raise HTTPException(
+                status_code=422,
+                detail="Could not trigger grading for any documents. Ensure evaluation sets are active."
             )
 
-        # Synchronous behavior (existing)
-        result = service.run_grading(
-            project_id=project_id,
-            document_version_id=document_version_id,
-            prompt_level=prompt_level,
-            rubric_version=rubric_version,
-            evaluation_set_id=evaluation_set_id,
-            force=force
-        )
-        
-        # 3. Build response directly from service result to avoid out-of-sync re-fetches
-        submission = service.submission_repo.get_submission(project_id)
-        if not submission:
-             raise HTTPException(status_code=404, detail=f"Project not found after grading: {project_id}")
-        
-        # Ensure we have a run_id
-        run_id = result.get("run_id") or result.get("grading_run_id")
-        if not run_id and submission.latest_grading_run_id:
-            run_id = submission.latest_grading_run_id
-            
-        return GradeResponse(
-            project_id=project_id,
-            project_name=submission.project_name,
-            run_id=run_id,
-            score=result.get("score"),
-            status=result.get("status", "COMPLETED"),
-            document_version_id=result.get("document_version_id"),
-            document_version=result.get("document_version"),
-            rubric_version=result.get("rubric_version"),
-            rubric_hash=result.get("rubric_hash"),
-            gemini_model=result.get("gemini_model"),
-            prompt_version=result.get("prompt_version"),
-            prompt_level=result.get("prompt_level"),
-            evaluation_set_id=result.get("evaluation_set_id"),
-            policy_version=result.get("policy_version"),
-            policy_hash=result.get("policy_hash"),
-            required_rule_hash=result.get("required_rule_hash"),
-            prompt_hash=result.get("prompt_hash"),
-            criteria_hash=result.get("criteria_hash"),
-            grading_schema_version=result.get("grading_schema_version"),
-            criteria_scores=result.get("criteria_scores"),
-            criteria_suggestions=result.get("criteria_suggestions"),
-            draft_feedback=result.get("draft_feedback"),
-            slide_reviews=[SlideReviewOut(id=0, **s) if isinstance(s, dict) else s for s in result.get("slide_reviews", [])],
-            graded_at=result.get("graded_at") or datetime.now(timezone.utc).isoformat(),
-            language=submission.language,
-        )
+        return last_result
+
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        log_error("grading_failed", project_id=project_id, detail=str(e))
+        raise HTTPException(status_code=502, detail=f"Grading failed: {str(e)}")
     except ValueError as e:
         log_error(
             "grading_validation_failed",

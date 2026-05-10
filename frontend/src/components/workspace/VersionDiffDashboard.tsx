@@ -5,6 +5,7 @@ import type { DocumentListOut, Project, VersionDiffOut, VersionListOut } from ".
 import { useTranslation } from "../LanguageSelector";
 import { Button, Card, Select, StatusBadge } from "../ui";
 import { LoadingState } from "../ui/States";
+import { ArrowRightIcon, PlusIcon } from "../ui/Icon";
 import "./VersionDiffDashboard.css";
 
 type UiState = "idle" | "loading" | "ready" | "empty" | "error";
@@ -315,7 +316,7 @@ export default function VersionDiffDashboard() {
                       <span className="label">{state.diff.version_a.label}</span>
                       <span className="value">{state.diff.score_diff.a_score}</span>
                     </div>
-                    <div className="score-arrow">→</div>
+                    <div className="score-arrow"><ArrowRightIcon size="lg" /></div>
                     <div className="score-item">
                       <span className="label">{state.diff.version_b.label}</span>
                       <span className="value">{state.diff.score_diff.b_score}</span>
@@ -344,24 +345,24 @@ export default function VersionDiffDashboard() {
           </Card>
 
           <Card title={t("sm.versionDiff.criteriaTitle")}>
-            <div className="prod-table-wrap">
-              <table className="prod-history-table">
+            <div className="ds-table-container">
+              <table className="ds-table">
                 <thead>
                   <tr>
                     <th>{t("sm.versionDiff.criterion")}</th>
-                    <th>{t("sm.versionDiff.before")}</th>
-                    <th>{t("sm.versionDiff.after")}</th>
+                    <th style={{ textAlign: 'center' }}>{t("sm.versionDiff.before")}</th>
+                    <th style={{ textAlign: 'center' }}>{t("sm.versionDiff.after")}</th>
                     <th style={{ textAlign: 'right' }}>{t("sm.versionDiff.delta")}</th>
                   </tr>
                 </thead>
-                <tbody className="ds-table-body">
+                <tbody>
                   {state.diff.criteria_diff.map((row) => (
-                    <tr key={row.criterion_key} className={`ds-table-row ${Math.abs(row.delta) >= 5 ? "high-delta" : ""}`}>
-                      <td className="ds-table-cell font-medium">{formatKey(row.criterion_key)}</td>
-                      <td className="ds-table-cell text-center">{row.a}</td>
-                      <td className="ds-table-cell text-center">{row.b}</td>
-                      <td className="ds-table-cell text-right">
-                        <StatusBadge variant={row.direction === "up" ? "success" : row.direction === "down" ? "error" : "neutral"}>
+                    <tr key={row.criterion_key} className="ds-table-row-v4">
+                      <td className="font-medium">{formatKey(row.criterion_key)}</td>
+                      <td style={{ textAlign: 'center' }}>{row.a}</td>
+                      <td style={{ textAlign: 'center' }}>{row.b}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        <StatusBadge tone={row.direction === "up" ? "success" : row.direction === "down" ? "danger" : "muted"}>
                           {row.delta > 0 ? "+" : ""}{row.delta}
                         </StatusBadge>
                       </td>

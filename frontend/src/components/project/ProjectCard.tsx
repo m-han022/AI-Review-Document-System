@@ -20,6 +20,7 @@ import ProjectOverviewTab from "./ProjectOverviewTab";
 import type { ProjectCriteriaTabViewModel, ProjectSlidesTabViewModel } from "./projectCard.viewModels";
 import { EmptyState, StatusBadge } from "../ui/States";
 import { Button, Select } from "../ui";
+import ConfirmDialog from "../ui/ConfirmDialog";
 import {
   formatDateTime,
   getStatusLabel,
@@ -122,7 +123,9 @@ export default function ProjectCard({ projectId, onBack, setTopbarActions }: Pro
     setHoveredCriterion,
     comparisonMode,
     setComparisonMode,
+    scrollToSection,
   } = uiState;
+  const [confirmReviewOpen, setConfirmReviewOpen] = useState(false);
   const { loadingDocs, docsError, refetchDocuments, versions, gradings, sortedDocuments, gradingDetail, currentProject, currentVersion } = dataState;
   const { rerunMutation, exportMutation } = actions;
   const { result, slideReviewItems, ngSlideCount, orderedScores, feedbackSections, activeSlide, isInitialLoading, riskLevel, topInsight } = derived;
@@ -142,7 +145,7 @@ export default function ProjectCard({ projectId, onBack, setTopbarActions }: Pro
           <Button 
             variant="primary" 
             size="sm" 
-            onClick={() => rerunMutation.mutate()} 
+            onClick={() => setConfirmReviewOpen(true)} 
             disabled={rerunMutation.isPending || !selectedVersionId}
             isLoading={rerunMutation.isPending}
           >
@@ -207,14 +210,13 @@ export default function ProjectCard({ projectId, onBack, setTopbarActions }: Pro
         title: t("project.insight.weakestCriterion") || "Tiêu chí cần cải thiện",
         content: (() => {
           const parts = [];
-          if (lowest) parts.push(`${lowest.label} (${lowest.value}/${lowest.max})`);
+          if (lowest) parts.push(`**${lowest.label}** (${lowest.value}/${lowest.max})`);
           
           const ngSlides = slideReviewItems.filter(s => s.status === "NG");
           if (ngSlides.length > 0) {
-            parts.push(`${t("project.ngSlideCount") || "Slide NG"}: ${ngSlides.map(s => s.slide_number).slice(0, 5).join(", ")}`);
+            parts.push(`${t("project.ngSlideCount") || "Slide NG"}: **${ngSlides.length}** (${ngSlides.map(s => s.slide_number).slice(0, 3).join(", ")}...)`);
           }
 
-          // Try to find a dedicated section for issues, or fallback to first NG slide summary
           const issuesSection = feedbackSections.find(s => 
             /xấu|vấn đề|cải thiện|hạn chế|lỗi|nghiêm trọng|ng|thất bại|không đạt/i.test(s.title)
           );
@@ -227,30 +229,21 @@ export default function ProjectCard({ projectId, onBack, setTopbarActions }: Pro
 
           return parts.length > 0 ? parts.join(". ") : t("project.noSeriousIssues") || "Không phát hiện vấn đề nghiêm trọng.";
         })(),
-
         type: (lowest && lowest.value / lowest.max < 0.7) || ngSlideCount > 0 ? "danger" : "neutral",
         Icon: AlertTriangleIcon
       },
-
       {
         title: t("project.insight.importantComments") || "Nhận xét quan trọng",
-        content: (() => {
-          const scoreText = `${t("project.totalScore") || "Tổng điểm"}: ${result?.total_score || 0}/100`;
-          return `${scoreText}. ${distilledSummary || ""}`;
-        })(),
-
-
+        content: distilledSummary || t("project.executiveSummarySubtitle") || "Tóm tắt chiến lược từ AI.",
         type: "primary",
         Icon: TargetIcon
       },
       {
         title: t("project.insight.positivePoints") || "Điểm tích cực",
-        content: distilledPositive || (highest && highest.value / highest.max >= 0.8 ? `${highest.label} là điểm sáng của tài liệu.` : t("project.positivePointPlaceholder") || "Tài liệu trình bày chuyên nghiệp và tuân thủ các quy định cơ bản."),
+        content: distilledPositive || (highest && highest.value / highest.max >= 0.8 ? `**${highest.label}** là điểm sáng của tài liệu.` : t("project.positivePointPlaceholder") || "Tài liệu trình bày chuyên nghiệp và tuân thủ các quy định cơ bản."),
         type: "success",
         Icon: ShieldCheckIcon
       }
-
-
     ];
 
   }, [feedbackSections, ngSlideCount, t, orderedScores, result, slideReviewItems]);
@@ -286,11 +279,8 @@ export default function ProjectCard({ projectId, onBack, setTopbarActions }: Pro
 
   return (
     <div className="project-layout-v3">
-
-
-      {/* Sidebar - Minimal fixed icons for tabs */}
       {/* Main Content Workspace */}
-      <main className="project-main-v3" style={{ width: '100%' }}>
+      <div className="project-main-v3">
         {/* Tầng 2.5 + Tầng 3: Unified Analytical Header */}
         <div className="analytical-header-v4">
           <div className="analytical-header-v4__selectors">
@@ -343,22 +333,32 @@ export default function ProjectCard({ projectId, onBack, setTopbarActions }: Pro
               <span style={{ fontSize: '18px' }}>{result?.total_score ?? "—"}</span>
             </div>
 
-            {/* Issue Count */}
-            <div className="metric-item-v4">
-              <span className="metric-item-v4__label">{t("project.documentStatus")}</span>
-              <div className={`metric-item-v4__value ${ngSlideCount > 0 ? "ds-text-danger" : "ds-text-success"}`} style={{ color: ngSlideCount > 0 ? 'var(--ds-color-danger)' : 'var(--ds-color-success)' }}>
-                {ngSlideCount > 0 ? <AlertTriangleIcon size="xs" /> : <ShieldCheckIcon size="xs" />}
-                {ngSlideCount > 0 ? `${ngSlideCount} Issues` : "Clean"}
+            {/* Audit Metadata */}
+            <div className="metric-item-v4" style={{ gap: '4px' }}>
+              <div className="ds-flex ds-items-center ds-gap-2">
+                <span className="meta-tag-v4" title={t("project.metaRubric")}>
+                  <WorkflowIcon size="xs" /> {result?.rubric_version || "—"}
+                </span>
+                <span className="meta-tag-v4" title={t("project.metaPrompt")}>
+                  <TargetIcon size="xs" /> {result?.prompt_version || "—"}
+                </span>
+                <span className={`risk-tag-v3 risk-tag-v3--${riskLevel.tone}`} style={{ fontSize: '10px', padding: '2px 8px' }}>
+                  {result?.prompt_level?.toUpperCase() || "MEDIUM"}
+                </span>
+              </div>
+              <div className="ds-flex ds-items-center ds-gap-2">
+                <span className="meta-tag-v4" style={{ opacity: 0.7 }}>
+                  <ShieldCheckIcon size="xs" /> {result?.gemini_model || "—"}
+                </span>
               </div>
             </div>
 
-            {/* Risk Level */}
+            {/* Status & Risk */}
             <div className="metric-item-v4">
-              <span className="metric-item-v4__label">{t("project.metaRisk")}</span>
-              <div className="metric-item-v4__value">
-                <span className={`risk-tag-v3 risk-tag-v3--${riskLevel.tone}`} style={{ fontSize: '10px', padding: '2px 8px' }}>
-                  {riskLevel.label}
-                </span>
+              <span className="metric-item-v4__label">{t("project.documentStatus")}</span>
+              <div className={`metric-item-v4__value`} style={{ color: ngSlideCount > 0 ? 'var(--ds-color-danger)' : 'var(--ds-color-success)' }}>
+                {ngSlideCount > 0 ? <AlertTriangleIcon size="xs" /> : <ShieldCheckIcon size="xs" />}
+                {ngSlideCount > 0 ? `${ngSlideCount} ${t("project.issuesFound")}` : t("project.noIssuesFound")}
               </div>
             </div>
 
@@ -371,6 +371,26 @@ export default function ProjectCard({ projectId, onBack, setTopbarActions }: Pro
             </div>
           </div>
         </div>
+
+        {/* AI Final Verdict Banner */}
+        {result && (
+          <div className="ai-verdict-banner">
+            <div className="ai-verdict-banner__icon">
+              <SparkIcon />
+            </div>
+            <div className="ai-verdict-banner__content">
+              <div className="ai-verdict-banner__title">{t("project.executiveSummary")}</div>
+              <div className="ai-verdict-banner__text">
+                {result.total_score && result.total_score >= 80 
+                  ? t("project.summaryScoreHealthy", { score: result.total_score })
+                  : result.total_score && result.total_score >= 60
+                  ? t("project.summaryScoreWatch", { score: result.total_score })
+                  : t("project.summaryScoreCritical", { score: result.total_score || 0 })
+                }
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* AI Insight Panel - Unified 3-Block Categorized Layout */}
         <div className="insights-panel-v4">
@@ -389,31 +409,31 @@ export default function ProjectCard({ projectId, onBack, setTopbarActions }: Pro
 
 
 
-        {/* Tab Selection */}
-        <div className="ds-tabs">
+        {/* Tab Selection as Scroll Anchors */}
+        <div className="ds-tabs sticky-tabs">
           <button 
-            className={`ds-tabs__item ${activeTab === "criteria" ? "is-active" : ""}`}
-            onClick={() => setActiveTab("criteria")}
+            className={`ds-tabs__item ${activeTab === "overview" ? "is-active" : ""}`}
+            onClick={() => scrollToSection("overview")}
           >
             {t("project.tabOverview")}
           </button>
           <button 
-            className={`ds-tabs__item ${activeTab === "analysis" ? "is-active" : ""}`}
-            onClick={() => setActiveTab("analysis")}
+            className={`ds-tabs__item ${activeTab === "criteria" ? "is-active" : ""}`}
+            onClick={() => scrollToSection("criteria")}
           >
             {t("project.tabAnalysis")}
           </button>
           <button 
             className={`ds-tabs__item ${activeTab === "slides" ? "is-active" : ""}`}
-            onClick={() => setActiveTab("slides")}
+            onClick={() => scrollToSection("slides")}
           >
             {t("project.tabSlidesResult")} {ngSlideCount > 0 && <span className="ds-tabs__badge">{ngSlideCount}</span>}
           </button>
         </div>
 
-        {/* Tab Content */}
-        <section className="workspace-content-v3">
-          {activeTab === "criteria" ? (
+        {/* Unified Scroll Content */}
+        <div className="workspace-single-scroll">
+          <section id="section-overview" className="scroll-section">
             <ProjectOverviewTab 
               t={t} 
               feedbackSections={criteriaViewModel.feedbackSections} 
@@ -421,13 +441,31 @@ export default function ProjectCard({ projectId, onBack, setTopbarActions }: Pro
               orderedScores={criteriaViewModel.orderedScores}
               slideReviewItems={slidesViewModel.slideReviewItems}
             />
-          ) : activeTab === "analysis" ? (
+          </section>
+
+          <div className="section-divider" />
+
+          <section id="section-criteria" className="scroll-section">
+            <header className="section-header-v3" style={{ marginBottom: '16px' }}>
+              <h2 className="section-title-v3">
+                <TargetIcon size="sm" /> {t("project.tabAnalysis")}
+              </h2>
+            </header>
             <ProjectCriteriaTab
               t={t}
               viewModel={criteriaViewModel}
               setHoveredCriterion={setHoveredCriterion}
             />
-          ) : (
+          </section>
+
+          <div className="section-divider" />
+
+          <section id="section-slides" className="scroll-section">
+            <header className="section-header-v3" style={{ marginBottom: '16px' }}>
+              <h2 className="section-title-v3">
+                <LayersIcon size="sm" /> {t("project.tabSlidesResult")}
+              </h2>
+            </header>
             <ProjectSlidesTab
               t={t}
               projectId={projectId}
@@ -437,9 +475,12 @@ export default function ProjectCard({ projectId, onBack, setTopbarActions }: Pro
               filterNG={filterNG}
               setFilterNG={setFilterNG}
             />
-          )}
-        </section>
-      </main>
+          </section>
+        </div>
+        
+        {/* Extra spacer for scroll comfort on small screens */}
+        <div style={{ height: '20vh' }} />
+      </div>
 
       {summaryDialogOpen && (
         <ProjectReviewDialog
@@ -469,6 +510,25 @@ export default function ProjectCard({ projectId, onBack, setTopbarActions }: Pro
           </pre>
         </ProjectReviewDialog>
       )}
+
+      <ConfirmDialog
+        open={confirmReviewOpen}
+        title={t("project.confirmReviewTitle") || "Bắt đầu đánh giá?"}
+        description={t("project.confirmReviewDesc") || `Bạn đang bắt đầu đánh giá tài liệu với mức độ ${result?.prompt_level?.toUpperCase() || "MEDIUM"}. Thao tác này sẽ tạo một bản ghi kết quả mới.`}
+        details={[
+          currentVersion ? `${t("project.version")}: ${currentVersion.version}` : "",
+          result?.prompt_level ? `${t("project.metaLevel")}: ${result.prompt_level}` : "",
+        ].filter(Boolean)}
+        confirmLabel={t("project.confirmReviewStart") || "Bắt đầu review"}
+        cancelLabel={t("common.cancel")}
+        tone="primary"
+        isLoading={rerunMutation.isPending}
+        onConfirm={() => {
+          setConfirmReviewOpen(false);
+          rerunMutation.mutate();
+        }}
+        onCancel={() => setConfirmReviewOpen(false)}
+      />
     </div>
   );
 }
