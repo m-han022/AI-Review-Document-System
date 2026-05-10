@@ -1,6 +1,6 @@
 """Multi-key Gemini API manager with round-robin key rotation."""
 import time
-from typing import Optional
+from typing import Optional, Any
 from google import genai
 from google.genai import types
 from app.config import settings
@@ -121,7 +121,7 @@ class GeminiMultiKeyClient:
             print(f"[Gemini] Initializing client with {_key_label(self.current_key)}")
             self.client = genai.Client(api_key=self.current_key)
     
-    def generate_content(self, model: str, contents: str, config: types.GenerateContentConfig):
+    def generate_content(self, model: str, contents: Any, config: types.GenerateContentConfig):
         key_count = len(GEMINI_API_KEYS) if GEMINI_API_KEYS else 1
         max_retries = max(key_count, 3)
         auth_failed_keys: list[str] = []

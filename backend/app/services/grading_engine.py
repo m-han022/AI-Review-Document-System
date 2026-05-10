@@ -375,6 +375,7 @@ def grade_submission(
     project_description: str | None = None,
     use_cache: bool = True,
     refresh_cache: bool = False,
+    multimodal_content: List[Dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     if not settings.gemini_api_keys:
         raise RuntimeError("GEMINI_API_KEY or GEMINI_API_KEYS is not configured in backend/.env")
@@ -450,16 +451,26 @@ def grade_submission(
     client = get_gemini_client()
     target_model = signature.get("gemini_model") or get_model_for_level(prompt_level or "medium")
 
+    # Construct Multimodal contents
+    contents = []
+    contents.append(f"{prompt_prefix}\n\n")
+    contents.append("ADDITIONAL PROJECT CONTEXT (FOR REFERENCE ONLY):\n")
+    contents.append(f"{project_description or 'No additional context provided.'}\n\n")
+    contents.append("IMPORTANT: Use the project context only to better understand the domain. ")
+    contents.append("All grading decisions must be based on evidence found within the DOCUMENT CONTENT below.\n\n")
+    
+    if multimodal_content:
+        contents.append("DOCUMENT CONTENT (Text + Visuals):\n")
+        for item in multimodal_content:
+            contents.append(f"{item['text']}\n")
+            for img_bytes in item.get("images", []):
+                contents.append(types.Part.from_bytes(data=img_bytes, mime_type="image/png"))
+    else:
+        contents.append(f"DOCUMENT CONTENT:\n{text}")
+
     response = client.generate_content(
         model=target_model,
-        contents=(
-            f"{prompt_prefix}\n\n"
-            "ADDITIONAL PROJECT CONTEXT (FOR REFERENCE ONLY):\n"
-            f"{project_description or 'No additional context provided.'}\n\n"
-            "IMPORTANT: Use the project context only to better understand the domain. "
-            "All grading decisions must be based on evidence found within the DOCUMENT CONTENT below.\n\n"
-            f"DOCUMENT CONTENT:\n{text}"
-        ),
+        contents=contents,
         config=types.GenerateContentConfig(
             system_instruction=system_instruction,
             response_mime_type="application/json",

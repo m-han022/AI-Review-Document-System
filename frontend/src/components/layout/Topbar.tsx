@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { UI_THEME_STORAGE_KEY } from "../../config";
 import { LanguageSelector } from "../LanguageSelector";
-import { LayoutIcon, MenuIcon, MoonIcon, SunIcon } from "../ui/Icon";
+import { MenuIcon, MoonIcon, SunIcon } from "../ui/Icon";
 import "./Layout.css";
 
 interface TopbarProps {
@@ -15,6 +15,7 @@ interface TopbarProps {
   onToggleSidebar?: () => void;
   onToggleCollapse?: () => void;
   onBreadcrumbClick?: (index: number) => void;
+  actions?: ReactNode;
 }
 
 export default function Topbar({
@@ -27,6 +28,7 @@ export default function Topbar({
   onToggleSidebar,
   onToggleCollapse,
   onBreadcrumbClick,
+  actions,
 }: TopbarProps) {
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     if (typeof window === "undefined") return "light";
@@ -43,14 +45,6 @@ export default function Topbar({
       <div className="app-topbar__left">
         <button className="mobile-toggle" onClick={onToggleSidebar} aria-label="Toggle Menu">
           <MenuIcon />
-        </button>
-        <button 
-          className="ds-button ds-button--ghost ds-button--sm hide-on-mobile" 
-          onClick={onToggleCollapse} 
-          style={{ marginRight: 'var(--ds-space-2)', paddingLeft: 0 }}
-          title="Toggle Sidebar"
-        >
-          <LayoutIcon size="sm" />
         </button>
         {!hideMain && (
           <div className="app-topbar__page-info">
@@ -83,6 +77,8 @@ export default function Topbar({
 
       {!hideActions && (
         <div className="app-topbar__actions">
+          {actions}
+          <div className="app-topbar__divider" />
           <button
             type="button"
             className="ds-button ds-button--ghost ds-button--sm"

@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import { getSubmissionFileUrl } from "../../api/client";
 import { Button } from "../ui";
 import { EmptyState, StatusBadge } from "../ui/States";
@@ -9,157 +10,183 @@ interface Props {
   projectId: string;
   viewModel: ProjectSlidesTabViewModel;
   setSelectedSlideId: (id: number) => void;
+  lang: any;
+  filterNG: boolean;
+  setFilterNG: (val: boolean) => void;
 }
 
-export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedSlideId }: Props) {
+export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedSlideId, lang, filterNG, setFilterNG }: Props) {
   const { gradingDetail, slideReviewItems, activeSlide } = viewModel;
+  const [showJson, setShowJson] = useState(false);
+
   if (!(slideReviewItems.length > 0 && activeSlide)) {
     return (
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc", borderRadius: "12px", border: "1px dashed #e2e8f0" }}>
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--ds-color-bg-app)", borderRadius: "12px", border: "1px dashed var(--ds-color-border)" }}>
         <EmptyState title={slideReviewItems.length === 0 ? t("project.noSlideReviewsTitle") : t("project.selectSlideForDetails")} description={slideReviewItems.length === 0 ? t("project.noSlideReviewsText") : undefined} />
       </div>
     );
   }
+
   return (
-    <section className="workspace-viewer-v3" style={{ display: 'flex', flexDirection: 'column', gap: '16px', height: '100%' }}>
-      <div className="viewer-toolbar-v3" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '12px 24px', borderRadius: '12px', border: '1px solid var(--ds-color-border)' }}>
-        <div className="viewer-pagination-v3">
+    <div className="slides-tab-layout-v4">
+      {/* Mini Sidebar Navigator inside Tab */}
+      <div className="tab-slide-navigator-v4">
+        <div className="tab-slide-navigator-v4__header">
+          <span className="ds-caption" style={{ fontWeight: 700 }}>{t("project.slideList")}</span>
           <button 
-            type="button" 
-            className="page-nav-btn" 
-            onClick={() => { 
-              const idx = slideReviewItems.findIndex((s) => s.id === activeSlide.id); 
-              if (idx > 0) setSelectedSlideId(slideReviewItems[idx - 1].id); 
-            }} 
-            disabled={slideReviewItems.findIndex((s) => s.id === activeSlide.id) === 0}
+            className={`ng-filter-pill ${filterNG ? 'active' : ''}`}
+            onClick={() => setFilterNG(!filterNG)}
           >
-            <ChevronLeftIcon size="sm" />
-          </button>
-          <span className="page-indicator-v3">Slide {activeSlide.slide_number} / {slideReviewItems.length}</span>
-          <button 
-            type="button" 
-            className="page-nav-btn" 
-            onClick={() => { 
-              const idx = slideReviewItems.findIndex((s) => s.id === activeSlide.id); 
-              if (idx < slideReviewItems.length - 1) setSelectedSlideId(slideReviewItems[idx + 1].id); 
-            }} 
-            disabled={slideReviewItems.findIndex((s) => s.id === activeSlide.id) === slideReviewItems.length - 1}
-          >
-            <ChevronRightIcon size="sm" />
+            {filterNG ? "NG Only" : "All"}
           </button>
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <Button 
-            type="button" 
-            variant="secondary" 
-            size="sm" 
-            onClick={(e) => { 
-              e.preventDefault(); 
-              e.stopPropagation(); 
-              window.open(getSubmissionFileUrl(projectId, "attachment"), "_blank"); 
-            }}
-          >
-            <DownloadIcon size="sm" /> {t("project.downloadToView")}
-          </Button>
+        <div className="tab-slide-grid-v4">
+          {slideReviewItems
+            .filter(item => !filterNG || item.status === "NG")
+            .map((item) => {
+              const isActive = activeSlide.id === item.id;
+              const isNG = item.status === "NG";
+              return (
+                <div 
+                  key={item.id}
+                  className={`tab-slide-item-v4 ${isActive ? 'is-active' : ''} ${isNG ? 'is-ng' : ''}`}
+                  onClick={() => setSelectedSlideId(item.id)}
+                >
+                  {item.slide_number}
+                </div>
+              );
+            })}
         </div>
       </div>
 
-      <div className="viewer-pane-right" style={{ width: '100%', flex: '1', borderLeft: 'none', background: 'white', borderRadius: '12px', border: '1px solid var(--ds-color-border)', overflowY: 'auto' }}>
-
-          <header className="analysis-header-v3">
+      {/* Main Analysis Content */}
+      <div className="tab-slide-content-v4">
+        <header className="analysis-header-v3" style={{ padding: '16px 24px', borderBottom: '1px solid var(--ds-color-border)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div className="analysis-title-row">
-              <h2 className="analysis-title-v3">{activeSlide.displayTitle}</h2>
+              <h2 className="analysis-title-v3" style={{ margin: 0 }}>{activeSlide.displayTitle}</h2>
               <StatusBadge tone={activeSlide.status === "NG" ? "danger" : "success"}>{activeSlide.status}</StatusBadge>
             </div>
-          </header>
-
-          <div className="analysis-content-v3">
-            <div className="analysis-grid-v4">
-              <div className="analysis-main-col">
-                <section className="analysis-section-v3" style={{ marginBottom: "28px" }}>
-                  <h3 className="analysis-section-title-v3" style={{ fontSize: "1.125rem", marginBottom: "12px" }}>{t("project.slideSummary")}</h3>
-                  <div className="analysis-card-v3" style={{ background: "var(--ds-color-primary-soft)", border: "1px solid var(--ds-color-primary-light)", padding: "20px", borderRadius: "12px", fontSize: "1rem", lineHeight: "1.6", color: "var(--ds-color-text-body)" }}>
-                    {activeSlide.summary}
-                  </div>
-                </section>
-                
-                {activeSlide.issues.length > 0 && (
-                  <section className="analysis-section-v3" style={{ marginBottom: "28px" }}>
-                    <h3 className="analysis-section-title-v3 has-error" style={{ fontSize: "1.125rem", color: "var(--ds-color-danger-dark)", marginBottom: "12px" }}>{t("project.identifiedIssues")}</h3>
-                    <div className="issue-list-v3">
-                      {activeSlide.issues.map((issue: string, idx: number) => (
-                        <div key={idx} className="issue-card-v3" style={{ background: "var(--ds-color-danger-soft)", border: "1px solid var(--ds-color-danger-light)", padding: "16px", borderRadius: "8px", display: "flex", gap: "12px", alignItems: "flex-start", marginBottom: "12px" }}>
-                          <div style={{ color: "var(--ds-color-danger)", marginTop: "2px" }}><AlertTriangleIcon size="sm" /></div>
-                          <span style={{ fontSize: "0.95rem", lineHeight: "1.5", color: "var(--ds-color-text-body)" }}>{issue}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                )}
-
-                {activeSlide.suggestions && (
-                  <section className="analysis-section-v3" style={{ marginBottom: "28px" }}>
-                    <h3 className="analysis-section-title-v3 is-highlight" style={{ fontSize: "1.125rem", color: "var(--ds-color-success-dark)", marginBottom: "12px" }}>{t("project.aiSuggestions")}</h3>
-                    <div className="analysis-card-v3 is-suggestion" style={{ background: "var(--ds-color-success-soft)", border: "1px solid var(--ds-color-success-light)", padding: "20px", borderRadius: "12px", display: "flex", gap: "12px", alignItems: "flex-start" }}>
-                      <div style={{ color: "var(--ds-color-success)", marginTop: "2px" }}><SparkIcon size="sm" /></div>
-                      <div style={{ fontSize: "1rem", lineHeight: "1.6", color: "var(--ds-color-text-body)" }}>{activeSlide.suggestions}</div>
-                    </div>
-                  </section>
-                )}
-              </div>
-
-              <div className="analysis-side-col">
-                <section className="analysis-section-v3">
-                  <h3 className="analysis-section-title-v3 is-meta">{t("project.documentViewer.title")} (Text)</h3>
-                  <div className="evidence-card-v3">
-                    <pre className="evidence-text-v3">
-                      {gradingDetail?.document_version?.extracted_text ? (() => {
-                        const text = gradingDetail.document_version.extracted_text;
-                        const currentNum = activeSlide.slide_number;
-                        const nextNum = currentNum + 1;
-                        const startMarker = `[Slide ${currentNum}]`;
-                        const nextMarker = `[Slide ${nextNum}]`;
-                        const startIdx = text.indexOf(startMarker);
-                        if (startIdx === -1) return "(Evidence not found)";
-                        const endIdx = text.indexOf(nextMarker, startIdx + startMarker.length);
-                        const slideText = text.substring(startIdx + startMarker.length, endIdx === -1 ? text.length : endIdx).trim();
-
-                        // Highlight text based on quotes in issues and suggestions
-                        const quotes: string[] = [];
-                        const regex = /["「“]([^"」”]+)["」”]/g;
-                        if (activeSlide.issues) {
-                          activeSlide.issues.forEach((issue: string) => {
-                            let match;
-                            while ((match = regex.exec(issue)) !== null) {
-                              if (match[1].length > 4) quotes.push(match[1]);
-                            }
-                          });
-                        }
-                        if (activeSlide.suggestions) {
-                          let match;
-                          while ((match = regex.exec(activeSlide.suggestions)) !== null) {
-                            if (match[1].length > 4) quotes.push(match[1]);
-                          }
-                        }
-
-                        if (quotes.length === 0) return slideText;
-
-                        let escapedText = slideText.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                        quotes.sort((a, b) => b.length - a.length).forEach(q => {
-                          const escapedQ = q.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                          const markTag = `<mark style="background: var(--ds-color-warning-soft); color: var(--ds-color-warning-dark); font-weight: bold; padding: 2px 4px; border-radius: 4px;">${escapedQ}</mark>`;
-                          escapedText = escapedText.split(escapedQ).join(markTag);
-                        });
-
-                        return <span dangerouslySetInnerHTML={{ __html: escapedText }} />;
-                      })() : "(No extracted text available)"}
-                    </pre>
-                  </div>
-                </section>
-              </div>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowJson(!showJson)}
+                style={{ color: showJson ? 'var(--ds-color-primary)' : 'var(--ds-color-text-muted)', fontWeight: 600 }}
+              >
+                {showJson ? "{ } JSON" : "{ } Show JSON"}
+              </Button>
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                onClick={() => window.open(getSubmissionFileUrl(projectId, "attachment"), "_blank")}
+              >
+                <DownloadIcon size="sm" /> {t("project.downloadToView")}
+              </Button>
             </div>
           </div>
+        </header>
+
+        <div className="analysis-workspace-v4">
+          {showJson ? (
+            <div className="json-result-viewer-v4">
+              <div className="json-viewer-header-v4">
+                <span className="ds-caption" style={{ color: 'var(--ds-color-text-body)' }}>Raw AI Response (Slide {activeSlide.slide_number})</span>
+              </div>
+              <pre className="json-pre-v4">
+                {JSON.stringify((activeSlide as any).result || activeSlide, null, 2)}
+              </pre>
+            </div>
+          ) : (
+            <div className="analysis-content-v3" style={{ padding: '24px' }}>
+              <div className="analysis-grid-v4" style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '24px' }}>
+                <div className="analysis-main-col">
+                  <section className="analysis-section-v3">
+                    <h3 className="analysis-section-title-v3">{t("project.slideSummary")}</h3>
+                    <div className="analysis-card-v3" style={{ background: "var(--ds-color-bg-app)", border: "1px solid var(--ds-color-border)", padding: "16px", borderRadius: "8px", lineHeight: "1.6" }}>
+                      {activeSlide.summary}
+                    </div>
+                  </section>
+                  
+                  {activeSlide.issues.length > 0 && (
+                    <section className="analysis-section-v3" style={{ marginTop: '24px' }}>
+                      <h3 className="analysis-section-title-v3 has-error" style={{ color: "var(--ds-color-danger)" }}>{t("project.identifiedIssues")}</h3>
+                      <div className="issue-list-v3">
+                        {activeSlide.issues.map((issue: string, idx: number) => (
+                          <div key={idx} className="issue-card-v3" style={{ background: "#fff1f2", border: "1px solid #fecdd3", padding: "12px 16px", borderRadius: "8px", display: "flex", gap: "10px", alignItems: "flex-start", marginBottom: "8px" }}>
+                            <div style={{ color: "#e11d48", marginTop: "2px" }}><AlertTriangleIcon size="sm" /></div>
+                            <span style={{ fontSize: "14px", color: "#9f1239" }}>{issue}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {activeSlide.suggestions && (
+                    <section className="analysis-section-v3" style={{ marginTop: '24px' }}>
+                      <h3 className="analysis-section-title-v3 is-highlight" style={{ color: "var(--ds-color-success)" }}>{t("project.aiSuggestions")}</h3>
+                      <div className="analysis-card-v3 is-suggestion" style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "16px", borderRadius: "8px", display: "flex", gap: "10px" }}>
+                        <div style={{ color: "#166534" }}><SparkIcon size="sm" /></div>
+                        <div style={{ fontSize: "14px", color: "#166534", lineHeight: 1.6 }}>{activeSlide.suggestions}</div>
+                      </div>
+                    </section>
+                  )}
+                </div>
+
+                <div className="analysis-side-col">
+                  <section className="analysis-section-v3">
+                    <h3 className="analysis-section-title-v3 is-meta">{t("project.documentViewer.title")} (Text)</h3>
+                    <div className="evidence-card-v3" style={{ background: '#f8fafc', border: '1px solid var(--ds-color-border)', borderRadius: '8px', padding: '12px' }}>
+                      <pre className="evidence-text-v3" style={{ fontSize: '12px', whiteSpace: 'pre-wrap', maxHeight: '500px', overflowY: 'auto' }}>
+                        {gradingDetail?.document_version?.extracted_text ? (() => {
+                          const text = gradingDetail.document_version.extracted_text;
+                          const currentNum = activeSlide.slide_number;
+                          const nextNum = currentNum + 1;
+                          const startMarker = `[Slide ${currentNum}]`;
+                          const nextMarker = `[Slide ${nextNum}]`;
+                          const startIdx = text.indexOf(startMarker);
+                          if (startIdx === -1) return "(Evidence not found)";
+                          const endIdx = text.indexOf(nextMarker, startIdx + startMarker.length);
+                          const slideText = text.substring(startIdx + startMarker.length, endIdx === -1 ? text.length : endIdx).trim();
+
+                          // Highlight text
+                          const quotes: string[] = [];
+                          const regex = /["「“]([^"」”]+)["」”]/g;
+                          if (activeSlide.issues) {
+                            activeSlide.issues.forEach((issue: string) => {
+                              let match;
+                              while ((match = regex.exec(issue)) !== null) {
+                                if (match[1].length > 4) quotes.push(match[1]);
+                              }
+                            });
+                          }
+                          if (activeSlide.suggestions) {
+                            let match;
+                            while ((match = regex.exec(activeSlide.suggestions)) !== null) {
+                              if (match[1].length > 4) quotes.push(match[1]);
+                            }
+                          }
+
+                          if (quotes.length === 0) return slideText;
+
+                          let escapedText = slideText.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                          quotes.sort((a, b) => b.length - a.length).forEach(q => {
+                            const escapedQ = q.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                            const markTag = `<mark style="background: #fef08a; color: #854d0e; padding: 1px 3px; border-radius: 2px;">${escapedQ}</mark>`;
+                            escapedText = escapedText.split(escapedQ).join(markTag);
+                          });
+
+                          return <span dangerouslySetInnerHTML={{ __html: escapedText }} />;
+                        })() : "(No extracted text available)"}
+                      </pre>
+                    </div>
+                  </section>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-    </section>
+    </div>
   );
 }

@@ -3,8 +3,8 @@ export const spacing = {
   2: 8,
   3: 12,
   4: 16,
-  5: 24,
-  6: 32,
+  5: 18,
+  6: 24,
 } as const;
 
 export const typography = {

@@ -8,6 +8,7 @@ interface AppShellProps {
   children: ReactNode;
   isSidebarOpen?: boolean;
   isCollapsed?: boolean;
+  fluid?: boolean;
   onCloseSidebar?: () => void;
   onToggleSidebar?: () => void;
   onToggleCollapse?: () => void;
@@ -19,6 +20,7 @@ export default function AppShell({
   children,
   isSidebarOpen = false,
   isCollapsed = false,
+  fluid = false,
   onCloseSidebar,
   onToggleSidebar,
   onToggleCollapse
@@ -71,12 +73,12 @@ export default function AppShell({
 
       <div className="app-main">
         <header className="app-topbar">
-          <div className="ds-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '100%', padding: 0 }}>
+          <div className={fluid ? "ds-container-fluid" : "ds-container"}>
             {topbarWithToggle}
           </div>
         </header>
         <main id="main-scroll-container" className="app-content">
-          <div className="ds-container">
+          <div className={fluid ? "ds-container-fluid" : "ds-container"}>
             {children}
           </div>
         </main>

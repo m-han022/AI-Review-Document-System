@@ -1,9 +1,8 @@
+import { useMemo } from "react";
 import { getLocalizedText } from "../../locales/utils";
-import { Button, Card } from "../ui";
+import { SparkIcon, TargetIcon, AlertTriangleIcon, ShieldCheckIcon, AlertCircleIcon, CheckCircleIcon, TrendingUpIcon } from "../ui/Icon";
 import { LoadingState } from "../ui/States";
-import { AlertTriangleIcon, ShieldCheckIcon, SparkIcon } from "../ui/Icon";
-import { KPIProgressList, KPIPieChart } from "../ui/KPICharts";
-import type { CriteriaResult } from "../../types";
+import { Card } from "../ui";
 import type { ProjectCriteriaTabViewModel } from "./projectCard.viewModels";
 
 interface Props {
@@ -15,123 +14,226 @@ interface Props {
 export default function ProjectCriteriaTab({
   t,
   viewModel,
-  setHoveredCriterion,
 }: Props) {
-  const { lang, gradingDetail, orderedScores, hoveredCriterion, result, feedbackSections } = viewModel;
+  const { lang, gradingDetail, orderedScores, result, feedbackSections, gradings } = viewModel;
+
+  // Calculate dynamic trend
+  const trend = useMemo(() => {
+    if (!gradings || gradings.length < 2 || !result) return null;
+    const currentScore = result.total_score || 0;
+    const previousGrading = gradings.find(g => g.grading_run_id !== result.id && g.status?.toLowerCase() === 'completed');
+    if (!previousGrading || previousGrading.total_score === undefined) return null;
+    
+    const prevScore = previousGrading.total_score || 0;
+    const diff = currentScore - prevScore;
+    return {
+      value: Math.abs(diff).toFixed(1),
+      isUp: diff >= 0,
+    };
+  }, [gradings, result]);
+
+  // Derive evaluations
+  const criteriaWithEvaluations = useMemo(() => {
+    return orderedScores.map(score => {
+      const detail = gradingDetail?.criteria_results.find(cr => cr.key === score.key);
+      const suggestion = getLocalizedText(detail?.suggestion as any, lang);
+      const normalize = (str: string) => str.toLowerCase().replace(/[0-9]+[.)]/g, "").replace(/\s+/g, "").trim();
+      const scoreNorm = normalize(score.label);
+      
+      const synonyms: Record<string, string[]> = {
+        "diem_tot": ["điểm tốt", "điểm mạnh", "ưu điểm", "tốt"],
+        "diem_xau": ["điểm cần cải thiện", "điểm yếu", "hạn chế", "điểm chưa tốt", "nhược điểm", "xấu"],
+        "chinh_sach": ["chính sách cải thiện", "giải pháp cải thiện", "hành động khắc phục", "chính sách"]
+      };
+      const scoreSynonyms = (synonyms[score.key] || []).map(s => normalize(s));
+
+      const matchedSection = feedbackSections.find(section => {
+        const sectionNorm = normalize(section.title);
+        if (sectionNorm.length < 3) return false;
+        return sectionNorm.includes(scoreNorm) || scoreNorm.includes(sectionNorm) ||
+               scoreSynonyms.some(syn => sectionNorm.includes(syn) || syn.includes(sectionNorm));
+      });
+
+      let evaluation = suggestion || matchedSection?.lines.join(" ");
+      if (!evaluation && (score.key === "review_tong_the" || score.key === "summary")) {
+        const firstSection = feedbackSections.find(s => normalize(s.title).length < 3) || feedbackSections[0];
+        if (firstSection) evaluation = firstSection.lines.join(" ");
+      }
+
+      return {
+        ...score,
+        evaluation: evaluation || t("project.noDetailedComment") || "Không có nhận xét chi tiết cho tiêu chí này."
+      };
+    });
+  }, [orderedScores, gradingDetail, feedbackSections, lang, t]);
+
+  const stats = useMemo(() => {
+    const total = orderedScores.length;
+    // Đạt: >= 80%
+    const passed = orderedScores.filter(s => s.value / s.max >= 0.8).length;
+    // Cần cải thiện: 50% - 80%
+    const improvement = orderedScores.filter(s => s.value / s.max >= 0.5 && s.value / s.max < 0.8).length;
+    // Chưa đạt: < 50%
+    const failed = orderedScores.filter(s => s.value / s.max < 0.5).length;
+    
+    return {
+      total,
+      passed,
+      improvement,
+      failed,
+      passedPercent: total > 0 ? Math.round((passed / total) * 100) : 0,
+      improvementPercent: total > 0 ? Math.round((improvement / total) * 100) : 0,
+      failedPercent: total > 0 ? Math.round((failed / total) * 100) : 0
+    };
+  }, [orderedScores]);
+
+  const scoreLevel = useMemo(() => {
+    const score = result?.total_score || 0;
+    if (score >= 90) return { label: "Xuất sắc", color: "var(--ds-color-success)" };
+    if (score >= 80) return { label: "Tốt", color: "var(--ds-color-primary)" };
+    if (score >= 65) return { label: "Trung bình", color: "var(--ds-color-warning)" };
+    return { label: "Yếu", color: "var(--ds-color-danger)" };
+  }, [result]);
+
   return (
-    <>
+    <div className="project-criteria-tab-v4" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {gradingDetail ? (
         <>
-          <section className="action-center-v3" style={{ marginBottom: "32px" }}>
-            <header className="section-header-v3">
-              <h2 className="section-title-v3" style={{ fontSize: "1.25rem", color: "var(--ds-color-primary-dark)" }}>
-                <SparkIcon size="sm" /> {t("project.executiveSummary")}
-              </h2>
-            </header>
-            <div className="executive-summary-card-v4" style={{ marginBottom: "24px", background: "var(--ds-color-primary-soft)", border: "1px solid var(--ds-color-primary-light)", padding: "24px", borderRadius: "12px" }}>
-              <div className="summary-content-v4">
-                {feedbackSections.map((section, idx) => (
-                  <div key={idx} className="summary-block-v4">
-                    {section.title && <h5 style={{ color: "var(--ds-color-primary-dark)", fontSize: "1rem", marginBottom: "12px" }}>{section.title}</h5>}
-                    <ul style={{ paddingLeft: "20px", color: "var(--ds-color-text-body)", lineHeight: "1.6" }}>
-                      {section.lines.map((line, lidx) => <li key={lidx} style={{ marginBottom: "8px" }}>{line}</li>)}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            </div>
+          {/* Block 1: Professional Header Row as per reference image */}
+          <section className="analysis-header-v4">
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(5, 1fr)', 
+              gap: '16px' 
+            }}>
+              {/* 1. Tổng số tiêu chí */}
+              <Card style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3B82F6' }}>
+                  <TargetIcon size="sm" />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '13px', color: 'var(--ds-color-text-muted)', fontWeight: 600 }}>{t("project.totalCriteria") || "Tổng số tiêu chí"}</span>
+                  <span style={{ fontSize: '24px', fontWeight: 800, color: '#1E293B' }}>{stats.total}</span>
+                </div>
+              </Card>
 
-            <header className="section-header-v3">
-              <h2 className="section-title-v3" style={{ fontSize: "1.125rem" }}>{t("project.criteriaInsights")}</h2>
-              <span className="section-badge-v3">
-                {orderedScores.filter((s) => s.value < s.max).length} {t("project.improvementPoints")}
-              </span>
-            </header>
-            <div className="criteria-insight-grid-v4">
-              {orderedScores.filter((s) => s.value < s.max).map((s, idx) => {
-                const criterionResult = result?.criteria_results?.find((cr: CriteriaResult) => cr.key === s.key);
-                const suggestion = criterionResult?.suggestion ? getLocalizedText(criterionResult.suggestion as Record<string, string>, lang) : null;
-                return (
-                  <article key={idx} className="insight-card-v4" style={{ background: "var(--ds-color-warning-soft)", borderColor: "var(--ds-color-warning-light)" }}>
-                    <div style={{ position: "relative", width: "48px", height: "48px", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }} title={`${s.value}/${s.max}`}>
-                      <svg width="48" height="48" viewBox="0 0 48 48">
-                        <circle cx="24" cy="24" r="20" fill="none" stroke="var(--ds-color-background)" strokeWidth="4" />
-                        <circle 
-                          cx="24" cy="24" r="20" fill="none" 
-                          stroke={s.value / (s.max || 1) < 0.5 ? "var(--ds-color-danger)" : s.value / (s.max || 1) < 0.8 ? "var(--ds-color-warning)" : "var(--ds-color-success)"} 
-                          strokeWidth="4" 
-                          strokeDasharray="125.6" 
-                          strokeDashoffset={125.6 - (s.value / (s.max || 1)) * 125.6} 
-                          strokeLinecap="round" 
-                          transform="rotate(-90 24 24)" 
-                          style={{ transition: "stroke-dashoffset 0.5s ease-in-out" }}
-                        />
-                      </svg>
-                      <span style={{ position: "absolute", fontSize: "0.85rem", fontWeight: 700, color: "var(--ds-color-text-title)" }}>{s.value}</span>
-                    </div>
-                    <div className="insight-card-v4__content">
-                      <h4 className="insight-card-v4__title">{s.label}</h4>
-                      <div className="insight-card-v4__body" style={{ color: "var(--ds-color-text-body)", fontSize: "0.95rem", lineHeight: "1.5" }}>{suggestion || t("project.noSpecificSuggestion")}</div>
-                    </div>
-                  </article>
-                );
-              })}
+              {/* 2. Cần cải thiện */}
+              <Card style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F59E0B' }}>
+                  <AlertTriangleIcon size="sm" />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '13px', color: 'var(--ds-color-text-muted)', fontWeight: 600 }}>{t("project.needsImprovement") || "Cần cải thiện"}</span>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                    <span style={{ fontSize: '24px', fontWeight: 800, color: '#F59E0B' }}>{stats.improvement}</span>
+                    <span style={{ fontSize: '14px', fontWeight: 700, color: '#1E293B' }}>({stats.improvementPercent}%)</span>
+                  </div>
+                </div>
+              </Card>
+
+              {/* 3. Chưa đạt */}
+              <Card style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#EF4444' }}>
+                  <AlertCircleIcon size="sm" />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '13px', color: 'var(--ds-color-text-muted)', fontWeight: 600 }}>{t("project.failed") || "Chưa đạt"}</span>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                    <span style={{ fontSize: '24px', fontWeight: 800, color: '#EF4444' }}>{stats.failed}</span>
+                    <span style={{ fontSize: '14px', fontWeight: 700, color: '#1E293B' }}>({stats.failedPercent}%)</span>
+                  </div>
+                </div>
+              </Card>
+
+              {/* 4. Đạt */}
+              <Card style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10B981' }}>
+                  <CheckCircleIcon size="sm" />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '13px', color: 'var(--ds-color-text-muted)', fontWeight: 600 }}>{t("project.passed") || "Đạt"}</span>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                    <span style={{ fontSize: '24px', fontWeight: 800, color: '#10B981' }}>{stats.passed}</span>
+                    <span style={{ fontSize: '14px', fontWeight: 700, color: '#1E293B' }}>({stats.passedPercent}%)</span>
+                  </div>
+                </div>
+              </Card>
+
+              {/* 5. Điểm trung bình */}
+              <Card style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(99, 102, 241, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6366F1' }}>
+                  <TrendingUpIcon size="sm" />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '13px', color: 'var(--ds-color-text-muted)', fontWeight: 600 }}>{t("project.averageScore") || "Điểm trung bình"}</span>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                    <span style={{ fontSize: '24px', fontWeight: 800, color: '#1E293B' }}>{result?.total_score || 0}</span>
+                    <span style={{ fontSize: '14px', color: '#64748B', fontWeight: 600 }}>/ 100</span>
+                  </div>
+                </div>
+              </Card>
             </div>
           </section>
 
-          <header className="project-toolbar-v3">
-            <h3>{t("project.scoreOverview")}</h3>
-            <div style={{ display: "flex", gap: "8px" }}>
-              <Button variant="secondary" size="sm" disabled title={t("common.comingSoon") || "Coming soon"}>
-                {t("project.exportReport")}
-              </Button>
-            </div>
-          </header>
-          <Card className="score-overview-card-v4">
-            <div className="overview-split-v4">
-              <div className="overview-visual-pane">
-                <div className="visual-header-v4">
-                  <h4 className="visual-title-v4">{t("project.totalScore")}</h4>
-                  <div className="trend-indicator-v4 success">
-                    <SparkIcon size="sm" />
-                    <span>+12% vs v1</span>
-                  </div>
-                </div>
-                <div className="pie-wrapper-v4">
-                  <KPIPieChart data={orderedScores} highlightedKey={hoveredCriterion} />
-                </div>
-                <div className="quick-insight-v4">
-                  {orderedScores.length > 0 && (
-                    <>
-                      <div className="insight-item-v4 success">
-                        <ShieldCheckIcon size="sm" />
-                        <span>{t("project.bestCriterion")} {[...orderedScores].sort((a, b) => b.value / (b.max || 1) - a.value / (a.max || 1))[0]?.label}</span>
-                      </div>
-                      <div className="insight-item-v4 danger">
-                        <AlertTriangleIcon size="sm" />
-                        <span>{t("project.worstCriterion")} {[...orderedScores].sort((a, b) => a.value / (a.max || 1) - b.value / (b.max || 1))[0]?.label}</span>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-              <div className="overview-matrix-pane">
-                <div className="matrix-header-v4">
-                  <h4 className="matrix-title-v4">{t("project.scoreOverview")}</h4>
-                  <Button variant="ghost" size="sm" disabled title={t("common.comingSoon") || "Coming soon"}>
-                    Sort by Score
-                  </Button>
-                </div>
-                <KPIProgressList data={orderedScores} highlightedKey={hoveredCriterion} onHover={setHoveredCriterion} />
-              </div>
-            </div>
-          </Card>
+
+          {/* Block 2: Detailed Evaluation Table */}
+          <section className="analysis-table-v4">
+            <Card style={{ padding: '0', overflow: 'hidden', border: '1px solid var(--ds-color-border)' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ background: '#F8FAFC', borderBottom: '1px solid var(--ds-color-border)' }}>
+                    <th style={{ padding: '16px', fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', width: '25%' }}>
+                      {t("project.criteria") || "Tiêu chí"}
+                    </th>
+                    <th style={{ padding: '16px', fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', width: '15%', textAlign: 'center' }}>
+                      {t("project.metaScore") || "Điểm"}
+                    </th>
+                    <th style={{ padding: '16px', fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>
+                      {t("project.detailedBreakdown") || "Đánh giá chi tiết từ AI"}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {criteriaWithEvaluations.map((item, idx) => (
+                    <tr key={idx} style={{ borderBottom: idx < criteriaWithEvaluations.length - 1 ? '1px solid var(--ds-color-border)' : 'none' }}>
+                      <td style={{ padding: '16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{ 
+                            width: '32px', height: '32px', borderRadius: '8px', 
+                            background: '#F1F5F9', 
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            color: 'var(--ds-color-primary)'
+                          }}>
+                            <item.Icon size="xs" />
+                          </div>
+                          <span style={{ fontWeight: 600, fontSize: '14px', color: '#334155' }}>{item.label}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '16px', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                          <span style={{ fontWeight: 700, fontSize: '16px', color: item.value / item.max >= 0.8 ? '#10B981' : item.value / item.max >= 0.5 ? '#F59E0B' : '#EF4444' }}>
+                            {item.value}
+                          </span>
+                          <span style={{ fontSize: '11px', color: '#94A3B8' }}>/ {item.max}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '16px' }}>
+                        <p style={{ fontSize: '13.5px', lineHeight: '1.6', color: '#475569', margin: 0 }}>
+                          {item.evaluation}
+                        </p>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Card>
+          </section>
         </>
       ) : (
-        <Card className="score-overview-card-v4" style={{ padding: "60px", textAlign: "center" }}>
+        <Card style={{ padding: "60px", textAlign: "center" }}>
           <LoadingState title={t("project.loadingGradingData")} />
         </Card>
       )}
-    </>
+    </div>
   );
 }

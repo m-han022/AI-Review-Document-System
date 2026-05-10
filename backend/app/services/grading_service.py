@@ -262,16 +262,26 @@ class GradingService:
             # 4. Extracting (already done during upload, but we mark the state)
             self.update_status(run.id, "EXTRACTING")
             
+            # Extract multimodal content in memory
+            from app.services.pdf_parser import extract_multimodal_content
+            multimodal_data = None
+            try:
+                if version.file_path:
+                    print(f"[GradingService] Extracting multimodal content from {version.file_path}")
+                    multimodal_data = extract_multimodal_content(version.file_path)
+            except Exception as e_ext:
+                print(f"[GradingService] Multimodal extraction failed, falling back to text-only: {e_ext}")
+
             # 5. Grading with Retry
             self.update_status(run.id, "GRADING")
             
             @retry(
                 stop=stop_after_attempt(3),
                 wait=wait_exponential(multiplier=1, min=2, max=10),
-                retry=retry_if_exception_type((Exception)), # We can refine this to specific Gemini errors if needed
+                retry=retry_if_exception_type((Exception)), 
                 reraise=True
             )
-            def _grade_with_retry():
+            def _grade_with_retry(mm_content=None):
                 return grade_submission(
                     text=version.extracted_text,
                     language=version.language,
@@ -281,10 +291,11 @@ class GradingService:
                     prompt_level=signature["prompt_level"],
                     evaluation_set_id=evaluation_set_id,
                     project_description=submission.project_description,
-                    use_cache=False
+                    use_cache=False,
+                    multimodal_content=mm_content
                 )
 
-            result_data = _grade_with_retry()
+            result_data = _grade_with_retry(multimodal_data)
 
             # 6. Save results
             self._save_grading_results(run, result_data)

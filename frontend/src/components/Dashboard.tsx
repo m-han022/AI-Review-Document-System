@@ -41,6 +41,7 @@ export default function Dashboard() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [topbarActions, setTopbarActions] = useState<React.ReactNode>(null);
 
   useEffect(() => {
     const handler = (event: Event) => {
@@ -79,7 +80,7 @@ export default function Dashboard() {
         return {
           title: t("upload.pageTitle"),
           subtitle: t("upload.pageSubtitle"),
-          breadcrumb: undefined,
+          breadcrumb: [t("sm.audit.project"), t("nav.upload")],
           rightBadge: null,
           hideMain: false,
         };
@@ -87,7 +88,7 @@ export default function Dashboard() {
         return {
           title: t("submissions.title"),
           subtitle: t("submissions.subtitle"),
-          breadcrumb: undefined,
+          breadcrumb: [t("sm.audit.project"), t("nav.allReviews")],
           rightBadge: t("submissions.count", { count: projects.length }),
           hideMain: false,
         };
@@ -95,7 +96,7 @@ export default function Dashboard() {
         return {
           title: selectedProject?.project_name ?? t("project.reviewResult"),
           subtitle: t("project.reviewDetailSubtitle"),
-          breadcrumb: [t("nav.dashboard"), t("nav.allReviews"), selectedProject?.project_name ?? ""],
+          breadcrumb: [t("sm.audit.project"), selectedProject?.project_name ?? "", t("project.reviewResult")],
           rightBadge: null,
           hideMain: false,
         };
@@ -103,7 +104,7 @@ export default function Dashboard() {
         return {
           title: t("rubric.pageTitle"),
           subtitle: t("rubric.pageSubtitle"),
-          breadcrumb: [t("nav.dashboard"), t("nav.rubrics")],
+          breadcrumb: [t("sm.audit.project"), t("nav.rubrics")],
           rightBadge: null,
           hideMain: false,
         };
@@ -111,7 +112,7 @@ export default function Dashboard() {
         return {
           title: t("nav.qualityReport"),
           subtitle: undefined,
-          breadcrumb: [t("nav.dashboard"), t("nav.qualityReport")],
+          breadcrumb: [t("sm.audit.project"), t("nav.qualityReport")],
           rightBadge: null,
           hideMain: false,
         };
@@ -119,7 +120,7 @@ export default function Dashboard() {
         return {
           title: t("nav.versionDiff"),
           subtitle: t("biz.versionDiff.subtitle"),
-          breadcrumb: [t("nav.dashboard"), t("nav.versionDiff")],
+          breadcrumb: [t("sm.audit.project"), t("nav.versionDiff")],
           rightBadge: null,
           hideMain: false,
         };
@@ -127,7 +128,7 @@ export default function Dashboard() {
         return {
           title: t("nav.approvalWorkflow"),
           subtitle: undefined,
-          breadcrumb: [t("nav.dashboard"), t("nav.approvalWorkflow")],
+          breadcrumb: [t("sm.audit.project"), t("nav.approvalWorkflow")],
           rightBadge: null,
           hideMain: false,
         };
@@ -135,7 +136,7 @@ export default function Dashboard() {
         return {
           title: t("nav.export"),
           subtitle: undefined,
-          breadcrumb: [t("nav.dashboard"), t("nav.export")],
+          breadcrumb: [t("sm.audit.project"), t("nav.export")],
           rightBadge: null,
           hideMain: false,
         };
@@ -143,7 +144,7 @@ export default function Dashboard() {
         return {
           title: t("nav.settings"),
           subtitle: undefined,
-          breadcrumb: [t("nav.dashboard"), t("nav.settings")],
+          breadcrumb: [t("sm.audit.project"), t("nav.settings")],
           rightBadge: null,
           hideMain: false,
         };
@@ -229,6 +230,7 @@ export default function Dashboard() {
               key={selectedProjectId}
               projectId={selectedProjectId}
               onBack={() => setActiveView("reviews")}
+              setTopbarActions={setTopbarActions}
             />
           </ErrorBoundary>
         );
@@ -288,14 +290,14 @@ export default function Dashboard() {
   })();
 
   const handleBreadcrumbClick = (index: number) => {
-    if (index === 0) setActiveView("dashboard");
-    else if (index === 1) setActiveView("reviews");
+    if (index === 0) setActiveView("reviews");
   };
 
   return (
     <AppShell
       isSidebarOpen={isMobileMenuOpen}
       isCollapsed={isSidebarCollapsed}
+      fluid={false}
       onCloseSidebar={() => setIsMobileMenuOpen(false)}
       onToggleSidebar={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
       onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -305,6 +307,7 @@ export default function Dashboard() {
           onChangeView={(view) => {
             setActiveView(view);
             setIsMobileMenuOpen(false);
+            setTopbarActions(null);
           }} 
           isCollapsed={isSidebarCollapsed}
         />
@@ -316,6 +319,7 @@ export default function Dashboard() {
           breadcrumb={topbarContent.breadcrumb}
           rightBadge={topbarContent.rightBadge}
           hideMain={topbarContent.hideMain}
+          actions={topbarActions}
           dashboardChrome={activeView === "dashboard" || activeView === "reviews" || activeView === "upload" || activeView === "diff" || activeView === "workflow" || activeView === "export" || activeView === "settings" || activeView === "report" || activeView === "rubrics" || activeView === "detail"}
           onToggleSidebar={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}

@@ -1,10 +1,18 @@
-* {
+*, *::before, *::after {
   box-sizing: border-box;
 }
 
-html,
-body,
+html {
+  height: 100vh;
+  overflow: hidden;
+}
+body {
+  height: 100vh;
+  overflow: hidden;
+}
 #root {
+  height: 100vh;
+  overflow: hidden;
   font-family: "Noto Sans JP", "Inter", "Noto Sans", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -4428,7 +4436,9 @@ input.ds-checkbox:checked::after {
 }
 
 .ui-icon {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: 0 0 auto;
   width: var(--ds-icon-lg);
   height: var(--ds-icon-lg);

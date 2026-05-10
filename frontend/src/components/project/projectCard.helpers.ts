@@ -18,8 +18,10 @@ export interface OrderedScoreItem {
   label: string;
   value: number;
   max: number;
+  evaluation?: string;
   Icon: ReturnType<typeof getCriterionIcon>;
 }
+
 
 export function getCriterionIcon(criterionKey: string) {
   switch (criterionKey) {
@@ -74,8 +76,9 @@ export function getStatusLabel(status: string, t: (key: string) => string): stri
 export function splitFeedbackSections(lines: string[]): FeedbackSectionView[] {
   const sections: FeedbackSectionView[] = [];
   for (const line of lines) {
-    if (/^[0-9]+[.)]\s*/.test(line)) {
-      sections.push({ title: line, lines: [] });
+    // Handle markdown headers (###), bold text (**1. Title**), and numbered lists
+    if (/^(?:#{1,6}\s+)?(?:\*\*)?[0-9]+[.)]\s*/.test(line)) {
+      sections.push({ title: line.replace(/[*#]/g, "").trim(), lines: [] });
       continue;
     }
     const current = sections.at(-1);
@@ -84,6 +87,7 @@ export function splitFeedbackSections(lines: string[]): FeedbackSectionView[] {
   }
   return sections.length ? sections : [{ title: "", lines }];
 }
+
 
 export function buildSlideReviewItems(
   slideReviews: SlideReview[] | undefined,

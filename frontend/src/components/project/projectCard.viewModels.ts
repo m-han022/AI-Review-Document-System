@@ -9,7 +9,9 @@ export interface ProjectCriteriaTabViewModel {
   hoveredCriterion: string | null;
   result?: GradingRun;
   feedbackSections: FeedbackSectionView[];
+  gradings?: any[];
 }
+
 
 export interface SlideViewItem {
   id: number;

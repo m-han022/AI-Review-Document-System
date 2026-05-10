@@ -39,7 +39,7 @@ export function useProjectReviewState({ projectId, lang, t }: UseProjectReviewSt
   const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null);
   const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null);
   const [selectedGradingId, setSelectedGradingId] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<"criteria" | "slides">("criteria");
+  const [activeTab, setActiveTab] = useState<"criteria" | "slides" | "analysis">("criteria");
   const [selectedSlideId, setSelectedSlideId] = useState<number | null>(null);
   const [filterNG, setFilterNG] = useState(false);
   const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
@@ -253,7 +253,7 @@ export function useProjectReviewState({ projectId, lang, t }: UseProjectReviewSt
     };
   }, [result, orderedScores, slideReviewItems, t]);
 
-  return {
+  return useMemo(() => ({
     uiState: {
       selectedDocumentId,
       setSelectedDocumentId,
@@ -306,5 +306,12 @@ export function useProjectReviewState({ projectId, lang, t }: UseProjectReviewSt
       riskLevel,
       topInsight,
     },
-  };
+  }), [
+    selectedDocumentId, selectedVersionId, selectedGradingId, activeTab, selectedSlideId,
+    filterNG, summaryDialogOpen, promptUsedOpen, promptUsedText, hoveredCriterion, comparisonMode,
+    documents, sortedDocuments, loadingDocs, docsError, versions, loadingVersions, gradings,
+    loadingGradings, gradingDetail, currentProject, currentVersion,
+    result, slideReviewItems, ngSlideCount, orderedScores, feedbackSections, activeSlide,
+    isInitialLoading, riskLevel, topInsight
+  ]);
 }

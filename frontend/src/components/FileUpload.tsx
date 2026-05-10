@@ -494,13 +494,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                         <span className="prod-doc-type-card__copy">
                           <strong>{cardCopy.title}</strong>
                           <small>{cardCopy.description}</small>
-                          <em>{cardCopy.example}</em>
                         </span>
-                        <Tooltip content={cardCopy.tooltip}>
-                          <span className="prod-doc-type-card__help" aria-label={copy.scoringHintAria}>
-                            <HelpIcon size="sm" />
-                          </span>
-                        </Tooltip>
                       </button>
                     );
                   })}
