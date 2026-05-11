@@ -108,8 +108,8 @@ export default function ProjectOverviewTab({
                     <div className="action-checklist-v4__content">
                       <div className="action-checklist-v4__text">{line}</div>
                       <div className="action-checklist-v4__meta">
-                        <span className="action-checklist-v4__tag">AI Suggestion</span>
-                        <span>Priority: High</span>
+                        <span className="action-checklist-v4__tag">{t("project.aiSuggestionLabel")}</span>
+                        <span>{t("project.priorityHigh")}</span>
                       </div>
                     </div>
                   </div>
@@ -174,16 +174,16 @@ export default function ProjectOverviewTab({
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontWeight: 700, fontSize: '12px', color: 'var(--ds-color-danger)' }}>
-                    Slide {issue.slide_number}
+                    {t("project.slideLabel")} {issue.slide_number}
                   </span>
-                  <div style={{ padding: '2px 6px', background: 'var(--ds-color-danger)', color: 'white', borderRadius: '4px', fontSize: '10px', fontWeight: 800 }}>NG</div>
+                  <div style={{ padding: '2px 6px', background: 'var(--ds-color-danger)', color: 'white', borderRadius: '4px', fontSize: '10px', fontWeight: 800 }}>{t("project.ngBadge")}</div>
                 </div>
                 <div style={{ fontSize: '13px', lineHeight: 1.4, color: 'var(--ds-color-text-body)', fontWeight: 500 }}>
                   {issue.summary.length > 80 ? issue.summary.slice(0, 80) + '...' : issue.summary}
                 </div>
-                {issue.issues && issue.issues[lang] && (
+                {issue.issues && issue.issues.length > 0 && (
                    <div style={{ fontSize: '11px', color: 'var(--ds-color-danger-dark)', marginTop: '4px', fontStyle: 'italic' }}>
-                     • {issue.issues[lang].slice(0, 50)}...
+                     • {issue.issues[0].slice(0, 50)}...
                    </div>
                 )}
               </div>

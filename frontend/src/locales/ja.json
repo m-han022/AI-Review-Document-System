@@ -1,5 +1,6 @@
 {
   "common": {
+    "appName": "AI Review Document",
     "save": "保存",
     "create": "作成",
     "edit": "編集",
@@ -128,6 +129,10 @@
       "notChanged": "変更なし",
       "sameContextLabel": "同一評価コンテキスト",
       "differentContextLabel": "異なる評価コンテキスト",
+      "contextFactor": "コンテキスト要素",
+      "promptLevel": "評価レベル",
+      "evaluationSet": "評価セット",
+      "status": "状態",
       "warnings": "比較警告",
       "warning": {
         "evaluation_set_changed": "異なる evaluation set で採点されています。",
@@ -135,7 +140,7 @@
       }
     },
     "auditDashboard": {
-      "filterTitle": "監査フィルター",
+      "filterTitle": "検索フィルター",
       "tableTitle": "採点履歴",
       "detailTitle": "採点詳細",
       "selectRun": "詳細を見る採点実行を選択してください。",
@@ -284,7 +289,7 @@
     "approvalWorkflow": "承認ワークフロー",
     "export": "エクスポート",
     "settings": "設定",
-    "brandTitle": "AIレビューシステム",
+    "brandTitle": "AI Review Document",
     "systemLog": "システムログ",
     "groupMonitor": "モニタリング",
     "groupOperate": "運用",
@@ -512,6 +517,13 @@
     "explanationBlock": "説明",
     "improveScoreBlock": "得点を上げるには",
     "downloadResult": "結果をダウンロード",
+    "exportPdfReport": "PDFレポート出力",
+    "reportTitle": "文書評価レポート",
+    "projectLabel": "プロジェクト",
+    "versionLabel": "バージョン",
+    "gradingDateLabel": "評価日",
+    "gradingFailedLabel": "評価失敗",
+    "gradingProcessing": "評価中...",
     "rerunReview": "レビュー再実行",
     "rerunSuccess": "レビュー再実行リクエストを送信しました。",
     "reviewHistory": "レビュー履歴",

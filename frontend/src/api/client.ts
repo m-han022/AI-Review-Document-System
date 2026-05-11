@@ -207,11 +207,28 @@ export async function listAuditRuns(filters: AuditRunsFilter = {}): Promise<Grad
 }
 
 export async function getAuditRunDetail(runId: number): Promise<GradingRunDetail> {
-  const res = await fetch(`${API_BASE_URL}/audit/runs/${runId}`);
-  if (!res.ok) {
-    throw createApiError("GRADING_FETCH_FAILED", apiMessage("fetchSubmissionsFailed"), res.status, res.statusText);
+  try {
+    const res = await fetch(`${API_BASE_URL}/audit/runs/${runId}`);
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => "Unknown error");
+      console.error(`API Error: ${res.status} ${res.statusText}`, errorText);
+      throw createApiError(
+        "GRADING_FETCH_FAILED",
+        `${apiMessage("fetchSubmissionsFailed")} (${res.status})`,
+        res.status,
+        res.statusText
+      );
+    }
+    const data = await res.json();
+    if (!data) throw new Error("Empty response from server");
+    return data;
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('Failed to fetch')) {
+      console.error("Network Error: Failed to fetch. Possible CORS or connection issue.");
+      throw createApiError("NETWORK_UNREACHABLE", apiMessage("cannotConnect"));
+    }
+    throw error;
   }
-  return res.json();
 }
 
 export async function exportAuditRunsCsv(filters: {
@@ -320,6 +337,11 @@ export async function compareVersions(documentId: number, baseId: number, compar
 export function getSubmissionFileUrl(projectId: string, disposition: "inline" | "attachment" = "inline") {
   const params = new URLSearchParams({ disposition });
   return `${API_BASE_URL}/submissions/${encodeURIComponent(projectId)}/file?${params.toString()}`;
+}
+
+export function getVersionFileUrl(versionId: number, disposition: "inline" | "attachment" = "inline") {
+  const params = new URLSearchParams({ disposition });
+  return `${API_BASE_URL}/versions/${versionId}/file?${params.toString()}`;
 }
 
 export async function uploadFile(formData: FormData) {

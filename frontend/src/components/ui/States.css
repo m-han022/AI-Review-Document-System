@@ -3,14 +3,14 @@
 .ui-status-badge {
   display: inline-flex;
   align-items: center;
-  padding: 1px 6px;
-  border-radius: var(--ds-radius-sm);
-  font-size: 10px;
-  font-weight: 700;
+  padding: 3px 10px; /* Increased padding */
+  border-radius: var(--ds-radius-pill, 100px); /* Use pill shape for better balance */
+  font-size: 11px; /* Slightly larger font */
+  font-weight: 800; /* Extra bold for clarity */
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.05em;
   white-space: nowrap;
-  gap: 4px;
+  gap: 8px; /* Increased gap between icon and text */
 }
 
 .ui-status-badge__icon {

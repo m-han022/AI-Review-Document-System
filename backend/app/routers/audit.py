@@ -59,21 +59,14 @@ def _build_audit_statement(
     statement = (
         select(
             GradingRun,
+            Submission,
             SubmissionDocument.id,
             SubmissionDocument.document_type,
             SubmissionDocument.document_name,
         )
         .join(Submission, Submission.id == GradingRun.submission_id)
-        .join(
-            SubmissionDocumentVersion,
-            SubmissionDocumentVersion.id == GradingRun.document_version_id,
-            isouter=True,
-        )
-        .join(
-            SubmissionDocument,
-            SubmissionDocument.id == SubmissionDocumentVersion.document_id,
-            isouter=True,
-        )
+        .join(SubmissionDocumentVersion, SubmissionDocumentVersion.id == GradingRun.document_version_id, isouter=True)
+        .join(SubmissionDocument, SubmissionDocument.id == SubmissionDocumentVersion.document_id, isouter=True)
     )
 
     if project_id:
@@ -164,13 +157,24 @@ async def list_audit_runs(
             slides_by_run.setdefault(slide.grading_run_id, []).append(slide)
 
         result: list[GradingRunHistoryOut] = []
-        for run, doc_id, doc_type, doc_name in rows:
+        for item in rows:
+            # SQLModel returns a tuple of (GradingRun, Submission, doc_id, doc_type, doc_name)
+            # because Submission is joined and selected
+            run = item[0]
+            submission = item[1]
+            doc_id = item[2]
+            doc_type = item[3]
+            doc_name = item[4]
+
             run_id = run.id or 0
             slide_items = slides_by_run.get(run_id, [])
-            ng_slide_count = sum(1 for item in slide_items if item.status == "NG")
+            ng_slide_count = sum(1 for s in slide_items if s.status == "NG")
+            
             result.append(
                 GradingRunHistoryOut(
                     id=run_id,
+                    project_id=str(submission.project_id),
+                    project_name=str(submission.project_name or submission.project_id),
                     score=run.score,
                     total_score=run.total_score if run.total_score is not None else run.score,
                     document_id=doc_id,

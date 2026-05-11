@@ -91,12 +91,12 @@
   color: var(--ds-color-text);
 }
 
-.ds-button--sakura {
-  background-color: var(--ds-color-sakura);
+.ds-button--accent {
+  background-color: var(--ds-color-accent);
   color: white;
 }
 
-.ds-button--sakura:hover:not(:disabled) {
+.ds-button--accent:hover:not(:disabled) {
   opacity: 0.9;
   transform: translateY(-1px);
   box-shadow: var(--ds-shadow-md);

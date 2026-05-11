@@ -62,7 +62,7 @@ export default function ProjectCriteriaTab({
 
       return {
         ...score,
-        evaluation: evaluation || t("project.noDetailedComment") || "Không có nhận xét chi tiết cho tiêu chí này."
+        evaluation: evaluation || t("project.noDetailedComment")
       };
     });
   }, [orderedScores, gradingDetail, feedbackSections, lang, t]);
@@ -89,10 +89,10 @@ export default function ProjectCriteriaTab({
 
   const scoreLevel = useMemo(() => {
     const score = result?.total_score || 0;
-    if (score >= 90) return { label: "Xuất sắc", color: "var(--ds-color-success)" };
-    if (score >= 80) return { label: "Tốt", color: "var(--ds-color-primary)" };
-    if (score >= 65) return { label: "Trung bình", color: "var(--ds-color-warning)" };
-    return { label: "Yếu", color: "var(--ds-color-danger)" };
+    if (score >= 90) return { label: t("project.scoreLevelExcellent"), color: "var(--ds-color-success)" };
+    if (score >= 80) return { label: t("project.scoreLevelGood"), color: "var(--ds-color-primary)" };
+    if (score >= 65) return { label: t("project.scoreLevelAverage"), color: "var(--ds-color-warning)" };
+    return { label: t("project.scoreLevelWeak"), color: "var(--ds-color-danger)" };
   }, [result]);
 
   return (
@@ -176,7 +176,7 @@ export default function ProjectCriteriaTab({
           </section>
 
           <section className="analysis-table-v4">
-            <header className="section-header-v3" style={{ marginBottom: '16px' }}>
+            <header className="section-header-v3" style={{ marginBottom: 'var(--ds-space-6)' }}>
               <h2 className="section-title-v3">
                 <SparkIcon size="sm" /> {t("project.criteriaDetailTitle") || "Phân tích chi tiết từng tiêu chí"}
               </h2>
@@ -250,7 +250,7 @@ export default function ProjectCriteriaTab({
                             alignItems: 'center',
                             gap: '8px'
                           }}>
-                            <SparkIcon size="xs" /> {t("project.improveScoreBlock") || "Để tăng điểm:"} Rà soát lại các slide NG liên quan đến tiêu chí này.
+                            <SparkIcon size="xs" /> {t("project.improveScoreBlock") || "Để tăng điểm:"} {t("project.suggestionImprovementHint")}
                           </div>
                         )}
                       </td>

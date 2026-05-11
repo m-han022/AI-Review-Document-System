@@ -128,7 +128,7 @@
   top: 6px;
   bottom: 6px;
   width: 4px;
-  background-color: var(--ds-color-sakura);
+  background-color: var(--ds-color-accent);
   border-radius: 0 4px 4px 0;
 }
 

@@ -48,6 +48,8 @@ export interface GradingRun {
 
 export interface GradingRunHistory {
   id: number;
+  project_id: string;
+  project_name: string;
   score: number | null;
   total_score?: number | null;
   document_id?: number | null;
@@ -229,7 +231,13 @@ export interface VersionDiffCriteria {
 }
 
 export interface VersionDiffMeta {
+  prompt_level_a?: string | null;
+  prompt_level_b?: string | null;
   prompt_level_changed: boolean;
+  evaluation_set_id_a?: number | null;
+  evaluation_set_name_a?: string | null;
+  evaluation_set_id_b?: number | null;
+  evaluation_set_name_b?: string | null;
   evaluation_set_changed: boolean;
 }
 

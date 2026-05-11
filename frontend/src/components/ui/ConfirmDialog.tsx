@@ -35,10 +35,10 @@ export default function ConfirmDialog({
       size="sm"
       footer={
         <>
-          <Button variant="ghost" onClick={onCancel} disabled={isLoading}>
+          <Button variant="ghost" onClick={onCancel} disabled={isLoading} size="md">
             {cancelLabel}
           </Button>
-          <Button variant={tone === "danger" ? "danger" : tone === "warning" ? "warning" : "primary"} onClick={onConfirm} isLoading={isLoading}>
+          <Button variant={tone === "danger" ? "danger" : tone === "warning" ? "warning" : "primary"} onClick={onConfirm} isLoading={isLoading} size="md">
             {confirmLabel}
           </Button>
         </>

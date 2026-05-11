@@ -27,6 +27,7 @@ from app.models import (
     SubmissionDocument,
     SubmissionDocumentVersion,
     SubmissionOut,
+    EvaluationSet,
     VersionComparisonOut,
     CriteriaDeltaOut,
     VersionDiffOut,
@@ -724,7 +725,13 @@ class SubmissionStore:
                 ),
                 criteria_diff=criteria_diff,
                 meta_diff=VersionDiffMetaOut(
+                    prompt_level_a=run_a.prompt_level,
+                    prompt_level_b=run_b.prompt_level,
                     prompt_level_changed=prompt_level_changed,
+                    evaluation_set_id_a=run_a.evaluation_set_id,
+                    evaluation_set_name_a=(session.get(EvaluationSet, run_a.evaluation_set_id).name if run_a.evaluation_set_id else None),
+                    evaluation_set_id_b=run_b.evaluation_set_id,
+                    evaluation_set_name_b=(session.get(EvaluationSet, run_b.evaluation_set_id).name if run_b.evaluation_set_id else None),
                     evaluation_set_changed=evaluation_set_changed,
                 ),
                 comparison_validity=VersionDiffValidityOut(
@@ -784,7 +791,6 @@ class SubmissionStore:
             if run_out is None:
                 return None
             record = self._to_record(session, submission)
-            record.run_history = self._run_history(session, record.id)
             return GradingRunDetailOut(
                 submission=self._submission_out_from_record(record),
                 document=self._document_out(document),

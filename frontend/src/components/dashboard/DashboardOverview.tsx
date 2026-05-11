@@ -10,6 +10,7 @@ import {
 import { useTranslation } from "../LanguageSelector";
 import type { Project } from "../../types";
 import { formatUploadedAt } from "../submissions/utils";
+import { Button } from "../ui";
 import "./DashboardOverview.css";
 
 interface DashboardOverviewProps {
@@ -357,12 +358,20 @@ export default function DashboardOverview({
       </section>
 
       <div className="dashboard-actions-v6">
-        <button type="button" className="ds-action-btn" onClick={onOpenReviews}>
+        <Button 
+          variant="primary" 
+          onClick={onOpenReviews}
+          size="md"
+        >
           {t("submissions.title")}
-        </button>
-        <button type="button" className="ds-action-btn secondary" onClick={onOpenExport}>
+        </Button>
+        <Button 
+          variant="outline" 
+          onClick={onOpenExport}
+          size="md"
+        >
           {t("nav.export")}
-        </button>
+        </Button>
       </div>
     </div>
   );

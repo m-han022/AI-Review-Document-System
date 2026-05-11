@@ -26,6 +26,7 @@ import {
   HelpIcon,
   ShieldCheckIcon,
   UploadCloudIcon,
+  PlusIcon,
 } from "./ui/Icon";
 
 import { EmptyState, ErrorState, FieldError, FilePreview, StatusBadge, SuccessState, Tooltip } from "./ui/States";
@@ -109,7 +110,6 @@ function mapReviewErrorByCode(
 
 export default function FileUpload({ onReviewComplete }: FileUploadProps) {
   const [documentType, setDocumentType] = useState<DocumentType | null>(null);
-  const [selectedEvaluationSetId, setSelectedEvaluationSetId] = useState<number | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadState, setUploadState] = useState<UploadState>("idle");
   const [dragActive, setDragActive] = useState(false);
@@ -128,7 +128,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
   const [pendingDuplicateFile, setPendingDuplicateFile] = useState<File | null>(null);
   const [projectFieldPulse, setProjectFieldPulse] = useState(false);
   const [reviewDone, setReviewDone] = useState<{ projectId: string; score: number | null | undefined; isPending: boolean } | null>(null);
-  const [activeStep, setActiveStep] = useState(0);
+
   const [fieldErrors, setFieldErrors] = useState<{
     project?: string;
     file?: string;
@@ -152,37 +152,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
       !reviewing
   );
   
-  const { data: globalDefaults } = useQuery({
-    queryKey: ["global-defaults"],
-    queryFn: getGlobalDefaults,
-  });
-  
-  const { data: evaluationSetsData } = useQuery({
-    queryKey: ["upload-evaluation-sets", effectiveDocumentType],
-    queryFn: () => listEvaluationSets(effectiveDocumentType),
-    enabled: Boolean(documentType),
-  });
-  const evaluationSets = (Array.isArray(evaluationSetsData) ? evaluationSetsData : []) as EvaluationSet[];
-  const scopedEvaluationSets = useMemo(
-    () => evaluationSets.filter((item) => item.document_type === effectiveDocumentType),
-    [evaluationSets, effectiveDocumentType],
-  );
 
-  useEffect(() => {
-    if (!documentType) {
-      setSelectedEvaluationSetId(null);
-      return;
-    }
-    if (!scopedEvaluationSets.length) {
-      setSelectedEvaluationSetId(null);
-      return;
-    }
-    if (selectedEvaluationSetId && scopedEvaluationSets.some((item) => item.id === selectedEvaluationSetId)) {
-      return;
-    }
-    const preferred = scopedEvaluationSets.find((item) => item.status === "active") ?? scopedEvaluationSets[0];
-    setSelectedEvaluationSetId(preferred?.id ?? null);
-  }, [documentType, scopedEvaluationSets, selectedEvaluationSetId]);
 
   useEffect(() => {
     if (!reviewing) return;
@@ -229,7 +199,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
     setMessage(null);
     setReviewErrorKind(null);
     setFieldErrors({});
-    setReviewDone(null);  // clear stale review result when file is replaced
+    setReviewDone(null);
     resetInput();
   };
 
@@ -293,7 +263,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
           }
         }
       } catch {
-        // Non-blocking UX check: if hash pre-check fails, continue upload normally.
+        // Non-blocking UX check
       }
     }
 
@@ -351,14 +321,13 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
       window.setTimeout(() => setProjectFieldPulse(false), 520);
       return;
     }
-    // Fix: removed selectedEvaluationSetId guard - backend auto-resolves it per AGENTS.md
     if (!uploadedProjectId || !documentType || uploadState !== "uploaded") {
       setMessage({ text: copy.disabledHelper, type: "error" });
       return;
     }
     setReviewing(true);
     setProcessingStep("read");
-    setMessage(null);  // clear upload success message to avoid confusion
+    setMessage(null);
     setFieldErrors({});
     setReviewDone(null);
 
@@ -367,7 +336,6 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
         projectId: uploadedProjectId,
         documentVersionId: uploadedVersionId,
         force: forceRegrade,
-        evaluationSetId: selectedEvaluationSetId ?? undefined,
       })) as GradeResponse;
 
       const isPending = (result.status ?? "").toLowerCase() === "pending";
@@ -379,14 +347,9 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
       setReviewErrorKind(null);
       setMessage(null);
       
-      // Advance to result step
-      setActiveStep(2);
-
-      // Async mode (USE_CELERY=true): navigate immediately, result screen will poll for status
       if (isPending) {
         onReviewComplete?.(result.project_id);
       }
-      // Sync mode (USE_CELERY=false): show success inline with score + view-details button
     } catch (err) {
       const mapped = mapReviewErrorByCode(err, t);
       setReviewErrorKind(mapped.kind);
@@ -394,10 +357,6 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
     } finally {
       setReviewing(false);
     }
-  };
-
-  const retryUpload = async () => {
-    if (selectedFile) await uploadSelectedFile(selectedFile);
   };
 
   const handleConfirmDuplicateUpload = async () => {
@@ -417,104 +376,107 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
     resetInput();
   };
 
-  // Stepper logic
-  const currentStep = (() => {
-    if (!documentType) return 0;
-    if (uploadState !== "uploaded") return 1;
-    if (!selectedExistingProjectId) return 2;
-    return 3;
-  })();
-  const steps = [
-    { label: lang === "ja" ? "資料タイプ選択" : lang === "en" ? "Select Type" : "Chọn loại tài liệu", icon: "📄" },
-    { label: lang === "ja" ? "ファイルをアップロード" : lang === "en" ? "Upload File" : "Tải tệp lên", icon: "☁" },
-    { label: lang === "ja" ? "プロジェクト設定" : lang === "en" ? "Setup Project" : "Thiết lập dự án", icon: "⚙" },
-    { label: lang === "ja" ? "レビュー開始" : lang === "en" ? "Ready" : "Sẵn sàng", icon: "🚀" },
-  ];
-
   return (
     <div className="upload-container-v3" aria-label={copy.title}>
-      {/* Step 1: Selection & Flow Overview */}
-      <div className="upload-header-section">
-        <div className="ds-container">
-          <div className="upload-stepper">
-            {steps.map((step, i) => (
-              <div 
-                key={i} 
-                className={`upload-stepper__item ${
-                  i < activeStep ? "is-done" : i === activeStep ? "is-active" : "is-pending"
-                } ${(!documentType && i > 0) || reviewing ? "is-disabled" : "is-clickable"}`.trim()}
-                onClick={() => {
-                  if (!reviewing && (i === 0 || (documentType && i <= activeStep))) {
-                    setActiveStep(i);
-                  }
-                }}
-              >
-                <div className="upload-stepper__circle">
-                  {i < activeStep ? <span>✓</span> : <span>{step.icon}</span>}
-                </div>
-                <span className="upload-stepper__label">{step.label}</span>
-                {i < steps.length - 1 && <div className="upload-stepper__line" />}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content Area - Wizard Steps */}
       <div className="upload-main-v4">
-        <div className="ds-container upload-wizard-container">
-          {/* STEP 0: Selection */}
-          {activeStep === 0 && (
-            <div className="upload-step-view animate-fade-in">
-              <Card 
-                title={copy.chooseType}
-                subtitle={undefined}
-                className="upload-type-compact"
-              >
-                <div className="prod-doc-type-grid">
-                  {DOCUMENT_TYPE_OPTIONS.map((option) => {
-                    const cardCopy = DOCUMENT_CARD_COPY[lang][option.id];
-                    const Icon = getDocumentIcon(option.id);
-                    const isSelected = documentType === option.id;
-
-                    return (
-                      <button
-                        className={`prod-doc-type-card ${isSelected ? "is-active" : ""}`.trim()}
-                        type="button"
-                        key={option.id}
-                        onClick={() => {
-                          setDocumentType(option.id);
-                          setMessage(null);
-                          setActiveStep(1);
-                        }}
-                      >
-                        <span className="prod-doc-type-card__icon" aria-hidden="true">
-                          <Icon size="sm" />
-                        </span>
-                        <span className="prod-doc-type-card__copy">
-                          <strong>{cardCopy.title}</strong>
-                          <small>{cardCopy.description}</small>
-                        </span>
-                      </button>
-                    );
-                  })}
+        {/* Stepper Header */}
+        <div className="upload-stepper-v4">
+          {[
+            { id: 1, label: lang === "ja" ? "プロジェクト設定" : "Thiết lập dự án" },
+            { id: 2, label: lang === "ja" ? "ドキュメントアップロード" : "Tải lên tài liệu" },
+            { id: 3, label: lang === "ja" ? "AIレビューと結果" : "Đánh giá & Kết quả" },
+          ].map((s) => {
+            const currentStep = !selectedExistingProjectId ? 1 : (uploadState !== "uploaded" && !reviewDone ? 2 : 3);
+            const isActive = s.id <= currentStep;
+            const isCompleted = s.id < currentStep;
+            return (
+              <div key={s.id} className={`upload-step-v4 ${isActive ? "is-active" : ""} ${isCompleted ? "is-completed" : ""}`.trim()}>
+                <div className="upload-step-v4__circle">
+                  {isCompleted ? "✓" : s.id}
                 </div>
-              </Card>
-            </div>
-          )}
+                <div className="upload-step-v4__label">{s.label}</div>
+                {s.id < 3 && <div className="upload-step-v4__connector" />}
+              </div>
+            );
+          })}
+        </div>
 
-          {/* STEP 1: Upload & Config */}
-          {activeStep === 1 && (
-            <div className="upload-step-view animate-fade-in">
-              <Card
-                title={copy.uploadFile}
-                headerAction={
-                  <Button variant="ghost" size="sm" onClick={() => setActiveStep(0)}>
-                    ← {lang === "ja" ? "戻る" : "Quay lại"}
-                  </Button>
-                }
-                className="upload-stage-compact"
-              >
+        <div className="ds-container upload-one-shot-container">
+          <Card 
+            title={reviewing ? reviewingMessage : reviewDone ? t("project.reviewResult") : copy.title}
+            className="upload-card-full"
+            headerAction={
+              reviewDone && (
+                <Button variant="ghost" size="sm" onClick={resetFile}>
+                  ← {lang === "ja" ? "最初から" : "Làm lại từ đầu"}
+                </Button>
+              )
+            }
+          >
+            {reviewing ? (
+              <div className="upload-wizard-processing">
+                <div className="prod-processing">
+                  {(["read", "extract", "grade", "recommend"] as ProcessingStep[]).map((step) => (
+                    <div className={`prod-processing__step ${processingStep === step ? "is-active" : ""}`.trim()} key={step}>
+                      <span />
+                      <strong>{copy.processingSteps[step]}</strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : reviewDone ? (
+              <div className="upload-wizard-result">
+                <div className="upload-result-hero">
+                  <div className="upload-result-hero__score">
+                    <span className={`upload-result-hero__value ${(reviewDone.score ?? 0) < 60 ? "is-danger" : "is-success"}`}>
+                      {reviewDone.score ?? "—"}
+                      <small>/100</small>
+                    </span>
+                    <label>{lang === "ja" ? "総合スコア" : "Điểm tổng quát"}</label>
+                  </div>
+                  <div className="upload-result-hero__actions">
+                    <Button size="lg" variant="primary" onClick={() => onReviewComplete?.(reviewDone.projectId)}>
+                      {lang === "ja" ? "詳細レポートを見る" : "Xem báo cáo chi tiết"} →
+                    </Button>
+                    <p>{lang === "ja" ? "AI がドキュメントを分析し、改善案を生成しました。" : "AI đã phân tích tài liệu và đưa ra các đề xuất cải thiện."}</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="upload-one-shot-form animate-fade-in">
+                <div className="upload-section-v4">
+                  <h4 className="upload-section-title">{copy.chooseType}</h4>
+                  <div className="prod-doc-type-grid">
+                    {DOCUMENT_TYPE_OPTIONS.map((option) => {
+                      const cardCopy = DOCUMENT_CARD_COPY[lang][option.id];
+                      const Icon = getDocumentIcon(option.id);
+                      const isSelected = documentType === option.id;
+
+                      return (
+                        <button
+                          className={`prod-doc-type-card ${isSelected ? "is-active" : ""}`.trim()}
+                          type="button"
+                          key={option.id}
+                          onClick={() => {
+                            setDocumentType(option.id);
+                            setMessage(null);
+                          }}
+                        >
+                          <span className="prod-doc-type-card__icon" aria-hidden="true">
+                            <Icon size="sm" />
+                          </span>
+                          <span className="prod-doc-type-card__copy">
+                            <strong>{cardCopy.title}</strong>
+                            <small>{cardCopy.description}</small>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div style={{ margin: "32px 0", borderTop: "1px solid var(--ds-color-border-subtle)" }} />
+
                 <div className="upload-wizard-grid">
                   <div className="upload-wizard-col-left">
                     <div className={`upload-project-section ${fieldErrors.project ? "has-error" : ""} ${projectFieldPulse ? "is-shaking" : ""}`.trim()}>
@@ -524,14 +486,14 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                           className={fieldErrors.project ? "has-error" : ""}
                           options={[
                             { value: "", label: `-- ${copy.selectExistingProject} --` },
-                            ...projects.map(p => ({ value: p.project_id, label: `${p.project_id} - ${p.project_name}` }))
+                            ...projects.map((p) => ({ value: p.project_id, label: `${p.project_id} - ${p.project_name}` }))
                           ]}
                           value={selectedExistingProjectId || ""}
                           onChange={(e) => {
                             const pid = e.target.value;
                             setSelectedExistingProjectId(pid || null);
                             setFieldErrors((prev) => ({ ...prev, project: undefined }));
-                            const p = projects.find(proj => proj.project_id === pid);
+                            const p = projects.find((proj) => proj.project_id === pid);
                             if (p) {
                               setProjectDescription(p.project_description || "");
                             }
@@ -539,14 +501,14 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                           error={fieldErrors.project}
                         />
                         <Button
-                          variant="secondary"
-                          size="sm"
+                          variant="primary"
+                          size="md"
                           onClick={() => setShowCreateProjectDialog(true)}
                           disabled={uploadState === "uploading" || reviewing}
                           className="upload-project-add-btn"
-                          title={copy.createProjectNew}
                         >
-                          +
+                          <PlusIcon size="sm" />
+                          {copy.createProjectNew}
                         </Button>
                       </div>
                     </div>
@@ -639,33 +601,6 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
 
                 <div className="upload-actions-group">
                   <div className="upload-metadata-summary">
-                    <div className="ds-chip-muted">
-                      <ShieldCheckIcon size="sm" />
-                      <span>{t("upload.evaluationSet")}:</span>
-                      <strong>
-                        {selectedEvaluationSetId
-                          ? (evaluationSets.find(s => s.id === selectedEvaluationSetId)?.name || "Auto")
-                          : "Auto"}
-                      </strong>
-                    </div>
-
-                    <Tooltip content={globalDefaults?.policies["medium"]?.[lang] || "..."}>
-                      <div className="ds-chip-muted" style={{ cursor: 'help' }}>
-                        <HelpIcon size="sm" />
-                        <span>Medium</span>
-                      </div>
-                    </Tooltip>
-
-                    {message && uploadState !== "error" && (
-                      <div style={{ marginLeft: 'auto' }}>
-                        <StatusBadge tone={message.type === "success" ? "success" : "danger"}>
-                          {message.text}
-                        </StatusBadge>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="prod-upload-btn-group">
                     <label className="ds-checkbox-control prod-upload-btn-group__checkbox">
                       <input
                         type="checkbox"
@@ -675,70 +610,40 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                       />
                       <span>{copy.rerunWithoutCache}</span>
                     </label>
+
+                    {message && uploadState !== "error" && (
+                      <div style={{ marginLeft: "auto" }}>
+                        <StatusBadge tone={message.type === "success" ? "success" : "danger"}>
+                          {message.text}
+                        </StatusBadge>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="prod-upload-btn-group">
+                    <Button
+                      variant="ghost"
+                      onClick={resetFile}
+                      disabled={reviewing || uploadState === "uploading"}
+                      size="lg"
+                    >
+                      {t("common.cancel") || "Hủy"}
+                    </Button>
                     <Button
                       onClick={() => void handleReview()}
                       disabled={!canStartReview || reviewing}
                       isLoading={reviewing}
                       size="lg"
-                      className={canStartReview && !reviewing ? "btn-pulse" : ""}
+                      variant="primary"
+                      className={`upload-main-review-btn ${canStartReview && !reviewing ? "btn-pulse" : ""}`.trim()}
                     >
                       {reviewing ? reviewingMessage : copy.startReview}
                     </Button>
                   </div>
                 </div>
-              </Card>
-            </div>
-          )}
-
-          {/* STEP 2: Processing & Result */}
-          {activeStep === 2 && (
-            <div className="upload-step-view animate-fade-in">
-              <Card 
-                title={reviewing ? lang === "ja" ? "AI レビュー中" : "AI đang chấm điểm" : lang === "ja" ? "レビュー結果" : "Kết quả review"}
-                className="upload-result-compact"
-                headerAction={
-                  !reviewing && (
-                    <Button variant="ghost" size="sm" onClick={() => setActiveStep(1)}>
-                      ← {lang === "ja" ? "再アップロード" : "Tải lên lại"}
-                    </Button>
-                  )
-                }
-              >
-                {reviewing ? (
-                  <div className="upload-wizard-processing">
-                    <div className="prod-processing">
-                      {(["read", "extract", "grade", "recommend"] as ProcessingStep[]).map((step) => (
-                        <div className={`prod-processing__step ${processingStep === step ? "is-active" : ""}`.trim()} key={step}>
-                          <span />
-                          <strong>{copy.processingSteps[step]}</strong>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : reviewDone ? (
-                  <div className="upload-wizard-result">
-                    <div className="upload-result-hero">
-                      <div className="upload-result-hero__score">
-                        <span className={`upload-result-hero__value ${(reviewDone.score ?? 0) < 60 ? "is-danger" : "is-success"}`}>
-                          {reviewDone.score ?? "—"}
-                          <small>/100</small>
-                        </span>
-                        <label>{lang === "ja" ? "総合スコア" : "Điểm tổng quát"}</label>
-                      </div>
-                      <div className="upload-result-hero__actions">
-                        <Button size="lg" variant="primary" onClick={() => onReviewComplete?.(reviewDone.projectId)}>
-                          {lang === "ja" ? "詳細レポートを見る" : "Xem báo cáo chi tiết"} →
-                        </Button>
-                        <p>{lang === "ja" ? "AI がドキュメントを分析し、改善案を生成しました。" : "AI đã phân tích tài liệu và đưa ra các đề xuất cải thiện."}</p>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                   <EmptyState title="No data" description="Please complete step 1" />
-                )}
-              </Card>
-            </div>
-          )}
+              </div>
+            )}
+          </Card>
         </div>
       </div>
 

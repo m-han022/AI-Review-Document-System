@@ -5,7 +5,7 @@ import type { DocumentListOut, Project, VersionDiffOut, VersionListOut } from ".
 import { useTranslation } from "../LanguageSelector";
 import { Button, Card, Select, StatusBadge } from "../ui";
 import { LoadingState } from "../ui/States";
-import { ArrowRightIcon, PlusIcon } from "../ui/Icon";
+import { ArrowRightIcon } from "../ui/Icon";
 import "./VersionDiffDashboard.css";
 
 type UiState = "idle" | "loading" | "ready" | "empty" | "error";
@@ -87,32 +87,6 @@ function reducer(state: State, action: Action): State {
   }
 }
 
-function tone(direction: "up" | "down" | "same"): "success" | "danger" | "muted" {
-  if (direction === "up") return "success";
-  if (direction === "down") return "danger";
-  return "muted";
-}
-
-function formatDelta(delta: number, t: (key: string) => string): string {
-  if (delta > 0) return `+${delta}`;
-  if (delta < 0) return String(delta);
-  return t("sm.versionDiff.noChangeLabel");
-}
-
-
-
-function getPromptLevelChangedLabel(changed: boolean, t: (key: string) => string): string {
-  return changed ? t("sm.versionDiff.promptLevelChangedLabel") : t("sm.versionDiff.promptLevelNotChangedLabel");
-}
-
-function getEvaluationSetChangedLabel(changed: boolean, t: (key: string) => string): string {
-  return changed ? t("sm.versionDiff.evaluationSetChangedLabel") : t("sm.versionDiff.evaluationSetNotChangedLabel");
-}
-
-function getContextLabel(same: boolean, t: (key: string) => string): string {
-  return same ? t("sm.versionDiff.sameContextLabel") : t("sm.versionDiff.differentContextLabel");
-}
-
 function getWarningLabel(item: string, t: (key: string) => string): string {
   switch (item) {
     case "evaluation_set_changed":
@@ -123,8 +97,6 @@ function getWarningLabel(item: string, t: (key: string) => string): string {
       return item;
   }
 }
-
-
 
 export default function VersionDiffDashboard() {
   const { t } = useTranslation();
@@ -176,7 +148,6 @@ export default function VersionDiffDashboard() {
   );
 
   const formatKey = (key: string) => {
-    // Try to find a translated version in upload.criteria first
     const translated = t(`upload.criteria.${key}`);
     if (translated !== `upload.criteria.${key}`) return translated;
 
@@ -265,7 +236,6 @@ export default function VersionDiffDashboard() {
                   <div className="version-mini-summary">
                     <span>{t("common.uploadedAt")}: <strong>{new Date(versionAData.uploaded_at).toLocaleDateString()}</strong></span>
                     <span>{t("project.metaScore")}: <strong>{versionAData.latest_grading_score ?? "—"}</strong></span>
-                    {versionAData.latest_grading_score === null && <span className="version-warning-text">{t("sm.versionDiff.needsGrading")}</span>}
                   </div>
                 )}
               </div>
@@ -285,7 +255,6 @@ export default function VersionDiffDashboard() {
                   <div className="version-mini-summary">
                     <span>{t("common.uploadedAt")}: <strong>{new Date(versionBData.uploaded_at).toLocaleDateString()}</strong></span>
                     <span>{t("project.metaScore")}: <strong>{versionBData.latest_grading_score ?? "—"}</strong></span>
-                    {versionBData.latest_grading_score === null && <span className="version-warning-text">{t("sm.versionDiff.needsGrading")}</span>}
                   </div>
                 )}
               </div>
@@ -331,7 +300,7 @@ export default function VersionDiffDashboard() {
                 </div>
             </div>
             
-            <Button variant="outline" size="sm" onClick={runExport} isLoading={isExporting}>
+            <Button variant="outline" size="md" onClick={runExport} isLoading={isExporting}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1D6F42" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
@@ -345,7 +314,7 @@ export default function VersionDiffDashboard() {
           </Card>
 
           <Card title={t("sm.versionDiff.criteriaTitle")}>
-            <div className="ds-table-container">
+            <div className="ds-table-container" style={{ marginTop: 'var(--ds-space-4)' }}>
               <table className="ds-table">
                 <thead>
                   <tr>
@@ -374,28 +343,57 @@ export default function VersionDiffDashboard() {
           </Card>
 
           <Card title={t("sm.versionDiff.metaTitle")}>
-            <div className="governance-grid">
-              <div className="detail-section">
-                <span className="detail-section__title">{t("sm.versionDiff.promptLevelChanged")}</span>
-                <div style={{ fontWeight: 600 }}>{getPromptLevelChangedLabel(state.diff.meta_diff.prompt_level_changed, t)}</div>
-              </div>
-              <div className="detail-section">
-                <span className="detail-section__title">{t("sm.versionDiff.evaluationSetChanged")}</span>
-                <div style={{ fontWeight: 600 }}>{getEvaluationSetChangedLabel(state.diff.meta_diff.evaluation_set_changed, t)}</div>
-              </div>
-              <div className="detail-section">
-                <span className="detail-section__title">{t("sm.versionDiff.sameContext")}</span>
-                <div style={{ fontWeight: 600 }}>{getContextLabel(state.diff.comparison_validity.same_evaluation_context, t)}</div>
-              </div>
+            <div className="ds-table-container">
+              <table className="ds-table">
+                <thead>
+                  <tr>
+                    <th>{t("sm.versionDiff.contextFactor")}</th>
+                    <th style={{ textAlign: 'center' }}>{t("sm.versionDiff.before")}</th>
+                    <th style={{ textAlign: 'center' }}>{t("sm.versionDiff.after")}</th>
+                    <th style={{ textAlign: 'right' }}>{t("sm.versionDiff.status")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="font-medium">{t("sm.versionDiff.promptLevel")}</td>
+                    <td style={{ textAlign: 'center' }}>{state.diff.meta_diff.prompt_level_a || "—"}</td>
+                    <td style={{ textAlign: 'center' }}>{state.diff.meta_diff.prompt_level_b || "—"}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      <StatusBadge tone={state.diff.meta_diff.prompt_level_changed ? "warning" : "muted"}>
+                        {state.diff.meta_diff.prompt_level_changed ? t("sm.versionDiff.changed") : t("sm.versionDiff.notChanged")}
+                      </StatusBadge>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="font-medium">{t("sm.versionDiff.evaluationSet")}</td>
+                    <td style={{ textAlign: 'center' }}>
+                      {state.diff.meta_diff.evaluation_set_name_a || (state.diff.meta_diff.evaluation_set_id_a ? `#${state.diff.meta_diff.evaluation_set_id_a}` : "—")}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      {state.diff.meta_diff.evaluation_set_name_b || (state.diff.meta_diff.evaluation_set_id_b ? `#${state.diff.meta_diff.evaluation_set_id_b}` : "—")}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <StatusBadge tone={state.diff.meta_diff.evaluation_set_changed ? "warning" : "muted"}>
+                        {state.diff.meta_diff.evaluation_set_changed ? t("sm.versionDiff.changed") : t("sm.versionDiff.notChanged")}
+                      </StatusBadge>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
+
             {state.diff.comparison_validity.warnings.length > 0 && (
-              <div style={{ marginTop: '16px', padding: '12px', backgroundColor: 'var(--ds-color-warning-light)', borderRadius: 'var(--ds-radius-md)' }}>
-                <strong style={{ fontSize: '12px', color: 'var(--ds-color-warning)' }}>{t("sm.versionDiff.warnings")}</strong>
-                <ul style={{ marginTop: '8px', paddingLeft: '20px', fontSize: '13px', color: 'var(--ds-color-text)' }}>
-                  {state.diff.comparison_validity.warnings.map((item) => (
-                    <li key={item}>{getWarningLabel(item, t)}</li>
-                  ))}
-                </ul>
+              <div style={{ marginTop: '20px' }}>
+                <div className="ds-alert ds-alert--warning">
+                  <div className="ds-alert__title">{t("sm.versionDiff.warnings")}</div>
+                  <div className="ds-alert__content">
+                    <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                      {state.diff.comparison_validity.warnings.map((item, idx) => (
+                        <li key={idx}>{getWarningLabel(item, t)}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
               </div>
             )}
           </Card>

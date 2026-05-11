@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { getSubmissionFileUrl } from "../../api/client";
+import { getSubmissionFileUrl, getVersionFileUrl } from "../../api/client";
 import { Button } from "../ui";
 import { EmptyState, StatusBadge } from "../ui/States";
 import { AlertCircleIcon, AlertTriangleIcon, CheckCircleIcon, ChevronLeftIcon, ChevronRightIcon, DownloadIcon, LayersIcon, SparkIcon, TargetIcon } from "../ui/Icon";
@@ -37,7 +37,7 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
             className={`ng-filter-pill ${filterNG ? 'active' : ''}`}
             onClick={() => setFilterNG(!filterNG)}
           >
-            {filterNG ? "NG Only" : "All"}
+            {filterNG ? t("project.filterNgOnly") : t("project.filterAll")}
           </button>
         </div>
         <div className="tab-slide-grid-v4">
@@ -79,12 +79,17 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
                 onClick={() => setShowJson(!showJson)}
                 style={{ color: showJson ? 'var(--ds-color-primary)' : 'var(--ds-color-text-muted)', fontWeight: 600 }}
               >
-                {showJson ? "{ } JSON" : "{ } Show JSON"}
+                {showJson ? t("project.hideJson") : t("project.showJson")}
               </Button>
               <Button 
-                variant="secondary" 
+                variant="ghost" 
                 size="sm" 
-                onClick={() => window.open(getSubmissionFileUrl(projectId, "attachment"), "_blank")}
+                onClick={() => {
+                  const url = gradingDetail?.document_version?.id 
+                    ? getVersionFileUrl(gradingDetail.document_version.id, "attachment")
+                    : getSubmissionFileUrl(projectId, "attachment");
+                  window.open(url, "_blank");
+                }}
               >
                 <DownloadIcon size="sm" /> {t("project.downloadToView")}
               </Button>
@@ -175,81 +180,81 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
 
                 <div className="analysis-side-col">
                   {/* Evidence Block */}
-                  <section className="analysis-section-v3">
-                    <h3 className="analysis-section-title-v3 is-meta" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <section className="analysis-section-v3" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <h3 className="analysis-section-title-v3 is-meta" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                       <LayersIcon size="xs" /> {t("project.documentViewer.title") || "Bằng chứng từ tài liệu"} (AI Proof)
                     </h3>
-                    <div className="evidence-card-v3" style={{ 
-                      background: '#F8FAFC', 
-                      border: '1px solid var(--ds-color-border)', 
-                      borderRadius: '12px', 
-                      padding: '16px',
-                      position: 'relative',
-                      overflow: 'hidden'
-                    }}>
-                      <div style={{ 
-                        position: 'absolute', 
-                        top: 0, right: 0, 
-                        background: 'var(--ds-color-primary-soft)', 
-                        padding: '4px 12px', 
-                        fontSize: '10px', 
-                        fontWeight: 800, 
-                        color: 'var(--ds-color-primary)',
-                        borderBottomLeftRadius: '8px',
-                        textTransform: 'uppercase'
-                      }}>
-                        Document Snippet
-                      </div>
-                      <pre className="evidence-text-v3" style={{ 
-                        fontSize: '12.5px', 
-                        whiteSpace: 'pre-wrap', 
-                        maxHeight: '600px', 
-                        overflowY: 'auto',
-                        fontFamily: 'inherit',
-                        color: '#334155'
-                      }}>
-                        {gradingDetail?.document_version?.extracted_text ? (() => {
-                          const text = gradingDetail.document_version.extracted_text;
-                          const currentNum = activeSlide.slide_number;
-                          const nextNum = currentNum + 1;
-                          const startMarker = `[Slide ${currentNum}]`;
-                          const nextMarker = `[Slide ${nextNum}]`;
-                          const startIdx = text.indexOf(startMarker);
-                          if (startIdx === -1) return <span style={{ fontStyle: 'italic', color: '#94A3B8' }}>(Evidence not found for this slide)</span>;
-                          const endIdx = text.indexOf(nextMarker, startIdx + startMarker.length);
-                          const slideText = text.substring(startIdx + startMarker.length, endIdx === -1 ? text.length : endIdx).trim();
+                    <p style={{ fontSize: '11px', color: 'var(--ds-color-text-muted)', marginBottom: '12px', fontStyle: 'italic', lineHeight: '1.4' }}>
+                      {t("project.aiProofDisclaimer")}
+                    </p>
 
-                          // Highlight text
-                          const quotes: string[] = [];
-                          const regex = /["「“]([^"」”]+)["」”]/g;
-                          if (activeSlide.issues) {
-                            activeSlide.issues.forEach((issue: string) => {
+                    {gradingDetail?.document_version?.filename.toLowerCase().endsWith(".pdf") ? (
+                      <div className="evidence-card-v3" style={{ flex: 1, padding: 0, overflow: 'hidden', minHeight: '500px' }}>
+                        <iframe 
+                          src={`${gradingDetail?.document_version?.id ? getVersionFileUrl(gradingDetail.document_version.id) : getSubmissionFileUrl(projectId)}#page=${activeSlide.slide_number}`}
+                          title="Original Document Preview"
+                          style={{ width: '100%', height: '100%', border: 'none', background: 'white' }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="evidence-card-v3">
+                        <div style={{ 
+                          position: 'absolute', 
+                          top: 0, right: 0, 
+                          background: 'var(--ds-color-primary-soft)', 
+                          padding: '4px 12px', 
+                          fontSize: '10px', 
+                          fontWeight: 800, 
+                          color: 'var(--ds-color-primary)',
+                          borderBottomLeftRadius: '8px',
+                          textTransform: 'uppercase'
+                        }}>
+                          Document Snippet
+                        </div>
+                        <pre className="evidence-text-v3">
+                          {gradingDetail?.document_version?.extracted_text ? (() => {
+                            const text = gradingDetail.document_version.extracted_text;
+                            const currentNum = activeSlide.slide_number;
+                            const nextNum = currentNum + 1;
+                            const startMarker = `[Slide ${currentNum}]`;
+                            const nextMarker = `[Slide ${nextNum}]`;
+                            const startIdx = text.indexOf(startMarker);
+                            if (startIdx === -1) return <span style={{ fontStyle: 'italic', color: '#94A3B8' }}>(Evidence not found for this slide)</span>;
+                            const endIdx = text.indexOf(nextMarker, startIdx + startMarker.length);
+                            const slideText = text.substring(startIdx + startMarker.length, endIdx === -1 ? text.length : endIdx).trim();
+
+                            // Highlight text
+                            const quotes: string[] = [];
+                            const regex = /["「“]([^"」”]+)["」”]/g;
+                            if (activeSlide.issues) {
+                              activeSlide.issues.forEach((issue: string) => {
+                                let match;
+                                while ((match = regex.exec(issue)) !== null) {
+                                  if (match[1].length > 4) quotes.push(match[1]);
+                                }
+                              });
+                            }
+                            if (activeSlide.suggestions) {
                               let match;
-                              while ((match = regex.exec(issue)) !== null) {
+                              while ((match = regex.exec(activeSlide.suggestions)) !== null) {
                                 if (match[1].length > 4) quotes.push(match[1]);
                               }
-                            });
-                          }
-                          if (activeSlide.suggestions) {
-                            let match;
-                            while ((match = regex.exec(activeSlide.suggestions)) !== null) {
-                              if (match[1].length > 4) quotes.push(match[1]);
                             }
-                          }
 
-                          if (quotes.length === 0) return slideText;
+                            if (quotes.length === 0) return slideText;
 
-                          let escapedText = slideText.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                          quotes.sort((a, b) => b.length - a.length).forEach(q => {
-                            const escapedQ = q.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                            const markTag = `<mark style="background: #fef08a; color: #854d0e; padding: 1px 3px; border-radius: 4px; font-weight: 600;">${escapedQ}</mark>`;
-                            escapedText = escapedText.split(escapedQ).join(markTag);
-                          });
+                            let escapedText = slideText.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                            quotes.sort((a, b) => b.length - a.length).forEach(q => {
+                              const escapedQ = q.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                              const markTag = `<mark>${escapedQ}</mark>`;
+                              escapedText = escapedText.split(escapedQ).join(markTag);
+                            });
 
-                          return <span dangerouslySetInnerHTML={{ __html: escapedText }} />;
-                        })() : <span style={{ fontStyle: 'italic', color: '#94A3B8' }}>(No extracted text available)</span>}
-                      </pre>
-                    </div>
+                            return <span dangerouslySetInnerHTML={{ __html: escapedText }} />;
+                          })() : <span style={{ fontStyle: 'italic', color: '#94A3B8' }}>(No extracted text available)</span>}
+                        </pre>
+                      </div>
+                    )}
                   </section>
                 </div>
               </div>

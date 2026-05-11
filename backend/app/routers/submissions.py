@@ -8,9 +8,16 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel
 from app.config import UPLOADS_DIR
-from app.models import DocumentOut, DocumentVersionOut, GradingRunDetailOut, GradingRunHistoryOut, SubmissionListResponse, SubmissionOut, ProjectCreate, ProjectUpdate, ProjectOut, VersionComparisonOut, VersionDiffOut, DocumentListOut, VersionListOut, GradingListOut
+from app.models import (
+    DocumentOut, DocumentVersionOut, GradingRunDetailOut, GradingRunHistoryOut, 
+    SubmissionListResponse, SubmissionOut, ProjectCreate, ProjectUpdate, ProjectOut, 
+    VersionComparisonOut, VersionDiffOut, DocumentListOut, VersionListOut, GradingListOut,
+    SubmissionDocumentVersion
+)
 from app.services.excel_export import build_submissions_excel
 from app.storage import store
+from app.database import engine
+from sqlmodel import Session
 
 router = APIRouter()
 
@@ -141,6 +148,26 @@ async def get_submission_file(project_id: str, disposition: str = "inline"):
         filename=submission.filename,
         content_disposition_type="attachment" if disposition == "attachment" else "inline",
     )
+
+
+@router.get("/versions/{document_version_id}/file", tags=["Projects"])
+async def get_version_file(document_version_id: int, disposition: str = "inline"):
+    """Serves the file associated with a specific document version."""
+    with Session(engine) as session:
+        version = session.get(SubmissionDocumentVersion, document_version_id)
+        if not version:
+            raise HTTPException(status_code=404, detail=f"Version {document_version_id} not found")
+        
+        file_path = _resolve_submission_file(version.original_filename, version.file_path)
+        if not file_path.exists() or not file_path.is_file():
+            raise HTTPException(status_code=404, detail=f"File for version {document_version_id} not found")
+
+        return FileResponse(
+            path=file_path,
+            media_type=_media_type_for_file(version.original_filename),
+            filename=version.original_filename,
+            content_disposition_type="attachment" if disposition == "attachment" else "inline",
+        )
 
 
 @router.get("/submissions/export.xlsx")

@@ -17,9 +17,10 @@ import ProjectReviewDialog from "./ProjectReviewDialog";
 import ProjectCriteriaTab from "./ProjectCriteriaTab";
 import ProjectSlidesTab from "./ProjectSlidesTab";
 import ProjectOverviewTab from "./ProjectOverviewTab";
+import ProjectReportView from "./ProjectReportView";
 import type { ProjectCriteriaTabViewModel, ProjectSlidesTabViewModel } from "./projectCard.viewModels";
 import { EmptyState, StatusBadge } from "../ui/States";
-import { Button, Select } from "../ui";
+import { Button, Select, SearchableSelect } from "../ui";
 import ConfirmDialog from "../ui/ConfirmDialog";
 import {
   formatDateTime,
@@ -121,30 +122,52 @@ export default function ProjectCard({ projectId, onBack, setTopbarActions }: Pro
     promptUsedText,
     hoveredCriterion,
     setHoveredCriterion,
-    comparisonMode,
-    setComparisonMode,
     scrollToSection,
   } = uiState;
   const [confirmReviewOpen, setConfirmReviewOpen] = useState(false);
   const { loadingDocs, docsError, refetchDocuments, versions, gradings, sortedDocuments, gradingDetail, currentProject, currentVersion } = dataState;
   const { rerunMutation, exportMutation } = actions;
   const { result, slideReviewItems, ngSlideCount, orderedScores, feedbackSections, activeSlide, isInitialLoading, riskLevel, topInsight } = derived;
+  const [selectedType, setSelectedType] = useState<string | null>(null);
+
+  // Filter 1: Document Types (Unique from all documents in project)
+  const docTypes = useMemo(() => {
+    const types = Array.from(new Set(sortedDocuments.map(d => d.document_type)));
+    return types.map(tKey => ({ value: tKey, label: t(getDocumentTypeKey(tKey)) }));
+  }, [sortedDocuments, t]);
+
+  // Sync selectedType with current selectedDocument
+  const currentDoc = useMemo(() => sortedDocuments.find(d => d.document_id === selectedDocumentId), [sortedDocuments, selectedDocumentId]);
+  useEffect(() => {
+    if (currentDoc) {
+      setSelectedType(currentDoc.document_type);
+    }
+  }, [currentDoc]);
+
+  // Filter 2: Document Names (Filtered by Type)
+  const filteredDocs = useMemo(() => {
+    if (!selectedType) return sortedDocuments;
+    return sortedDocuments.filter(d => d.document_type === selectedType);
+  }, [sortedDocuments, selectedType]);
+
+  const handleTypeChange = (type: string) => {
+    if (!type) return;
+    setSelectedType(type);
+    const firstOfType = sortedDocuments.find(d => d.document_type === type);
+    if (firstOfType) {
+      setSelectedDocumentId(firstOfType.document_id);
+      setSelectedVersionId(null);
+      setSelectedGradingId(null);
+    }
+  };
 
   useEffect(() => {
     if (setTopbarActions) {
       setTopbarActions(
         <div className="project-toolbar__actions">
           <Button 
-            variant={comparisonMode ? "primary" : "outline"} 
-            size="sm" 
-            onClick={() => setComparisonMode(!comparisonMode)}
-          >
-            <LayersIcon size="sm" />
-            {t("nav.versionDiff")}
-          </Button>
-          <Button 
             variant="primary" 
-            size="sm" 
+            size="md" 
             onClick={() => setConfirmReviewOpen(true)} 
             disabled={rerunMutation.isPending || !selectedVersionId}
             isLoading={rerunMutation.isPending}
@@ -153,13 +176,12 @@ export default function ProjectCard({ projectId, onBack, setTopbarActions }: Pro
             {t("project.rerunReview")}
           </Button>
           <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => exportMutation.mutate({})} 
-            disabled={exportMutation.isPending}
-            isLoading={exportMutation.isPending}
+            variant="primary" 
+            size="md" 
+            onClick={() => window.print()} 
+            disabled={!selectedGradingId || !gradingDetail}
           >
-            <DownloadIcon size="sm" />
+            <ShieldCheckIcon size="sm" /> {t("project.exportPdfReport")}
           </Button>
         </div>
       );
@@ -167,7 +189,7 @@ export default function ProjectCard({ projectId, onBack, setTopbarActions }: Pro
     return () => {
       if (setTopbarActions) setTopbarActions(null);
     };
-  }, [setTopbarActions, comparisonMode, rerunMutation.isPending, selectedVersionId, t, exportMutation.isPending]);
+  }, [setTopbarActions, rerunMutation.isPending, selectedVersionId, t, exportMutation.isPending, selectedGradingId, gradingDetail]);
 
   // Extract top 3 AI comments for the professional summary layout
   const topComments = feedbackSections
@@ -202,8 +224,6 @@ export default function ProjectCard({ projectId, onBack, setTopbarActions }: Pro
     ) || positiveSection?.lines[0];
 
     const highest = [...orderedScores].sort((a, b) => (b.value / (a.max || 1)) - (a.value / (b.max || 1)))[0];
-
-
 
     return [
       {
@@ -282,95 +302,98 @@ export default function ProjectCard({ projectId, onBack, setTopbarActions }: Pro
       {/* Main Content Workspace */}
       <div className="project-main-v3">
         {/* Tầng 2.5 + Tầng 3: Unified Analytical Header */}
-        <div className="analytical-header-v4">
-          <div className="analytical-header-v4__selectors">
-            <Select 
-              size="sm"
-              value={selectedDocumentId || ""} 
-              onChange={(e) => {
-                const docId = e.target.value ? Number(e.target.value) : null;
-                setSelectedDocumentId(docId);
-                setSelectedVersionId(null);
-                setSelectedGradingId(null);
-              }}
-              options={[
-                { value: "", label: t("project.selectDocument") },
-                ...sortedDocuments.map(d => ({
-                  value: String(d.document_id),
-                  label: t(getDocumentTypeKey(d.document_type))
-                }))
-              ]}
-              style={{ height: '32px', fontSize: '13px' }}
-            />
-            <Select 
-              size="sm"
-              value={selectedVersionId || ""} 
-              onChange={(e) => setSelectedVersionId(Number(e.target.value))}
-              disabled={!selectedDocumentId}
-              options={[
-                { value: "", label: t("project.selectVersion") },
-                ...versions.map(v => ({ value: String(v.document_version_id), label: `${t("project.version")} ${v.version}` }))
-              ]}
-              style={{ height: '32px', fontSize: '13px' }}
-            />
-            <Select 
-              size="sm"
-              value={selectedGradingId || ""} 
-              onChange={(e) => setSelectedGradingId(Number(e.target.value))}
-              disabled={!selectedVersionId}
-              options={[
-                { value: "", label: t("project.selectReviewRun") },
-                ...gradings.map(g => ({ value: String(g.grading_run_id), label: `${formatDateTime(g.created_at, lang)}` }))
-              ]}
-              style={{ height: '32px', fontSize: '13px' }}
-            />
+        <div className="analytical-header-v4__selectors">
+          <SearchableSelect 
+            placeholder={t("project.selectDocumentType")}
+            value={selectedType || ""} 
+            onChange={handleTypeChange}
+            options={docTypes}
+            style={{ width: '100%' }}
+          />
+          <SearchableSelect 
+            placeholder={t("project.selectDocument")}
+            value={selectedDocumentId ? String(selectedDocumentId) : ""} 
+            onChange={(val) => {
+              setSelectedDocumentId(Number(val));
+              setSelectedVersionId(null);
+              setSelectedGradingId(null);
+              setSelectedSlideId(null);
+            }}
+            options={filteredDocs.map(d => ({
+              value: String(d.document_id),
+              label: d.document_name || t(getDocumentTypeKey(d.document_type))
+            }))}
+            disabled={!selectedType}
+            style={{ width: '100%' }}
+          />
+          <SearchableSelect 
+            placeholder={t("project.selectVersion")}
+            value={selectedVersionId ? String(selectedVersionId) : ""} 
+            onChange={(val) => {
+              setSelectedVersionId(Number(val));
+              setSelectedGradingId(null);
+              setSelectedSlideId(null);
+            }}
+            disabled={!selectedDocumentId}
+            options={versions.map(v => ({ 
+              value: String(v.document_version_id), 
+              label: `${t("project.version")} ${v.version}` 
+            }))}
+            style={{ width: '100%' }}
+          />
+          <SearchableSelect 
+            placeholder={t("project.selectReviewRun")}
+            value={selectedGradingId ? String(selectedGradingId) : ""} 
+            onChange={(val) => {
+              setSelectedGradingId(Number(val));
+              setSelectedSlideId(null);
+            }}
+            disabled={!selectedVersionId}
+            options={gradings.map(g => ({ 
+              value: String(g.grading_run_id), 
+              label: `${formatDateTime(g.created_at, lang)}` 
+            }))}
+            style={{ width: '100%' }}
+          />
+        </div>
+
+        <div className="analytical-header-v4__metrics">
+          {/* Score Badge */}
+          <div className={`score-badge-v4 ${result?.total_score && result.total_score >= 80 ? 'success' : result?.total_score && result.total_score >= 60 ? 'warning' : 'danger'}`}>
+            <span className="metric-item-v4__label" style={{ color: 'inherit' }}>{t("project.metaScore")}</span>
+            <span style={{ fontSize: '18px' }}>{result?.total_score ?? "—"}</span>
           </div>
 
-          <div className="analytical-header-v4__metrics">
-            {/* Score Badge */}
-            <div className={`score-badge-v4 ${result?.total_score && result.total_score >= 80 ? 'success' : result?.total_score && result.total_score >= 60 ? 'warning' : 'danger'}`}>
-              <span className="metric-item-v4__label" style={{ color: 'inherit' }}>{t("project.metaScore")}</span>
-              <span style={{ fontSize: '18px' }}>{result?.total_score ?? "—"}</span>
-            </div>
-
-            {/* Audit Metadata */}
-            <div className="metric-item-v4" style={{ gap: '4px' }}>
-              <div className="ds-flex ds-items-center ds-gap-2">
-                <span className="meta-tag-v4" title={t("project.metaRubric")}>
-                  <WorkflowIcon size="xs" /> {result?.rubric_version || "—"}
-                </span>
-                <span className="meta-tag-v4" title={t("project.metaPrompt")}>
-                  <TargetIcon size="xs" /> {result?.prompt_version || "—"}
-                </span>
-                <span className={`risk-tag-v3 risk-tag-v3--${riskLevel.tone}`} style={{ fontSize: '10px', padding: '2px 8px' }}>
-                  {result?.prompt_level?.toUpperCase() || "MEDIUM"}
-                </span>
-              </div>
-              <div className="ds-flex ds-items-center ds-gap-2">
-                <span className="meta-tag-v4" style={{ opacity: 0.7 }}>
-                  <ShieldCheckIcon size="xs" /> {result?.gemini_model || "—"}
-                </span>
-              </div>
-            </div>
-
-            {/* Status & Risk */}
-            <div className="metric-item-v4">
-              <span className="metric-item-v4__label">{t("project.documentStatus")}</span>
-              <div className={`metric-item-v4__value`} style={{ color: ngSlideCount > 0 ? 'var(--ds-color-danger)' : 'var(--ds-color-success)' }}>
-                {ngSlideCount > 0 ? <AlertTriangleIcon size="xs" /> : <ShieldCheckIcon size="xs" />}
-                {ngSlideCount > 0 ? `${ngSlideCount} ${t("project.issuesFound")}` : t("project.noIssuesFound")}
-              </div>
-            </div>
-
-            {/* Graded At */}
-            <div className="metric-item-v4">
-              <span className="metric-item-v4__label">{t("project.metaGradedAt")}</span>
-              <div className="metric-item-v4__value" style={{ fontWeight: 500, color: 'var(--ds-color-text-muted)' }}>
-                {result?.graded_at ? formatDateTime(result.graded_at, lang).split(' ')[0] : "—"}
-              </div>
-            </div>
+          {/* Audit Metadata */}
+          <div className="metric-item-v4" style={{ gap: '4px' }}>
+            <span className="meta-tag-v4" style={{ opacity: 0.7 }}>
+              <ShieldCheckIcon size="xs" /> {result?.gemini_model || "—"}
+            </span>
           </div>
         </div>
+
+        {/* Status Notification Banner for non-completed runs */}
+        {result && result.status !== "COMPLETED" && (
+          <div className={`status-banner-v4 is-${result.status?.toLowerCase()}`} style={{ 
+            padding: '12px 20px', 
+            borderRadius: '10px', 
+            marginBottom: '20px',
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '12px',
+            background: result.status === "FAILED" ? 'var(--ds-color-danger-soft)' : 'var(--ds-color-bg-app)',
+            border: `1px solid ${result.status === "FAILED" ? 'var(--ds-color-danger-light)' : 'var(--ds-color-border)'}`,
+            color: result.status === "FAILED" ? 'var(--ds-color-danger-dark)' : 'var(--ds-color-text-body)'
+          }}>
+            {result.status === "FAILED" ? <AlertCircleIcon size="sm" /> : <RefreshIcon size="sm" className="spin" />}
+            <div style={{ flex: 1, fontSize: '13.5px', fontWeight: 600 }}>
+              {result.status === "FAILED" 
+                ? `${t("project.gradingFailedLabel") || "Đánh giá thất bại"}: ${result.error_message || t("common.unknownError")}`
+                : `${t("project.gradingProcessing") || "Đang tiến hành đánh giá..."} (${result.status})`
+              }
+            </div>
+          </div>
+        )}
 
         {/* AI Final Verdict Banner */}
         {result && (
@@ -406,8 +429,6 @@ export default function ProjectCard({ projectId, onBack, setTopbarActions }: Pro
             </div>
           ))}
         </div>
-
-
 
         {/* Tab Selection as Scroll Anchors */}
         <div className="ds-tabs sticky-tabs">
@@ -529,6 +550,34 @@ export default function ProjectCard({ projectId, onBack, setTopbarActions }: Pro
         }}
         onCancel={() => setConfirmReviewOpen(false)}
       />
+
+      {/* Hidden Print View */}
+      {gradingDetail && (
+        <ProjectReportView 
+          t={t}
+          projectTitle={currentProject?.project_name || projectId}
+          versionInfo={currentVersion?.version ? `${t("project.version")} ${currentVersion.version}` : "—"}
+          gradingDate={result?.graded_at ? formatDateTime(result.graded_at, lang) : "—"}
+          totalScore={result?.total_score || 0}
+          geminiModel={result?.gemini_model || "—"}
+          feedbackSections={feedbackSections}
+          orderedScores={orderedScores}
+          slidesViewModel={slidesViewModel}
+          lang={lang}
+          extractedText={gradingDetail?.document_version?.extracted_text}
+          promptLevel={result?.prompt_level}
+          evaluationSetName={result?.evaluation_set?.name}
+          categorizedInsights={categorizedInsights}
+          gradingDetail={gradingDetail}
+          verdictText={
+            result?.total_score && result.total_score >= 80 
+              ? t("project.summaryScoreHealthy", { score: result.total_score })
+              : result?.total_score && result.total_score >= 60
+              ? t("project.summaryScoreWatch", { score: result.total_score })
+              : t("project.summaryScoreCritical", { score: result?.total_score || 0 })
+          }
+        />
+      )}
     </div>
   );
 }

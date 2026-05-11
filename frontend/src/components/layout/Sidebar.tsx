@@ -78,8 +78,8 @@ export default function Sidebar({ activeView, onChangeView, isCollapsed = false 
   return (
     <>
       <div className="app-sidebar__brand">
-        <div style={{ color: 'var(--ds-color-sakura)', fontWeight: 800, fontSize: '20px' }}>
-          {isCollapsed ? "S" : "SAKURA REVIEW"}
+        <div style={{ color: 'var(--ds-color-accent)', fontWeight: 800, fontSize: '20px' }}>
+          {isCollapsed ? t("common.appName").charAt(0) : t("common.appName")}
         </div>
       </div>
 

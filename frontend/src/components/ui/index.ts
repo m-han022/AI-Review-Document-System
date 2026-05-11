@@ -1,6 +1,7 @@
 export * from './Button';
 export * from './Input';
 export * from './Select';
+export * from './SearchableSelect';
 export * from './Card';
 export { default as Badge } from './Badge';
 export * from './Icon';

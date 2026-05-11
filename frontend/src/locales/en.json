@@ -1,5 +1,6 @@
 {
   "common": {
+    "appName": "AI Review Document",
     "save": "Save",
     "create": "Create",
     "edit": "Edit",
@@ -117,6 +118,10 @@
       "notChanged": "Not Changed",
       "sameContextLabel": "Same Evaluation Context",
       "differentContextLabel": "Different Evaluation Context",
+      "contextFactor": "Context Factor",
+      "promptLevel": "Evaluation Level",
+      "evaluationSet": "Evaluation Set",
+      "status": "Status",
       "warnings": "Comparison Warnings",
       "warning": {
         "evaluation_set_changed": "Grading runs used different evaluation sets.",
@@ -124,7 +129,7 @@
       }
     },
     "auditDashboard": {
-      "filterTitle": "Audit Filters",
+      "filterTitle": "Search Filters",
       "tableTitle": "Grading Run History",
       "detailTitle": "Grading Run Details",
       "selectRun": "Select a grading run to view details.",
@@ -272,7 +277,7 @@
     "approvalWorkflow": "Approval Workflow",
     "export": "Export Data",
     "settings": "Settings",
-    "brandTitle": "AI Review System",
+    "brandTitle": "AI Review Document",
     "systemLog": "System Log",
     "groupMonitor": "Monitoring",
     "groupOperate": "Operations",

@@ -21,7 +21,7 @@ import {
   AlertTriangleIcon,
   Icon,
 } from "../ui/Icon";
-import { Button, Card, StatusBadge, Dialog } from "../ui";
+import { Button, Card, StatusBadge, Dialog, Input, Select } from "../ui";
 import { EmptyState, LoadingState } from "../ui/States";
 import { emitUiAudit } from "../../auth/audit";
 import { canPerform, defaultPermissionFlags, type AppRole } from "../../auth/permissions";
@@ -248,15 +248,17 @@ export default function OperationalScreen({
         >
           {copy.openReviews}
         </Button>
-        <Button 
-          variant="ghost" 
-          onClick={onOpenUpload}
-          className="toolbar-btn-secondary"
-          leftIcon={<FileReviewIcon size="sm" style={{ width: '15px', height: '15px' }} />}
-          style={{ paddingLeft: '10px', paddingRight: '10px', color: 'var(--ds-color-primary)' }}
-        >
-          {copy.uploadMore}
-        </Button>
+        {route !== "export" && (
+          <Button 
+            variant="ghost" 
+            onClick={onOpenUpload}
+            className="toolbar-btn-secondary"
+            leftIcon={<FileReviewIcon size="sm" style={{ width: '15px', height: '15px' }} />}
+            style={{ paddingLeft: '10px', paddingRight: '10px', color: 'var(--ds-color-primary)' }}
+          >
+            {copy.uploadMore}
+          </Button>
+        )}
       </div>
 
       <div className="sticky-metrics-bar" style={{ 
@@ -329,8 +331,6 @@ export default function OperationalScreen({
         .metric-title { font-size: 11px; font-weight: 700; color: var(--ds-color-text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
         .metric-card-refined { transition: transform 0.2s ease, box-shadow 0.2s ease; cursor: default; }
         .metric-card-refined:hover { transform: translateY(-2px); box-shadow: var(--ds-shadow-lg) !important; }
-        .date-input-wrapper { position: relative; display: flex; align-items: center; }
-        .date-input-wrapper .ds-icon { position: absolute; right: 12px; pointer-events: none; opacity: 0.5; }
         .export-action-btn { transition: all 0.2s ease; }
         .export-action-btn:hover:not(:disabled) { box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); transform: translateY(-1px); }
         .sticky-metrics-bar.is-stuck { border-bottom-color: var(--ds-color-border); box-shadow: var(--ds-shadow-md); }
@@ -468,60 +468,43 @@ export default function OperationalScreen({
             <div style={{ padding: '16px 24px 32px 24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px', maxWidth: '900px' }}>
               {/* Column 1: Mode & Project ID */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <div>
-                  <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "8px", color: 'var(--ds-color-text)' }}>{exportModeLabel}</label>
-                  <select
-                    className="ds-input"
-                    value={includeAiDetails ? "detailed" : "fast"}
-                    onChange={(e) => setIncludeAiDetails(e.target.value === "detailed")}
-                    disabled={exportMutation.isPending}
-                    style={{ width: '100%' }}
-                  >
-                    <option value="fast">{exportModeFast}</option>
-                    <option value="detailed">{exportModeDetailed}</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "8px", color: 'var(--ds-color-text)' }}>{t("submissions.projectId")}</label>
-                  <input
-                    className="ds-input"
-                    placeholder="project_id (optional)"
-                    value={exportProjectId}
-                    onChange={(e) => setExportProjectId(e.target.value)}
-                    disabled={exportMutation.isPending}
-                    style={{ width: '100%' }}
-                  />
-                </div>
+                <Select
+                  label={exportModeLabel}
+                  value={includeAiDetails ? "detailed" : "fast"}
+                  onChange={(e) => setIncludeAiDetails(e.target.value === "detailed")}
+                  disabled={exportMutation.isPending}
+                  options={[
+                    { value: "fast", label: exportModeFast },
+                    { value: "detailed", label: exportModeDetailed }
+                  ]}
+                />
+                <Input
+                  label={t("submissions.projectId")}
+                  placeholder="project_id (optional)"
+                  value={exportProjectId}
+                  onChange={(e) => setExportProjectId(e.target.value)}
+                  disabled={exportMutation.isPending}
+                />
               </div>
 
               {/* Column 2: Date Filters */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <div>
-                  <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "8px", color: 'var(--ds-color-text)' }}>{lang === "ja" ? "開始日時" : lang === "en" ? "From Time" : "Từ ngày"}</label>
-                  <div className="date-input-wrapper">
-                    <input
-                      className="ds-input"
-                      type="datetime-local"
-                      value={exportFromTime}
-                      onChange={(e) => setExportFromTime(e.target.value)}
-                      disabled={exportMutation.isPending}
-                    />
-                    <CalendarIcon size="sm" />
-                  </div>
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "8px", color: 'var(--ds-color-text)' }}>{lang === "ja" ? "終了日時" : lang === "en" ? "To Time" : "Đến ngày"}</label>
-                  <div className="date-input-wrapper">
-                    <input
-                      className="ds-input"
-                      type="datetime-local"
-                      value={exportToTime}
-                      onChange={(e) => setExportToTime(e.target.value)}
-                      disabled={exportMutation.isPending}
-                    />
-                    <CalendarIcon size="sm" />
-                  </div>
-                </div>
+                <Input
+                  label={lang === "ja" ? "開始日時" : lang === "en" ? "From Time" : "Từ ngày"}
+                  type="datetime-local"
+                  value={exportFromTime}
+                  onChange={(e) => setExportFromTime(e.target.value)}
+                  disabled={exportMutation.isPending}
+                  leftIcon={<CalendarIcon size="sm" />}
+                />
+                <Input
+                  label={lang === "ja" ? "終了日時" : lang === "en" ? "To Time" : "Đến ngày"}
+                  type="datetime-local"
+                  value={exportToTime}
+                  onChange={(e) => setExportToTime(e.target.value)}
+                  disabled={exportMutation.isPending}
+                  leftIcon={<CalendarIcon size="sm" />}
+                />
               </div>
             </div>
 
@@ -590,7 +573,7 @@ export default function OperationalScreen({
         </div>
       )}
 
-      <h3 className="ds-title-h3" style={{ marginBottom: '16px', marginTop: '24px' }}>{copy.latest}</h3>
+      <h3 className="ds-title-h3" style={{ marginBottom: 'var(--ds-space-6)', marginTop: '24px' }}>{copy.latest}</h3>
       <div className="ds-table-container">
         <table className="ds-table">
           <thead>

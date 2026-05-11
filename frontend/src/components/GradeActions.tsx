@@ -5,6 +5,7 @@ import { getGradeJob, gradeAll } from "../api/client";
 import { projectsQueryKey } from "../query";
 import type { GradeJobResponse } from "../types";
 import Badge from "./ui/Badge";
+import { Button } from "./ui/Button";
 import ConfirmDialog from "./ui/ConfirmDialog";
 import { RefreshIcon } from "./ui/Icon";
 import { useTranslation } from "./LanguageSelector";
@@ -95,22 +96,24 @@ export default function GradeActions({ ungradedCount, totalCount }: GradeActions
           </Badge>
         </div>
         <div className="grade-actions__buttons">
-          <button
-            className="btn-primary"
+          <Button
+            variant="primary"
             onClick={() => void handleGradeAll(false)}
             disabled={grading || ungradedCount === 0}
+            size="md"
           >
             <RefreshIcon size="sm" />
             {grading ? t("submissions.grading") : `${t("submissions.gradeAll")} (${ungradedCount})`}
-          </button>
-          <button
-            className="btn-secondary"
+          </Button>
+          <Button
+            variant="secondary"
             onClick={() => setConfirmRegradeAll(true)}
             disabled={grading || totalCount === 0}
+            size="md"
           >
             <RefreshIcon size="sm" />
             {t("submissions.regradeAll")}
-          </button>
+          </Button>
         </div>
       </div>
       <p className="grade-actions__hint">

@@ -39,6 +39,8 @@ def on_startup():
     create_db_and_tables()
     log_event("startup_completed", service="backend")
 
+app.add_middleware(RequestIdMiddleware)
+app.add_middleware(ApiLatencyMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins,
@@ -46,8 +48,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.add_middleware(RequestIdMiddleware)
-app.add_middleware(ApiLatencyMiddleware)
 
 # Include routers
 from app.routers import exports, grading, rubrics, submissions, upload, management, management_legacy, metrics, audit

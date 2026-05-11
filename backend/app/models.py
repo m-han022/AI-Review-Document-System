@@ -346,6 +346,8 @@ class GradingRunOut(BaseModel):
 
 class GradingRunHistoryOut(BaseModel):
     id: int
+    project_id: str
+    project_name: str
     score: Optional[int] = None
     total_score: Optional[int] = None
     document_id: Optional[int] = None
@@ -512,7 +514,13 @@ class VersionDiffVersionRefOut(BaseModel):
 
 
 class VersionDiffMetaOut(BaseModel):
+    prompt_level_a: Optional[str] = None
+    prompt_level_b: Optional[str] = None
     prompt_level_changed: bool
+    evaluation_set_id_a: Optional[int] = None
+    evaluation_set_name_a: Optional[str] = None
+    evaluation_set_id_b: Optional[int] = None
+    evaluation_set_name_b: Optional[str] = None
     evaluation_set_changed: bool
 
 

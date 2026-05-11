@@ -112,10 +112,10 @@ export default function ProjectCreateDialog({ open, onClose, onCreated }: Projec
       title={titleText}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose} disabled={loading}>
+          <Button variant="ghost" onClick={onClose} disabled={loading} size="md">
             {cancelText}
           </Button>
-          <Button variant="primary" onClick={handleSave} isLoading={loading}>
+          <Button variant="primary" onClick={handleSave} isLoading={loading} size="md">
             {createText}
           </Button>
         </>
