@@ -30,9 +30,10 @@ Project (Submission)
 ### Upload & Project Rules
 * **Project là master data**: phải tạo project trước khi upload.
 * **Upload phải chọn project có sẵn**: không auto-create project ngầm từ filename.
-* **Filename chỉ dùng để validate/gợi ý**: không dùng làm source of truth.
-* **Validation bắt buộc**: project_id parse từ filename phải khớp project đã chọn.
+* **Định dạng file bắt buộc**: Filename phải khớp pattern `P\d+[-_].+` (Ví dụ: `P001-ProjectName.pdf`).
+* **Validation bắt buộc**: project_id parse từ filename (phần `Pxxx`) phải khớp project_id đã chọn trên UI.
 * **project_description** là metadata project, không thay thế nội dung tài liệu.
+* **Tái sử dụng nội dung**: Hệ thống dùng binary hash để bỏ qua trích xuất text nếu cùng một file được upload lại.
 
 ---
 

@@ -57,6 +57,7 @@ Project (submission)
 * Gắn với document_version_id
 * Immutable (không update sau khi tạo)
 * Cho phép nhiều grading run trên cùng 1 version
+* Lưu trữ `final_prompt_snapshot`: Lưu vết nguyên bản prompt đã gửi sang AI để audit.
 
 ---
 
@@ -219,6 +220,7 @@ prompt_level
 prompt_hash
 policy_hash
 required_rule_hash
+binary_hash (dùng để bỏ qua bước trích xuất text nếu file trùng lặp)
 
 ---
 

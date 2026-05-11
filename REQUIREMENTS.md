@@ -102,6 +102,7 @@ create document_version mới
 
 * overwrite file
 * update version cũ
+* **Project Status Reset**: Khi upload version mới của một tài liệu, nếu `latest_grading_run_id` của Project đang thuộc về chính tài liệu đó, hệ thống sẽ reset trạng thái project về `pending`.
 
 ---
 
@@ -242,6 +243,7 @@ System = versioned + immutable + auditable
 - File upload phải thuộc project đã chọn
 - Không auto-create project ngầm từ filename
 - Filename chỉ dùng để validate/gợi ý
+- Định dạng bắt buộc: `Pxxx-Tên_File.pdf` (phần `Pxxx` là Project ID).
 - Validation:
   - project_id từ filename phải match project đã chọn
 

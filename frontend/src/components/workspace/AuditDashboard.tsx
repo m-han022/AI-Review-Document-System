@@ -1,13 +1,18 @@
 import { useEffect, useMemo, useReducer, useState } from "react";
 import "./AuditDashboard.css";
-import { RefreshIcon, AlertCircleIcon, SparkIcon, TargetIcon, AlertTriangleIcon, CheckCircleIcon, TrendingUpIcon, LayersIcon, ChevronRightIcon, ChevronLeftIcon } from "../ui/Icon";
+import { 
+  RefreshIcon, AlertCircleIcon, SparkIcon, TargetIcon, AlertTriangleIcon, 
+  CheckCircleIcon, TrendingUpIcon, LayersIcon, ChevronRightIcon, ChevronLeftIcon 
+} from "../ui/Icon";
 
-import { getAuditRunDetail, listProjects, listProjectDocuments, listDocumentVersions, listAuditRuns, exportAuditRunsCsv, getLanguage } from "../../api/client";
+import { 
+  getAuditRunDetail, listProjects, listProjectDocuments, listDocumentVersions, 
+  listAuditRuns, exportAuditRunsCsv, getLanguage, gradeSubmission 
+} from "../../api/client";
 import type { GradingRunDetail, GradingRunHistory, Project, DocumentListOut, VersionListOut } from "../../types";
 import { useTranslation } from "../LanguageSelector";
 import { Button, Card, Input, Select, SearchableSelect, StatusBadge } from "../ui";
 import { EmptyState, LoadingState, ErrorState } from "../ui/States";
-import TableFooter from "../submissions/TableFooter";
 
 type UiStatus = "idle" | "loading" | "ready" | "empty" | "error";
 type DetailStatus = "idle" | "loading" | "ready" | "error";
@@ -73,7 +78,7 @@ function reducer(state: AuditState, action: Action): AuditState {
     case "SET_FILTER":
       return {
         ...state,
-        filters: { ...state.filters, [action.key]: action.value, offset: action.key === "offset" ? action.value as number : 0 },
+        filters: { ...state.filters, [action.key]: action.value, offset: action.key === "offset" ? (action.value as number) : 0 },
       };
     case "RESET_FILTERS":
       return {
@@ -144,8 +149,10 @@ function renderStatusLabel(status: string, t: (key: string) => string): string {
 function getLocalizedText(obj: any, lang: string): string {
   if (!obj) return "";
   if (typeof obj === "string") return obj;
-  if (typeof obj === "object") {
-    return obj[lang] || obj["vi"] || obj["ja"] || obj["en"] || "";
+  if (typeof obj === "object" && !Array.isArray(obj)) {
+    const val = obj[lang] || obj["vi"] || obj["ja"] || obj["en"];
+    if (val && typeof val === "object") return getLocalizedText(val, lang);
+    return val ? String(val) : "";
   }
   return String(obj);
 }
@@ -235,8 +242,6 @@ export default function AuditDashboard() {
       });
   }, [state.selectedRunId, t]);
 
-  const canGoPrev = state.filters.offset > 0;
-  const canGoNext = state.rows.length >= state.filters.limit;
   const canExport = !!state.filters.projectId.trim();
 
   const runExport = async () => {
@@ -266,6 +271,7 @@ export default function AuditDashboard() {
       setIsExporting(false);
     }
   };
+
   const handleSelectRun = (runId: number) => dispatch({ type: "SELECT_RUN", runId });
 
   const handleReGrade = async () => {
@@ -274,7 +280,6 @@ export default function AuditDashboard() {
     
     try {
       dispatch({ type: "DETAIL_START" });
-      const { gradeSubmission } = await import("../../api/client");
       await gradeSubmission({
         projectId: submission.project_id,
         documentVersionId: document_version?.id,
@@ -386,13 +391,13 @@ export default function AuditDashboard() {
           <table className="ds-table ds-table--compact">
             <thead>
               <tr>
-                <th>{t("sm.audit.gradingRun")}</th>
-                <th>{t("sm.audit.project")}</th>
-                <th>{t("sm.audit.document")}</th>
-                <th>{t("sm.audit.version")}</th>
-                <th>{t("project.totalScore")}</th>
-                <th>{t("common.status")}</th>
-                <th>{t("project.reviewedAt")}</th>
+                <th style={{ width: '80px' }}>{t("sm.audit.gradingRun")}</th>
+                <th style={{ width: '22%' }}>{t("sm.audit.project")}</th>
+                <th style={{ width: '22%' }}>{t("sm.audit.document")}</th>
+                <th style={{ width: '90px' }}>{t("sm.audit.version")}</th>
+                <th style={{ width: '100px' }}>{t("project.totalScore")}</th>
+                <th style={{ width: '130px' }}>{t("common.status")}</th>
+                <th style={{ width: '170px' }}>{t("project.reviewedAt")}</th>
               </tr>
             </thead>
             <tbody>
@@ -407,14 +412,14 @@ export default function AuditDashboard() {
                     onClick={() => handleSelectRun(row.id)}
                     className={`audit-table-row ${state.selectedRunId === row.id ? 'is-active' : ''}`}
                   >
-                    <td>#{row.id}</td>
-                    <td className="ds-text-truncate" style={{ maxWidth: '140px' }} title={row.project_name || row.project_id}>
-                      {row.project_name || row.project_id || t("common.noValue")}
+                    <td>#{String(row.id)}</td>
+                    <td className="ds-text-truncate" title={String(row.project_name || row.project_id)}>
+                      {String(row.project_name || row.project_id || t("common.noValue"))}
                     </td>
-                    <td className="ds-text-truncate" style={{ maxWidth: '160px' }} title={row.document_name || ''}>
-                      {row.document_name || t("common.noValue")}
+                    <td className="ds-text-truncate" title={String(row.document_name || '')}>
+                      {String(row.document_name || t("common.noValue"))}
                     </td>
-                    <td>{row.document_version || t("common.noValue")}</td>
+                    <td>{String(row.document_version || t("common.noValue"))}</td>
                     <td className="font-bold">{typeof row.total_score === "number" ? `${row.total_score}/100` : "—"}</td>
                     <td>
                       <StatusBadge tone={mapStatusTone(row.status)}>
@@ -430,73 +435,88 @@ export default function AuditDashboard() {
             </tbody>
           </table>
 
-          <TableFooter
-            totalCount={state.rows.length}
-            resultSummary={`Showing ${state.rows.length} results`}
-            currentPage={Math.floor(state.filters.offset / state.filters.limit) + 1}
-            canGoPrevious={canGoPrev}
-            canGoNext={canGoNext}
-            onPrevious={() => dispatch({ type: "SET_FILTER", key: "offset", value: Math.max(0, state.filters.offset - state.filters.limit) })}
-            onNext={() => dispatch({ type: "SET_FILTER", key: "offset", value: state.filters.offset + state.filters.limit })}
-            previousLabel={t("sm.auditDashboard.prevPage")}
-            nextLabel={t("sm.auditDashboard.nextPage")}
-          />
+          <div className="audit-pagination" style={{ borderTop: '1px solid var(--ds-color-border)', paddingTop: '16px', marginTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="audit-pagination-info">
+              {String(t("common.pagination", { 
+                start: state.filters.offset + 1, 
+                end: state.filters.offset + state.rows.length,
+                total: state.rows.length 
+              }))}
+            </div>
+            <div className="audit-pagination-btns" style={{ display: 'flex', gap: '8px' }}>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                disabled={state.filters.offset === 0} 
+                onClick={() => dispatch({ type: "SET_FILTER", key: "offset", value: Math.max(0, state.filters.offset - state.filters.limit) })}
+              >
+                <ChevronLeftIcon size="sm" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                disabled={state.rows.length < state.filters.limit} 
+                onClick={() => dispatch({ type: "SET_FILTER", key: "offset", value: state.filters.offset + state.filters.limit })}
+              >
+                <ChevronRightIcon size="sm" />
+              </Button>
+            </div>
+          </div>
         </div>
       </section>
 
       <section aria-label={t("sm.auditDashboard.detailTitle")}>
         <Card title={t("sm.auditDashboard.detailTitle")}>
           {state.detailStatus === "loading" ? (
-            <LoadingState title={t("common.loading")} />
+            <LoadingState title={String(t("common.loading"))} description={String(t("sm.audit.gradingRun")) + " #" + state.selectedRunId} />
           ) : state.detailStatus === "error" ? (
             <ErrorState 
-              title={t("common.error")} 
-              description={state.detailError || t("api.grading.fetchFailed")}
+              title={String(t("common.error"))} 
+              description={state.detailError || String(t("api.grading.fetchFailed"))}
               action={
-                <button 
-                  className="ds-button ds-button--primary ds-button--sm"
+                <Button 
+                  variant="primary" 
+                  size="sm"
                   onClick={handleRefreshDetail}
                 >
-                  <RefreshIcon size="xs" /> {t("sm.common.retry")}
-                </button>
+                  <RefreshIcon size="sm" /> {String(t("sm.common.retry"))}
+                </Button>
               }
             />
           ) : state.detailStatus === "ready" && state.selectedRunDetail ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
               {/* Metadata Grid */}
               <article className="audit-detail-grid">
-                <DetailField label={t("sm.audit.project")} value={state.selectedRunDetail.submission.project_name || state.selectedRunDetail.submission.project_id} />
-                <DetailField label={t("sm.audit.document")} value={state.selectedRunDetail.document?.document_name || t("common.noValue")} />
-                <DetailField label={t("sm.audit.version")} value={state.selectedRunDetail.document_version?.document_version || t("common.noValue")} />
-                <DetailField label={t("sm.audit.gradingRun")} value={`#${state.selectedRunDetail.grading_run.id}`} />
-                <DetailField label={t("sm.auditDashboard.promptLevel")} value={state.selectedRunDetail.grading_run.prompt_level || t("common.noValue")} />
-                <DetailField label={t("common.status")} value={renderStatusLabel(state.selectedRunDetail.grading_run.status, t)} />
-                <DetailField label={t("project.totalScore")} value={state.selectedRunDetail.grading_run.total_score ?? state.selectedRunDetail.grading_run.score ?? t("common.noValue")} />
-                
-                {state.selectedRunDetail.grading_run.status.toUpperCase() === "FAILED" && (
-                  <div className="audit-detail-error-block" style={{ gridColumn: '1 / -1', marginTop: '16px' }}>
-                    <div style={{ 
-                      padding: '16px', 
-                      background: 'rgba(239, 68, 68, 0.05)', 
-                      border: '1px solid rgba(239, 68, 68, 0.2)', 
-                      borderRadius: '12px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '12px'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ds-color-danger)', fontWeight: 700 }}>
-                        <AlertCircleIcon size="xs" /> {t("common.error")}
-                      </div>
-                      <div style={{ fontSize: '13px', color: '#64748B', lineHeight: 1.5 }}>
-                        {state.selectedRunDetail.grading_run.error_message || t("api.grading.failed")}
-                      </div>
-                      <button 
-                        className="ds-button ds-button--primary ds-button--sm"
-                        onClick={handleReGrade}
-                        style={{ alignSelf: 'flex-start' }}
-                      >
-                        <RefreshIcon size="xs" /> {t("sm.common.retry")}
-                      </button>
+                <DetailField label={String(t("project.projectName"))} value={String(state.selectedRunDetail.submission.project_name || t("common.noValue"))} />
+                <DetailField label={String(t("project.documentType"))} value={String(state.selectedRunDetail.document?.document_type || t("common.noValue"))} />
+                <DetailField label={String(t("project.documentName"))} value={String(state.selectedRunDetail.document?.document_name || t("common.noValue"))} />
+                <DetailField label={String(t("project.totalScore"))} value={state.selectedRunDetail.grading_run.total_score ?? state.selectedRunDetail.grading_run.score ?? String(t("common.noValue"))} />
+                <DetailField label={String(t("project.documentVersion"))} value={String(state.selectedRunDetail.grading_run.document_version || t("common.noValue"))} />
+                <DetailField label={String(t("project.rubricVersion"))} value={String(state.selectedRunDetail.grading_run.rubric_version || t("common.noValue"))} />
+                <DetailField label={String(t("project.promptVersion"))} value={String(state.selectedRunDetail.grading_run.prompt_version || t("common.noValue"))} />
+                <DetailField label={String(t("project.promptLevel"))} value={String(state.selectedRunDetail.grading_run.prompt_level || t("common.noValue"))} />
+                <DetailField label={String(t("project.geminiModel"))} value={String(state.selectedRunDetail.grading_run.gemini_model || t("common.noValue"))} />
+                <div className="audit-detail-item">
+                  <span className="audit-detail-label">{String(t("common.status"))}</span>
+                  <div className="audit-detail-value" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <StatusBadge tone={mapStatusTone(state.selectedRunDetail.grading_run.status)}>
+                      {renderStatusLabel(state.selectedRunDetail.grading_run.status, t)}
+                    </StatusBadge>
+                    {state.selectedRunDetail.grading_run.status === "failed" && (
+                      <Button variant="ghost" size="sm" onClick={handleReGrade} title={String(t("sm.common.retry"))}>
+                        <RefreshIcon size="sm" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <DetailField label={String(t("project.reviewedAt"))} value={state.selectedRunDetail.grading_run.graded_at ? new Date(state.selectedRunDetail.grading_run.graded_at).toLocaleString() : "—"} />
+                {state.selectedRunDetail.grading_run.status === "failed" && (
+                  <div className="audit-detail-item" style={{ gridColumn: '1 / -1', borderLeft: '4px solid var(--ds-color-danger)' }}>
+                    <span className="audit-detail-label" style={{ color: 'var(--ds-color-danger)' }}>
+                      <AlertCircleIcon size="sm" /> {String(t("common.error"))}
+                    </span>
+                    <div className="audit-detail-value" style={{ color: 'var(--ds-color-danger)', fontSize: '13px' }}>
+                      {String(state.selectedRunDetail.grading_run.error_message || t("common.unknownError"))}
                     </div>
                   </div>
                 )}
@@ -504,9 +524,9 @@ export default function AuditDashboard() {
 
               {/* Criteria Analysis Table */}
               <section className="audit-detail-section">
-                <header className="section-header-v3" style={{ marginBottom: '16px' }}>
-                  <h3 className="section-title-v3" style={{ fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ds-color-primary)' }}>
-                    <SparkIcon size="xs" /> {t("project.criteriaDetailTitle") || "Phân tích chi tiết từng tiêu chí"}
+                <header className="audit-section-header">
+                  <h3 className="ds-title-h3" style={{ fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <SparkIcon size="sm" /> {String(t("project.criteriaDetailTitle") || "Phân tích chi tiết từng tiêu chí")}
                   </h3>
                 </header>
                 <div className="ds-table-container">
@@ -519,22 +539,24 @@ export default function AuditDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {state.selectedRunDetail.criteria_results.map((result, idx) => {
-                        const rubricItem = state.selectedRunDetail?.rubric?.criteria.find(c => c.key === result.key);
+                      {Array.isArray(state.selectedRunDetail.criteria_results) && state.selectedRunDetail.criteria_results.map((result, idx) => {
+                        if (!result) return null;
+                        const rubricCriteria = state.selectedRunDetail?.rubric?.criteria;
+                        const rubricItem = Array.isArray(rubricCriteria) ? rubricCriteria.find(c => c.key === result.key) : null;
                         const label = rubricItem ? getLocalizedText(rubricItem.labels, getLanguage()) : result.key;
                         const scorePercent = result.max_score > 0 ? (result.score / result.max_score) : 0;
                         const tone = scorePercent >= 0.8 ? "success" : scorePercent >= 0.5 ? "warning" : "danger";
                         
                         return (
                           <tr key={idx}>
-                            <td style={{ fontWeight: 600 }}>{label}</td>
+                            <td style={{ fontWeight: 600 }}>{String(label)}</td>
                             <td style={{ textAlign: 'center' }}>
-                              <StatusBadge tone={tone}>
-                                {result.score}/{result.max_score}
-                              </StatusBadge>
+                              <div className={`ds-badge ds-badge--${tone}`} style={{ fontSize: '11px' }}>
+                                {String(result.score)}/{String(result.max_score)}
+                              </div>
                             </td>
                             <td style={{ fontSize: '13px', color: 'var(--ds-color-text-body)', lineHeight: 1.5 }}>
-                              {getLocalizedText(result.suggestion, getLanguage()) || t("project.noDetailedComment")}
+                              {getLocalizedText(result.suggestion, getLanguage()) || String(t("project.noDetailedComment"))}
                             </td>
                           </tr>
                         );
@@ -547,86 +569,119 @@ export default function AuditDashboard() {
               {/* Slide Feedback Section */}
               {state.selectedRunDetail.slide_reviews && state.selectedRunDetail.slide_reviews.length > 0 && (
                 <section className="audit-detail-section">
-                  <header className="section-header-v3" style={{ marginBottom: '16px' }}>
-                    <h3 className="section-title-v3" style={{ fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ds-color-primary)' }}>
-                      <LayersIcon size="xs" /> {t("project.slideList") || "Danh sách slide"}
+                  <header className="audit-section-header" style={{ marginBottom: '16px' }}>
+                    <h3 className="ds-title-h3" style={{ fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <LayersIcon size="sm" /> {String(t("project.slideDetailTitle") || "Nhận xét chi tiết từng trang")}
                     </h3>
                   </header>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {state.selectedRunDetail.slide_reviews.map((slide, idx) => (
-                      <div key={idx} style={{ 
-                        border: '1px solid var(--ds-color-border)', 
-                        borderRadius: '12px', 
-                        overflow: 'hidden',
-                        background: 'white'
-                      }}>
-                        <div style={{ 
-                          padding: '12px 16px', 
-                          background: slide.status === "NG" ? 'rgba(239, 68, 68, 0.05)' : 'rgba(16, 185, 129, 0.05)',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          borderBottom: '1px solid var(--ds-color-border)'
+                    {Array.isArray(state.selectedRunDetail.slide_reviews) && state.selectedRunDetail.slide_reviews.map((slide, idx) => {
+                      if (!slide) return null;
+                      return (
+                        <div key={idx} style={{ 
+                          border: '1px solid var(--ds-color-border)', 
+                          borderRadius: '12px', 
+                          padding: '20px',
+                          backgroundColor: slide.status === "NG" ? 'var(--ds-color-danger-soft)' : 'white'
                         }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <span style={{ fontWeight: 700, color: 'var(--ds-color-text-main)' }}>Slide {slide.slide_number}</span>
-                            <StatusBadge tone={slide.status === "NG" ? "danger" : "success"}>
-                              {slide.status}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <div style={{ 
+                                width: '32px', 
+                                height: '32px', 
+                                borderRadius: '8px', 
+                                backgroundColor: 'var(--ds-color-bg-muted)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontWeight: 700,
+                                fontSize: '14px'
+                              }}>
+                                {String(slide.slide_number)}
+                              </div>
+                              <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600 }}>
+                                {getLocalizedText(slide.title, getLanguage()) || String(t("project.noTitle"))}
+                              </h4>
+                            </div>
+                            <StatusBadge tone={slide.status === "OK" ? "success" : "danger"}>
+                              {slide.status === "OK" ? <CheckCircleIcon size="sm" /> : <AlertTriangleIcon size="sm" />}
+                              {String(slide.status)}
                             </StatusBadge>
                           </div>
-                          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ds-color-text-body)' }}>
-                            {getLocalizedText(slide.title, getLanguage())}
-                          </span>
-                        </div>
-                        <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                          <div style={{ fontSize: '13px', color: 'var(--ds-color-text-body)', lineHeight: 1.5 }}>
-                            <strong>Tóm tắt:</strong> {getLocalizedText(slide.summary, getLanguage())}
-                          </div>
-                          {slide.status === "NG" && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                {Object.values(slide.issues || {}).flat().map((issue: any, i: number) => (
-                                  <div key={i} style={{ 
-                                    padding: '6px 12px', 
-                                    background: 'rgba(239, 68, 68, 0.1)', 
-                                    color: 'var(--ds-color-danger)', 
-                                    borderRadius: '8px', 
-                                    fontSize: '12px',
-                                    fontWeight: 500,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px'
-                                  }}>
-                                    <AlertTriangleIcon size="xs" /> {issue}
+                          <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            <div style={{ fontSize: '13px', color: 'var(--ds-color-text-body)', lineHeight: 1.5 }}>
+                              <strong>{String(t("project.slideSummary"))}:</strong> {getLocalizedText(slide.summary, getLanguage())}
+                            </div>
+                            {slide.status === "NG" && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                  {Object.values(slide.issues || {}).flat().map((issue: any, i: number) => (
+                                    <div key={i} style={{ 
+                                      padding: '6px 12px', 
+                                      background: 'rgba(239, 68, 68, 0.1)', 
+                                      color: 'var(--ds-color-danger)', 
+                                      borderRadius: '8px', 
+                                      fontSize: '12px',
+                                      fontWeight: 500,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '6px'
+                                    }}>
+                                      <AlertTriangleIcon size="sm" /> {String(issue)}
+                                    </div>
+                                  ))}
+                                </div>
+                                <div style={{ 
+                                  padding: '12px', 
+                                  background: 'rgba(16, 185, 129, 0.05)', 
+                                  border: '1px solid rgba(16, 185, 129, 0.2)', 
+                                  borderRadius: '8px',
+                                  fontSize: '13px',
+                                  color: 'var(--ds-color-success-dark)',
+                                  display: 'flex',
+                                  gap: '10px'
+                                }}>
+                                  <SparkIcon size="sm" style={{ marginTop: '2px' }} />
+                                  <div>
+                                    <strong>Gợi ý từ AI:</strong> {getLocalizedText(slide.suggestions, getLanguage())}
                                   </div>
-                                ))}
-                              </div>
-                              <div style={{ 
-                                padding: '12px', 
-                                background: 'rgba(16, 185, 129, 0.05)', 
-                                border: '1px solid rgba(16, 185, 129, 0.2)', 
-                                borderRadius: '8px',
-                                fontSize: '13px',
-                                color: 'var(--ds-color-success-dark)',
-                                display: 'flex',
-                                gap: '10px'
-                              }}>
-                                <SparkIcon size="xs" style={{ marginTop: '2px' }} />
-                                <div>
-                                  <strong>Gợi ý từ AI:</strong> {getLocalizedText(slide.suggestions, getLanguage())}
                                 </div>
                               </div>
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
+                </section>
+              )}
+
+              {/* Audit History Snapshot */}
+              {state.selectedRunDetail.grading_run.final_prompt_snapshot && (
+                <section className="audit-detail-section">
+                  <header className="audit-section-header" style={{ marginBottom: '16px' }}>
+                    <h3 className="ds-title-h3" style={{ fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <TrendingUpIcon size="sm" /> {String(t("project.finalPromptSnapshot") || "Prompt thực tế đã sử dụng")}
+                    </h3>
+                  </header>
+                  <pre style={{ 
+                    padding: '20px', 
+                    background: 'var(--ds-color-bg-muted)', 
+                    borderRadius: '12px', 
+                    fontSize: '12px', 
+                    overflowX: 'auto',
+                    whiteSpace: 'pre-wrap',
+                    color: 'var(--ds-color-text-body)',
+                    border: '1px solid var(--ds-color-border)',
+                    lineHeight: 1.6
+                  }}>
+                    {String(state.selectedRunDetail.grading_run.final_prompt_snapshot)}
+                  </pre>
                 </section>
               )}
             </div>
           ) : (
-            <EmptyState title={t("sm.auditDashboard.selectRun")} description={t("sm.auditDashboard.selectRunDesc")} compact />
+            <EmptyState title={String(t("sm.auditDashboard.selectRun"))} description={String(t("sm.auditDashboard.selectRunDesc"))} compact />
           )}
         </Card>
       </section>
@@ -637,8 +692,8 @@ export default function AuditDashboard() {
 function DetailField({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="audit-detail-item">
-      <span className="audit-detail-label">{label}</span>
-      <div className="audit-detail-value">{value}</div>
+      <span className="audit-detail-label">{String(label)}</span>
+      <div className="audit-detail-value">{String(value)}</div>
     </div>
   );
 }
