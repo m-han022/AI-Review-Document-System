@@ -168,7 +168,7 @@ export default function Dashboard() {
           <Card>
             <ErrorState 
               title={t("common.error")} 
-              description={toHumanErrorMessage(error, t("rubric.loadFailed"))} 
+              description={toHumanErrorMessage(error, t("api.project.fetchFailed"))} 
             />
           </Card>
         </div>

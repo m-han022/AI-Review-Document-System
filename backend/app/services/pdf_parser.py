@@ -100,7 +100,7 @@ def extract_multimodal_from_pdf(file_path: str) -> List[Dict[str, Any]]:
                 page_images = []
                 try:
                     page = doc[i]
-                    bitmap = page.render(scale=1.5) # Reduced scale from 2 to 1.5
+                    bitmap = page.render(scale=1.2) # Optimized scale from 1.5 to 1.2 for faster rendering
                     pil_image = bitmap.to_pil()
                     
                     # Resize if too large
@@ -110,7 +110,7 @@ def extract_multimodal_from_pdf(file_path: str) -> List[Dict[str, Any]]:
                     
                     # Convert to JPEG bytes (much smaller than PNG)
                     img_byte_arr = io.BytesIO()
-                    pil_image.convert("RGB").save(img_byte_arr, format='JPEG', quality=80)
+                    pil_image.convert("RGB").save(img_byte_arr, format='JPEG', quality=75)
                     page_images.append(img_byte_arr.getvalue())
                 except Exception as e_img:
                     print(f"[Multimodal PDF] Error rendering page {page_num}: {e_img}")
@@ -168,7 +168,7 @@ def extract_multimodal_from_pptx(file_path: str) -> List[Dict[str, Any]]:
                         
                         # Convert to JPEG
                         out_io = io.BytesIO()
-                        pil_img.convert("RGB").save(out_io, format='JPEG', quality=80)
+                        pil_img.convert("RGB").save(out_io, format='JPEG', quality=75)
                         images.append(out_io.getvalue())
                 except:
                     pass
