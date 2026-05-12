@@ -100,7 +100,11 @@ function mapReviewErrorByCode(
     ) {
       return { kind: "config", text: t(key) };
     }
-    return { kind: "runtime", text: t(key) };
+    if (error.code === "REQUEST_TIMEOUT") {
+      return { kind: "runtime", text: `${t(key)} (${error.message})` };
+    }
+    const suffix = error.detail && error.detail !== "Internal Server Error" ? `: ${error.detail}` : "";
+    return { kind: "runtime", text: `${t(key)}${suffix}` };
   }
   return { kind: "runtime", text: t("api.unexpectedError") };
 }
