@@ -68,7 +68,6 @@ export default function Dashboard() {
       return hasPending ? 3000 : false;
     },
     retry: 1,
-    initialData: [],
   });
 
   const projects: Project[] = useMemo(() => (Array.isArray(projectsData) ? projectsData : []), [projectsData]);
