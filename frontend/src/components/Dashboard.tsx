@@ -213,7 +213,7 @@ export default function Dashboard() {
                 setSelectedProjectId(projectId);
                 setActiveView("detail");
               }}
-              onCreateProject={() => setActiveView("upload")}
+
             />
           </Suspense>
         );
@@ -225,7 +225,7 @@ export default function Dashboard() {
                 title={t("submissions.noSubmissions")} 
                 action={
                   <Button variant="primary" onClick={() => setActiveView("upload")}>
-                    <PlusIcon size="xs" /> {t("submissions.createProjectNew")}
+                    <PlusIcon size="sm" /> {t("submissions.createProjectNew")}
                   </Button>
                 }
               />
@@ -238,7 +238,6 @@ export default function Dashboard() {
             <ProjectCard
               key={selectedProjectId}
               projectId={selectedProjectId}
-              onBack={() => setActiveView("reviews")}
               setTopbarActions={setTopbarActions}
             />
           </ErrorBoundary>

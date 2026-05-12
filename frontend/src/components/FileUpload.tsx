@@ -1,21 +1,19 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ApiClientError,
   gradeSubmission,
   uploadFile,
   listProjects,
-  listEvaluationSets,
   listProjectDocuments,
   listDocumentVersions,
-  getGlobalDefaults,
 } from "../api/client";
 import { DOCUMENT_TYPE_OPTIONS, type DocumentType } from "../constants/documentTypes";
 import { DOCUMENT_CARD_COPY, UPLOAD_COPY } from "../constants/uploadCopy";
 import { mapErrorCodeToI18nKey } from "../locales/errorMapping";
 import { toHumanErrorMessage } from "../utils/humanizeError";
 import { projectsQueryKey } from "../query";
-import type { EvaluationSet, GradeResponse } from "../types";
+import type { GradeResponse } from "../types";
 import { useTranslation } from "./LanguageSelector";
 import ProjectCreateDialog from "./project/ProjectCreateDialog";
 import ConfirmDialog from "./ui/ConfirmDialog";
@@ -23,13 +21,12 @@ import {
   BookOpenIcon,
   BugIcon,
   ClipboardCheckIcon,
-  HelpIcon,
   ShieldCheckIcon,
   UploadCloudIcon,
   PlusIcon,
 } from "./ui/Icon";
 
-import { EmptyState, ErrorState, FieldError, FilePreview, StatusBadge, SuccessState, Tooltip } from "./ui/States";
+import { FieldError, StatusBadge } from "./ui/States";
 import { Button, Card, Input, Select } from "./ui";
 import "./FileUpload.css";
 
@@ -144,7 +141,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
       : lang === "ja"
         ? "AI が資料を読み込んでいます..."
         : "AI is reading your document...";
-  const effectiveDocumentType = documentType ?? "project-review";
+
   const canStartReview = Boolean(
     documentType &&
       uploadedProjectId &&

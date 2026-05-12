@@ -308,6 +308,7 @@ export interface GradeResponse {
   slide_reviews?: SlideReview[];
   graded_at: string;
   language: LanguageCode;
+  status?: string;
 }
 
 export interface GradeAllResult {

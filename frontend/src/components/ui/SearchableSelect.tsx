@@ -17,6 +17,7 @@ interface SearchableSelectProps {
   error?: string;
   className?: string;
   hideValue?: boolean;
+  style?: React.CSSProperties;
 }
 
 export const SearchableSelect: React.FC<SearchableSelectProps> = ({
@@ -29,6 +30,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   error,
   className = '',
   hideValue = false,
+  style,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -60,6 +62,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         setIsOpen(false);
       }
     };
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
@@ -85,7 +88,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   };
 
   return (
-    <div className={`ds-searchable-select ${className} ${disabled ? 'is-disabled' : ''} ${error ? 'has-error' : ''}`} ref={containerRef}>
+    <div className={`ds-searchable-select ${className} ${disabled ? 'is-disabled' : ''} ${error ? 'has-error' : ''}`} ref={containerRef} style={style}>
       {label && <label className="ds-input-label">{label}</label>}
       
       <div 

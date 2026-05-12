@@ -1,17 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { getDocumentTypeKey } from "../../constants/documentTypes";
 import { useTranslation } from "../LanguageSelector";
-import { getLocalizedText } from "../../locales/utils";
 import {
-  DownloadIcon,
   RefreshIcon,
   ShieldCheckIcon,
   TargetIcon,
-  WorkflowIcon,
   AlertTriangleIcon,
   LayersIcon,
-  ArrowLeftIcon,
   SparkIcon,
+  AlertCircleIcon,
 } from "../ui/Icon";
 import ProjectReviewDialog from "./ProjectReviewDialog";
 import ProjectCriteriaTab from "./ProjectCriteriaTab";
@@ -19,20 +16,16 @@ import ProjectSlidesTab from "./ProjectSlidesTab";
 import ProjectOverviewTab from "./ProjectOverviewTab";
 import ProjectReportView from "./ProjectReportView";
 import type { ProjectCriteriaTabViewModel, ProjectSlidesTabViewModel } from "./projectCard.viewModels";
-import { EmptyState, StatusBadge } from "../ui/States";
-import { Button, Select, SearchableSelect } from "../ui";
+import { EmptyState } from "../ui/States";
+import { Button, SearchableSelect } from "../ui";
 import ConfirmDialog from "../ui/ConfirmDialog";
-import {
-  formatDateTime,
-  getStatusLabel,
-} from "./projectCard.helpers";
+import { formatDateTime } from "./projectCard.helpers";
 import { useProjectReviewState } from "./useProjectReviewState";
 import "./ProjectCard.css";
-import { Tooltip } from "../ui/States";
 
 interface ProjectCardProps {
   projectId: string;
-  onBack: () => void;
+
   setTopbarActions?: (actions: React.ReactNode) => void;
 }
 
@@ -97,10 +90,10 @@ function ProjectCardSkeleton() {
   );
 }
 
-export default function ProjectCard({ projectId, onBack, setTopbarActions }: ProjectCardProps) {
+export default function ProjectCard({ projectId, setTopbarActions }: ProjectCardProps) {
   const { lang, t } = useTranslation();
   const m = phase2Text(t);
-  const [showTimeline, setShowTimeline] = useState(false);
+
   const { uiState, dataState, actions, derived } = useProjectReviewState({ projectId, lang, t });
   const {
     selectedDocumentId,
@@ -110,8 +103,6 @@ export default function ProjectCard({ projectId, onBack, setTopbarActions }: Pro
     selectedGradingId,
     setSelectedGradingId,
     activeTab,
-    setActiveTab,
-    selectedSlideId,
     setSelectedSlideId,
     filterNG,
     setFilterNG,
@@ -127,7 +118,7 @@ export default function ProjectCard({ projectId, onBack, setTopbarActions }: Pro
   const [confirmReviewOpen, setConfirmReviewOpen] = useState(false);
   const { loadingDocs, docsError, refetchDocuments, versions, gradings, sortedDocuments, gradingDetail, currentProject, currentVersion } = dataState;
   const { rerunMutation, exportMutation } = actions;
-  const { result, slideReviewItems, ngSlideCount, orderedScores, feedbackSections, activeSlide, isInitialLoading, riskLevel, topInsight } = derived;
+  const { result, slideReviewItems, ngSlideCount, orderedScores, feedbackSections, activeSlide, isInitialLoading } = derived;
   const [selectedType, setSelectedType] = useState<string | null>(null);
 
   // Filter 1: Document Types (Unique from all documents in project)
@@ -191,20 +182,14 @@ export default function ProjectCard({ projectId, onBack, setTopbarActions }: Pro
     };
   }, [setTopbarActions, rerunMutation.isPending, selectedVersionId, t, exportMutation.isPending, selectedGradingId, gradingDetail]);
 
-  // Extract top 3 AI comments for the professional summary layout
-  const topComments = feedbackSections
-    .flatMap(s => s.lines)
-    .filter(line => line.length > 20) 
-    .slice(0, 3);
+
 
   // Categorize AI feedback into 3 specific buckets as requested
   const categorizedInsights = useMemo(() => {
     // 1. Tiêu chí cần cải thiện (Weakest Link)
     const sortedScores = [...orderedScores].sort((a, b) => (a.value / (a.max || 1)) - (b.value / (b.max || 1)));
     const lowest = sortedScores.length > 0 ? sortedScores[0] : null;
-    const seriousSection = feedbackSections.find(s => 
-      /xấu|vấn đề|cải thiện|hạn chế|lỗi|nghiêm trọng|ng/i.test(s.title)
-    );
+
     
     // 2. Nhận xét quan trọng (Important Comments) - Chắt lọc nội dung chiến lược
     const generalSection = feedbackSections.find(s => 
@@ -367,7 +352,7 @@ export default function ProjectCard({ projectId, onBack, setTopbarActions }: Pro
           {/* Audit Metadata */}
           <div className="metric-item-v4" style={{ gap: '4px' }}>
             <span className="meta-tag-v4" style={{ opacity: 0.7 }}>
-              <ShieldCheckIcon size="xs" /> {result?.gemini_model || "—"}
+              <ShieldCheckIcon size="sm" /> {result?.gemini_model || "—"}
             </span>
           </div>
         </div>
@@ -420,7 +405,7 @@ export default function ProjectCard({ projectId, onBack, setTopbarActions }: Pro
           {categorizedInsights.map((insight, idx) => (
             <div key={idx} className={`insight-card-v4 priority-${insight.type}`}>
               <div className="insight-card-v4__header">
-                <insight.Icon size="xs" />
+                <insight.Icon size="sm" />
                 <span>{insight.title}</span>
               </div>
               <div className="insight-card-v4__content">
@@ -564,9 +549,8 @@ export default function ProjectCard({ projectId, onBack, setTopbarActions }: Pro
           orderedScores={orderedScores}
           slidesViewModel={slidesViewModel}
           lang={lang}
-          extractedText={gradingDetail?.document_version?.extracted_text}
-          promptLevel={result?.prompt_level}
-          evaluationSetName={result?.evaluation_set?.name}
+          extractedText={gradingDetail?.document_version?.extracted_text || undefined}
+          promptLevel={result?.prompt_level || undefined}
           categorizedInsights={categorizedInsights}
           gradingDetail={gradingDetail}
           verdictText={

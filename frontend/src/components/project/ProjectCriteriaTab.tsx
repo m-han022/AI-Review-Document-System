@@ -15,7 +15,7 @@ export default function ProjectCriteriaTab({
   t,
   viewModel,
 }: Props) {
-  const { lang, gradingDetail, orderedScores, result, feedbackSections, gradings } = viewModel;
+  const { lang, gradingDetail, orderedScores, result, feedbackSections } = viewModel;
 
   // Derive evaluations
   const criteriaWithEvaluations = useMemo(() => {

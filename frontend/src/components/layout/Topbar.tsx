@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { UI_THEME_STORAGE_KEY } from "../../config";
 import { LanguageSelector } from "../LanguageSelector";
 import { MenuIcon, MoonIcon, SunIcon } from "../ui/Icon";
@@ -26,7 +26,6 @@ export default function Topbar({
   hideActions = false,
   hideMain = false,
   onToggleSidebar,
-  onToggleCollapse,
   onBreadcrumbClick,
   actions,
 }: TopbarProps) {
