@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { getSubmissionFileUrl, getVersionFileUrl } from "../../api/client";
 import { Button } from "../ui";
 import { EmptyState, StatusBadge } from "../ui/States";
-import { AlertCircleIcon, AlertTriangleIcon, CheckCircleIcon, ChevronLeftIcon, ChevronRightIcon, DownloadIcon, LayersIcon, SparkIcon, TargetIcon } from "../ui/Icon";
+import { AlertCircleIcon, AlertTriangleIcon, CheckCircleIcon, DownloadIcon, LayersIcon, SparkIcon, TargetIcon } from "../ui/Icon";
 import type { ProjectSlidesTabViewModel } from "./projectCard.viewModels";
 
 interface Props {
@@ -15,7 +15,7 @@ interface Props {
   setFilterNG: (val: boolean) => void;
 }
 
-export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedSlideId, lang, filterNG, setFilterNG }: Props) {
+export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedSlideId, filterNG, setFilterNG }: Props) {
   const { gradingDetail, slideReviewItems, activeSlide } = viewModel;
   const [showJson, setShowJson] = useState(false);
 
@@ -67,7 +67,7 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
               <h2 className="analysis-title-v3" style={{ margin: 0 }}>{activeSlide.displayTitle}</h2>
               <StatusBadge 
                 tone={activeSlide.status === "NG" ? "danger" : "success"}
-                icon={activeSlide.status === "NG" ? <AlertCircleIcon size="xs" /> : <CheckCircleIcon size="xs" />}
+                icon={activeSlide.status === "NG" ? <AlertCircleIcon size="sm" /> : <CheckCircleIcon size="sm" />}
               >
                 {activeSlide.status}
               </StatusBadge>
@@ -114,7 +114,7 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
                   {/* AI Summary Block */}
                   <section className="analysis-section-v3">
                     <h3 className="analysis-section-title-v3" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ds-color-primary)' }}>
-                      <TargetIcon size="xs" /> {t("project.slideSummary") || "Tóm tắt đánh giá Slide"}
+                      <TargetIcon size="sm" /> {t("project.slideSummary") || "Tóm tắt đánh giá Slide"}
                     </h3>
                     <div className="analysis-card-v3" style={{ 
                       background: "var(--ds-color-surface)", 
@@ -134,7 +134,7 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
                   {activeSlide.issues.length > 0 && (
                     <section className="analysis-section-v3" style={{ marginTop: '24px' }}>
                       <h3 className="analysis-section-title-v3 has-error" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: "var(--ds-color-danger)" }}>
-                        <AlertTriangleIcon size="xs" /> {t("project.identifiedIssues") || "Vấn đề phát hiện (NG)"}
+                        <AlertTriangleIcon size="sm" /> {t("project.identifiedIssues") || "Vấn đề phát hiện (NG)"}
                       </h3>
                       <div className="issue-list-v3">
                         {activeSlide.issues.map((issue: string, idx: number) => (
@@ -148,7 +148,7 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
                             alignItems: "flex-start", 
                             marginBottom: "10px" 
                           }}>
-                            <div style={{ color: "var(--ds-color-danger)", marginTop: "3px" }}><AlertCircleIcon size="xs" /></div>
+                            <div style={{ color: "var(--ds-color-danger)", marginTop: "3px" }}><AlertCircleIcon size="sm" /></div>
                             <span style={{ fontSize: "14px", color: "var(--ds-color-danger-dark)", fontWeight: 500 }}>{issue}</span>
                           </div>
                         ))}
@@ -160,7 +160,7 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
                   {activeSlide.suggestions && (
                     <section className="analysis-section-v3" style={{ marginTop: '24px' }}>
                       <h3 className="analysis-section-title-v3 is-highlight" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: "var(--ds-color-success)" }}>
-                        <SparkIcon size="xs" /> {t("project.aiSuggestions") || "Tư vấn sửa từ AI"}
+                        <SparkIcon size="sm" /> {t("project.aiSuggestions") || "Tư vấn sửa từ AI"}
                       </h3>
                       <div className="analysis-card-v3 is-suggestion" style={{ 
                         background: "rgba(16, 185, 129, 0.05)", 
@@ -182,7 +182,7 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
                   {/* Evidence Block */}
                   <section className="analysis-section-v3" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                     <h3 className="analysis-section-title-v3 is-meta" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                      <LayersIcon size="xs" /> {t("project.documentViewer.title") || "Bằng chứng từ tài liệu"} (AI Proof)
+                      <LayersIcon size="sm" /> {t("project.documentViewer.title") || "Bằng chứng từ tài liệu"} (AI Proof)
                     </h3>
                     <p style={{ fontSize: '11px', color: 'var(--ds-color-text-muted)', marginBottom: '12px', fontStyle: 'italic', lineHeight: '1.4' }}>
                       {t("project.aiProofDisclaimer")}

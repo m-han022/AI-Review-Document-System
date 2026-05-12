@@ -205,7 +205,7 @@ export function FieldError({ message, className = "" }: { message?: string; clas
   if (!message) return null;
   return (
     <div className={`ui-field-error ${className}`.trim()}>
-      <AlertTriangleIcon size="xs" />
+      <AlertTriangleIcon size="sm" />
       <span>{message}</span>
     </div>
   );

@@ -2,13 +2,13 @@ import { KPIProgressList } from "../ui/KPICharts";
 import { SparkIcon, AlertTriangleIcon, ShieldCheckIcon, TargetIcon, WorkflowIcon } from "../ui/Icon";
 import { useTranslation } from "../LanguageSelector";
 import type { FeedbackSectionView } from "./ProjectReviewPanels";
-import type { KPIProgressData } from "../ui/KPICharts";
+import type { KPIBarChartProps } from "../ui/KPICharts";
 
 interface Props {
   t: (key: string) => string;
   feedbackSections: FeedbackSectionView[];
   ngSlideCount: number;
-  orderedScores: KPIProgressData[];
+  orderedScores: KPIBarChartProps["data"];
   slideReviewItems: any[];
 }
 
@@ -19,7 +19,7 @@ export default function ProjectOverviewTab({
   orderedScores,
   slideReviewItems
 }: Props) {
-  const { lang } = useTranslation();
+  useTranslation();
   // Extract top 4 prioritized issues (NG slides)
   const prioritizedIssues = slideReviewItems
     .filter(item => item.status === "NG")
@@ -68,8 +68,8 @@ export default function ProjectOverviewTab({
                       alignItems: 'center',
                       gap: '8px'
                     }}>
-                      {/tốt|tích cực|ưu điểm|đạt|excellent|success/i.test(section.title) ? <ShieldCheckIcon size="xs" /> : 
-                       /xấu|vấn đề|cải thiện|hạn chế|lỗi|nghiêm trọng|ng|thất bại/i.test(section.title) ? <AlertTriangleIcon size="xs" /> : <TargetIcon size="xs" />}
+                      {/tốt|tích cực|ưu điểm|đạt|excellent|success/i.test(section.title) ? <ShieldCheckIcon size="sm" /> : 
+                       /xấu|vấn đề|cải thiện|hạn chế|lỗi|nghiêm trọng|ng|thất bại/i.test(section.title) ? <AlertTriangleIcon size="sm" /> : <TargetIcon size="sm" />}
                       {section.title}
                     </h5>}
                     <ul style={{ paddingLeft: "0", listStyle: 'none', color: "var(--ds-color-text-body)", lineHeight: "1.6", fontSize: '13.5px', margin: 0 }}>

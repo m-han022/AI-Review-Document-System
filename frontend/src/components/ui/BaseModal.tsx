@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { Button } from "./index";
+
 import { CloseIcon } from "./Icon";
 import "./BaseModal.css";
 

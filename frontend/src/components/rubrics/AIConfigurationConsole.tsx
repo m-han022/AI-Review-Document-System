@@ -23,7 +23,7 @@ import { mapErrorCodeToI18nKey } from "../../locales/errorMapping";
 import type { EvaluationSet } from "../../types";
 import ConfirmDialog from "../ui/ConfirmDialog";
 import BaseModal from "../ui/BaseModal";
-import { Button, Card, Input, Select, StatusBadge } from "../ui";
+import { Button, Input, Select, StatusBadge } from "../ui";
 import { EmptyState, ErrorState, LoadingState } from "../ui/States";
 import { useTranslation } from "../LanguageSelector";
 import { toHumanErrorMessage } from "../../utils/humanizeError";
@@ -32,7 +32,7 @@ const LEVELS = ["low", "medium", "high"] as const;
 type ConfigTab = "sets" | "create" | "compare";
 
 import { Tooltip } from "../ui/States";
-import { HelpIcon, ClipboardCheckIcon, InfoIcon } from "../ui/Icon";
+import { HelpIcon, InfoIcon } from "../ui/Icon";
 
 function renderSet(setItem: any, t: any) {
   if (!setItem) return t("common.noData");
@@ -363,7 +363,7 @@ export default function AIConfigurationConsole() {
 
   return (
     <div className="workspace-stack">
-      <Card className="ds-card--header-bar" padding="var(--ds-space-3) var(--ds-space-4)">
+      <div className="analytical-header-v4__selectors" style={{ padding: 'var(--ds-space-3) var(--ds-space-4)', background: 'var(--ds-color-surface)', borderRadius: 'var(--ds-radius-md)', border: '1px solid var(--ds-color-border)' }}>
         <div style={{ 
           display: 'flex', 
           alignItems: 'center', 
@@ -427,7 +427,7 @@ export default function AIConfigurationConsole() {
                     color: 'var(--ds-color-primary)',
                     cursor: 'help'
                   }}>
-                    <InfoIcon size={16} />
+                    <InfoIcon size="sm" />
                   </div>
                 </Tooltip>
               </div>
@@ -442,24 +442,17 @@ export default function AIConfigurationConsole() {
               onClick={() => setShowGuide((prev) => !prev)}
               style={{ gap: '8px' }}
             >
-              <HelpIcon size="xs" />
+              <HelpIcon size="sm" />
               {showGuide ? ui.quickGuideHide : ui.quickGuideShow}
             </Button>
           </div>
         </div>
-      </Card>
+      </div>
 
-      <div ref={guideRef} className="ai-config-guide" style={{ marginBottom: 'var(--ds-space-5)' }}>
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={() => setShowGuide((prev) => !prev)}
-        >
-          {showGuide ? ui.quickGuideHide : ui.quickGuideShow}
-        </Button>
+      <div ref={guideRef} className="ai-config-guide" style={{ marginBottom: showGuide ? 'var(--ds-space-5)' : 0 }}>
         {showGuide && (
           <div style={{ marginTop: 'var(--ds-space-3)' }}>
-            <Card>
+            <div style={{ padding: '16px', background: 'var(--ds-color-surface)', borderRadius: 'var(--ds-radius-md)', border: '1px solid var(--ds-color-border)' }}>
             <div className="governance-grid">
               <div className="detail-section">
                 <span className="detail-section__title">{guide.partTitle}</span>
@@ -474,7 +467,7 @@ export default function AIConfigurationConsole() {
                 ))}
               </div>
             </div>
-            </Card>
+            </div>
           </div>
         )}
       </div>
@@ -520,11 +513,8 @@ export default function AIConfigurationConsole() {
         {activeTab === "sets" && (
           <div className="governance-explorer">
             <aside className="governance-explorer__sidebar" style={{ width: '300px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ marginBottom: '16px' }}>
                 <h3 className="detail-section__title">{ui.sectionSetList}</h3>
-                <Button variant="primary" size="sm" onClick={openCreateFromCurrent} disabled={!activeDetails}>
-                  {t("common.new")}
-                </Button>
               </div>
 
               <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
@@ -561,43 +551,10 @@ export default function AIConfigurationConsole() {
             <div className="governance-explorer__content">
               {selectedSet ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                  <Card title={ui.setDetail}>
-                    <div className="governance-grid">
-                      <div className="detail-section">
-                        <span className="detail-section__title">{ui.setNameLabel}</span>
-                        <div>{selectedSet.name}</div>
-                      </div>
-                      <div className="detail-section">
-                        <span className="detail-section__title">{ui.statusLabel}</span>
-                        <StatusBadge tone={selectedSet.status === "active" ? "success" : "muted"}>
-                          {selectedSet.status}
-                        </StatusBadge>
-                      </div>
-                      <div className="detail-section">
-                        <span className="detail-section__title">{ui.rubricLabel}</span>
-                        <div>{selectedSet.rubric?.version || "—"}</div>
-                      </div>
-                      <div className="detail-section">
-                        <span className="detail-section__title">{ui.promptLabel}</span>
-                        <div>{selectedSet.prompt?.version || "—"}</div>
-                      </div>
-                    </div>
 
-                    <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-                      <Button variant="primary" size="sm" onClick={openCreateFromCurrent}>
-                        {ui.createFromThisSet}
-                      </Button>
-                      <Button variant="primary" size="sm" onClick={() => {
-                        setCompareLeftId(selectedSet.id);
-                        setCompareRightId(activeSet?.id && activeSet.id !== selectedSet.id ? activeSet.id : "");
-                        setActiveTab("compare");
-                      }}>
-                        {ui.compareWithOtherSet}
-                      </Button>
-                    </div>
-                  </Card>
 
-                  <Card title={ui.rubricReadonly}>
+                  <div style={{ padding: '24px', background: 'var(--ds-color-surface)', borderRadius: 'var(--ds-radius-md)', border: '1px solid var(--ds-color-border)' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--ds-color-text-title)', marginBottom: '12px' }}>{ui.rubricReadonly}</h3>
                     <pre style={{ 
                       padding: '16px', borderRadius: 'var(--ds-radius-md)', 
                       backgroundColor: 'var(--ds-color-bg-muted)', fontSize: '13px',
@@ -606,9 +563,10 @@ export default function AIConfigurationConsole() {
                     }}>
                       {selectedSet.rubric?.prompt?.vi || selectedSet.rubric?.prompt?.ja || ""}
                     </pre>
-                  </Card>
+                  </div>
 
-                  <Card title={ui.promptReadonly}>
+                  <div style={{ padding: '24px', background: 'var(--ds-color-surface)', borderRadius: 'var(--ds-radius-md)', border: '1px solid var(--ds-color-border)' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--ds-color-text-title)', marginBottom: '12px' }}>{ui.promptReadonly}</h3>
                     <pre style={{ 
                       padding: '16px', borderRadius: 'var(--ds-radius-md)', 
                       backgroundColor: 'var(--ds-color-bg-muted)', fontSize: '13px',
@@ -617,7 +575,7 @@ export default function AIConfigurationConsole() {
                     }}>
                       {selectedSet.prompt?.content || ""}
                     </pre>
-                  </Card>
+                  </div>
                 </div>
               ) : (
                 <EmptyState title={ui.selectFromList} />
@@ -628,7 +586,8 @@ export default function AIConfigurationConsole() {
 
         {activeTab === "compare" && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            <Card title={ui.compareTitle}>
+            <div style={{ padding: '24px', background: 'var(--ds-color-surface)', borderRadius: 'var(--ds-radius-md)', border: '1px solid var(--ds-color-border)' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--ds-color-text-title)', marginBottom: '20px' }}>{ui.compareTitle}</h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
                 <Select 
                   label={ui.leftSet}
@@ -668,30 +627,34 @@ export default function AIConfigurationConsole() {
                   </pre>
                 </div>
               </div>
-            </Card>
+            </div>
 
             {compareSummary && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-                <Card title={ui.rubricCompareLabel}>
+                <div style={{ padding: '16px', background: 'var(--ds-color-surface)', borderRadius: 'var(--ds-radius-md)', border: '1px solid var(--ds-color-border)' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ds-color-text-muted)', marginBottom: '8px' }}>{ui.rubricCompareLabel}</div>
                   <StatusBadge tone={compareSummary.rubric === "changed" ? "warning" : "success"}>
                     {compareSummary.rubric === "changed" ? ui.changed : ui.unchanged}
                   </StatusBadge>
-                </Card>
-                <Card title={ui.promptCompareLabel}>
+                </div>
+                <div style={{ padding: '16px', background: 'var(--ds-color-surface)', borderRadius: 'var(--ds-radius-md)', border: '1px solid var(--ds-color-border)' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ds-color-text-muted)', marginBottom: '8px' }}>{ui.promptCompareLabel}</div>
                   <StatusBadge tone={compareSummary.prompt === "changed" ? "warning" : "success"}>
                     {compareSummary.prompt === "changed" ? ui.changed : ui.unchanged}
                   </StatusBadge>
-                </Card>
-                <Card title={ui.policyCompareLabel}>
+                </div>
+                <div style={{ padding: '16px', background: 'var(--ds-color-surface)', borderRadius: 'var(--ds-radius-md)', border: '1px solid var(--ds-color-border)' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ds-color-text-muted)', marginBottom: '8px' }}>{ui.policyCompareLabel}</div>
                   <StatusBadge tone={compareSummary.policy === "changed" ? "warning" : "success"}>
                     {compareSummary.policy === "changed" ? ui.changed : ui.unchanged}
                   </StatusBadge>
-                </Card>
-                <Card title={ui.rulesCompareLabel}>
+                </div>
+                <div style={{ padding: '16px', background: 'var(--ds-color-surface)', borderRadius: 'var(--ds-radius-md)', border: '1px solid var(--ds-color-border)' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ds-color-text-muted)', marginBottom: '8px' }}>{ui.rulesCompareLabel}</div>
                   <StatusBadge tone={compareSummary.rules === "changed" ? "warning" : "success"}>
                     {compareSummary.rules === "changed" ? ui.changed : ui.unchanged}
                   </StatusBadge>
-                </Card>
+                </div>
               </div>
             )}
           </div>
@@ -699,7 +662,10 @@ export default function AIConfigurationConsole() {
 
         {activeTab === "create" && (
           <div style={{ maxWidth: '900px', margin: '0 auto', width: '100%' }}>
-            <Card title={`${ui.createTitle} — ${ui.step} ${createStep}/2`}>
+            <div style={{ padding: '32px', background: 'var(--ds-color-surface)', borderRadius: 'var(--ds-radius-md)', border: '1px solid var(--ds-color-border)' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--ds-color-text-title)', marginBottom: '24px', borderBottom: '1px solid var(--ds-color-border)', paddingBottom: '12px' }}>
+                {`${ui.createTitle} — ${ui.step} ${createStep}/2`}
+              </h3>
               {createStep === 1 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                   <Input 
@@ -832,7 +798,7 @@ export default function AIConfigurationConsole() {
                   </div>
                 </div>
               )}
-            </Card>
+            </div>
           </div>
         )}
       </main>
@@ -921,7 +887,7 @@ export default function AIConfigurationConsole() {
             display: 'flex',
             gap: '10px'
           }}>
-            <InfoIcon size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+            <InfoIcon size="sm" style={{ flexShrink: 0, marginTop: '2px' }} />
             <p style={{ margin: 0 }}>Sau khi khởi tạo, hệ thống sẽ tự động tạo bộ đánh giá mẫu (v1) cho loại tài liệu này ở tất cả các cấp độ.</p>
           </div>
         </div>

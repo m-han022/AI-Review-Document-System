@@ -90,7 +90,7 @@ export default function ProjectEditDialog({ open, onClose, project }: ProjectEdi
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-        <FieldError message={error} />
+        <FieldError message={error || undefined} />
 
         <Input
           label="ID"

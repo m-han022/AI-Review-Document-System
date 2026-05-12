@@ -346,7 +346,7 @@ export function getVersionFileUrl(versionId: number, disposition: "inline" | "at
 
 export async function uploadFile(formData: FormData) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+  const timeoutId = setTimeout(() => controller.abort(), 120000); // 120s timeout
   
   try {
     const res = await fetch(`${API_BASE_URL}/upload`, {

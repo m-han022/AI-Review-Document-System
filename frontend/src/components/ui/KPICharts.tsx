@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Label, Tooltip } from "recharts";
 import "./KPICharts.css";
 
-interface KPIBarChartProps {
+export interface KPIBarChartProps {
   data: {
     key: string;
     label: string;

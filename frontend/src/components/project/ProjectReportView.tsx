@@ -1,10 +1,9 @@
-import React, { useMemo } from "react";
-import { KPIProgressList } from "../ui/KPICharts";
+import { useMemo } from "react";
 import { StatusBadge } from "../ui/States";
-import { AlertCircleIcon, AlertTriangleIcon, CheckCircleIcon, TargetIcon, SparkIcon, ShieldCheckIcon, LayersIcon, BookOpenIcon, WorkflowIcon } from "../ui/Icon";
+import { AlertCircleIcon, AlertTriangleIcon, CheckCircleIcon, TargetIcon, SparkIcon, LayersIcon, WorkflowIcon } from "../ui/Icon";
 import { getLocalizedText } from "../../locales/utils";
 import type { FeedbackSectionView } from "./ProjectReviewPanels";
-import type { KPIProgressData } from "../ui/KPICharts";
+import type { KPIBarChartProps } from "../ui/KPICharts";
 import type { ProjectSlidesTabViewModel } from "./projectCard.viewModels";
 
 interface Props {
@@ -15,7 +14,7 @@ interface Props {
   totalScore: number;
   geminiModel: string;
   feedbackSections: FeedbackSectionView[];
-  orderedScores: KPIProgressData[];
+  orderedScores: KPIBarChartProps["data"];
   slidesViewModel: ProjectSlidesTabViewModel;
   lang: string;
   extractedText?: string;
@@ -238,7 +237,7 @@ export default function ProjectReportView({
               <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
                 <th style={{ padding: '12px', textAlign: 'left', width: '25%' }}>{t("project.criteria") || "Tiêu chí"}</th>
                 <th style={{ padding: '12px', textAlign: 'center', width: '10%' }}>{t("project.metaScore") || "Điểm"}</th>
-                <th style={{ padding: '12px', textAlign: 'left' }}>{t("project.feedbackTitle", "Nhận xét & Đề xuất từ AI")}</th>
+                <th style={{ padding: '12px', textAlign: 'left' }}>{tx("project.feedbackTitle", "Nhận xét & Đề xuất từ AI")}</th>
               </tr>
             </thead>
             <tbody>
@@ -247,7 +246,7 @@ export default function ProjectReportView({
                   <td style={{ padding: '12px', fontWeight: 700 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <div style={{ color: item.value / item.max >= 0.8 ? '#10b981' : item.value / item.max >= 0.5 ? '#f59e0b' : '#ef4444' }}>
-                        <item.Icon size="xs" />
+                        <TargetIcon size="sm" />
                       </div>
                       {item.label}
                     </div>
@@ -301,7 +300,7 @@ export default function ProjectReportView({
                   <span className="report-print-slide-number">{tx("project.slideLabel", "Slide")} {slide.slide_number}</span>
                   <StatusBadge 
                     tone={slide.status === "NG" ? "danger" : "success"}
-                    icon={slide.status === "NG" ? <AlertCircleIcon size="xs" /> : <CheckCircleIcon size="xs" />}
+                    icon={slide.status === "NG" ? <AlertCircleIcon size="sm" /> : <CheckCircleIcon size="sm" />}
                   >
                     {slide.status}
                   </StatusBadge>

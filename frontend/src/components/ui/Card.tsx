@@ -3,7 +3,7 @@ import './Card.css';
 
 interface CardProps {
   children: React.ReactNode;
-  title?: string;
+  title?: string | React.ReactNode;
   subtitle?: string;
   headerAction?: React.ReactNode;
   footer?: React.ReactNode;
@@ -11,6 +11,7 @@ interface CardProps {
   className?: string;
   noBorder?: boolean;
   onClick?: () => void;
+  style?: React.CSSProperties;
 }
 
 export const Card: React.FC<CardProps> = ({
@@ -22,10 +23,11 @@ export const Card: React.FC<CardProps> = ({
   padding,
   className = '',
   noBorder = false,
-  onClick
+  onClick,
+  style
 }) => {
   return (
-    <div className={`ds-card ${noBorder ? 'no-border' : ''} ${className}`} onClick={onClick}>
+    <div className={`ds-card ${noBorder ? 'no-border' : ''} ${className}`} style={style} onClick={onClick}>
       {(title || headerAction) && (
         <div className="ds-card__header">
           <div className="ds-card__title-group">

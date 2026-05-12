@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useReducer, useState } from "react";
 import "./AuditDashboard.css";
 import { 
-  RefreshIcon, AlertCircleIcon, SparkIcon, TargetIcon, AlertTriangleIcon, 
+  RefreshIcon, AlertCircleIcon, SparkIcon, AlertTriangleIcon, 
   CheckCircleIcon, TrendingUpIcon, LayersIcon, ChevronRightIcon, ChevronLeftIcon 
 } from "../ui/Icon";
 
@@ -326,7 +326,7 @@ export default function AuditDashboard() {
               value={state.filters.documentId} 
               onChange={(val) => dispatch({ type: "SET_FILTER", key: "documentId", value: val })}
               disabled={!state.filters.projectId}
-              options={documentsList.map(d => ({ value: String(d.id), label: d.document_name }))}
+              options={documentsList.map(d => ({ value: String(d.document_id), label: d.document_name }))}
               placeholder={t("sm.auditDashboard.documentPlaceholder")}
               hideValue={true}
             />
@@ -335,7 +335,7 @@ export default function AuditDashboard() {
               value={state.filters.versionId} 
               onChange={(val) => dispatch({ type: "SET_FILTER", key: "versionId", value: val })}
               disabled={!state.filters.documentId}
-              options={versionsList.map(v => ({ value: String(v.id), label: v.document_version }))}
+              options={versionsList.map(v => ({ value: String(v.document_version_id), label: v.version }))}
               placeholder={t("sm.auditDashboard.versionPlaceholder")}
               hideValue={true}
             />

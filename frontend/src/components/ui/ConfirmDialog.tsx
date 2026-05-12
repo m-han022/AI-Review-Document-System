@@ -38,7 +38,7 @@ export default function ConfirmDialog({
           <Button variant="ghost" onClick={onCancel} disabled={isLoading} size="md">
             {cancelLabel}
           </Button>
-          <Button variant={tone === "danger" ? "danger" : tone === "warning" ? "warning" : "primary"} onClick={onConfirm} isLoading={isLoading} size="md">
+          <Button variant={tone === "danger" ? "danger" : "primary"} onClick={onConfirm} isLoading={isLoading} size="md">
             {confirmLabel}
           </Button>
         </>

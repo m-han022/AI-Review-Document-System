@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { getLocalizedText } from "../../locales/utils";
-import { SparkIcon, TargetIcon, AlertTriangleIcon, ShieldCheckIcon, AlertCircleIcon, CheckCircleIcon, TrendingUpIcon } from "../ui/Icon";
+import { SparkIcon, TargetIcon, AlertTriangleIcon, AlertCircleIcon, CheckCircleIcon, TrendingUpIcon } from "../ui/Icon";
 import { LoadingState } from "../ui/States";
 import { Card } from "../ui";
 import type { ProjectCriteriaTabViewModel } from "./projectCard.viewModels";
@@ -16,21 +16,6 @@ export default function ProjectCriteriaTab({
   viewModel,
 }: Props) {
   const { lang, gradingDetail, orderedScores, result, feedbackSections, gradings } = viewModel;
-
-  // Calculate dynamic trend
-  const trend = useMemo(() => {
-    if (!gradings || gradings.length < 2 || !result) return null;
-    const currentScore = result.total_score || 0;
-    const previousGrading = gradings.find(g => g.grading_run_id !== result.id && g.status?.toLowerCase() === 'completed');
-    if (!previousGrading || previousGrading.total_score === undefined) return null;
-    
-    const prevScore = previousGrading.total_score || 0;
-    const diff = currentScore - prevScore;
-    return {
-      value: Math.abs(diff).toFixed(1),
-      isUp: diff >= 0,
-    };
-  }, [gradings, result]);
 
   // Derive evaluations
   const criteriaWithEvaluations = useMemo(() => {
@@ -87,13 +72,6 @@ export default function ProjectCriteriaTab({
     };
   }, [orderedScores]);
 
-  const scoreLevel = useMemo(() => {
-    const score = result?.total_score || 0;
-    if (score >= 90) return { label: t("project.scoreLevelExcellent"), color: "var(--ds-color-success)" };
-    if (score >= 80) return { label: t("project.scoreLevelGood"), color: "var(--ds-color-primary)" };
-    if (score >= 65) return { label: t("project.scoreLevelAverage"), color: "var(--ds-color-warning)" };
-    return { label: t("project.scoreLevelWeak"), color: "var(--ds-color-danger)" };
-  }, [result]);
 
   return (
     <div className="project-criteria-tab-v4" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -201,7 +179,7 @@ export default function ProjectCriteriaTab({
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             color: item.value / item.max >= 0.8 ? '#10B981' : item.value / item.max >= 0.5 ? '#F59E0B' : '#EF4444'
                           }}>
-                            <item.Icon size="xs" />
+                            <TargetIcon size="sm" />
                           </div>
                           <div style={{ display: 'flex', flexDirection: 'column' }}>
                             <span style={{ fontWeight: 700, fontSize: '13.5px', color: '#1E293B' }}>{item.label}</span>
@@ -250,7 +228,7 @@ export default function ProjectCriteriaTab({
                             alignItems: 'center',
                             gap: '8px'
                           }}>
-                            <SparkIcon size="xs" /> {t("project.improveScoreBlock") || "Để tăng điểm:"} {t("project.suggestionImprovementHint")}
+                            <SparkIcon size="sm" /> {t("project.improveScoreBlock") || "Để tăng điểm:"} {t("project.suggestionImprovementHint")}
                           </div>
                         )}
                       </td>

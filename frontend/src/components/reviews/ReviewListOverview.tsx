@@ -2,22 +2,20 @@ import { useMemo } from "react";
 import type { Project } from "../../types";
 import { useTranslation } from "../LanguageSelector";
 import SubmissionsTable from "../SubmissionsTable";
-import { FileReviewIcon, ShieldCheckIcon, TargetIcon, PlusIcon } from "../ui/Icon";
-import { Card, StatusBadge, Button } from "../ui";
+import { FileReviewIcon, ShieldCheckIcon, TargetIcon } from "../ui/Icon";
+import { Card } from "../ui";
 import "./ReviewListOverview.css";
 
 interface ReviewListOverviewProps {
   projects: Project[];
   activeProjectId?: string | null;
   onSelectProject?: (projectId: string) => void;
-  onCreateProject?: () => void;
 }
 
 export default function ReviewListOverview({
   projects,
   activeProjectId,
   onSelectProject,
-  onCreateProject,
 }: ReviewListOverviewProps) {
   const { t } = useTranslation();
 

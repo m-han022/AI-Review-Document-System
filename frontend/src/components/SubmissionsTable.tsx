@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { bulkDeleteSubmissions, deleteSubmission, exportSubmissionsExcel, gradeSubmission } from "../api/client";
+import { bulkDeleteSubmissions, deleteSubmission, gradeSubmission } from "../api/client";
 import { projectsQueryKey } from "../query";
 import type { Project, LanguageCode } from "../types";
-import type { DocumentType } from "../constants/documentTypes";
+
 import { useTranslation } from "./LanguageSelector";
 import ConfirmDialog from "./ui/ConfirmDialog";
 import ToastStack, { type ToastItem } from "./ui/ToastStack";
@@ -56,13 +56,13 @@ export default function SubmissionsTable({
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "completed" | "pending">("all");
-  const [documentTypeFilter, setDocumentTypeFilter] = useState<DocumentType | "all">("all");
+  const documentTypeFilter = "all";
   const [languageFilter, setLanguageFilter] = useState<LanguageCode | "all">("all");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   
   const queryClient = useQueryClient();
-  const { t, lang } = useTranslation();
+  const { t } = useTranslation();
 
   const activeProjectId = controlledActiveProjectId ?? internalActiveProjectId;
   const isDashboardVariant = variant === "dashboard";
@@ -187,22 +187,7 @@ export default function SubmissionsTable({
     }
   };
 
-  const handleExportProjectReport = async (projectId: string) => {
-    try {
-      const { blob, filename } = await exportSubmissionsExcel({ projectId });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename || `project_${projectId}_report.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-      pushToast("success", t("submissions.exportSuccess"));
-    } catch (error) {
-      pushToast("danger", t("submissions.exportFailed"));
-    }
-  };
+
 
   const openDeleteDialog = (ids: string[], mode: DeleteMode) => {
     const targets = projects.filter((p) => ids.includes(p.project_id));
@@ -247,10 +232,8 @@ export default function SubmissionsTable({
           onDeleteSelected={() => openDeleteDialog(Array.from(selectedIds), "selected")}
           exporting={false}
           isActionPending={isActionPending}
-          documentTypeFilter={documentTypeFilter}
           statusFilter={statusFilter}
           languageFilter={languageFilter}
-          onDocumentTypeFilterChange={setDocumentTypeFilter}
           onStatusFilterChange={setStatusFilter}
           onLanguageFilterChange={setLanguageFilter}
           searchQuery={searchQuery}
@@ -284,7 +267,6 @@ export default function SubmissionsTable({
                   onGrade={handleGrade}
                   onDelete={(id) => openDeleteDialog([id], "single")}
                   onEdit={(p) => setEditingProject(p)}
-                  onExportReport={handleExportProjectReport}
                 />
               ))
             ) : (
@@ -296,7 +278,7 @@ export default function SubmissionsTable({
                     compact 
                     action={
                       <Button variant="primary" size="sm" onClick={() => setShowCreateDialog(true)}>
-                        <PlusIcon size="xs" /> {t("submissions.createProjectNew")}
+                        <PlusIcon size="sm" /> {t("submissions.createProjectNew")}
                       </Button>
                     }
                   />
@@ -313,8 +295,6 @@ export default function SubmissionsTable({
             currentPage={currentPage}
             canGoPrevious={currentPage > 1}
             canGoNext={currentPage < totalPages}
-            previousLabel={lang === "ja" ? "前へ" : "Trước"}
-            nextLabel={lang === "ja" ? "次へ" : "Tiếp"}
             onPrevious={() => setCurrentPage(p => Math.max(1, p - 1))}
             onNext={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
             variant={variant === "reference" ? "reference" : "default"}

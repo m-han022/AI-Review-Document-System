@@ -2,7 +2,7 @@ import { useTranslation } from "../LanguageSelector";
 import { DownloadIcon, PlusIcon, SearchIcon, TrashIcon } from "../ui/Icon";
 import { Button, Input, Select } from "../ui";
 import type { LanguageCode } from "../../types";
-import type { DocumentType } from "../../constants/documentTypes";
+
 import "./TableToolbar.css";
 
 interface TableToolbarProps {
@@ -12,10 +12,8 @@ interface TableToolbarProps {
   onDeleteSelected: () => void;
   exporting: boolean;
   isActionPending: boolean;
-  documentTypeFilter: DocumentType | "all";
   statusFilter: "all" | "completed" | "pending";
   languageFilter: LanguageCode | "all";
-  onDocumentTypeFilterChange: (value: DocumentType | "all") => void;
   onStatusFilterChange: (value: "all" | "completed" | "pending") => void;
   onLanguageFilterChange: (value: LanguageCode | "all") => void;
   searchQuery: string;
@@ -31,10 +29,8 @@ export default function TableToolbar({
   onDeleteSelected,
   exporting,
   isActionPending,
-  documentTypeFilter,
   statusFilter,
   languageFilter,
-  onDocumentTypeFilterChange,
   onStatusFilterChange,
   onLanguageFilterChange,
   searchQuery,
@@ -44,13 +40,7 @@ export default function TableToolbar({
   const { t } = useTranslation();
   const hasSelection = selectedCount > 0;
 
-  const docTypeOptions = [
-    { value: "all", label: t("submissions.filterAllDocumentTypes") },
-    { value: "project-review", label: t("upload.types.projectReview.label") },
-    { value: "bug-analysis", label: t("upload.types.bugAnalysis.label") },
-    { value: "qa-review", label: t("upload.types.qaReview.label") },
-    { value: "explanation-review", label: t("upload.types.explanationReview.label") },
-  ];
+
 
   const statusOptions = [
     { value: "all", label: t("submissions.filterAllStatuses") },

@@ -4,8 +4,8 @@ interface TableFooterProps {
   currentPage: number;
   canGoPrevious: boolean;
   canGoNext: boolean;
-  previousLabel: string;
-  nextLabel: string;
+  previousLabel?: string;
+  nextLabel?: string;
   onPrevious: () => void;
   onNext: () => void;
   variant?: "default" | "reference";
@@ -17,8 +17,7 @@ export default function TableFooter({
   currentPage,
   canGoPrevious,
   canGoNext,
-  previousLabel,
-  nextLabel,
+
   onPrevious,
   onNext,
   variant = "default",

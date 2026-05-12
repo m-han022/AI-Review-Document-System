@@ -1,7 +1,7 @@
 import type { Project } from "../../types";
 import { useTranslation } from "../LanguageSelector";
 import { toBusinessStatus } from "../ui/businessStatus";
-import { AlertCircleIcon, CheckCircleIcon, DownloadIcon, EditIcon, EyeIcon, FileReviewIcon, RefreshIcon, TrashIcon } from "../ui/Icon";
+import { AlertCircleIcon, CheckCircleIcon, EditIcon, EyeIcon, FileReviewIcon, RefreshIcon, TrashIcon } from "../ui/Icon";
 import { StatusBadge } from "../ui/States";
 import { formatUploadedAt } from "./utils";
 import "./TableRow.css";
@@ -19,7 +19,6 @@ interface TableRowProps {
   onGrade: (projectId: string) => void;
   onDelete: (projectId: string) => void;
   onEdit: (project: Project) => void;
-  onExportReport: (projectId: string) => void;
 }
 
 export default function TableRow({
@@ -35,7 +34,6 @@ export default function TableRow({
   onGrade,
   onDelete,
   onEdit,
-  onExportReport,
 }: TableRowProps) {
   const { t, lang } = useTranslation();
   const latestScore = project.latest_score;
@@ -48,7 +46,7 @@ export default function TableRow({
     if (status === "FAILED") {
       return (
         <div className="status-cell-stack">
-          <StatusBadge tone="danger" icon={<AlertCircleIcon size="xs" />}>
+          <StatusBadge tone="danger" icon={<AlertCircleIcon size="sm" />}>
             {t("statusBiz.attentionNeeded")}
           </StatusBadge>
           {project.latest_error_message && (
@@ -62,14 +60,14 @@ export default function TableRow({
 
     if (businessStatus === "reviewReady") {
       return (
-        <StatusBadge tone="success" icon={<CheckCircleIcon size="xs" />}>
+        <StatusBadge tone="success" icon={<CheckCircleIcon size="sm" />}>
           {t("statusBiz.reviewReady")}
         </StatusBadge>
       );
     }
 
     return (
-      <StatusBadge tone="warning" icon={<RefreshIcon size="xs" className="animate-spin" />}>
+      <StatusBadge tone="warning" icon={<RefreshIcon size="sm" className="animate-spin" />}>
         {t("statusBiz.processing")}
       </StatusBadge>
     );

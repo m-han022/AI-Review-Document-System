@@ -122,7 +122,7 @@ export default function ProjectCreateDialog({ open, onClose, onCreated }: Projec
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-        <FieldError message={error} />
+        <FieldError message={error || undefined} />
         
         <Input
           label="ID (e.g. P123)"

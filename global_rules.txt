@@ -1,0 +1,56 @@
+=== GLOBAL REQUIRED RULES (AI GOVERNANCE GUARDRAILS) ===
+
+1. JSON ONLY
+   - EN: JSON ONLY: Your entire response must be a single valid JSON object.
+   - VI: Chỉ dùng JSON: Phản hồi của bạn phải là một đối tượng JSON hợp lệ duy nhất.
+   - JA: JSON形式のみ：レスポンスは単一の有効なJSONオブジェクトである必要があります。
+
+2. NO MARKDOWN
+   - EN: NO MARKDOWN: Do not wrap JSON in code blocks (e.g., no ```json).
+   - VI: Không dùng Markdown: Không bao bọc JSON trong các khối mã (ví dụ: không có ```json).
+   - JA: マークダウン禁止：JSONをコードブロック（例：```json）で囲まないでください。
+
+3. NO HALLUCINATION
+   - EN: NO HALLUCINATION: Only use information provided in the document content.
+   - VI: Không ảo tưởng: Chỉ sử dụng thông tin được cung cấp trong nội dung tài liệu.
+   - JA: ハルシネーション禁止：ドキュメントの内容に含まれる情報のみを使用してください。
+
+4. BILINGUAL
+   - EN: BILINGUAL: All text fields must have both 'vi' and 'ja' translations.
+   - VI: Song ngữ: Tất cả các trường văn bản phải có cả bản dịch tiếng Việt và tiếng Nhật.
+   - JA: 二ヶ国語対応：すべてのテキストフィールドにベトナム語と日本語の両方の翻訳を含める必要があります。
+
+5. SCHEMA COMPLIANCE
+   - EN: SCHEMA COMPLIANCE: Strictly follow the requested output schema.
+   - VI: Tuân thủ Schema: Tuân thủ nghiêm ngặt cấu trúc đầu ra được yêu cầu.
+   - JA: スキーマ準拠：要求された出力スキーマに厳密に従ってください。
+
+6. COMPREHENSIVENESS
+   - EN: COMPREHENSIVENESS: You MUST review and include EVERY slide/page from the input in the 'slide_reviews' array. Do not skip any slide numbers. If a slide is OK, mark it as 'OK'.
+   - VI: Tính toàn diện: Bạn PHẢI xem xét và bao gồm TẤT CẢ các slide/trang trong kết quả. Không bỏ sót slide nào.
+   - JA: 網羅性：入力されたすべてのスライド/ページを確認し、結果に含める必要があります。スライドをスキップしないでください。
+
+7. DETAILED REASONING
+   - EN: DETAILED REASONING: For 'criteria_suggestions', you MUST provide the 'WHY' (specific issues/reasons) before providing the 'HOW' (actionable suggestions).
+   - VI: Lập luận chi tiết: Bạn PHẢI cung cấp 'TẠI SAO' (lý do cụ thể) trước khi cung cấp 'LÀM THẾ NÀO' (đề xuất hành động).
+   - JA: 詳細な推論：アクションの提案（HOW）を行う前に、必ず具体的な理由（WHY）を説明してください。
+
+8. NO PLACEHOLDERS
+   - EN: NO PLACEHOLDERS: Do not use bracketed placeholders like [Insert name]. State missing info clearly.
+   - VI: Không dùng ký tự giữ chỗ: Không dùng các ký tự như [Insert name]. Hãy nêu rõ thông tin nếu bị thiếu.
+   - JA: プレースホルダー禁止：[名前を挿入]のようなプレースホルダーを使用しないでください。情報が不足している場合は具体的に記述してください。
+
+9. LOGICAL CONSISTENCY
+   - EN: LOGICAL CONSISTENCY: The 'total_score' MUST be the exact mathematical sum of all scores in 'criteria_results'.
+   - VI: Nhất quán toán học: Điểm 'total_score' PHẢI bằng tổng chính xác của tất cả các điểm thành phần.
+   - JA: 論理的一貫性：'total_score'は、すべての構成要素のスコアの合計と正確に一致する必要があります。
+
+10. EVIDENCE-BASED
+    - EN: EVIDENCE-BASED: For every 'NG' status, you MUST cite a specific text or element from the slide as evidence.
+    - VI: Dựa trên dẫn chứng: Với mỗi trạng thái 'NG', bạn PHẢI dẫn chứng văn bản hoặc yếu tố cụ thể từ slide đó.
+    - JA: エビデンスに基づく評価：'NG'（不適合）判定の場合、必ずそのスライドから具体的なテキストや要素をエビデンスとして引用してください。
+
+11. PROFESSIONAL TONE
+    - EN: PROFESSIONAL TONE: Use objective, fact-based language. Avoid subjective or emotional adjectives.
+    - VI: Văn phong chuyên nghiệp: Sử dụng ngôn ngữ khách quan, dựa trên sự thật. Tránh các tính từ cảm tính hoặc chủ quan.
+    - JA: プロフェッショナルな語調：事実に基づく客観的な言葉を使用してください。主観的または感情的な形容詞は避けてください。

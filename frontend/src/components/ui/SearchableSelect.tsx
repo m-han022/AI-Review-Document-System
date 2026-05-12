@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect, useId } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import './SearchableSelect.css';
-import { ChevronDownIcon, SearchIcon, XIcon } from './Icon';
+import { ChevronDownIcon, XIcon } from './Icon';
 
 interface Option {
   value: string;
@@ -34,7 +34,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const generatedId = useId();
+
 
   // Find the label for the current value
   const selectedOption = options.find(opt => opt.value === value);
@@ -113,7 +113,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         <div className="ds-select-actions">
           {value && !disabled && (
             <button className="ds-select-clear-btn" onClick={handleClear}>
-              <XIcon size="xs" />
+              <XIcon size="sm" />
             </button>
           )}
           <ChevronDownIcon className={`ds-select-chevron ${isOpen ? 'is-rotated' : ''}`} size="sm" />
