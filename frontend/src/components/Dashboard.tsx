@@ -66,7 +66,9 @@ export default function Dashboard() {
         return s === "pending" || s === "extracting" || s === "grading";
       });
       return hasPending ? 3000 : false;
-    }
+    },
+    retry: 1,
+    initialData: [],
   });
 
   const projects: Project[] = useMemo(() => (Array.isArray(projectsData) ? projectsData : []), [projectsData]);
@@ -175,13 +177,13 @@ export default function Dashboard() {
       );
     }
 
-    if (isLoading) {
+    if (isLoading && (activeView === "dashboard" || activeView === "reviews" || activeView === "detail")) {
       return (
         <div className="workspace-stack">
           <Card title={t("common.loading")}>
             <LoadingState 
               title={t("common.loading")} 
-              description={t("nav.dashboard")} 
+              description={topbarContent.title} 
             />
             <div style={{ marginTop: '24px' }}>
               <SkeletonTable rows={5} cols={4} />

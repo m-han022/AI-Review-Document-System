@@ -180,7 +180,7 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
 
                 <div className="analysis-side-col">
                   {/* Evidence Block */}
-                  <section className="analysis-section-v3" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                  <section className="analysis-section-v3" style={{ display: 'flex', flexDirection: 'column', position: 'sticky', top: '24px' }}>
                     <h3 className="analysis-section-title-v3 is-meta" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                       <LayersIcon size="sm" /> {t("project.documentViewer.title") || "Bằng chứng từ tài liệu"} (AI Proof)
                     </h3>
@@ -189,11 +189,11 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
                     </p>
 
                     {gradingDetail?.document_version?.filename.toLowerCase().endsWith(".pdf") ? (
-                      <div className="evidence-card-v3" style={{ flex: 1, padding: 0, overflow: 'hidden', minHeight: '500px' }}>
+                      <div className="evidence-card-v3" style={{ width: '100%', aspectRatio: '16 / 9', minHeight: '360px', maxHeight: '540px', padding: 0, overflow: 'hidden', background: '#f1f5f9', borderRadius: '12px', border: '1px solid var(--ds-color-border)' }}>
                         <iframe 
                           src={`${gradingDetail?.document_version?.id ? getVersionFileUrl(gradingDetail.document_version.id) : getSubmissionFileUrl(projectId)}#page=${activeSlide.slide_number}`}
                           title="Original Document Preview"
-                          style={{ width: '100%', height: '100%', border: 'none', background: 'white' }}
+                          style={{ width: '100%', height: '100%', border: 'none', background: 'transparent' }}
                         />
                       </div>
                     ) : (

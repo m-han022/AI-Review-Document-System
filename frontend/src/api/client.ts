@@ -479,7 +479,7 @@ export async function gradeSubmission({
   evaluationSetId = null,
 }: GradeSubmissionParams) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 90000);
+  const timeoutId = setTimeout(() => controller.abort(), 240000);
   const params = new URLSearchParams({
     language: currentLanguage,
   });
@@ -506,6 +506,9 @@ export async function gradeSubmission({
     });
     clearTimeout(timeoutId);
     if (!res.ok) {
+      if (res.status === 504 || res.status === 502) {
+        throw createApiError("REQUEST_TIMEOUT", apiMessage("gradingTimeout"), res.status, res.statusText);
+      }
       const err = await res.json().catch(() => ({ detail: res.statusText }));
       const code = mapGradeErrorDetail(err.detail || "");
       throw createApiError(code, apiMessage("gradingFailed"), res.status, err.detail || res.statusText);
