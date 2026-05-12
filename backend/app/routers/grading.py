@@ -151,11 +151,6 @@ async def _perform_grading(
 
         return last_result
 
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        log_error("grading_failed", project_id=project_id, detail=str(e))
-        raise HTTPException(status_code=502, detail=f"Grading failed: {str(e)}")
     except ValueError as e:
         log_error(
             "grading_validation_failed",

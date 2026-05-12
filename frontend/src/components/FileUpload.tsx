@@ -117,6 +117,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadedProjectId, setUploadedProjectId] = useState<string | null>(null);
   const [uploadedVersionId, setUploadedVersionId] = useState<number | null>(null);
+  const [uploadedProjectName, setUploadedProjectName] = useState<string | null>(null);
   const [projectDescription, setProjectDescription] = useState("");
   const [reviewing, setReviewing] = useState(false);
   const [forceRegrade, setForceRegrade] = useState(false);
@@ -139,12 +140,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
   const queryClient = useQueryClient();
   const { lang, t } = useTranslation();
   const copy = UPLOAD_COPY[lang] ?? UPLOAD_COPY.vi;
-  const reviewingMessage =
-    lang === "vi"
-      ? "AI đang đọc tài liệu của bạn..."
-      : lang === "ja"
-        ? "AI が資料を読み込んでいます..."
-        : "AI is reading your document...";
+  const reviewingMessage = copy.reviewingMessage;
 
   const canStartReview = Boolean(
     documentType &&
@@ -195,6 +191,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
   const resetFile = () => {
     setSelectedFile(null);
     setUploadedProjectId(null);
+    setUploadedProjectName(null);
     setUploadState("idle");
     setUploadProgress(0);
     setMessage(null);
@@ -233,6 +230,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
 
     setSelectedFile(file);
     setUploadedProjectId(null);
+    setUploadedProjectName(null);
     setMessage(null);
 
     if (!selectedExistingProjectId) {
@@ -292,6 +290,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
       setUploadProgress(100);
       setUploadedProjectId(result.project_id);
       setUploadedVersionId(result.document_version_id);
+      setUploadedProjectName(result.project_name);
       setUploadState("uploaded");
       setMessage({ text: `${copy.uploaded}: ${result.project_name}`, type: "success" });
     } catch (err) {
@@ -383,9 +382,9 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
         {/* Stepper Header */}
         <div className="upload-stepper-v4">
           {[
-            { id: 1, label: lang === "ja" ? "プロジェクト設定" : "Thiết lập dự án" },
-            { id: 2, label: lang === "ja" ? "ドキュメントアップロード" : "Tải lên tài liệu" },
-            { id: 3, label: lang === "ja" ? "AIレビューと結果" : "Đánh giá & Kết quả" },
+            { id: 1, label: copy.steps[0] },
+            { id: 2, label: copy.steps[1] },
+            { id: 3, label: copy.steps[2] },
           ].map((s) => {
             const currentStep = !selectedExistingProjectId ? 1 : (uploadState !== "uploaded" && !reviewDone ? 2 : 3);
             const isActive = s.id <= currentStep;
@@ -409,7 +408,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
             headerAction={
               reviewDone && (
                 <Button variant="ghost" size="sm" onClick={resetFile}>
-                  ← {lang === "ja" ? "最初から" : "Làm lại từ đầu"}
+                  ← {copy.startOver}
                 </Button>
               )
             }
@@ -433,13 +432,13 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                       {reviewDone.score ?? "—"}
                       <small>/100</small>
                     </span>
-                    <label>{lang === "ja" ? "総合スコア" : "Điểm tổng quát"}</label>
+                    <label>{copy.overallScoreLabel}</label>
                   </div>
                   <div className="upload-result-hero__actions">
                     <Button size="lg" variant="primary" onClick={() => onReviewComplete?.(reviewDone.projectId)}>
-                      {lang === "ja" ? "詳細レポートを見る" : "Xem báo cáo chi tiết"} →
+                      {copy.viewDetailReport} →
                     </Button>
-                    <p>{lang === "ja" ? "AI がドキュメントを分析し、改善案を生成しました。" : "AI đã phân tích tài liệu và đưa ra các đề xuất cải thiện."}</p>
+                    <p>{copy.aiAnalysisDesc}</p>
                   </div>
                 </div>
               </div>
@@ -615,7 +614,9 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                     {message && uploadState !== "error" && (
                       <div style={{ marginLeft: "auto" }}>
                         <StatusBadge tone={message.type === "success" ? "success" : "danger"}>
-                          {message.text}
+                          {uploadState === "uploaded" && message.type === "success" && uploadedProjectName
+                            ? `${copy.uploaded}: ${uploadedProjectName}`
+                            : message.text}
                         </StatusBadge>
                       </div>
                     )}

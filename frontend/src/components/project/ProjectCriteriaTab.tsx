@@ -90,7 +90,7 @@ export default function ProjectCriteriaTab({
                   <TargetIcon size="sm" />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '13px', color: 'var(--ds-color-text-muted)', fontWeight: 600 }}>{t("project.totalCriteria") || "Tổng số tiêu chí"}</span>
+                  <span style={{ fontSize: '13px', color: 'var(--ds-color-text-muted)', fontWeight: 600 }}>{t("project.totalCriteria")}</span>
                   <span style={{ fontSize: '24px', fontWeight: 800, color: '#1E293B' }}>{stats.total}</span>
                 </div>
               </Card>
@@ -101,7 +101,7 @@ export default function ProjectCriteriaTab({
                   <AlertTriangleIcon size="sm" />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '13px', color: 'var(--ds-color-text-muted)', fontWeight: 600 }}>{t("project.needsImprovement") || "Cần cải thiện"}</span>
+                  <span style={{ fontSize: '13px', color: 'var(--ds-color-text-muted)', fontWeight: 600 }}>{t("project.needsImprovement")}</span>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                     <span style={{ fontSize: '24px', fontWeight: 800, color: '#F59E0B' }}>{stats.improvement}</span>
                     <span style={{ fontSize: '14px', fontWeight: 700, color: '#1E293B' }}>({stats.improvementPercent}%)</span>
@@ -115,7 +115,7 @@ export default function ProjectCriteriaTab({
                   <AlertCircleIcon size="sm" />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '13px', color: 'var(--ds-color-text-muted)', fontWeight: 600 }}>{t("project.failed") || "Chưa đạt"}</span>
+                  <span style={{ fontSize: '13px', color: 'var(--ds-color-text-muted)', fontWeight: 600 }}>{t("project.failed")}</span>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                     <span style={{ fontSize: '24px', fontWeight: 800, color: '#EF4444' }}>{stats.failed}</span>
                     <span style={{ fontSize: '14px', fontWeight: 700, color: '#1E293B' }}>({stats.failedPercent}%)</span>
@@ -129,7 +129,7 @@ export default function ProjectCriteriaTab({
                   <CheckCircleIcon size="sm" />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '13px', color: 'var(--ds-color-text-muted)', fontWeight: 600 }}>{t("project.passed") || "Đạt"}</span>
+                  <span style={{ fontSize: '13px', color: 'var(--ds-color-text-muted)', fontWeight: 600 }}>{t("project.passed")}</span>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                     <span style={{ fontSize: '24px', fontWeight: 800, color: '#10B981' }}>{stats.passed}</span>
                     <span style={{ fontSize: '14px', fontWeight: 700, color: '#1E293B' }}>({stats.passedPercent}%)</span>
@@ -143,7 +143,7 @@ export default function ProjectCriteriaTab({
                   <TrendingUpIcon size="sm" />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '13px', color: 'var(--ds-color-text-muted)', fontWeight: 600 }}>{t("project.averageScore") || "Điểm trung bình"}</span>
+                  <span style={{ fontSize: '13px', color: 'var(--ds-color-text-muted)', fontWeight: 600 }}>{t("project.averageScore")}</span>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                     <span style={{ fontSize: '24px', fontWeight: 800, color: '#1E293B' }}>{result?.total_score || 0}</span>
                     <span style={{ fontSize: '14px', color: '#64748B', fontWeight: 600 }}>/ 100</span>
@@ -156,16 +156,16 @@ export default function ProjectCriteriaTab({
           <section className="analysis-table-v4">
             <header className="section-header-v3" style={{ marginBottom: 'var(--ds-space-6)' }}>
               <h2 className="section-title-v3">
-                <SparkIcon size="sm" /> {t("project.criteriaDetailTitle") || "Phân tích chi tiết từng tiêu chí"}
+                <SparkIcon size="sm" /> {t("project.criteriaDetailTitle")}
               </h2>
             </header>
             <div className="ds-table-container">
               <table className="ds-table">
                 <thead>
                   <tr>
-                    <th style={{ width: '22%' }}>{t("project.criteria") || "Tiêu chí"}</th>
-                    <th style={{ width: '12%', textAlign: 'center' }}>{t("project.metaScore") || "Điểm"}</th>
-                    <th>{t("project.feedbackTitle") || "Nhận xét & Đề xuất từ AI"}</th>
+                    <th style={{ width: '22%' }}>{t("project.criteria")}</th>
+                    <th style={{ width: '12%', textAlign: 'center' }}>{t("project.metaScore")}</th>
+                    <th>{t("project.feedbackTitle")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -228,7 +228,7 @@ export default function ProjectCriteriaTab({
                             alignItems: 'center',
                             gap: '8px'
                           }}>
-                            <SparkIcon size="sm" /> {t("project.improveScoreBlock") || "Để tăng điểm:"} {t("project.suggestionImprovementHint")}
+                            <SparkIcon size="sm" /> {t("project.improveScoreBlock")}: {t("project.suggestionImprovementHint")}
                           </div>
                         )}
                       </td>

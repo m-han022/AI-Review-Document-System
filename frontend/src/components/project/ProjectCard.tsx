@@ -212,14 +212,14 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
 
     return [
       {
-        title: t("project.insight.weakestCriterion") || "Tiêu chí cần cải thiện",
+        title: t("project.insight.weakestCriterion"),
         content: (() => {
           const parts = [];
           if (lowest) parts.push(`**${lowest.label}** (${lowest.value}/${lowest.max})`);
           
           const ngSlides = slideReviewItems.filter(s => s.status === "NG");
           if (ngSlides.length > 0) {
-            parts.push(`${t("project.ngSlideCount") || "Slide NG"}: **${ngSlides.length}** (${ngSlides.map(s => s.slide_number).slice(0, 3).join(", ")}...)`);
+            parts.push(`${t("project.ngSlideCount")}: **${ngSlides.length}** (${ngSlides.map(s => s.slide_number).slice(0, 3).join(", ")}...)`);
           }
 
           const issuesSection = feedbackSections.find(s => 
@@ -232,20 +232,20 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
             parts.push(ngSlides[0].summary);
           }
 
-          return parts.length > 0 ? parts.join(". ") : t("project.noSeriousIssues") || "Không phát hiện vấn đề nghiêm trọng.";
+          return parts.length > 0 ? parts.join(". ") : t("project.noSeriousIssues");
         })(),
         type: (lowest && lowest.value / lowest.max < 0.7) || ngSlideCount > 0 ? "danger" : "neutral",
         Icon: AlertTriangleIcon
       },
       {
-        title: t("project.insight.importantComments") || "Nhận xét quan trọng",
-        content: distilledSummary || t("project.executiveSummarySubtitle") || "Tóm tắt chiến lược từ AI.",
+        title: t("project.insight.importantComments"),
+        content: distilledSummary || t("project.executiveSummarySubtitle"),
         type: "primary",
         Icon: TargetIcon
       },
       {
-        title: t("project.insight.positivePoints") || "Điểm tích cực",
-        content: distilledPositive || (highest && highest.value / highest.max >= 0.8 ? `**${highest.label}** là điểm sáng của tài liệu.` : t("project.positivePointPlaceholder") || "Tài liệu trình bày chuyên nghiệp và tuân thủ các quy định cơ bản."),
+        title: t("project.insight.positivePoints"),
+        content: distilledPositive || (highest && highest.value / highest.max >= 0.8 ? `**${highest.label}**` : t("project.positivePointPlaceholder")),
         type: "success",
         Icon: ShieldCheckIcon
       }
@@ -373,8 +373,8 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
             {result.status === "FAILED" ? <AlertCircleIcon size="sm" /> : <RefreshIcon size="sm" className="spin" />}
             <div style={{ flex: 1, fontSize: '13.5px', fontWeight: 600 }}>
               {result.status === "FAILED" 
-                ? `${t("project.gradingFailedLabel") || "Đánh giá thất bại"}: ${result.error_message || t("common.unknownError")}`
-                : `${t("project.gradingProcessing") || "Đang tiến hành đánh giá..."} (${result.status})`
+                ? `${t("project.gradingFailedLabel")}: ${result.error_message || t("common.unknownError")}`
+                : `${t("project.gradingProcessing")} (${result.status})`
               }
             </div>
           </div>
@@ -519,13 +519,13 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
 
       <ConfirmDialog
         open={confirmReviewOpen}
-        title={t("project.confirmReviewTitle") || "Bắt đầu đánh giá?"}
-        description={t("project.confirmReviewDesc") || `Bạn đang bắt đầu đánh giá tài liệu với mức độ ${result?.prompt_level?.toUpperCase() || "MEDIUM"}. Thao tác này sẽ tạo một bản ghi kết quả mới.`}
+        title={t("project.confirmReviewTitle")}
+        description={t("project.confirmReviewDesc")}
         details={[
           currentVersion ? `${t("project.version")}: ${currentVersion.version}` : "",
           result?.prompt_level ? `${t("project.metaLevel")}: ${result.prompt_level}` : "",
         ].filter(Boolean)}
-        confirmLabel={t("project.confirmReviewStart") || "Bắt đầu review"}
+        confirmLabel={t("project.confirmReviewStart")}
         cancelLabel={t("common.cancel")}
         tone="primary"
         isLoading={rerunMutation.isPending}

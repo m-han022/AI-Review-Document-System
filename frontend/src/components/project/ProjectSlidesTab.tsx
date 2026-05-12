@@ -114,7 +114,7 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
                   {/* AI Summary Block */}
                   <section className="analysis-section-v3">
                     <h3 className="analysis-section-title-v3" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ds-color-primary)' }}>
-                      <TargetIcon size="sm" /> {t("project.slideSummary") || "Tóm tắt đánh giá Slide"}
+                      <TargetIcon size="sm" /> {t("project.slideSummary")}
                     </h3>
                     <div className="analysis-card-v3" style={{ 
                       background: "var(--ds-color-surface)", 
@@ -134,7 +134,7 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
                   {activeSlide.issues.length > 0 && (
                     <section className="analysis-section-v3" style={{ marginTop: '24px' }}>
                       <h3 className="analysis-section-title-v3 has-error" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: "var(--ds-color-danger)" }}>
-                        <AlertTriangleIcon size="sm" /> {t("project.identifiedIssues") || "Vấn đề phát hiện (NG)"}
+                        <AlertTriangleIcon size="sm" /> {t("project.identifiedIssues")}
                       </h3>
                       <div className="issue-list-v3">
                         {activeSlide.issues.map((issue: string, idx: number) => (
@@ -160,7 +160,7 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
                   {activeSlide.suggestions && (
                     <section className="analysis-section-v3" style={{ marginTop: '24px' }}>
                       <h3 className="analysis-section-title-v3 is-highlight" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: "var(--ds-color-success)" }}>
-                        <SparkIcon size="sm" /> {t("project.aiSuggestions") || "Tư vấn sửa từ AI"}
+                        <SparkIcon size="sm" /> {t("project.aiSuggestions")}
                       </h3>
                       <div className="analysis-card-v3 is-suggestion" style={{ 
                         background: "rgba(16, 185, 129, 0.05)", 
@@ -182,7 +182,7 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
                   {/* Evidence Block */}
                   <section className="analysis-section-v3" style={{ display: 'flex', flexDirection: 'column', position: 'sticky', top: '24px' }}>
                     <h3 className="analysis-section-title-v3 is-meta" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                      <LayersIcon size="sm" /> {t("project.documentViewer.title") || "Bằng chứng từ tài liệu"} (AI Proof)
+                      <LayersIcon size="sm" /> {t("project.documentViewer.title")} (AI Proof)
                     </h3>
                     <p style={{ fontSize: '11px', color: 'var(--ds-color-text-muted)', marginBottom: '12px', fontStyle: 'italic', lineHeight: '1.4' }}>
                       {t("project.aiProofDisclaimer")}

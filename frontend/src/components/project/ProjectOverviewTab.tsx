@@ -95,7 +95,7 @@ export default function ProjectOverviewTab({
           <section className="action-checklist-v4">
             <header className="action-checklist-v4__header">
               <WorkflowIcon size="sm" color="var(--ds-color-primary)" />
-              {t("project.actionChecklist") || "Checklist hành động"}
+              {t("project.actionChecklist")}
             </header>
             <div className="action-checklist-v4__list">
               {feedbackSections
@@ -116,7 +116,7 @@ export default function ProjectOverviewTab({
                 ))}
               {feedbackSections.filter(s => /cải thiện|vấn đề|lỗi|hành động|fix|ng/i.test(s.title)).length === 0 && (
                 <div style={{ padding: '20px', textAlign: 'center', color: 'var(--ds-color-success)', fontSize: '13px', fontWeight: 600 }}>
-                  {t("project.noActionRequired") || "Tuyệt vời! Không có hành động nào cần thực hiện cho phiên bản này."}
+                  {t("project.noActionRequired")}
                 </div>
               )}
             </div>
@@ -147,7 +147,7 @@ export default function ProjectOverviewTab({
       <section className="prioritized-issues-v4">
         <header className="section-header-v3">
           <h2 className="section-title-v3" style={{ color: 'var(--ds-color-danger)' }}>
-            <AlertTriangleIcon size="sm" /> {t("project.prioritySlides") || "Các vấn đề ưu tiên"}
+            <AlertTriangleIcon size="sm" /> {t("project.prioritySlides")}
           </h2>
         </header>
         

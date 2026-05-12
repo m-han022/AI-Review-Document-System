@@ -70,6 +70,11 @@ export const UPLOAD_COPY = {
     duplicateDescription: "Nội dung giống version trước. Bạn vẫn muốn tạo version mới không?",
     duplicateConfirm: "Tạo version mới",
     duplicateCancel: "Hủy",
+    reviewingMessage: "AI đang đọc tài liệu của bạn...",
+    startOver: "Làm lại từ đầu",
+    overallScoreLabel: "Điểm tổng quát",
+    viewDetailReport: "Xem báo cáo chi tiết",
+    aiAnalysisDesc: "AI đã phân tích tài liệu và đưa ra các đề xuất cải thiện.",
   },
   ja: {
     title: "アップロード",
@@ -139,6 +144,11 @@ export const UPLOAD_COPY = {
     duplicateDescription: "前回のバージョンと同じ内容です。新しいバージョンを作成しますか？",
     duplicateConfirm: "新バージョンを作成",
     duplicateCancel: "キャンセル",
+    reviewingMessage: "AI が資料を読み込んでいます...",
+    startOver: "最初から",
+    overallScoreLabel: "総合スコア",
+    viewDetailReport: "詳細レポートを見る",
+    aiAnalysisDesc: "AI がドキュメントを分析し、改善案を生成しました。",
   },
   en: {
     title: "Upload Document",
@@ -208,6 +218,11 @@ export const UPLOAD_COPY = {
     duplicateDescription: "Content is identical to the previous version. Create a new version anyway?",
     duplicateConfirm: "Create New Version",
     duplicateCancel: "Cancel",
+    reviewingMessage: "AI is reading your document...",
+    startOver: "Start Over",
+    overallScoreLabel: "Overall Score",
+    viewDetailReport: "View Detailed Report",
+    aiAnalysisDesc: "AI has analyzed your document and generated actionable improvement suggestions.",
   },
 } as const;
 
