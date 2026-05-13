@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+﻿import { useMemo } from "react";
 import { getLocalizedText } from "../../locales/utils";
 import { SparkIcon, TargetIcon, AlertTriangleIcon, AlertCircleIcon, CheckCircleIcon, TrendingUpIcon } from "../ui/Icon";
 import { LoadingState } from "../ui/States";
@@ -23,26 +23,10 @@ export default function ProjectCriteriaTab({
       const detail = gradingDetail?.criteria_results.find(cr => cr.key === score.key);
       const suggestion = getLocalizedText(detail?.suggestion as any, lang);
       const normalize = (str: string) => str.toLowerCase().replace(/[0-9]+[.)]/g, "").replace(/\s+/g, "").trim();
-      const scoreNorm = normalize(score.label);
-      
-      const synonyms: Record<string, string[]> = {
-        "diem_tot": ["điểm tốt", "điểm mạnh", "ưu điểm", "tốt"],
-        "diem_xau": ["điểm cần cải thiện", "điểm yếu", "hạn chế", "điểm chưa tốt", "nhược điểm", "xấu"],
-        "chinh_sach": ["chính sách cải thiện", "giải pháp cải thiện", "hành động khắc phục", "chính sách"]
-      };
-      const scoreSynonyms = (synonyms[score.key] || []).map(s => normalize(s));
-
-      const matchedSection = feedbackSections.find(section => {
-        const sectionNorm = normalize(section.title);
-        if (sectionNorm.length < 3) return false;
-        return sectionNorm.includes(scoreNorm) || scoreNorm.includes(sectionNorm) ||
-               scoreSynonyms.some(syn => sectionNorm.includes(syn) || syn.includes(sectionNorm));
-      });
-
-      let evaluation = suggestion || matchedSection?.lines.join(" ");
+      let evaluation = suggestion;
       if (!evaluation && (score.key === "review_tong_the" || score.key === "summary")) {
         const firstSection = feedbackSections.find(s => normalize(s.title).length < 3) || feedbackSections[0];
-        if (firstSection) evaluation = firstSection.lines.join(" ");
+        if (firstSection) evaluation = `${t("project.derivedFromDraftFeedback")}: ${firstSection.lines.join(" ")}`;
       }
 
       return {
@@ -54,11 +38,11 @@ export default function ProjectCriteriaTab({
 
   const stats = useMemo(() => {
     const total = orderedScores.length;
-    // Đạt: >= 80%
+    // Äáº¡t: >= 80%
     const passed = orderedScores.filter(s => s.value / s.max >= 0.8).length;
-    // Cần cải thiện: 50% - 80%
+    // Cáº§n cáº£i thiá»‡n: 50% - 80%
     const improvement = orderedScores.filter(s => s.value / s.max >= 0.5 && s.value / s.max < 0.8).length;
-    // Chưa đạt: < 50%
+    // ChÆ°a Ä‘áº¡t: < 50%
     const failed = orderedScores.filter(s => s.value / s.max < 0.5).length;
     
     return {
@@ -84,7 +68,7 @@ export default function ProjectCriteriaTab({
               gridTemplateColumns: 'repeat(5, 1fr)', 
               gap: '16px' 
             }}>
-              {/* 1. Tổng số tiêu chí */}
+              {/* 1. Tá»•ng sá»‘ tiÃªu chÃ­ */}
               <Card style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
                 <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3B82F6' }}>
                   <TargetIcon size="sm" />
@@ -95,7 +79,7 @@ export default function ProjectCriteriaTab({
                 </div>
               </Card>
 
-              {/* 2. Cần cải thiện */}
+              {/* 2. Cáº§n cáº£i thiá»‡n */}
               <Card style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
                 <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F59E0B' }}>
                   <AlertTriangleIcon size="sm" />
@@ -109,7 +93,7 @@ export default function ProjectCriteriaTab({
                 </div>
               </Card>
 
-              {/* 3. Chưa đạt */}
+              {/* 3. ChÆ°a Ä‘áº¡t */}
               <Card style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
                 <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#EF4444' }}>
                   <AlertCircleIcon size="sm" />
@@ -123,7 +107,7 @@ export default function ProjectCriteriaTab({
                 </div>
               </Card>
 
-              {/* 4. Đạt */}
+              {/* 4. Äáº¡t */}
               <Card style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
                 <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10B981' }}>
                   <CheckCircleIcon size="sm" />
@@ -137,7 +121,7 @@ export default function ProjectCriteriaTab({
                 </div>
               </Card>
 
-              {/* 5. Điểm trung bình */}
+              {/* 5. Äiá»ƒm trung bÃ¬nh */}
               <Card style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
                 <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(99, 102, 241, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6366F1' }}>
                   <TrendingUpIcon size="sm" />
@@ -145,7 +129,7 @@ export default function ProjectCriteriaTab({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <span style={{ fontSize: '13px', color: 'var(--ds-color-text-muted)', fontWeight: 600 }}>{t("project.averageScore")}</span>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-                    <span style={{ fontSize: '24px', fontWeight: 800, color: '#1E293B' }}>{result?.total_score || 0}</span>
+                    <span style={{ fontSize: '24px', fontWeight: 800, color: '#1E293B' }}>{typeof result?.total_score === "number" ? result.total_score : 0}</span>
                     <span style={{ fontSize: '14px', color: '#64748B', fontWeight: 600 }}>/ 100</span>
                   </div>
                 </div>
@@ -205,9 +189,9 @@ export default function ProjectCriteriaTab({
                         }}>
                           {item.evaluation.split('\n').map((para, pidx) => (
                             <p key={pidx} style={{ marginBottom: '8px' }}>
-                              {para.startsWith('-') || para.startsWith('•') 
+                              {para.startsWith('-') || para.startsWith('â€¢') 
                                 ? <span style={{ display: 'block', paddingLeft: '12px', position: 'relative' }}>
-                                    <span style={{ position: 'absolute', left: 0, color: 'var(--ds-color-primary)' }}>•</span>
+                                    <span style={{ position: 'absolute', left: 0, color: 'var(--ds-color-primary)' }}>â€¢</span>
                                     {para.substring(1).trim()}
                                   </span>
                                 : para
@@ -247,3 +231,5 @@ export default function ProjectCriteriaTab({
     </div>
   );
 }
+
+

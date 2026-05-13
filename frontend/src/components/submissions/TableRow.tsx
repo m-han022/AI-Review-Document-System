@@ -36,7 +36,19 @@ export default function TableRow({
   onEdit,
 }: TableRowProps) {
   const { t, lang } = useTranslation();
-  const latestScore = project.latest_score;
+  const readProjectScore = (p: Project): number | null => {
+    const raw =
+      p.latest_score ??
+      (p as any).total_score ??
+      (p as any).score ??
+      (p as any).latest_run?.total_score ??
+      (p as any).latest_run?.score ??
+      null;
+    if (raw === null || raw === undefined) return null;
+    const n = typeof raw === "number" ? raw : Number(raw);
+    return Number.isFinite(n) ? n : null;
+  };
+  const latestScore = readProjectScore(project);
   const scoreValue = latestScore ?? 0;
 
   const renderStatus = () => {

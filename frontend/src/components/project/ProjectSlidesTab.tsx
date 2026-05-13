@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { getSubmissionFileUrl, getVersionFileUrl } from "../../api/client";
 import { Button } from "../ui";
 import { EmptyState, StatusBadge } from "../ui/States";
@@ -101,7 +101,7 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
           {showJson ? (
             <div className="json-result-viewer-v4">
               <div className="json-viewer-header-v4">
-                <span className="ds-caption" style={{ color: 'var(--ds-color-text-body)' }}>Raw AI Response (Slide {activeSlide.slide_number})</span>
+                <span className="ds-caption" style={{ color: 'var(--ds-color-text-body)' }}>{t("project.rawAiResponse")} (Slide {activeSlide.slide_number})</span>
               </div>
               <pre className="json-pre-v4">
                 {JSON.stringify((activeSlide as any).result || activeSlide, null, 2)}
@@ -182,7 +182,7 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
                   {/* Evidence Block */}
                   <section className="analysis-section-v3" style={{ display: 'flex', flexDirection: 'column', position: 'sticky', top: '24px' }}>
                     <h3 className="analysis-section-title-v3 is-meta" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                      <LayersIcon size="sm" /> {t("project.documentViewer.title")} (AI Proof)
+                      <LayersIcon size="sm" /> {t("project.documentViewer.title")} ({t("project.aiProofLabel")})
                     </h3>
                     <p style={{ fontSize: '11px', color: 'var(--ds-color-text-muted)', marginBottom: '12px', fontStyle: 'italic', lineHeight: '1.4' }}>
                       {t("project.aiProofDisclaimer")}
@@ -192,7 +192,7 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
                       <div className="evidence-card-v3" style={{ width: '100%', aspectRatio: '16 / 9', minHeight: '360px', maxHeight: '540px', padding: 0, overflow: 'hidden', background: '#f1f5f9', borderRadius: '12px', border: '1px solid var(--ds-color-border)' }}>
                         <iframe 
                           src={`${gradingDetail?.document_version?.id ? getVersionFileUrl(gradingDetail.document_version.id) : getSubmissionFileUrl(projectId)}#page=${activeSlide.slide_number}`}
-                          title="Original Document Preview"
+                          title={t("project.documentViewer.pdfTitle")}
                           style={{ width: '100%', height: '100%', border: 'none', background: 'transparent' }}
                         />
                       </div>
@@ -209,7 +209,7 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
                           borderBottomLeftRadius: '8px',
                           textTransform: 'uppercase'
                         }}>
-                          Document Snippet
+                          {t("project.documentSnippetLabel")}
                         </div>
                         <pre className="evidence-text-v3">
                           {gradingDetail?.document_version?.extracted_text ? (() => {
@@ -219,13 +219,13 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
                             const startMarker = `[Slide ${currentNum}]`;
                             const nextMarker = `[Slide ${nextNum}]`;
                             const startIdx = text.indexOf(startMarker);
-                            if (startIdx === -1) return <span style={{ fontStyle: 'italic', color: '#94A3B8' }}>(Evidence not found for this slide)</span>;
+                            if (startIdx === -1) return <span style={{ fontStyle: 'italic', color: '#94A3B8' }}>{t("project.noEvidenceFound")}</span>;
                             const endIdx = text.indexOf(nextMarker, startIdx + startMarker.length);
                             const slideText = text.substring(startIdx + startMarker.length, endIdx === -1 ? text.length : endIdx).trim();
 
                             // Highlight text
                             const quotes: string[] = [];
-                            const regex = /["「“]([^"」”]+)["」”]/g;
+                            const regex = /["ã€Œâ€œ]([^"ã€â€]+)["ã€â€]/g;
                             if (activeSlide.issues) {
                               activeSlide.issues.forEach((issue: string) => {
                                 let match;
@@ -251,7 +251,7 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
                             });
 
                             return <span dangerouslySetInnerHTML={{ __html: escapedText }} />;
-                          })() : <span style={{ fontStyle: 'italic', color: '#94A3B8' }}>(No extracted text available)</span>}
+                          })() : <span style={{ fontStyle: 'italic', color: '#94A3B8' }}>{t("project.noExtractedText")}</span>}
                         </pre>
                       </div>
                     )}
@@ -265,3 +265,4 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
     </div>
   );
 }
+

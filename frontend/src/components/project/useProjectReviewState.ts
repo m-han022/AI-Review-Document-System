@@ -192,10 +192,13 @@ export function useProjectReviewState({ projectId, lang, t }: UseProjectReviewSt
 
   const result = gradingDetail?.grading_run;
   const criteriaResults = gradingDetail?.criteria_results ?? [];
-  const slideReviewItems = useMemo(
-    () => buildSlideReviewItems(gradingDetail?.slide_reviews, lang, t, gradingDetail?.document_version?.extracted_text),
-    [gradingDetail, lang, t],
-  );
+  const slideReviewItems = useMemo(() => {
+    const slideReviews =
+      gradingDetail?.slide_reviews ??
+      (gradingDetail as any)?.grading_run?.slide_reviews ??
+      [];
+    return buildSlideReviewItems(slideReviews, lang, t, gradingDetail?.document_version?.extracted_text);
+  }, [gradingDetail, lang, t]);
   useEffect(() => {
     if (slideReviewItems.length > 0 && selectedSlideId === null) {
       const firstNg = slideReviewItems.find((s) => s.status === "NG");

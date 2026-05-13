@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 
 from sqlmodel import Session, col, delete, func, select
 
-from app.config import UPLOADS_DIR
+from app.config import UPLOADS_DIR, settings
 from app.database import engine
 from app.models import (
     CriteriaResultOut,
@@ -75,6 +75,70 @@ class SubmissionStore:
     Maintains backward compatibility for existing code.
     """
 
+    _RUN_STUCK_TIMEOUT_SECONDS = 60 * 30
+
+    @staticmethod
+    def _parse_iso_utc(value: str | None) -> datetime | None:
+        if not value:
+            return None
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+
+    def _reconcile_run_status(
+        self,
+        session: Session,
+        run: GradingRun,
+        criteria_rows: list[GradingCriteriaResult],
+        slide_count: int,
+    ) -> None:
+        criteria_count = len(criteria_rows)
+        current = (run.status or "").upper()
+
+        # Normalize legacy completed runs that have persisted criteria but missing aggregate score fields.
+        if current == "COMPLETED" and run.total_score is None and criteria_count > 0:
+            run.total_score = int(round(sum(float(item.score) for item in criteria_rows)))
+            if run.score is None:
+                run.score = run.total_score
+            session.add(run)
+            session.commit()
+            session.refresh(run)
+            return
+
+        if current not in {"PENDING", "EXTRACTING", "GRADING"}:
+            return
+
+        # If grading artifacts are already persisted, this run is effectively completed.
+        if criteria_count > 0 or slide_count > 0:
+            run.status = "COMPLETED"
+            if run.total_score is None and criteria_count > 0:
+                run.total_score = int(round(sum(float(item.score) for item in criteria_rows)))
+            if run.score is None and run.total_score is not None:
+                run.score = run.total_score
+            if not run.graded_at:
+                run.graded_at = datetime.now(timezone.utc).isoformat()
+            run.error_message = None
+            session.add(run)
+            session.commit()
+            session.refresh(run)
+            return
+
+        started = self._parse_iso_utc(run.started_at)
+        if not started:
+            return
+        age_seconds = (datetime.now(timezone.utc) - started).total_seconds()
+        if age_seconds >= self._RUN_STUCK_TIMEOUT_SECONDS:
+            run.status = "FAILED"
+            run.error_message = (
+                "Run timed out while pending/extracting/grading and produced no persisted results."
+            )
+            if not run.graded_at:
+                run.graded_at = datetime.now(timezone.utc).isoformat()
+            session.add(run)
+            session.commit()
+            session.refresh(run)
+
     def _document_out(self, document: SubmissionDocument | None) -> DocumentOut | None:
         if document is None or document.id is None:
             return None
@@ -140,6 +204,9 @@ class SubmissionStore:
         repo = GradingRepository(session)
         criteria = repo.get_criteria_results(run.id)
         slide_reviews = repo.get_slide_reviews(run.id)
+        self._reconcile_run_status(session, run, criteria, len(slide_reviews))
+
+        resolved_model = run.gemini_model or settings.gemini_model
 
         return GradingRunOut(
             id=run.id,
@@ -149,7 +216,7 @@ class SubmissionStore:
             document_version=run.document_version,
             rubric_version=run.rubric_version,
             rubric_hash=run.rubric_hash,
-            gemini_model=run.gemini_model,
+            gemini_model=resolved_model,
             prompt_version=run.prompt_version,
             prompt_level=run.prompt_level,
             evaluation_set_id=run.evaluation_set_id,
@@ -221,6 +288,9 @@ class SubmissionStore:
     def _run_history(self, session: Session, submission_id: int, limit: int = 5) -> list[GradingRunHistoryOut]:
         grading_repo = GradingRepository(session)
         sub_repo = SubmissionRepository(session)
+        submission = sub_repo.get_submission_by_id(submission_id)
+        project_id = submission.project_id if submission else ""
+        project_name = submission.project_name if submission else ""
         
         runs = grading_repo.list_grading_runs(submission_id, limit)
         if not runs:
@@ -245,6 +315,8 @@ class SubmissionStore:
             history.append(
                 GradingRunHistoryOut(
                     id=run.id or 0,
+                    project_id=project_id,
+                    project_name=project_name,
                     score=run.score,
                     total_score=run.total_score if run.total_score is not None else run.score,
                     document_id=document.id if document else None,
@@ -254,7 +326,7 @@ class SubmissionStore:
                     document_version=run.document_version,
                     rubric_version=run.rubric_version,
                     rubric_hash=run.rubric_hash,
-                    gemini_model=run.gemini_model,
+                    gemini_model=(run.gemini_model or settings.gemini_model),
                     prompt_version=run.prompt_version,
                     prompt_level=run.prompt_level,
                     policy_version=run.policy_version,

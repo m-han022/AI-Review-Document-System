@@ -59,7 +59,13 @@ export function formatDateTime(value: string | null | undefined, lang: LanguageC
 }
 
 export function splitFeedbackLines(feedback: Record<string, string> | null, lang: LanguageCode): string[] {
-  return getLocalizedText(feedback, lang)
+  const normalized = getLocalizedText(feedback, lang)
+    // Some responses store escaped newlines, causing one giant line and empty sections.
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\r\n/g, "\n");
+
+  return normalized
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
@@ -76,9 +82,13 @@ export function getStatusLabel(status: string, t: (key: string) => string): stri
 export function splitFeedbackSections(lines: string[]): FeedbackSectionView[] {
   const sections: FeedbackSectionView[] = [];
   for (const line of lines) {
-    // Handle markdown headers (###), bold text (**1. Title**), and numbered lists
+    // Handle markdown/numbered headers and keep inline content after ":" / "-" when present.
     if (/^(?:#{1,6}\s+)?(?:\*\*)?[0-9]+[.)]\s*/.test(line)) {
-      sections.push({ title: line.replace(/[*#]/g, "").trim(), lines: [] });
+      const normalized = line.replace(/[*#]/g, "").trim();
+      const parts = normalized.split(/[:：]\s*| -\s+| –\s+| —\s+/, 2);
+      const title = (parts[0] || "").trim();
+      const inlineContent = (parts[1] || "").trim();
+      sections.push({ title, lines: inlineContent ? [inlineContent] : [] });
       continue;
     }
     const current = sections.at(-1);

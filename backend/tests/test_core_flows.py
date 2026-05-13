@@ -1,10 +1,12 @@
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
-from app.models import Submission, SubmissionDocument, SubmissionDocumentVersion, GradingRun
+from app.models import Submission, SubmissionDocument, SubmissionDocumentVersion, GradingRun, GradingCriteriaResult, GradingSlideReview
 from app.database import engine
 from unittest.mock import patch, MagicMock
 import hashlib
+from datetime import datetime, timezone, timedelta
+from app.storage import store
 
 def _ensure_manual_eval_set(client: TestClient, document_type: str = "project-review", level: str = "medium"):
     client.post("/api/mgmt/prompts", json={
@@ -608,3 +610,78 @@ def test_version_diff_export_csv(client: TestClient):
     assert "row_type" in body
     assert "summary" in body
     assert "criteria" in body
+
+
+def test_reconcile_active_run_to_completed_when_artifacts_exist(client: TestClient, session: Session):
+    project_id = "P901"
+    client.post("/api/projects", json={"project_id": project_id, "project_name": "Reconcile Completed"})
+    files = {"file": ("P901_Doc.pdf", b"content", "application/pdf")}
+    upload_res = client.post(
+        "/api/upload",
+        files=files,
+        data={"language": "ja", "project_id": project_id, "document_name": "Doc A", "document_type": "project-review"},
+    )
+    assert upload_res.status_code == 200
+    version_id = upload_res.json()["document_version_id"]
+    _ensure_manual_eval_set(client)
+    grade_res = client.post("/api/grade", json={"document_version_id": version_id, "prompt_level": "medium"})
+    assert grade_res.status_code == 200
+
+    run = session.exec(
+        select(GradingRun).where(GradingRun.document_version_id == version_id).order_by(GradingRun.id.desc())
+    ).first()
+    assert run is not None
+    run.status = "PENDING"
+    run.graded_at = None
+    session.add(run)
+    session.commit()
+
+    # Trigger reconciliation through read path
+    record = store.get(project_id)
+    assert record is not None
+    assert record.latest_run is not None
+    assert record.latest_run.status == "COMPLETED"
+    assert record.latest_run.graded_at is not None
+
+
+def test_reconcile_stuck_active_run_to_failed_on_timeout(client: TestClient, session: Session):
+    project_id = "P902"
+    client.post("/api/projects", json={"project_id": project_id, "project_name": "Reconcile Failed"})
+    files = {"file": ("P902_Doc.pdf", b"content", "application/pdf")}
+    upload_res = client.post(
+        "/api/upload",
+        files=files,
+        data={"language": "ja", "project_id": project_id, "document_name": "Doc A", "document_type": "project-review"},
+    )
+    assert upload_res.status_code == 200
+    version_id = upload_res.json()["document_version_id"]
+    _ensure_manual_eval_set(client)
+    grade_res = client.post("/api/grade", json={"document_version_id": version_id, "prompt_level": "medium"})
+    assert grade_res.status_code == 200
+
+    run = session.exec(
+        select(GradingRun).where(GradingRun.document_version_id == version_id).order_by(GradingRun.id.desc())
+    ).first()
+    assert run is not None
+
+    # Remove persisted artifacts so this run appears stuck and incomplete.
+    criteria_rows = session.exec(select(GradingCriteriaResult).where(GradingCriteriaResult.grading_run_id == run.id)).all()
+    for item in criteria_rows:
+        session.delete(item)
+    slide_rows = session.exec(select(GradingSlideReview).where(GradingSlideReview.grading_run_id == run.id)).all()
+    for item in slide_rows:
+        session.delete(item)
+    run.status = "PENDING"
+    run.score = None
+    run.total_score = None
+    run.graded_at = None
+    run.started_at = (datetime.now(timezone.utc) - timedelta(minutes=31)).isoformat()
+    session.add(run)
+    session.commit()
+
+    record = store.get(project_id)
+    assert record is not None
+    assert record.latest_run is not None
+    assert record.latest_run.status == "FAILED"
+    assert record.latest_run.graded_at is not None
+    assert "timed out" in (record.latest_run.error_message or "").lower()

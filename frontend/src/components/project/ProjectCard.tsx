@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { getDocumentTypeKey } from "../../constants/documentTypes";
 import { useTranslation } from "../LanguageSelector";
 import {
@@ -21,6 +21,7 @@ import { Button, SearchableSelect } from "../ui";
 import ConfirmDialog from "../ui/ConfirmDialog";
 import { formatDateTime } from "./projectCard.helpers";
 import { useProjectReviewState } from "./useProjectReviewState";
+import { getLocalizedText } from "../../locales/utils";
 import "./ProjectCard.css";
 
 interface ProjectCardProps {
@@ -119,6 +120,12 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
   const { loadingDocs, docsError, refetchDocuments, versions, gradings, sortedDocuments, gradingDetail, currentProject, currentVersion } = dataState;
   const { rerunMutation, exportMutation } = actions;
   const { result, slideReviewItems, ngSlideCount, orderedScores, feedbackSections, activeSlide, isInitialLoading } = derived;
+  const displayScore = result?.total_score ?? result?.score ?? null;
+  const displayModel = result?.gemini_model ?? "Gemini (chưa lưu model cụ thể)";
+  const hasActiveRunOnVersion = gradings.some((g) => {
+    const s = (g.status || "").toLowerCase();
+    return s === "pending" || s === "extracting" || s === "grading";
+  });
   const [selectedType, setSelectedType] = useState<string | null>(null);
 
   // Filter 1: Document Types (Unique from all documents in project)
@@ -160,11 +167,11 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
             variant="primary" 
             size="md" 
             onClick={() => setConfirmReviewOpen(true)} 
-            disabled={rerunMutation.isPending || !selectedVersionId}
+            disabled={rerunMutation.isPending || !selectedVersionId || hasActiveRunOnVersion}
             isLoading={rerunMutation.isPending}
           >
             <RefreshIcon size="sm" />
-            {t("project.rerunReview")}
+            {hasActiveRunOnVersion ? t("project.gradingProcessing") : t("project.rerunReview")}
           </Button>
           <Button 
             variant="primary" 
@@ -186,23 +193,23 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
 
   // Categorize AI feedback into 3 specific buckets as requested
   const categorizedInsights = useMemo(() => {
-    // 1. Tiêu chí cần cải thiện (Weakest Link)
+    // 1. TiÃªu chÃ­ cáº§n cáº£i thiá»‡n (Weakest Link)
     const sortedScores = [...orderedScores].sort((a, b) => (a.value / (a.max || 1)) - (b.value / (b.max || 1)));
     const lowest = sortedScores.length > 0 ? sortedScores[0] : null;
 
     
-    // 2. Nhận xét quan trọng (Important Comments) - Chắt lọc nội dung chiến lược
+    // 2. Nháº­n xÃ©t quan trá»ng (Important Comments) - Cháº¯t lá»c ná»™i dung chiáº¿n lÆ°á»£c
     const generalSection = feedbackSections.find(s => 
-      /kết luận|tổng quan|nhận xét|tóm tắt|executive/i.test(s.title)
+      /kết luận|tổng quan|nhận xét|tóm tắt|executive|総評|要約/i.test(s.title)
     ) || feedbackSections[0];
 
     const distilledSummary = generalSection?.lines.find(line => 
-      line.length > 30 && !/slide|trang|trường hợp/i.test(line)
+      line.length > 30 && !/slide|trang|trường hợp|ページ/i.test(line)
     ) || generalSection?.lines[0];
 
-    // 3. Điểm tích cực (Positive Points) - Chắt lọc nội dung từ văn bản AI
+    // 3. Äiá»ƒm tÃ­ch cá»±c (Positive Points) - Cháº¯t lá»c ná»™i dung tá»« vÄƒn báº£n AI
     const positiveSection = feedbackSections.find(s => 
-      /tốt|tích cực|ưu điểm|đạt|excellent|success/i.test(s.title)
+      /tốt|tích cực|ưu điểm|đạt|excellent|success|良い|強み/i.test(s.title)
     );
     const distilledPositive = positiveSection?.lines.find(line => 
       line.length > 25 && !/slide|trang/i.test(line)
@@ -223,7 +230,7 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
           }
 
           const issuesSection = feedbackSections.find(s => 
-            /xấu|vấn đề|cải thiện|hạn chế|lỗi|nghiêm trọng|ng|thất bại|không đạt/i.test(s.title)
+            /xấu|vấn đề|cải thiện|hạn chế|lỗi|nghiêm trọng|thất bại|không đạt|課題|問題|改善/i.test(s.title)
           );
 
           if (issuesSection?.lines[0]) {
@@ -252,6 +259,18 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
     ];
 
   }, [feedbackSections, ngSlideCount, t, orderedScores, result, slideReviewItems]);
+
+  const actionItems = useMemo(() => {
+    const fromCriteria = (gradingDetail?.criteria_results || [])
+      .map((item) => {
+        return getLocalizedText(item?.suggestion as any, lang);
+      })
+      .filter(Boolean);
+    const fromSlides = slideReviewItems
+      .map((item) => (item?.suggestions || "").toString().trim())
+      .filter(Boolean);
+    return Array.from(new Set([...fromCriteria, ...fromSlides]));
+  }, [gradingDetail, slideReviewItems, lang]);
 
   if (loadingDocs || isInitialLoading) return <ProjectCardSkeleton />;
 
@@ -286,7 +305,7 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
     <div className="project-layout-v3">
       {/* Main Content Workspace */}
       <div className="project-main-v3">
-        {/* Tầng 2.5 + Tầng 3: Unified Analytical Header */}
+        {/* Táº§ng 2.5 + Táº§ng 3: Unified Analytical Header */}
         <div className="analytical-header-v4__selectors">
           <SearchableSelect 
             placeholder={t("project.selectDocumentType")}
@@ -344,15 +363,15 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
 
         <div className="analytical-header-v4__metrics">
           {/* Score Badge */}
-          <div className={`score-badge-v4 ${result?.total_score && result.total_score >= 80 ? 'success' : result?.total_score && result.total_score >= 60 ? 'warning' : 'danger'}`}>
+          <div className={`score-badge-v4 ${typeof displayScore === "number" && displayScore >= 80 ? 'success' : typeof displayScore === "number" && displayScore >= 60 ? 'warning' : 'danger'}`}>
             <span className="metric-item-v4__label" style={{ color: 'inherit' }}>{t("project.metaScore")}</span>
-            <span style={{ fontSize: '18px' }}>{result?.total_score ?? "—"}</span>
+            <span style={{ fontSize: '18px' }}>{displayScore ?? "—"}</span>
           </div>
 
           {/* Audit Metadata */}
           <div className="metric-item-v4" style={{ gap: '4px' }}>
             <span className="meta-tag-v4" style={{ opacity: 0.7 }}>
-              <ShieldCheckIcon size="sm" /> {result?.gemini_model || "—"}
+              <ShieldCheckIcon size="sm" /> {displayModel}
             </span>
           </div>
         </div>
@@ -389,11 +408,11 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
             <div className="ai-verdict-banner__content">
               <div className="ai-verdict-banner__title">{t("project.executiveSummary")}</div>
               <div className="ai-verdict-banner__text">
-                {result.total_score && result.total_score >= 80 
-                  ? t("project.summaryScoreHealthy", { score: result.total_score })
-                  : result.total_score && result.total_score >= 60
-                  ? t("project.summaryScoreWatch", { score: result.total_score })
-                  : t("project.summaryScoreCritical", { score: result.total_score || 0 })
+                {typeof displayScore === "number" && displayScore >= 80 
+                  ? t("project.summaryScoreHealthy", { score: displayScore })
+                  : typeof displayScore === "number" && displayScore >= 60
+                  ? t("project.summaryScoreWatch", { score: displayScore })
+                  : t("project.summaryScoreCritical", { score: displayScore || 0 })
                 }
               </div>
             </div>
@@ -446,6 +465,7 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
               ngSlideCount={ngSlideCount}
               orderedScores={criteriaViewModel.orderedScores}
               slideReviewItems={slidesViewModel.slideReviewItems}
+              actionItems={actionItems}
             />
           </section>
 
@@ -541,10 +561,10 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
         <ProjectReportView 
           t={t}
           projectTitle={currentProject?.project_name || projectId}
-          versionInfo={currentVersion?.version ? `${t("project.version")} ${currentVersion.version}` : "—"}
-          gradingDate={result?.graded_at ? formatDateTime(result.graded_at, lang) : "—"}
-          totalScore={result?.total_score || 0}
-          geminiModel={result?.gemini_model || "—"}
+          versionInfo={currentVersion?.version ? `${t("project.version")} ${currentVersion.version}` : "â€”"}
+          gradingDate={result?.graded_at ? formatDateTime(result.graded_at, lang) : "â€”"}
+          totalScore={displayScore || 0}
+          geminiModel={displayModel}
           feedbackSections={feedbackSections}
           orderedScores={orderedScores}
           slidesViewModel={slidesViewModel}
@@ -554,14 +574,17 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
           categorizedInsights={categorizedInsights}
           gradingDetail={gradingDetail}
           verdictText={
-            result?.total_score && result.total_score >= 80 
-              ? t("project.summaryScoreHealthy", { score: result.total_score })
-              : result?.total_score && result.total_score >= 60
-              ? t("project.summaryScoreWatch", { score: result.total_score })
-              : t("project.summaryScoreCritical", { score: result?.total_score || 0 })
+            typeof displayScore === "number" && displayScore >= 80 
+              ? t("project.summaryScoreHealthy", { score: displayScore })
+              : typeof displayScore === "number" && displayScore >= 60
+              ? t("project.summaryScoreWatch", { score: displayScore })
+              : t("project.summaryScoreCritical", { score: displayScore || 0 })
           }
         />
       )}
     </div>
   );
 }
+
+
+

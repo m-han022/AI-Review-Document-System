@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+﻿import { useMemo } from "react";
 import { LineChart, Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip } from "recharts";
 import {
   ShieldCheckIcon,
@@ -55,13 +55,29 @@ export default function DashboardOverview({
   onOpenExport,
 }: DashboardOverviewProps) {
   const { t, lang } = useTranslation();
+  const getProjectScore = (p: Project): number | null => {
+    const raw =
+      p.latest_score ??
+      (p as any).total_score ??
+      (p as any).score ??
+      (p as any).latest_run?.total_score ??
+      (p as any).latest_run?.score ??
+      null;
+    if (raw === null || raw === undefined) return null;
+    const n = typeof raw === "number" ? raw : Number(raw);
+    return Number.isFinite(n) ? n : null;
+  };
 
   const analytics = useMemo(() => {
     const total = projects.length;
-    const reviewed = projects.filter((p) => p.latest_score !== null).length;
-    const criticalCount = projects.filter((p) => p.latest_score !== null && p.latest_score < 60).length;
+    const totalDocuments = projects.reduce((sum, p) => sum + (Number.isFinite(p.total_documents) ? p.total_documents : 0), 0);
+    const reviewed = projects.filter((p) => getProjectScore(p) !== null).length;
+    const criticalCount = projects.filter((p) => {
+      const s = getProjectScore(p);
+      return s !== null && s < 60;
+    }).length;
     const coverage = total > 0 ? Math.round((reviewed / total) * 100) : 0;
-    const scores = projects.map((p) => p.latest_score).filter((s): s is number => s !== null);
+    const scores = projects.map((p) => getProjectScore(p)).filter((s): s is number => s !== null);
     const healthIndex = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
 
     const byStatus = {
@@ -78,11 +94,14 @@ export default function DashboardOverview({
     else if (criticalCount > 0) nextStep = t("dashboardV6.nextStepCritical", { count: criticalCount });
     else if (total > 0) nextStep = t("dashboardV6.nextStepStable");
 
-    return { total, reviewed, criticalCount, coverage, healthIndex, nextStep, byStatus };
+    return { total, totalDocuments, reviewed, criticalCount, coverage, healthIndex, nextStep, byStatus };
   }, [projects, t]);
 
   const highRiskProjects = useMemo(
-    () => projects.filter((p) => p.latest_score !== null && p.latest_score < 70).slice(0, 5),
+    () => projects.filter((p) => {
+      const s = getProjectScore(p);
+      return s !== null && s < 70;
+    }).slice(0, 5),
     [projects],
   );
 
@@ -100,12 +119,12 @@ export default function DashboardOverview({
   );
   const qualityTrend = useMemo(() => {
     return [...projects]
-      .filter((p) => p.latest_score !== null)
+      .filter((p) => getProjectScore(p) !== null)
       .sort((a, b) => new Date(a.latest_updated_at).getTime() - new Date(b.latest_updated_at).getTime())
       .slice(-8)
       .map((p) => ({
         name: p.project_id,
-        score: p.latest_score as number,
+        score: getProjectScore(p) as number,
       }));
   }, [projects]);
   const sparklineSeries = useMemo(() => {
@@ -123,9 +142,10 @@ export default function DashboardOverview({
       const key = formatDayKey(d);
       const bucket = byDay.get(key);
       if (!bucket) return;
-      if (p.latest_score !== null) {
+      const score = getProjectScore(p);
+      if (score !== null) {
         bucket.coverageCount += 1;
-        bucket.scoreSum += p.latest_score;
+        bucket.scoreSum += score;
         bucket.scoreCount += 1;
       }
       if ((p.latest_status || "").toUpperCase() === "COMPLETED") bucket.completedCount += 1;
@@ -165,8 +185,8 @@ export default function DashboardOverview({
             </div>
           </div>
           <div className="hero-stat__meta">
-            <span className="hero-pill-badge hero-pill-badge--neutral">{t("dashboardV6.totalDocuments", { count: analytics.total })}</span>
-            <span className="hero-pill-badge hero-pill-badge--positive">▲ {analytics.reviewed}</span>
+            <span className="hero-pill-badge hero-pill-badge--neutral">{t("dashboardV6.totalDocuments", { count: analytics.totalDocuments })}</span>
+            <span className="hero-pill-badge hero-pill-badge--positive">+ {analytics.reviewed}</span>
           </div>
         </div>
         <div className="hero-stat">
@@ -183,7 +203,7 @@ export default function DashboardOverview({
           </div>
           <div className="hero-stat__meta">
             <span className="hero-pill-badge hero-pill-badge--neutral">{healthLabel}</span>
-            <span className="hero-pill-badge hero-pill-badge--positive">▲ {analytics.byStatus.completed}</span>
+            <span className="hero-pill-badge hero-pill-badge--positive">+ {analytics.byStatus.completed}</span>
           </div>
         </div>
         <div className="hero-stat critical">
@@ -200,7 +220,7 @@ export default function DashboardOverview({
           </div>
           <div className="hero-stat__meta">
             <span className="hero-pill-badge hero-pill-badge--negative">{urgentLabel}</span>
-            <span className="hero-pill-badge hero-pill-badge--negative">▲ {analytics.byStatus.failed}</span>
+            <span className="hero-pill-badge hero-pill-badge--negative">+ {analytics.byStatus.failed}</span>
           </div>
         </div>
       </section>
@@ -218,9 +238,12 @@ export default function DashboardOverview({
                 <div className="risk-card-v6__main">
                   <span className="id">{p.project_id}</span>
                   <span className="name">{p.project_name}</span>
+                  <span className="name" style={{ fontSize: "11px", opacity: 0.75 }}>
+                    {p.total_documents} {t("submissions.documents")}
+                  </span>
                 </div>
                 <div className={`risk-card-v6__score ${(p.latest_score ?? 0) < 20 ? "critical" : "neutral"}`}>
-                  {p.latest_score}%
+                  {getProjectScore(p)}%
                 </div>
                 <div className="risk-card-v6__action">
                   <span className="pill">{t("dashboardV6.investigate")}</span>
@@ -245,9 +268,9 @@ export default function DashboardOverview({
                 <button key={p.project_id} className="bench-item-v6" type="button" onClick={() => onSelectProject(p.project_id)}>
                   <div className="label">{p.project_name}</div>
                   <div className="bar-container">
-                    <div className="bar-fill" style={{ width: `${p.latest_score || 0}%` }} />
+                    <div className="bar-fill" style={{ width: `${getProjectScore(p) || 0}%` }} />
                   </div>
-                  <div className="val">{p.latest_score ?? 0}%</div>
+                  <div className="val">{getProjectScore(p) ?? 0}%</div>
                 </button>
               ))
             ) : (
@@ -269,7 +292,8 @@ export default function DashboardOverview({
                   <span className="name">{p.project_name}</span>
                   <div className="status-group">
                     <span className="status-text">{t(`status.${toStatusKey(p.latest_status)}`)}</span>
-                    <span className="score">{p.latest_score ?? "-"}</span>
+                    <span className="score">{p.total_documents} {t("submissions.documents")}</span>
+                    <span className="score">{getProjectScore(p) ?? "-"}</span>
                     <span className="time">{formatUploadedAt(p.latest_updated_at, lang)}</span>
                   </div>
                 </button>
@@ -283,7 +307,7 @@ export default function DashboardOverview({
       <section className="dashboard-section-v6">
         <div className="section-header-v6">
           <ActivityIcon size="sm" />
-          <h3>{lang === "vi" ? "Xu hướng chất lượng theo thời gian" : "Quality Trend"}</h3>
+          <h3>{lang === "ja" ? "品質トレンド" : lang === "en" ? "Quality Trend" : "Xu hướng chất lượng"}</h3>
         </div>
         <div className="trend-chart-v6">
           {qualityTrend.length >= 2 ? (
@@ -312,7 +336,7 @@ export default function DashboardOverview({
             </ResponsiveContainer>
           ) : (
             <div className="empty-state-v6">
-              {lang === "vi" ? "Cần ít nhất 2 điểm dữ liệu để hiển thị xu hướng." : "Need at least two points to show trend."}
+              {lang === "ja" ? "トレンド表示には最低2件のデータが必要です。" : lang === "en" ? "Need at least two points to show trend." : "Cần ít nhất 2 điểm dữ liệu để hiển thị xu hướng."}
             </div>
           )}
         </div>
@@ -345,12 +369,10 @@ export default function DashboardOverview({
                 <ActivityIcon size="sm" />
               </div>
               <div className="queue-empty__title">
-                {lang === "vi" ? "Hệ thống đang sẵn sàng" : t("common.ready")}
+                {t("common.ready")}
               </div>
               <div className="queue-empty__text">
-                {lang === "vi"
-                  ? "Hệ thống đang sẵn sàng, chưa có dữ liệu cần xử lý."
-                  : t("dashboardV6.aiCapacityAvailable")}
+                {t("dashboardV6.aiCapacityAvailable")}
               </div>
             </div>
           )}
@@ -376,3 +398,5 @@ export default function DashboardOverview({
     </div>
   );
 }
+
+

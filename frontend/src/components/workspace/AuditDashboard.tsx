@@ -502,7 +502,7 @@ export default function AuditDashboard() {
                     <StatusBadge tone={mapStatusTone(state.selectedRunDetail.grading_run.status)}>
                       {renderStatusLabel(state.selectedRunDetail.grading_run.status, t)}
                     </StatusBadge>
-                    {state.selectedRunDetail.grading_run.status === "failed" && (
+                    {(state.selectedRunDetail.grading_run.status || "").toLowerCase() === "failed" && (
                       <Button variant="ghost" size="sm" onClick={handleReGrade} title={String(t("sm.common.retry"))}>
                         <RefreshIcon size="sm" />
                       </Button>
@@ -510,7 +510,7 @@ export default function AuditDashboard() {
                   </div>
                 </div>
                 <DetailField label={String(t("project.reviewedAt"))} value={state.selectedRunDetail.grading_run.graded_at ? new Date(state.selectedRunDetail.grading_run.graded_at).toLocaleString() : "—"} />
-                {state.selectedRunDetail.grading_run.status === "failed" && (
+                {(state.selectedRunDetail.grading_run.status || "").toLowerCase() === "failed" && (
                   <div className="audit-detail-item" style={{ gridColumn: '1 / -1', borderLeft: '4px solid var(--ds-color-danger)' }}>
                     <span className="audit-detail-label" style={{ color: 'var(--ds-color-danger)' }}>
                       <AlertCircleIcon size="sm" /> {String(t("common.error"))}

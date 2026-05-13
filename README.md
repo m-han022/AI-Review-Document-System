@@ -380,3 +380,28 @@ Quy tắc bắt buộc:
 If `pip install -r requirements.txt` fails at `watchfiles` on Windows with Python 3.14:
 1. Use `backend/requirements_temp.txt` (filtered version) or manually install dependencies excluding `watchfiles`.
 2. Run backend without `--reload` if `watchfiles` is missing: `python -m uvicorn app.main:app --host 0.0.0.0 --port 8000`.
+
+
+---
+
+# Patch Notes (2026-05-13)
+
+## Cache Signature Update
+
+Current grading cache signature includes:
+
+- project_id
+- content_hash
+- document_version_id
+- rubric_version
+- prompt_version
+- prompt_level
+- prompt_hash
+- policy_hash
+- required_rule_hash
+- binary_hash
+
+## Verification Gate Add-on
+
+- Verify repeated grading under same evaluation context resolves against `COMPLETED` cache candidate correctly.
+- Keep append-only audit behavior: each grading action must preserve history.

@@ -19,7 +19,6 @@ class PromptPolicyBundle:
     required_rule_hash: str
 
 
-import os
 from pathlib import Path
 
 DEFAULTS_DIR = Path(__file__).resolve().parent.parent / "defaults"
@@ -78,23 +77,12 @@ def get_active_policy(level: str) -> EvaluationPolicy:
             select(EvaluationPolicy)
             .where(EvaluationPolicy.level == level, EvaluationPolicy.status == "active")
         ).first()
-        
-        if not policy:
-            # If it doesn't exist, create it from the global policy templates (JSON)
-            policy_content = POLICY_TEXT.get(level, "")
-            if isinstance(policy_content, dict):
-                policy_content = json.dumps(policy_content, ensure_ascii=False)
 
-            policy = EvaluationPolicy(
-                level=level,
-                version="v1",
-                content=policy_content,
-                status="active",
-                created_at=_now()
+        if not policy:
+            raise ValueError(
+                f"No active EvaluationPolicy for level='{level}'. "
+                "Create/activate policy via management flow before grading."
             )
-            session.add(policy)
-            session.commit()
-            session.refresh(policy)
         return policy
 
 def get_active_prompt_version(document_type: str, level: str) -> PromptVersion:
@@ -103,38 +91,17 @@ def get_active_prompt_version(document_type: str, level: str) -> PromptVersion:
         prompt = session.exec(
             select(PromptVersion)
             .where(
-                PromptVersion.document_type == document_type, 
-                PromptVersion.level == level, 
+                PromptVersion.document_type == document_type,
+                PromptVersion.level == level,
                 PromptVersion.status == "active"
             )
         ).first()
-        
+
         if not prompt:
-            # Seed default if not exists
-            content_dict = {
-                "vi": (
-                    f"Mức đánh giá: {LEVEL_LABELS[level]}. "
-                    "Luôn bám theo rubric/version đã chọn, không dùng tiêu chí ngoài rubric. "
-                    "Kết quả phải giải thích được điểm số, issue, slide/page và hành động tiếp theo."
-                ),
-                "ja": (
-                    f"評価レベル: {LEVEL_LABELS_JA[level]}。 "
-                    "常に選択したルーブリック/バージョンに従い、ルーブリック外の基準は使用しないでください。 "
-                    "結果はスコア、問題点、スライド/ページ、および次のアクションを説明できる必要があります。"
-                )
-            }
-            content = json.dumps(content_dict, ensure_ascii=False)
-            prompt = PromptVersion(
-                document_type=document_type,
-                level=level,
-                version="v1",
-                content=content,
-                status="active",
-                created_at=_now()
+            raise ValueError(
+                f"No active PromptVersion for document_type='{document_type}', level='{level}'. "
+                "Create/activate prompt via management flow before grading."
             )
-            session.add(prompt)
-            session.commit()
-            session.refresh(prompt)
         return prompt
 
 def get_prompt_policy_bundle(

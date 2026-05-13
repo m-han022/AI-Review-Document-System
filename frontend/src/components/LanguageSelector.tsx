@@ -6,10 +6,10 @@ import type { LanguageCode } from "../types";
 import { getTranslation, normalizeLanguage } from "../locales/utils";
 import { ChevronDownIcon } from "./ui/Icon";
 
-const languages: { code: LanguageCode; label: string }[] = [
-  { code: "vi", label: "Tiếng Việt" },
-  { code: "ja", label: "日本語" },
-  { code: "en", label: "English" },
+const languages: { code: LanguageCode; label: string; flagUrl: string }[] = [
+  { code: "vi", label: "Tiếng Việt", flagUrl: "https://flagcdn.com/w20/vn.png" },
+  { code: "ja", label: "日本語", flagUrl: "https://flagcdn.com/w20/jp.png" },
+  { code: "en", label: "English", flagUrl: "https://flagcdn.com/w20/us.png" },
 ];
 
 interface LanguageContextValue {
@@ -78,14 +78,21 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
 export function LanguageSelector() {
   const { lang, setLang, t } = useTranslation();
+  const selectedLang = languages.find((l) => l.code === lang) || languages[0];
 
   return (
-    <div className="language-selector">
+    <div className="language-selector" style={{ display: "inline-flex", alignItems: "center", position: "relative", gap: "6px" }}>
+      <img
+        src={selectedLang.flagUrl}
+        alt={selectedLang.label}
+        style={{ width: "20px", height: "auto", borderRadius: "2px", boxShadow: "0 1px 2px rgba(0,0,0,0.15)", objectFit: "cover" }}
+      />
       <select
         value={lang}
         onChange={(event) => setLang(event.target.value as LanguageCode)}
         className="language-select"
         aria-label={t("common.language")}
+        style={{ paddingLeft: "2px" }}
       >
         {languages.map((language) => (
           <option key={language.code} value={language.code}>

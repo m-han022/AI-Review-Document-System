@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+﻿import { useMemo } from "react";
 import { StatusBadge } from "../ui/States";
 import { AlertCircleIcon, AlertTriangleIcon, CheckCircleIcon, TargetIcon, SparkIcon, LayersIcon, WorkflowIcon } from "../ui/Icon";
 import { getLocalizedText } from "../../locales/utils";
@@ -61,11 +61,15 @@ export default function ProjectReportView({
   // Extract NG slides for priority section
   const ngSlides = slideReviewItems.filter(s => s.status === "NG").slice(0, 4);
 
-  // Extract checklist items
-  const checklistItems = feedbackSections
-    .filter(s => /cải thiện|vấn đề|lỗi|hành động|fix|ng/i.test(s.title))
-    .flatMap(s => s.lines)
-    .slice(0, 8);
+  const checklistItems = useMemo(() => {
+    const fromCriteria = (gradingDetail?.criteria_results || [])
+      .map((item: any) => getLocalizedText(item?.suggestion as any, lang))
+      .filter(Boolean);
+    const fromSlides = slideReviewItems
+      .map((item) => (item?.suggestions || "").toString().trim())
+      .filter(Boolean);
+    return Array.from(new Set([...fromCriteria, ...fromSlides])).slice(0, 8);
+  }, [gradingDetail, slideReviewItems, lang]);
 
   // Calculate detailed evaluations (replicated from ProjectCriteriaTab)
   const criteriaWithEvaluations = useMemo(() => {
@@ -73,26 +77,10 @@ export default function ProjectReportView({
       const detail = gradingDetail?.criteria_results.find((cr: any) => cr.key === score.key);
       const suggestion = getLocalizedText(detail?.suggestion as any, lang as any);
       const normalize = (str: string) => str.toLowerCase().replace(/[0-9]+[.)]/g, "").replace(/\s+/g, "").trim();
-      const scoreNorm = normalize(score.label);
-      
-      const synonyms: Record<string, string[]> = {
-        "diem_tot": ["điểm tốt", "điểm mạnh", "ưu điểm", "tốt"],
-        "diem_xau": ["điểm cần cải thiện", "điểm yếu", "hạn chế", "điểm chưa tốt", "nhược điểm", "xấu"],
-        "chinh_sach": ["chính sách cải thiện", "giải pháp cải thiện", "hành động khắc phục", "chính sách"]
-      };
-      const scoreSynonyms = (synonyms[score.key] || []).map(s => normalize(s));
-
-      const matchedSection = feedbackSections.find(section => {
-        const sectionNorm = normalize(section.title);
-        if (sectionNorm.length < 3) return false;
-        return sectionNorm.includes(scoreNorm) || scoreNorm.includes(sectionNorm) ||
-               scoreSynonyms.some(syn => sectionNorm.includes(syn) || syn.includes(sectionNorm));
-      });
-
-      let evaluation = suggestion || matchedSection?.lines.join(" ");
+      let evaluation = suggestion;
       if (!evaluation && (score.key === "review_tong_the" || score.key === "summary")) {
         const firstSection = feedbackSections.find(s => normalize(s.title).length < 3) || feedbackSections[0];
-        if (firstSection) evaluation = firstSection.lines.join(" ");
+        if (firstSection) evaluation = `${t("project.derivedFromDraftFeedback")}: ${firstSection.lines.join(" ")}`;
       }
 
       return {
@@ -107,7 +95,7 @@ export default function ProjectReportView({
       {/* 1. Report Header */}
       <header className="report-print-header">
         <div className="report-print-header__brand">
-          <div className="report-print-logo">AI Review Document</div>
+          <div className="report-print-logo">{t("common.appName")}</div>
           <div className="report-print-type">{t("project.reportTitle")}</div>
         </div>
         <div className="report-print-header__meta">
@@ -126,7 +114,7 @@ export default function ProjectReportView({
           {evaluationSetName && (
             <div><strong>{t("project.metaEvaluationSet")}:</strong> {evaluationSetName}</div>
           )}
-          <div><strong>Model:</strong> {geminiModel}</div>
+          <div><strong>{t("project.metaModel")}:</strong> {geminiModel}</div>
         </div>
       </section>
 
@@ -190,10 +178,7 @@ export default function ProjectReportView({
           <div className="report-print-feedback-list">
             {feedbackSections.map((section, idx) => (
               <div key={idx} className="report-print-feedback-item">
-                <h4 className="report-print-feedback-item__title" style={{ 
-                  color: /tốt|tích cực|ưu điểm|đạt|excellent|success/i.test(section.title) ? "#10b981" : 
-                         /xấu|vấn đề|cải thiện|hạn chế|lỗi|nghiêm trọng|ng|thất bại/i.test(section.title) ? "#ef4444" : "#2563eb"
-                }}>{section.title}</h4>
+                <h4 className="report-print-feedback-item__title" style={{ color: "#2563eb" }}>{section.title}</h4>
                 <ul>
                   {section.lines.map((line, lidx) => (
                     <li key={lidx}>{line}</li>
@@ -326,7 +311,7 @@ export default function ProjectReportView({
                   {evidence && (
                     <div className="report-print-slide-evidence" style={{ marginTop: '15px', paddingTop: '10px', borderTop: '1px dashed #e2e8f0' }}>
                       <strong style={{ fontSize: '10px', textTransform: 'uppercase', color: '#94a3b8', display: 'block', marginBottom: '5px' }}>
-                        {t("project.documentViewer.title")} (AI Proof)
+                        {t("project.documentViewer.title")} ({t("project.aiProofLabel")})
                       </strong>
                       <div style={{ fontSize: '11px', color: '#475569', fontStyle: 'italic', background: '#f8fafc', padding: '10px', borderRadius: '6px', whiteSpace: 'pre-wrap' }}>
                         {evidence}
@@ -341,8 +326,10 @@ export default function ProjectReportView({
       </section>
 
       <footer className="report-print-footer">
-        © {new Date().getFullYear()} {t("common.appName")} - Enterprise Design System
+        Â© {new Date().getFullYear()} {t("common.appName")} - Enterprise Design System
       </footer>
     </div>
   );
 }
+
+

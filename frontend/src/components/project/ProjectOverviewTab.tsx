@@ -1,4 +1,4 @@
-import { KPIProgressList } from "../ui/KPICharts";
+﻿import { KPIProgressList } from "../ui/KPICharts";
 import { SparkIcon, AlertTriangleIcon, ShieldCheckIcon, TargetIcon, WorkflowIcon } from "../ui/Icon";
 import { useTranslation } from "../LanguageSelector";
 import type { FeedbackSectionView } from "./ProjectReviewPanels";
@@ -10,6 +10,7 @@ interface Props {
   ngSlideCount: number;
   orderedScores: KPIBarChartProps["data"];
   slideReviewItems: any[];
+  actionItems: string[];
 }
 
 export default function ProjectOverviewTab({ 
@@ -17,9 +18,11 @@ export default function ProjectOverviewTab({
   feedbackSections, 
   ngSlideCount, 
   orderedScores,
-  slideReviewItems
+  slideReviewItems,
+  actionItems
 }: Props) {
   useTranslation();
+  const hasRenderableFeedback = feedbackSections.some((s) => (s.lines?.length || 0) > 0);
   // Extract top 4 prioritized issues (NG slides)
   const prioritizedIssues = slideReviewItems
     .filter(item => item.status === "NG")
@@ -48,17 +51,17 @@ export default function ProjectOverviewTab({
             overflow: 'visible'
           }}>
             <div className="summary-content-v4">
-              {feedbackSections.length > 0 ? (
+              {feedbackSections.length > 0 && hasRenderableFeedback ? (
                 feedbackSections.map((section, idx) => (
                   <div key={idx} className="summary-block-v4" style={{ 
                     padding: '16px 20px',
                     borderBottom: idx < feedbackSections.length - 1 ? '1px solid var(--ds-color-border)' : 'none',
-                    background: /tốt|tích cực|ưu điểm|đạt|excellent|success/i.test(section.title) ? 'var(--ds-color-success-soft)' : 
-                                /xấu|vấn đề|cải thiện|hạn chế|lỗi|nghiêm trọng|ng|thất bại/i.test(section.title) ? 'var(--ds-color-danger-soft)' : 'transparent'
+                    background: /tốt|tích cực|ưu điểm|đạt|excellent|success|良い|強み/i.test(section.title) ? 'var(--ds-color-success-soft)' : 
+                                /xấu|vấn đề|cải thiện|hạn chế|lỗi|nghiêm trọng|thất bại|không đạt|改善|課題|問題/i.test(section.title) ? 'var(--ds-color-danger-soft)' : 'transparent'
                   }}>
                     {section.title && <h5 style={{ 
-                      color: /tốt|tích cực|ưu điểm|đạt|excellent|success/i.test(section.title) ? "var(--ds-color-success)" : 
-                             /xấu|vấn đề|cải thiện|hạn chế|lỗi|nghiêm trọng|ng|thất bại/i.test(section.title) ? "var(--ds-color-danger)" : "var(--ds-color-primary)",
+                      color: /tốt|tích cực|ưu điểm|đạt|excellent|success|良い|強み/i.test(section.title) ? "var(--ds-color-success)" : 
+                             /xấu|vấn đề|cải thiện|hạn chế|lỗi|nghiêm trọng|thất bại|không đạt|改善|課題|問題/i.test(section.title) ? "var(--ds-color-danger)" : "var(--ds-color-primary)",
                       fontSize: "12px", 
                       marginBottom: "8px", 
                       fontWeight: 700,
@@ -68,14 +71,14 @@ export default function ProjectOverviewTab({
                       alignItems: 'center',
                       gap: '8px'
                     }}>
-                      {/tốt|tích cực|ưu điểm|đạt|excellent|success/i.test(section.title) ? <ShieldCheckIcon size="sm" /> : 
-                       /xấu|vấn đề|cải thiện|hạn chế|lỗi|nghiêm trọng|ng|thất bại/i.test(section.title) ? <AlertTriangleIcon size="sm" /> : <TargetIcon size="sm" />}
+                      {/tốt|tích cực|ưu điểm|đạt|excellent|success|良い|強み/i.test(section.title) ? <ShieldCheckIcon size="sm" /> : 
+                       /xấu|vấn đề|cải thiện|hạn chế|lỗi|nghiêm trọng|thất bại|không đạt|改善|課題|問題/i.test(section.title) ? <AlertTriangleIcon size="sm" /> : <TargetIcon size="sm" />}
                       {section.title}
                     </h5>}
                     <ul style={{ paddingLeft: "0", listStyle: 'none', color: "var(--ds-color-text-body)", lineHeight: "1.6", fontSize: '13.5px', margin: 0 }}>
-                      {section.lines.map((line, lidx) => (
+                      {(section.lines.length > 0 ? section.lines : [section.title]).map((line, lidx) => (
                         <li key={lidx} style={{ marginBottom: "6px", display: 'flex', gap: '8px' }}>
-                          <span style={{ color: 'var(--ds-color-primary)', opacity: 0.5 }}>•</span>
+                          <span style={{ color: 'var(--ds-color-primary)', opacity: 0.5 }}>-</span>
                           {line}
                         </li>
                       ))}
@@ -98,11 +101,7 @@ export default function ProjectOverviewTab({
               {t("project.actionChecklist")}
             </header>
             <div className="action-checklist-v4__list">
-              {feedbackSections
-                .filter(s => /cải thiện|vấn đề|lỗi|hành động|fix|ng/i.test(s.title))
-                .flatMap(s => s.lines)
-                .slice(0, 5)
-                .map((line, idx) => (
+              {actionItems.slice(0, 5).map((line, idx) => (
                   <div key={idx} className="action-checklist-v4__item">
                     <input type="checkbox" className="action-checklist-v4__checkbox" />
                     <div className="action-checklist-v4__content">
@@ -114,7 +113,7 @@ export default function ProjectOverviewTab({
                     </div>
                   </div>
                 ))}
-              {feedbackSections.filter(s => /cải thiện|vấn đề|lỗi|hành động|fix|ng/i.test(s.title)).length === 0 && (
+              {actionItems.length === 0 && (
                 <div style={{ padding: '20px', textAlign: 'center', color: 'var(--ds-color-success)', fontSize: '13px', fontWeight: 600 }}>
                   {t("project.noActionRequired")}
                 </div>
@@ -183,7 +182,7 @@ export default function ProjectOverviewTab({
                 </div>
                 {issue.issues && issue.issues.length > 0 && (
                    <div style={{ fontSize: '11px', color: 'var(--ds-color-danger-dark)', marginTop: '4px', fontStyle: 'italic' }}>
-                     • {issue.issues[0].slice(0, 50)}...
+                     - {issue.issues[0].slice(0, 50)}...
                    </div>
                 )}
               </div>
@@ -212,4 +211,6 @@ export default function ProjectOverviewTab({
     </div>
   );
 }
+
+
 

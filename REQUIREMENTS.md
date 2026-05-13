@@ -354,3 +354,26 @@ Khi gọi review:
 - Không đổi business flow khi polish UI.
 - Không đổi grading architecture khi polish UI.
 
+
+
+---
+
+## Cache Signature (Patch 2026-05-13)
+
+Cache key/signature ph?i bao g?m t?i thi?u:
+
+- project_id
+- content_hash
+- document_version_id
+- rubric_version
+- prompt_version
+- prompt_level
+- prompt_hash
+- policy_hash
+- required_rule_hash
+- binary_hash
+
+## Regression Check Add-on
+
+- L?p l?i grading c?ng evaluation context ph?i match ??ng run tr?ng th?i `COMPLETED` cho reuse logic.
+- Kh?ng l?m m?t nguy?n t?c append-only/audit trail.
