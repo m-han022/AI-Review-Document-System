@@ -118,6 +118,7 @@ export interface VersionListOut {
   uploaded_at: string;
   is_latest: boolean;
   content_hash: string;
+  binary_hash?: string | null;
   latest_grading_score?: number | null;
   latest_status: string;
   latest_error_message?: string | null;

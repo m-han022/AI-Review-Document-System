@@ -452,6 +452,7 @@ class VersionListOut(BaseModel):
     uploaded_at: str
     is_latest: bool
     content_hash: str
+    binary_hash: Optional[str] = None
     latest_grading_score: Optional[int] = None
     latest_status: str = "pending"
     latest_error_message: Optional[str] = None

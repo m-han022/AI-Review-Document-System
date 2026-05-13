@@ -21,6 +21,7 @@ MESSAGES = {
         "invalid_filename": "Invalid filename format.",
         "missing_project_selection": "Please select an existing project before upload.",
         "project_id_mismatch": "Filename project_id does not match selected project.",
+        "missing_document_type": "document_type is required.",
         "empty_file": "Uploaded file is empty.",
         "empty_pdf": "Could not extract content from file.",
         "upload_failed": "Upload failed during file processing.",
@@ -31,6 +32,7 @@ MESSAGES = {
         "invalid_filename": "Invalid filename format.",
         "missing_project_selection": "Please select an existing project before upload.",
         "project_id_mismatch": "Filename project_id does not match selected project.",
+        "missing_document_type": "document_type is required.",
         "empty_file": "Uploaded file is empty.",
         "empty_pdf": "Could not extract content from file.",
         "upload_failed": "Upload failed during file processing.",
@@ -86,6 +88,10 @@ async def upload_project(
         if parsed_project_id != resolved_project_id:
             raise HTTPException(status_code=400, detail=MESSAGES[ui_language]["project_id_mismatch"])
 
+    resolved_document_type = (document_type or "").strip()
+    if not resolved_document_type:
+        raise HTTPException(status_code=400, detail=MESSAGES[ui_language]["missing_document_type"])
+
     resolved_project_name = (project_name or "").strip()
     if not resolved_project_name and match:
         resolved_project_name = match.group(2).replace("_", " ").replace("-", " ")
@@ -104,7 +110,8 @@ async def upload_project(
         with open(save_path, "wb") as saved_file:
             saved_file.write(content)
 
-        binary_hash = hashlib.md5(content).hexdigest()
+        binary_hash = hashlib.sha256(content).hexdigest()
+        legacy_binary_hash = hashlib.md5(content).hexdigest()
         extracted_text = ""
         
         from sqlmodel import Session, select
@@ -112,10 +119,12 @@ async def upload_project(
         from app.models import SubmissionDocumentVersion
         
         with Session(engine) as session:
-            statement = select(SubmissionDocumentVersion).where(SubmissionDocumentVersion.binary_hash == binary_hash)
+            statement = select(SubmissionDocumentVersion).where(
+                SubmissionDocumentVersion.binary_hash.in_([binary_hash, legacy_binary_hash])
+            )
             existing = session.exec(statement).first()
             if existing:
-                print(f"[Upload] Reusing extracted text for binary_hash: {binary_hash}")
+                log_event("upload_reuse_extracted_text", project_id=resolved_project_id, binary_hash=binary_hash)
                 extracted_text = existing.extracted_text
 
         if not extracted_text:
@@ -127,7 +136,6 @@ async def upload_project(
         detected_language = detect_language_from_text(extracted_text)
         message_bundle = MESSAGES.get(detected_language, MESSAGES["ja"])
 
-        resolved_document_type = document_type or "project-review"
         resolved_document_name = (document_name or resolved_project_name or Path(original_filename).stem).strip()
         submission = store.save_upload(
             project_id=resolved_project_id,

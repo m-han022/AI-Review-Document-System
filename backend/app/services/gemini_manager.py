@@ -8,6 +8,10 @@ from app.config import settings
 GEMINI_API_KEYS = settings.gemini_api_keys
 GEMINI_MODEL = settings.gemini_model
 
+
+class GeminiRateLimitError(RuntimeError):
+    """Raised when all configured Gemini API keys are rate limited."""
+
 def get_model_for_level(level: str) -> str:
     """Returns the optimal Gemini model based on the prompt level."""
     # high -> Pro for deep reasoning and strict governance
@@ -206,7 +210,7 @@ class GeminiMultiKeyClient:
             ) from last_error
 
         if saw_rate_limit:
-            raise RuntimeError(
+            raise GeminiRateLimitError(
                 f"All Gemini API keys are rate limited for model {model}. "
                 "Please wait 1 minute and try again."
             ) from last_error

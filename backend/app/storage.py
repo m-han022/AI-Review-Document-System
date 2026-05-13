@@ -473,6 +473,7 @@ class SubmissionStore:
                     "uploaded_at": v.uploaded_at,
                     "is_latest": bool(v.is_latest),
                     "content_hash": v.content_hash,
+                    "binary_hash": v.binary_hash,
                     "latest_grading_score": (run.total_score if run.total_score is not None else run.score) if run else None,
                     "latest_status": (run.status if run else "pending").lower(),
                     "latest_error_message": run.error_message if run else None

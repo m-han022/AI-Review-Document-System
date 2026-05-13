@@ -251,9 +251,9 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
         if (matchedDoc) {
           const versions = await listDocumentVersions(matchedDoc.document_id);
           const latestVersion = versions.find((v) => v.is_latest) ?? versions[0];
-          if (latestVersion?.content_hash) {
+          if (latestVersion?.binary_hash) {
             const newFileHash = await sha256Hex(file);
-            if (newFileHash === latestVersion.content_hash) {
+            if (newFileHash === latestVersion.binary_hash) {
               setPendingDuplicateFile(file);
               setShowDuplicateConfirm(true);
               setUploadState("idle");

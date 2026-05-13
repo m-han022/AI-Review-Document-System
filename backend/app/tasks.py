@@ -5,6 +5,7 @@ from datetime import datetime
 from app.repositories.submission_repository import SubmissionRepository
 from app.repositories.grading_repository import GradingRepository
 from app.services.grading_service import GradingService
+from app.services.gemini_manager import GeminiRateLimitError
 from app.metrics import inc_counter, observe_queue_delay_seconds
 from app.observability import log_error, log_event, set_request_id
 
@@ -101,6 +102,16 @@ def grade_document_version_task(
             )
             return {"status": "success", "project_id": project_id}
             
+        except GeminiRateLimitError as e:
+            log_event(
+                "grading_task_retry_scheduled_rate_limit",
+                project_id=project_id,
+                document_version_id=document_version_id,
+                grading_run_id=grading_run_id,
+                retry_in_seconds=60,
+                detail=str(e),
+            )
+            raise self.retry(exc=e, countdown=60)
         except Exception as e:
             log_error(
                 "grading_task_failed",

@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 from app.models import Submission, SubmissionDocument, SubmissionDocumentVersion, GradingRun
 from unittest.mock import patch, MagicMock
+import hashlib
 
 def _ensure_manual_eval_set(client: TestClient, document_type: str = "project-review", level: str = "medium"):
     client.post("/api/mgmt/prompts", json={
@@ -180,6 +181,14 @@ def test_upload_requires_selected_project_id(client: TestClient):
     response = client.post("/api/upload", files=files, data={"language": "ja"})
     assert response.status_code == 400
     assert "select an existing project" in response.json()["detail"].lower()
+
+
+def test_upload_rejects_missing_document_type(client: TestClient):
+    client.post("/api/projects", json={"project_id": "P110", "project_name": "Doc Type Required"})
+    files = {"file": ("P110_Doc.pdf", b"content", "application/pdf")}
+    response = client.post("/api/upload", files=files, data={"language": "ja", "project_id": "P110"})
+    assert response.status_code == 400
+    assert "document_type is required" in response.json()["detail"].lower()
 
 def test_upload_rejects_filename_project_id_mismatch(client: TestClient):
     client.post("/api/projects", json={"project_id": "P101", "project_name": "Rule Test 2"})
@@ -422,6 +431,27 @@ def test_versions_and_gradings_hierarchical_contract(client: TestClient):
     assert "grading_run_id" in gradings_payload[0]
     assert "status" in gradings_payload[0]
     assert "created_at" in gradings_payload[0]
+
+
+def test_versions_endpoint_includes_binary_hash(client: TestClient):
+    project_id = "P111"
+    client.post("/api/projects", json={"project_id": project_id, "project_name": "Binary Hash Contract"})
+    payload = b"same file bytes for hash"
+    expected_sha256 = hashlib.sha256(payload).hexdigest()
+    files = {"file": ("P111_Doc.pdf", payload, "application/pdf")}
+    upload_res = client.post(
+        "/api/upload",
+        files=files,
+        data={"language": "ja", "project_id": project_id, "document_name": "Doc", "document_type": "project-review"},
+    )
+    assert upload_res.status_code == 200
+    document_id = upload_res.json()["document_id"]
+
+    versions_res = client.get(f"/api/documents/{document_id}/versions")
+    assert versions_res.status_code == 200
+    versions_payload = versions_res.json()
+    assert isinstance(versions_payload, list) and versions_payload
+    assert versions_payload[0]["binary_hash"] == expected_sha256
 
 
 def test_cache_not_reused_when_prompt_level_changes(client: TestClient):

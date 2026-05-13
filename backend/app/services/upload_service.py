@@ -2,6 +2,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Optional
 from sqlmodel import Session, select, col
+from sqlalchemy.exc import IntegrityError
 from app.models import (
     Submission,
     SubmissionDocument,
@@ -127,22 +128,49 @@ class UploadService:
             v.is_latest = False
             self.submission_repo.add(v)
 
-        new_version = SubmissionDocumentVersion(
-            submission_id=submission.id or 0,
-            document_id=document.id,
-            document_version=version_str,
-            filename=filename,
-            original_filename=original_filename or filename,
-            file_path=file_path,
-            extracted_text=extracted_text,
-            content_hash=content_hash,
-            binary_hash=binary_hash,
-            language=language,
-            uploaded_at=uploaded_at,
-            is_latest=True,
-        )
-        self.submission_repo.add(new_version)
-        self.submission_repo.commit()
-        self.submission_repo.refresh(new_version)
+        try:
+            new_version = SubmissionDocumentVersion(
+                submission_id=submission.id or 0,
+                document_id=document.id,
+                document_version=version_str,
+                filename=filename,
+                original_filename=original_filename or filename,
+                file_path=file_path,
+                extracted_text=extracted_text,
+                content_hash=content_hash,
+                binary_hash=binary_hash,
+                language=language,
+                uploaded_at=uploaded_at,
+                is_latest=True,
+            )
+            self.submission_repo.add(new_version)
+            self.submission_repo.commit()
+            self.submission_repo.refresh(new_version)
+        except IntegrityError:
+            # Handle concurrent uploads racing on next version number.
+            self.submission_repo.session.rollback()
+            existing_versions = self.submission_repo.list_versions_by_document(document.id)
+            for v in existing_versions:
+                v.is_latest = False
+                self.submission_repo.add(v)
+            nums = [int(v.document_version.replace("v", "")) for v in existing_versions if v.document_version.startswith("v")]
+            fallback_version_str = f"v{(max(nums) if nums else 0) + 1}"
+            new_version = SubmissionDocumentVersion(
+                submission_id=submission.id or 0,
+                document_id=document.id,
+                document_version=fallback_version_str,
+                filename=filename,
+                original_filename=original_filename or filename,
+                file_path=file_path,
+                extracted_text=extracted_text,
+                content_hash=content_hash,
+                binary_hash=binary_hash,
+                language=language,
+                uploaded_at=uploaded_at,
+                is_latest=True,
+            )
+            self.submission_repo.add(new_version)
+            self.submission_repo.commit()
+            self.submission_repo.refresh(new_version)
 
         return submission

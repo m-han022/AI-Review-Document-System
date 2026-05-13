@@ -14,6 +14,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 from app.repositories.submission_repository import SubmissionRepository
 from app.repositories.grading_repository import GradingRepository
 from app.services.grading_engine import build_grading_signature, grade_submission, GRADING_SCHEMA_VERSION
+from app.services.gemini_manager import GeminiRateLimitError
 from app.services.distributed_lock import grading_lock
 from app.services.issue_analytics import issue_breakdown
 from app.metrics import inc_counter, observe_duration_seconds
@@ -22,9 +23,9 @@ from app.observability import log_error, log_event
 ALLOWED_STATUS_TRANSITIONS: dict[str, set[str]] = {
     "PENDING": {"EXTRACTING", "FAILED"},
     "EXTRACTING": {"GRADING", "FAILED"},
-    "GRADING": {"COMPLETED", "FAILED"},
+    "GRADING": {"COMPLETED", "FAILED", "PENDING"},
     "COMPLETED": set(),
-    "FAILED": set(),
+    "FAILED": {"PENDING"},
 }
 
 class GradingService:
@@ -322,6 +323,16 @@ class GradingService:
             return result_data
 
         except Exception as e:
+            if isinstance(e, GeminiRateLimitError):
+                self.grading_repo.rollback()
+                self.update_status(run.id, "PENDING", str(e))
+                log_event(
+                    "grading_deferred_rate_limit",
+                    project_id=project_id,
+                    grading_run_id=run.id,
+                    detail=str(e),
+                )
+                raise
             # A failed flush/commit leaves Session in failed state; rollback before any extra writes.
             self.grading_repo.rollback()
             self.update_status(run.id, "FAILED", str(e))
