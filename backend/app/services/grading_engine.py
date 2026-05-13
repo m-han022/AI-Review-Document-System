@@ -485,7 +485,12 @@ def grade_submission(
             "Gemini returned an empty response. The content may have been filtered or blocked."
         )
     try:
-        result = json.loads(response.text)
+        cleaned_text = response.text.strip()
+        start_idx = cleaned_text.find("{")
+        end_idx = cleaned_text.rfind("}")
+        if start_idx != -1 and end_idx != -1 and end_idx >= start_idx:
+            cleaned_text = cleaned_text[start_idx:end_idx+1]
+        result = json.loads(cleaned_text)
     except json.JSONDecodeError as exc:
         raise RuntimeError("Gemini returned an invalid JSON response. Please retry.") from exc
 

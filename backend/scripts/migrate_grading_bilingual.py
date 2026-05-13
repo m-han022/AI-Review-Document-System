@@ -110,6 +110,51 @@ def migrate():
     except sqlite3.OperationalError as e:
         print(f" Skipped gradingslidereview: {e}")
 
+    # --- 4. Chuẩn hóa bảng promptversion ---
+    try:
+        cursor.execute("SELECT id, level, content FROM promptversion")
+        prompts = cursor.fetchall()
+        updated_prompts = 0
+        LEVEL_LABELS_JA = {
+            "low": "PMO低レベル",
+            "medium": "PMO中レベル",
+            "high": "PMO高レベル",
+        }
+        for prompt_id, level, content in prompts:
+            if content and isinstance(content, str) and not content.strip().startswith("{"):
+                ja_text = (
+                    f"評価レベル: {LEVEL_LABELS_JA.get(level, 'PMO中レベル')}。 "
+                    "常に選択したルーブリック/バージョンに従い、ルーブリック外の基準は使用しないでください。 "
+                    "結果はスコア、問題点、スライド/ページ、および次のアクションを説明できる必要があります。"
+                )
+                new_content = json.dumps({"vi": content.strip(), "ja": ja_text}, ensure_ascii=False)
+                cursor.execute("UPDATE promptversion SET content = ? WHERE id = ?", (new_content, prompt_id))
+                updated_prompts += 1
+        print(f" -> Normalized {updated_prompts}/{len(prompts)} records in 'promptversion'.")
+    except sqlite3.OperationalError as e:
+        print(f" Skipped promptversion: {e}")
+
+    # --- 5. Chuẩn hóa bảng evaluationpolicy ---
+    try:
+        cursor.execute("SELECT id, level, content FROM evaluationpolicy")
+        policies = cursor.fetchall()
+        updated_policies = 0
+        policy_json_path = Path(__file__).resolve().parent.parent / "app" / "defaults" / "global_policies.json"
+        global_pol = {}
+        if policy_json_path.exists():
+            with open(policy_json_path, "r", encoding="utf-8") as f:
+                global_pol = json.load(f)
+                
+        for pol_id, level, content in policies:
+            if content and isinstance(content, str) and not content.strip().startswith("{"):
+                ja_text = global_pol.get(level, {}).get("ja", content.strip())
+                new_content = json.dumps({"vi": content.strip(), "ja": ja_text}, ensure_ascii=False)
+                cursor.execute("UPDATE evaluationpolicy SET content = ? WHERE id = ?", (new_content, pol_id))
+                updated_policies += 1
+        print(f" -> Normalized {updated_policies}/{len(policies)} records in 'evaluationpolicy'.")
+    except sqlite3.OperationalError as e:
+        print(f" Skipped evaluationpolicy: {e}")
+
     conn.commit()
     conn.close()
     print("\nBilingual normalization completed successfully!")

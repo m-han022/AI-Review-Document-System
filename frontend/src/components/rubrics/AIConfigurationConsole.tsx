@@ -19,6 +19,7 @@ import {
 } from "../../api/client";
 import { AI_CONFIG_COPY } from "../../constants/aiConfigCopy";
 import { getDocumentTypeLabel, getLevelLabel } from "../../constants/uiLabels";
+import { getLocalizedText } from "../../locales/utils";
 import { mapErrorCodeToI18nKey } from "../../locales/errorMapping";
 import type { EvaluationSet } from "../../types";
 import ConfirmDialog from "../ui/ConfirmDialog";
@@ -305,10 +306,10 @@ export default function AIConfigurationConsole() {
       setIsNewTypeModalOpen(false);
       setNewTypeName("");
       setSelectedTemplate("");
-      setMessage({ type: "success", text: "Khởi tạo loại tài liệu mới thành công!" });
+      setMessage({ type: "success", text: ui.newTypeSuccess });
     },
     onError: (error) => {
-      setMessage({ type: "error", text: "Lỗi khởi tạo: " + mapConfigErrorMessage(error) });
+      setMessage({ type: "error", text: ui.newTypeErrorPrefix + mapConfigErrorMessage(error) });
     }
   });
 
@@ -391,7 +392,7 @@ export default function AIConfigurationConsole() {
                   variant="secondary" 
                   size="sm" 
                   onClick={() => setIsNewTypeModalOpen(true)}
-                  title="Thêm loại tài liệu mới"
+                  title={ui.newTypeBtnTooltip}
                   style={{ height: 'var(--ds-control-height)' }}
                 >
                   +
@@ -561,7 +562,7 @@ export default function AIConfigurationConsole() {
                       whiteSpace: 'pre-wrap',
                       color: 'var(--ds-color-text-main)'
                     }}>
-                      {selectedSet.rubric?.prompt?.vi || selectedSet.rubric?.prompt?.ja || ""}
+                      {selectedSet.rubric?.prompt ? getLocalizedText(selectedSet.rubric.prompt, lang) : ""}
                     </pre>
                   </div>
 
@@ -573,7 +574,7 @@ export default function AIConfigurationConsole() {
                       whiteSpace: 'pre-wrap',
                       color: 'var(--ds-color-text-main)'
                     }}>
-                      {selectedSet.prompt?.content || ""}
+                      {selectedSet.prompt?.content ? getLocalizedText(selectedSet.prompt.content, lang) : ""}
                     </pre>
                   </div>
                 </div>
@@ -820,19 +821,19 @@ export default function AIConfigurationConsole() {
       <BaseModal
         open={isNewTypeModalOpen}
         onClose={() => setIsNewTypeModalOpen(false)}
-        title="Thêm loại tài liệu mới"
-        subtitle="Khởi tạo cấu trúc đánh giá AI cho một loại tài liệu chưa có trong hệ thống."
+        title={ui.newTypeModalTitle}
+        subtitle={ui.newTypeModalSubtitle}
         size="md"
         footer={
           <>
-            <Button variant="ghost" onClick={() => setIsNewTypeModalOpen(false)}>Hủy</Button>
+            <Button variant="ghost" onClick={() => setIsNewTypeModalOpen(false)}>{ui.newTypeBtnCancel}</Button>
             <Button 
               variant="primary"
               isLoading={bootstrapMutation.isPending}
               disabled={!selectedTemplate && !newTypeName}
               onClick={handleCreateNewType}
             >
-              Khởi tạo ngay
+              {ui.newTypeBtnSubmit}
             </Button>
           </>
         }
@@ -840,7 +841,7 @@ export default function AIConfigurationConsole() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div>
             <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 500, color: 'var(--ds-color-text-title)' }}>
-              Chọn từ mẫu sẵn có:
+              {ui.newTypeSelectTemplate}
             </label>
             <Select 
               value={selectedTemplate}
@@ -849,7 +850,7 @@ export default function AIConfigurationConsole() {
                 if (e.target.value) setNewTypeName("");
               }}
               options={[
-                { value: "", label: "-- Chọn mẫu tiêu chuẩn --" },
+                { value: "", label: ui.newTypePlaceholderTemplate },
                 ...Object.entries(globalDefaults?.rubric_templates || {}).map(([key, t]: [string, any]) => {
                   const labelObj = t.label || {};
                   const localizedLabel = labelObj[lang] || labelObj["vi"] || labelObj["en"] || key;
@@ -864,18 +865,18 @@ export default function AIConfigurationConsole() {
 
           <div style={{ textAlign: 'center', color: 'var(--ds-color-text-muted)', fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ flex: 1, height: '1px', background: 'var(--ds-color-border)' }} />
-            <span>HOẶC</span>
+            <span>{ui.newTypeOr}</span>
             <div style={{ flex: 1, height: '1px', background: 'var(--ds-color-border)' }} />
           </div>
 
           <Input 
-            label="Tên mã loại tài liệu tự định nghĩa:"
+            label={ui.newTypeCustomName}
             value={newTypeName}
             onChange={(e) => {
               setNewTypeName(e.target.value);
               if (e.target.value) setSelectedTemplate("");
             }}
-            placeholder="e.g. security-audit"
+            placeholder={ui.newTypeCustomPlaceholder}
           />
           
           <div style={{ 
@@ -888,7 +889,7 @@ export default function AIConfigurationConsole() {
             gap: '10px'
           }}>
             <InfoIcon size="sm" style={{ flexShrink: 0, marginTop: '2px' }} />
-            <p style={{ margin: 0 }}>Sau khi khởi tạo, hệ thống sẽ tự động tạo bộ đánh giá mẫu (v1) cho loại tài liệu này ở tất cả các cấp độ.</p>
+            <p style={{ margin: 0 }}>{ui.newTypeNotice}</p>
           </div>
         </div>
       </BaseModal>

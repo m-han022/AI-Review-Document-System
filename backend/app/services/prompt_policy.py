@@ -30,6 +30,12 @@ LEVEL_LABELS = {
     "high": "PMO cao",
 }
 
+LEVEL_LABELS_JA = {
+    "low": "PMO低レベル",
+    "medium": "PMO中レベル",
+    "high": "PMO高レベル",
+}
+
 # Load policies from defaults directory (MANDATORY)
 def _load_global_policies() -> dict[str, str]:
     path = DEFAULTS_DIR / "global_policies.json"
@@ -77,8 +83,7 @@ def get_active_policy(level: str) -> EvaluationPolicy:
             # If it doesn't exist, create it from the global policy templates (JSON)
             policy_content = POLICY_TEXT.get(level, "")
             if isinstance(policy_content, dict):
-                # Use 'vi' as default for bootstrap
-                policy_content = policy_content.get("vi", "")
+                policy_content = json.dumps(policy_content, ensure_ascii=False)
 
             policy = EvaluationPolicy(
                 level=level,
@@ -106,11 +111,19 @@ def get_active_prompt_version(document_type: str, level: str) -> PromptVersion:
         
         if not prompt:
             # Seed default if not exists
-            content = (
-                f"Mức đánh giá: {LEVEL_LABELS[level]}. "
-                "Luôn bám theo rubric/version đã chọn, không dùng tiêu chí ngoài rubric. "
-                "Kết quả phải giải thích được điểm số, issue, slide/page và hành động tiếp theo."
-            )
+            content_dict = {
+                "vi": (
+                    f"Mức đánh giá: {LEVEL_LABELS[level]}. "
+                    "Luôn bám theo rubric/version đã chọn, không dùng tiêu chí ngoài rubric. "
+                    "Kết quả phải giải thích được điểm số, issue, slide/page và hành động tiếp theo."
+                ),
+                "ja": (
+                    f"評価レベル: {LEVEL_LABELS_JA[level]}。 "
+                    "常に選択したルーブリック/バージョンに従い、ルーブリック外の基準は使用しないでください。 "
+                    "結果はスコア、問題点、スライド/ページ、および次のアクションを説明できる必要があります。"
+                )
+            }
+            content = json.dumps(content_dict, ensure_ascii=False)
             prompt = PromptVersion(
                 document_type=document_type,
                 level=level,
