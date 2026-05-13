@@ -40,7 +40,22 @@ export const getTranslation = (lang: Language, key: string, fallback?: string): 
 
 export function getLocalizedText(obj: any, lang: string): string {
   if (!obj) return "";
-  if (typeof obj === "string") return obj;
-  const val = obj[lang] || obj["ja"] || obj["vi"] || Object.values(obj)[0] || "";
-  return typeof val === "string" ? val : "";
+  let targetObj = obj;
+  if (typeof obj === "string") {
+    try {
+      const parsed = JSON.parse(obj);
+      if (parsed && typeof parsed === "object") {
+        targetObj = parsed;
+      } else {
+        return obj;
+      }
+    } catch {
+      return obj;
+    }
+  }
+  if (targetObj && typeof targetObj === "object") {
+    const val = targetObj[lang] || targetObj["ja"] || targetObj["vi"] || Object.values(targetObj)[0] || "";
+    return typeof val === "string" ? val : String(val);
+  }
+  return "";
 }

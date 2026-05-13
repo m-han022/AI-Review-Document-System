@@ -45,11 +45,7 @@ export default function ProjectReportView({
 }: Props) {
   const { slideReviewItems } = slidesViewModel;
 
-  // Safe translation helper with explicit fallback
-  const tx = (key: string, fallback: string) => {
-    const val = t(key);
-    return val === key ? fallback : val;
-  };
+
 
   // Logic to extract slide-specific evidence (same as ProjectSlidesTab)
   const getSlideEvidence = (slideNum: number) => {
