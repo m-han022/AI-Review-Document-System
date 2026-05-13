@@ -63,6 +63,7 @@ OUTPUT_SCHEMA_HINT = (
     "slide_reviews:[{slide_number:int,status:'OK'|'NG',"
     "title:{vi:str,ja:str},summary:{vi:str,ja:str},"
     "issues:{vi:[str],ja:[str]},suggestions:{vi:str,ja:str}}]}. "
+    "\nCRITICAL INSTRUCTION FOR LLM: Your response MUST be a valid JSON string. You are STRICTLY FORBIDDEN from using unescaped double quotes (\") inside your string values. Internal quotes MUST be escaped as \\\" or replaced by single quotes (''). Failure to produce valid JSON syntax will crash the system."
 )
 
 def stable_hash(value: Any) -> str:
