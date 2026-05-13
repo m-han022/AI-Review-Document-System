@@ -490,9 +490,10 @@ def grade_submission(
         end_idx = cleaned_text.rfind("}")
         if start_idx != -1 and end_idx != -1 and end_idx >= start_idx:
             cleaned_text = cleaned_text[start_idx:end_idx+1]
-        result = json.loads(cleaned_text)
+        result = json.loads(cleaned_text, strict=False)
     except json.JSONDecodeError as exc:
-        raise RuntimeError("Gemini returned an invalid JSON response. Please retry.") from exc
+        excerpt = response.text[:400] if response.text else ""
+        raise RuntimeError(f"Gemini returned an invalid JSON response. Please retry. (Details: {exc} | Excerpt: {excerpt})") from exc
 
     score = int(result.get("score", 0))
     score = max(0, min(100, score))
