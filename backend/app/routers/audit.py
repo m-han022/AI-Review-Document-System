@@ -309,7 +309,10 @@ async def export_audit_runs_csv(
                 if not rows:
                     break
 
-                for run, doc_id, _, _ in rows:
+                for item in rows:
+                    # SQLModel row shape: (GradingRun, Submission, doc_id, doc_type, doc_name)
+                    run = item[0]
+                    doc_id = item[2]
                     yield row_to_csv(run, doc_id)
                     rows_emitted += 1
 

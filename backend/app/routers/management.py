@@ -582,10 +582,11 @@ async def final_prompt_preview(
     rubric_bundle = _rubric_out(session, rubric)
     rubric_text = (rubric.prompt or {}).get("vi") or (rubric.prompt or {}).get("ja") or ""
     active_rule_set = get_active_required_rule_set(session)
+    required_rule_lines = [line if isinstance(line, str) else json.dumps(line, ensure_ascii=False) for line in parse_required_rules_content(active_rule_set.content)]
     full_preview = "\n\n".join(
         [
             "---- Required Rules ----",
-            "\n".join(parse_required_rules_content(active_rule_set.content)),
+            "\n".join(required_rule_lines),
             "---- Rubric ----",
             rubric_text,
             "---- Evaluation Policy ----",

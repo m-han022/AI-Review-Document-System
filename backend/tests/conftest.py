@@ -45,8 +45,9 @@ def client_fixture(session: Session) -> Generator[TestClient, None, None]:
                     with patch("app.repositories.submission_repository.engine", session.get_bind()):
                         with patch("app.services.prompt_policy.engine", session.get_bind()):
                             with patch("app.services.grading_engine.engine", session.get_bind()):
-                                with TestClient(app) as client:
-                                    yield client
+                                with patch("app.tasks.engine", session.get_bind()):
+                                    with TestClient(app) as client:
+                                        yield client
     
     app.dependency_overrides.clear()
 
@@ -81,3 +82,10 @@ def mock_storage_dir(tmp_path):
     with patch("app.routers.upload.UPLOADS_DIR", tmp_path):
         with patch("app.config.UPLOADS_DIR", tmp_path):
             yield tmp_path
+
+
+@pytest.fixture(autouse=True)
+def force_sync_grading_mode():
+    """Default test mode is synchronous grading unless a test overrides it explicitly."""
+    with patch("app.routers.grading.settings.use_celery", False):
+        yield
