@@ -122,8 +122,10 @@ def build_grading_signature(
     text: str,
     language: str,
     document_type: str | None,
+    project_id: str | None = None,
     rubric_version: str | None = None,
     document_version_id: int | None = None,
+    binary_hash: str | None = None,
     prompt_level: str | None = "medium",
     evaluation_set_id: int | None = None,
     project_description: str | None = None,
@@ -189,7 +191,9 @@ def build_grading_signature(
     )
 
     return {
+        "project_id": project_id,
         "content_hash": _get_text_hash(text),
+        "binary_hash": binary_hash or "",
         "document_version_id": document_version_id,
         "language": language,
         "document_type": normalized_document_type,
@@ -218,7 +222,9 @@ def _build_system_instruction(rubric: str, policy_text: str, prompt_text: str) -
 def _build_cache_key(signature: dict[str, Any]) -> str:
     return "_".join(
         [
+            str(signature.get("project_id") or ""),
             signature["content_hash"],
+            str(signature.get("binary_hash") or ""),
             str(signature.get("document_version_id") or ""),
             signature["language"],
             signature["document_type"],
@@ -368,8 +374,10 @@ def grade_submission(
     text: str,
     language: str = "ja",
     document_type: str | None = None,
+    project_id: str | None = None,
     rubric_version: str | None = None,
     document_version_id: int | None = None,
+    binary_hash: str | None = None,
     prompt_level: str | None = "medium",
     evaluation_set_id: int | None = None,
     project_description: str | None = None,
@@ -384,8 +392,10 @@ def grade_submission(
         text=text,
         language=language,
         document_type=document_type,
+        project_id=project_id,
         rubric_version=rubric_version,
         document_version_id=document_version_id,
+        binary_hash=binary_hash,
         prompt_level=prompt_level,
         evaluation_set_id=evaluation_set_id,
         project_description=project_description,
@@ -403,7 +413,7 @@ def grade_submission(
     if use_cache and not refresh_cache:
         from app.storage import store
         existing_run = store.find_matching_run(signature.get("project_id") or "", signature)
-        if existing_run and existing_run.status == "completed":
+        if existing_run and (existing_run.status or "").upper() == "COMPLETED":
             print(f"[Grading] Persistent cache hit for {cache_key}")
             # Format back to result_data structure
             result_data = {
