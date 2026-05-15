@@ -47,7 +47,7 @@ export default function ProjectReportView({
 
 
 
-  // Logic to extract slide-specific evidence (same as ProjectSlidesTab)
+  // Logic to extract page-specific evidence (same as ProjectSlidesTab)
   const getSlideEvidence = (slideNum: number) => {
     if (!extractedText) return null;
     const startMarkerPage = `[Page ${slideNum}]`;
@@ -70,7 +70,7 @@ export default function ProjectReportView({
     return extractedText.substring(startIdx + markerLen, endIdx === -1 ? extractedText.length : endIdx).trim();
   };
 
-  // Extract NG slides for priority section
+  // Extract NG pages for priority section
   const ngSlides = pageReviewItems.filter(s => s.status === "NG").slice(0, 4);
 
   const checklistItems = useMemo(() => {
@@ -279,7 +279,7 @@ export default function ProjectReportView({
         </section>
       )}
 
-      {/* 8. Slides Detail Section */}
+      {/* 8. Pages Detail Section */}
       <section className="report-print-section" style={{ pageBreakBefore: 'always' }}>
         <h2 className="report-print-section__title">
           <LayersIcon size="sm" /> {t("project.tabSlidesResult")}

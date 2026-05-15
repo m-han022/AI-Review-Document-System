@@ -432,7 +432,7 @@ export default function AuditDashboard() {
                 </div>
               </section>
 
-              {/* Slide Feedback Section */}
+              {/* Page Feedback Section */}
               {((state.selectedRunDetail.page_reviews && state.selectedRunDetail.page_reviews.length > 0) || (state.selectedRunDetail.slide_reviews && state.selectedRunDetail.slide_reviews.length > 0)) && (
                 <section className="audit-detail-section">
                   <header className="audit-section-header" style={{ marginBottom: '16px' }}>
@@ -509,7 +509,7 @@ export default function AuditDashboard() {
                                 }}>
                                   <SparkIcon size="sm" style={{ marginTop: '2px' }} />
                                   <div>
-                                    <strong>Gá»£i Ã½ tá»« AI:</strong> {getLocalizedText(slide.suggestions, getLanguage())}
+                                    <strong>{String(t("project.aiSuggestionLabel"))}:</strong> {getLocalizedText(slide.suggestions, getLanguage())}
                                   </div>
                                 </div>
                               </div>

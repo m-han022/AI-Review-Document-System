@@ -78,8 +78,16 @@ const missingUsedKeys = [...usedKeys].filter((k) => !vi.has(k) || !ja.has(k) || 
 
 const viMojibake = viKeys.filter((k) => typeof vi.get(k) === "string" && hasMojibake(String(vi.get(k))));
 const jaMojibake = [...ja.keys()].filter((k) => typeof ja.get(k) === "string" && hasMojibake(String(ja.get(k))));
+const enMojibake = [...en.keys()].filter((k) => typeof en.get(k) === "string" && hasMojibake(String(en.get(k))));
 
-const hasError = missingInJa.length || missingInEn.length || missingInVi.length || missingUsedKeys.length;
+const hasError =
+  missingInJa.length
+  || missingInEn.length
+  || missingInVi.length
+  || missingUsedKeys.length
+  || viMojibake.length
+  || jaMojibake.length
+  || enMojibake.length;
 
 console.log(`Missing in ja: ${missingInJa.length}`);
 console.log(`Missing in en: ${missingInEn.length}`);
@@ -87,15 +95,13 @@ console.log(`Missing in vi: ${missingInVi.length}`);
 console.log(`Used keys missing in locales: ${missingUsedKeys.length}`);
 console.log(`Potential mojibake vi: ${viMojibake.length}`);
 console.log(`Potential mojibake ja: ${jaMojibake.length}`);
+console.log(`Potential mojibake en: ${enMojibake.length}`);
 
 if (viMojibake.length) console.log(`- Sample vi mojibake: ${viMojibake.slice(0, 5).map(k => `${k}: ${vi.get(k)}`).join(", ")}`);
 if (jaMojibake.length) console.log(`- Sample ja mojibake: ${jaMojibake.slice(0, 5).map(k => `${k}: ${ja.get(k)}`).join(", ")}`);
+if (enMojibake.length) console.log(`- Sample en mojibake: ${enMojibake.slice(0, 5).map(k => `${k}: ${en.get(k)}`).join(", ")}`);
 if (missingInVi.length) console.log(`- Sample missing in vi: ${missingInVi.slice(0, 10).join(", ")}`);
 if (missingUsedKeys.length) console.log(`- Sample used missing: ${missingUsedKeys.slice(0, 10).join(", ")}`);
-
-if (viMojibake.length || jaMojibake.length) {
-  console.log("Warning: potential mojibake detected. Please review listed keys.");
-}
 
 if (hasError) {
   process.exit(1);

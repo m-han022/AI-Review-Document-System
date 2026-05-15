@@ -195,7 +195,7 @@ export default function VersionComparison({ data }: VersionComparisonProps) {
                 </div>
              </div>
              <div style={{ marginTop: '12px', textAlign: 'center' }}>
-                {/* For NG slides, positive delta is regression */}
+                {/* For NG pages, positive delta is regression */}
                 {renderStatusBadge(data.ng_slide_delta < 0 ? "improved" : data.ng_slide_delta > 0 ? "regressed" : "unchanged", data.ng_slide_delta)}
              </div>
           </SectionBlock.Body>

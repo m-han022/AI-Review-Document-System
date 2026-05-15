@@ -234,7 +234,7 @@ export const DOCUMENT_CARD_COPY: Record<
     "project-review": {
       title: "Tài liệu nhìn nhận dự án",
       description: "Review tài liệu tổng kết, proposal, pitch deck hoặc báo cáo dự án.",
-      example: "Ví dụ: slide retrospective, báo cáo tiến độ, proposal khách hàng.",
+      example: "Ví dụ: page retrospective, báo cáo tiến độ, proposal khách hàng.",
       tooltip: "AI đánh giá tổng thể, điểm tốt, điểm cần cải thiện và chính sách cải thiện.",
     },
     "bug-analysis": {
@@ -260,7 +260,7 @@ export const DOCUMENT_CARD_COPY: Record<
     "project-review": {
       title: "プロジェクト振り返り資料",
       description: "総括、提案、ピッチデック、プロジェクトレポートをレビューします。",
-      example: "例: retrospective slide, 進捗レポート, 顧客提案。",
+      example: "例: retrospective page, 進捗レポート, 顧客提案。",
       tooltip: "総合評価、良い点、改善点、改善方針を評価します。",
     },
     "bug-analysis": {
@@ -286,7 +286,7 @@ export const DOCUMENT_CARD_COPY: Record<
     "project-review": {
       title: "Project Review Document",
       description: "Review project summaries, proposals, pitch decks, or reports.",
-      example: "E.g., retrospective slides, progress reports, client proposals.",
+      example: "E.g., retrospective pages, progress reports, client proposals.",
       tooltip: "AI evaluates overall performance, strengths, improvements, and policies.",
     },
     "bug-analysis": {

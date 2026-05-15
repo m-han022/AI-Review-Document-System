@@ -55,9 +55,9 @@
   },
   {
     "id": 10,
-    "en": "EVIDENCE-BASED: For every 'NG' status, you MUST cite a specific text or element from the slide as evidence.",
-    "vi": "Dựa trên dẫn chứng: Với mỗi trạng thái 'NG', bạn PHẢI dẫn chứng văn bản hoặc yếu tố cụ thể từ slide đó.",
-    "ja": "エビデンスに基づく評価：'NG'（不適合）判定の場合、必ずそのスライドから具体的なテキストや要素をエビデンスとして引用してください。"
+    "en": "EVIDENCE-BASED: For every 'NG' status, you MUST cite a specific text or element from the page as evidence.",
+    "vi": "Dựa trên dẫn chứng: Với mỗi trạng thái 'NG', bạn PHẢI dẫn chứng văn bản hoặc yếu tố cụ thể từ page đó.",
+    "ja": "エビデンスに基づく評価：'NG'（不適合）判定の場合、必ずそのページから具体的なテキストや要素をエビデンスとして引用してください。"
   },
   {
     "id": 11,

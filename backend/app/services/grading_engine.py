@@ -443,10 +443,16 @@ def _extract_balanced_json_object(raw_text: str) -> str | None:
 
 def _parse_llm_json_response(raw_text: str) -> dict[str, Any]:
     cleaned_text = raw_text.strip()
+    # Remove common markdown wrappers that occasionally appear despite JSON-only rules.
+    cleaned_text = re.sub(r"^```(?:json)?\s*", "", cleaned_text, flags=re.IGNORECASE)
+    cleaned_text = re.sub(r"\s*```$", "", cleaned_text)
     start_idx = cleaned_text.find("{")
     end_idx = cleaned_text.rfind("}")
     if start_idx != -1 and end_idx != -1 and end_idx >= start_idx:
         cleaned_text = cleaned_text[start_idx : end_idx + 1]
+
+    # Repair common LLM JSON issues: trailing commas before closing object/array.
+    cleaned_text = re.sub(r",(\s*[}\]])", r"\1", cleaned_text)
 
     try:
         parsed = json.loads(cleaned_text, strict=False)
@@ -500,8 +506,8 @@ def _recover_minimal_result_from_text(
                 "status": "OK",
                 "title": {"vi": f"Slide {i}", "ja": f"スライド {i}"},
                 "summary": {
-                    "vi": "Không có dữ liệu phân tích slide chi tiết do phản hồi AI lỗi định dạng.",
-                    "ja": "AI応答の形式不正により、詳細なスライド分析は取得できませんでした。",
+                    "vi": "Không có dữ liệu phân tích page chi tiết do phản hồi AI lỗi định dạng.",
+                    "ja": "AI応答の形式不正により、詳細なページ分析は取得できませんでした。",
                 },
                 "issues": {"vi": [], "ja": []},
                 "suggestions": {"vi": "", "ja": ""},

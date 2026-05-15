@@ -1,4 +1,4 @@
-# AGENTS.md (v2.1)
+﻿# AGENTS.md (v2.1)
 
 ## 🎯 Mục tiêu hệ thống
 
@@ -516,9 +516,52 @@ Khi tái cấu trúc theo hướng clean architecture / modular design:
 
 ## Documentation Deletion Rules (Current)
 
-- Khi ngu?i d�ng y�u c?u d?n/x�a t�i li?u:
-  1. R� so�t tham chi?u to�n repo tru?c khi x�a.
-  2. Ch? x�a khi n?i dung v?n h�nh c?t l�i d� du?c h?p nh?t v�o README.md / REQUIREMENTS.md / AGENTS.md.
-  3. Sau khi x�a, b?t bu?c c?p nh?t l?i link/hu?ng d?n d? kh�ng c�n dead reference.
-- Kh�ng x�a im l?ng t�i li?u governance n?u chua c� b?n thay th? tuong duong.
+- Khi ngu?i d�ng y�u c?u d?n/x�a t�i li?u:
+  1. R� so�t tham chi?u to�n repo tru?c khi x�a.
+  2. Ch? x�a khi n?i dung v?n h�nh c?t l�i d� du?c h?p nh?t v�o README.md / REQUIREMENTS.md / AGENTS.md.
+  3. Sau khi x�a, b?t bu?c c?p nh?t l?i link/hu?ng d?n d? kh�ng c�n dead reference.
+- Kh�ng x�a im l?ng t�i li?u governance n?u chua c� b?n thay th? tuong duong.
+
+---
+
+## Encoding Guardrail (Anti-Mojibake)
+
+### Root Cause cần chặn
+
+- Mở/chỉnh sửa file UTF-8 bằng tool đang dùng codepage khác (CP1252/CP932/ANSI) rồi save lại.
+- Copy/paste qua công cụ trung gian làm đổi encoding hoặc normalize sai ký tự Unicode.
+- Trộn nhiều nguồn i18n/docs khác encoding trong cùng pipeline.
+
+### Bắt buộc toàn repo
+
+- Tất cả file text (`.md`, `.json`, `.ts`, `.tsx`, `.py`, `.yml`, `.yaml`, `.txt`) phải là `UTF-8`.
+- Ưu tiên `UTF-8 (no BOM)` cho source code và JSON.
+- Không commit file có dấu hiệu mojibake (`Ã`, `Â`, `ðŸ`, `�`) nếu ngữ cảnh không hợp lệ.
+- Không dùng editor/tool tự động “Save as ANSI/Shift-JIS/Windows-1252”.
+
+### Quy tắc khi đọc/ghi file
+
+- Luôn chỉ định encoding tường minh là UTF-8 khi script đọc/ghi file.
+- Với PowerShell: dùng `-Encoding UTF8` khi `Set-Content`/`Out-File`.
+- Với Python: luôn `open(..., encoding="utf-8")`.
+- Không chạy batch convert mù trên toàn repo nếu chưa có backup hoặc chưa khoanh vùng file lỗi.
+
+### Validation Gate (trước merge/release)
+
+- Bắt buộc có bước kiểm tra encoding + mojibake trong CI hoặc local gate.
+- Nếu phát hiện chuỗi nghi ngờ mojibake ở docs/i18n thì fail gate.
+- i18n check phải fail khi locale trọng yếu (`vi`, `ja`, `en`) có mojibake hoặc key corruption.
+
+### Incident Playbook
+
+1. Khoanh vùng file lỗi bằng scan pattern mojibake.
+2. Khôi phục từ `git` bản gần nhất còn đúng nếu có.
+3. Nếu không có bản sạch, convert có kiểm soát theo từng file và review thủ công.
+4. Chạy lại gate encoding/i18n trước khi merge.
+
+### Scope an toàn
+
+- Không sửa schema DB chỉ để xử lý encoding docs/i18n.
+- Không rewrite hàng loạt ngoài scope file đã xác nhận lỗi.
+
 

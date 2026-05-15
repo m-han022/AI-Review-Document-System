@@ -39,11 +39,11 @@ export default function SlideStatusChart({
                   <Cell key={item.key} fill={item.color} />
                 ))}
               </Pie>
-              <Tooltip formatter={(value) => [`${Number(value ?? 0)}`, "Slides"]} />
+              <Tooltip formatter={(value) => [`${Number(value ?? 0)}`, "Pages"]} />
             </PieChart>
           </ResponsiveContainer>
           <div className="chart-card__center chart-card__center--compact">
-            <span>Slides</span>
+            <span>Pages</span>
             <strong>{total}</strong>
           </div>
         </div>

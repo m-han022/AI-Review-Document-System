@@ -119,7 +119,7 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
   const [confirmReviewOpen, setConfirmReviewOpen] = useState(false);
   const { loadingDocs, docsError, refetchDocuments, versions, gradings, sortedDocuments, gradingDetail, currentProject, currentVersion } = dataState;
   const { rerunMutation, exportMutation } = actions;
-  const { result, pageReviewItems, ngSlideCount, orderedScores, feedbackSections, activeSlide, isInitialLoading } = derived;
+  const { result, pageReviewItems, ngPageCount, orderedScores, feedbackSections, activeSlide, isInitialLoading } = derived;
   const displayScore = result?.total_score ?? result?.score ?? null;
   const displayModel = result?.gemini_model ?? "Gemini (chưa lưu model cụ thể)";
   const hasActiveRunOnVersion = gradings.some((g) => {
@@ -241,7 +241,7 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
 
           return parts.length > 0 ? parts.join(". ") : t("project.noSeriousIssues");
         })(),
-        type: (lowest && lowest.value / lowest.max < 0.7) || ngSlideCount > 0 ? "danger" : "neutral",
+        type: (lowest && lowest.value / lowest.max < 0.7) || ngPageCount > 0 ? "danger" : "neutral",
         Icon: AlertTriangleIcon
       },
       {
@@ -258,7 +258,7 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
       }
     ];
 
-  }, [feedbackSections, ngSlideCount, t, orderedScores, result, pageReviewItems]);
+  }, [feedbackSections, ngPageCount, t, orderedScores, result, pageReviewItems]);
 
   const actionItems = useMemo(() => {
     const fromCriteria = (gradingDetail?.criteria_results || [])
@@ -452,7 +452,7 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
             className={`ds-tabs__item ${activeTab === "slides" ? "is-active" : ""}`}
             onClick={() => scrollToSection("slides")}
           >
-            {t("project.tabSlidesResult")} {ngSlideCount > 0 && <span className="ds-tabs__badge">{ngSlideCount}</span>}
+            {t("project.tabSlidesResult")} {ngPageCount > 0 && <span className="ds-tabs__badge">{ngPageCount}</span>}
           </button>
         </div>
 
@@ -462,7 +462,7 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
             <ProjectOverviewTab 
               t={t} 
               feedbackSections={criteriaViewModel.feedbackSections} 
-              ngSlideCount={ngSlideCount}
+              ngPageCount={ngPageCount}
               orderedScores={criteriaViewModel.orderedScores}
               pageReviewItems={slidesViewModel.pageReviewItems}
               actionItems={actionItems}

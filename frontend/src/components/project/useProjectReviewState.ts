@@ -224,7 +224,7 @@ export function useProjectReviewState({ projectId, lang, t }: UseProjectReviewSt
     }
   }, [pageReviewItems, selectedSlideId]);
 
-  const ngSlideCount = pageReviewItems.filter((s) => s.status === "NG").length;
+  const ngPageCount = pageReviewItems.filter((s) => s.status === "NG").length;
   const rubricLabelMap = useMemo(() => {
     const map: Record<string, string> = {};
     const criteria = (gradingDetail as any)?.rubric?.criteria;
@@ -356,7 +356,7 @@ export function useProjectReviewState({ projectId, lang, t }: UseProjectReviewSt
     derived: {
       result,
       pageReviewItems,
-      ngSlideCount,
+      ngPageCount,
       orderedScores,
       feedbackSections,
       activeSlide,
@@ -370,7 +370,7 @@ export function useProjectReviewState({ projectId, lang, t }: UseProjectReviewSt
     scrollToSection,
     documents, sortedDocuments, loadingDocs, docsError, versions, loadingVersions, gradings,
     loadingGradings, gradingDetail, currentProject, currentVersion,
-    result, pageReviewItems, ngSlideCount, orderedScores, feedbackSections, activeSlide,
+    result, pageReviewItems, ngPageCount, orderedScores, feedbackSections, activeSlide,
     isInitialLoading, riskLevel, topInsight
   ]);
 }

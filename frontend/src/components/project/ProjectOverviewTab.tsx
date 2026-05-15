@@ -7,7 +7,7 @@ import type { KPIBarChartProps } from "../ui/KPICharts";
 interface Props {
   t: (key: string) => string;
   feedbackSections: FeedbackSectionView[];
-  ngSlideCount: number;
+  ngPageCount: number;
   orderedScores: KPIBarChartProps["data"];
   pageReviewItems: any[];
   actionItems: string[];
@@ -16,14 +16,14 @@ interface Props {
 export default function ProjectOverviewTab({ 
   t, 
   feedbackSections, 
-  ngSlideCount, 
+  ngPageCount, 
   orderedScores,
   pageReviewItems,
   actionItems
 }: Props) {
   useTranslation();
   const hasRenderableFeedback = feedbackSections.some((s) => (s.lines?.length || 0) > 0);
-  // Extract top 4 prioritized issues (NG slides)
+  // Extract top 4 prioritized issues (NG pages)
   const prioritizedIssues = pageReviewItems
     .filter(item => item.status === "NG")
     .slice(0, 4);
@@ -202,7 +202,7 @@ export default function ProjectOverviewTab({
                 fontStyle: 'italic',
                 minHeight: '100px'
               }}>
-                {i === 0 && ngSlideCount === 0 ? t("project.noIssuesFound") : ""}
+                {i === 0 && ngPageCount === 0 ? t("project.noIssuesFound") : ""}
               </div>
             ))
           )}

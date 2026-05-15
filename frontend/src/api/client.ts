@@ -28,6 +28,51 @@ import type {
   AuditRunsFilter,
 } from "../types";
 
+function normalizePageReviewItem(item: any) {
+  if (!item || typeof item !== "object") return item;
+  const pageNumber = item.page_number ?? item.slide_number ?? null;
+  return {
+    ...item,
+    page_number: pageNumber,
+    slide_number: item.slide_number ?? pageNumber ?? undefined,
+  };
+}
+
+function normalizeRunLike<T extends any>(run: T): T {
+  if (!run || typeof run !== "object") return run;
+  const pageReviews = Array.isArray((run as any).page_reviews)
+    ? (run as any).page_reviews
+    : Array.isArray((run as any).slide_reviews)
+      ? (run as any).slide_reviews
+      : [];
+  return {
+    ...(run as any),
+    page_reviews: pageReviews.map(normalizePageReviewItem),
+    slide_reviews: Array.isArray((run as any).slide_reviews)
+      ? (run as any).slide_reviews.map(normalizePageReviewItem)
+      : pageReviews.map(normalizePageReviewItem),
+  } as T;
+}
+
+function normalizeGradingRunDetail(detail: any): GradingRunDetail {
+  const normalizedRun = normalizeRunLike(detail?.grading_run);
+  const normalizedRootPageReviews = Array.isArray(detail?.page_reviews)
+    ? detail.page_reviews
+    : Array.isArray(detail?.slide_reviews)
+      ? detail.slide_reviews
+      : Array.isArray((normalizedRun as any)?.page_reviews)
+        ? (normalizedRun as any).page_reviews
+      : [];
+  return {
+    ...detail,
+    grading_run: normalizedRun,
+    page_reviews: normalizedRootPageReviews.map(normalizePageReviewItem),
+    slide_reviews: Array.isArray(detail?.slide_reviews)
+      ? detail.slide_reviews.map(normalizePageReviewItem)
+      : normalizedRootPageReviews.map(normalizePageReviewItem),
+  } as GradingRunDetail;
+}
+
 function evalSetResourcePath(): string {
   return "evaluation-bundles";
 }
@@ -194,7 +239,7 @@ export async function getSubmissionGradingRuns(projectId: string): Promise<Gradi
 export async function getGradingRunDetail(runId: number): Promise<GradingRunDetail> {
   const res = await fetch(`${API_BASE_URL}/grading-runs/${runId}`);
   if (!res.ok) throw new Error(`${apiMessage("fetchSubmissionsFailed")} ${res.statusText}`);
-  return res.json();
+  return normalizeGradingRunDetail(await res.json());
 }
 
 export async function listAuditRuns(filters: AuditRunsFilter = {}): Promise<GradingRunHistory[]> {
@@ -230,7 +275,7 @@ export async function getAuditRunDetail(runId: number): Promise<GradingRunDetail
     }
     const data = await res.json();
     if (!data) throw new Error("Empty response from server");
-    return data;
+    return normalizeGradingRunDetail(data);
   } catch (error) {
     if (error instanceof Error && error.message.includes('Failed to fetch')) {
       console.error("Network Error: Failed to fetch. Possible CORS or connection issue.");
@@ -340,7 +385,12 @@ export async function compareVersions(documentId: number, baseId: number, compar
   const params = new URLSearchParams({ base_version_id: String(baseId), compare_version_id: String(compareId) });
   const res = await fetch(`${API_BASE_URL}/documents/${documentId}/compare?${params.toString()}`);
   if (!res.ok) throw new Error(`${apiMessage("fetchSubmissionsFailed")} ${res.statusText}`);
-  return res.json();
+  const data = await res.json();
+  return {
+    ...data,
+    base_run: normalizeRunLike(data?.base_run),
+    compare_run: normalizeRunLike(data?.compare_run),
+  } as VersionComparison;
 }
 
 export function getSubmissionFileUrl(projectId: string, disposition: "inline" | "attachment" = "inline") {
