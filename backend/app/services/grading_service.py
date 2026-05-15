@@ -54,6 +54,13 @@ class GradingService:
         content_hash: str,
         evaluation_set_id: int,
     ) -> GradingRun:
+        def _mark_submission_latest(run_id: int) -> None:
+            submission = self.submission_repo.get_submission_by_id(submission_id)
+            if submission:
+                submission.latest_grading_run_id = run_id
+                self.submission_repo.add(submission)
+                self.submission_repo.commit()
+
         normalized_level = (prompt_level or "").strip().lower()
         lock_key = (
             f"grading:active:"
@@ -87,6 +94,7 @@ class GradingService:
                     reason="active_run_exists",
                     evaluation_set_id=evaluation_set_id,
                 )
+                _mark_submission_latest(existing_run.id or 0)
                 return existing_run
 
             run = GradingRun(
@@ -127,6 +135,7 @@ class GradingService:
                         reason="db_unique_conflict",
                         evaluation_set_id=evaluation_set_id,
                     )
+                    _mark_submission_latest(existing_after_race.id or 0)
                     return existing_after_race
                 raise
 
@@ -144,6 +153,7 @@ class GradingService:
                 prompt_level=prompt_level,
                 status="PENDING",
             )
+            _mark_submission_latest(run.id or 0)
             return run
 
     def update_status(self, run_id: int, status: str, error_message: Optional[str] = None):

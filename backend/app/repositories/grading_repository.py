@@ -16,11 +16,27 @@ class GradingRepository:
     def get_grading_run(self, run_id: int) -> Optional[GradingRun]:
         return self.session.get(GradingRun, run_id)
 
+    def get_latest_run_for_submission(self, submission_id: int) -> Optional[GradingRun]:
+        statement = (
+            select(GradingRun)
+            .where(GradingRun.submission_id == submission_id)
+            .order_by(col(GradingRun.id).desc())
+        )
+        return self.session.exec(statement).first()
+
+    def get_latest_run_for_document_version(self, document_version_id: int) -> Optional[GradingRun]:
+        statement = (
+            select(GradingRun)
+            .where(GradingRun.document_version_id == document_version_id)
+            .order_by(col(GradingRun.id).desc())
+        )
+        return self.session.exec(statement).first()
+
     def list_grading_runs(self, submission_id: int, limit: int = 100) -> list[GradingRun]:
         statement = (
             select(GradingRun)
             .where(GradingRun.submission_id == submission_id)
-            .order_by(col(GradingRun.graded_at).desc(), col(GradingRun.id).desc())
+            .order_by(col(GradingRun.id).desc())
             .limit(limit)
         )
         return list(self.session.exec(statement).all())

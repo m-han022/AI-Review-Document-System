@@ -1,8 +1,18 @@
 import { useEffect, useMemo, useReducer, useState } from "react";
 import "./AuditDashboard.css";
+import {
+  auditReviewedAtLabel,
+  auditStatusLabel,
+  auditStatusTone,
+  isFailedAuditStatus,
+} from "./auditDashboard.helpers";
+import {
+  AuditFiltersSection,
+  AuditRunsTableSection,
+} from "./AuditDashboard.sections";
 import { 
   RefreshIcon, AlertCircleIcon, SparkIcon, AlertTriangleIcon, 
-  CheckCircleIcon, TrendingUpIcon, LayersIcon, ChevronRightIcon, ChevronLeftIcon 
+  CheckCircleIcon, TrendingUpIcon, LayersIcon 
 } from "../ui/Icon";
 
 import { 
@@ -11,7 +21,7 @@ import {
 } from "../../api/client";
 import type { GradingRunDetail, GradingRunHistory, Project, DocumentListOut, VersionListOut } from "../../types";
 import { useTranslation } from "../LanguageSelector";
-import { Button, Card, Input, Select, SearchableSelect, StatusBadge } from "../ui";
+import { Button, Card, StatusBadge } from "../ui";
 import { EmptyState, LoadingState, ErrorState } from "../ui/States";
 
 type UiStatus = "idle" | "loading" | "ready" | "empty" | "error";
@@ -126,24 +136,6 @@ function normalizeDateTimeLocal(value: string): string | undefined {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return undefined;
   return d.toISOString();
-}
-
-function mapStatusTone(status?: string): "success" | "warning" | "danger" | "muted" {
-  const normalized = (status || "").toLowerCase();
-  if (normalized === "completed") return "success";
-  if (normalized === "failed") return "danger";
-  if (normalized === "pending" || normalized === "extracting" || normalized === "grading") return "warning";
-  return "muted";
-}
-
-function renderStatusLabel(status: string, t: (key: string) => string): string {
-  const normalized = status.toLowerCase();
-  if (normalized === "pending") return t("status.pending");
-  if (normalized === "extracting") return t("status.extracting");
-  if (normalized === "grading") return t("status.grading");
-  if (normalized === "completed") return t("status.completed");
-  if (normalized === "failed") return t("status.failed");
-  return status;
 }
 
 function getLocalizedText(obj: any, lang: string): string {
@@ -311,159 +303,33 @@ export default function AuditDashboard() {
 
   return (
     <div className="audit-container">
-      <section aria-label={t("sm.auditDashboard.filterTitle")}>
-        <Card title={t("sm.auditDashboard.filterTitle")}>
-          <div className="audit-filter-section">
-            <SearchableSelect 
-              label={t("sm.audit.project")} 
-              value={state.filters.projectId} 
-              onChange={(val) => dispatch({ type: "SET_FILTER", key: "projectId", value: val })}
-              options={projectsList.map(p => ({ value: p.project_id, label: p.project_name || p.project_id }))}
-              placeholder={t("sm.auditDashboard.projectPlaceholder")}
-            />
-            <SearchableSelect 
-              label={t("sm.audit.document")} 
-              value={state.filters.documentId} 
-              onChange={(val) => dispatch({ type: "SET_FILTER", key: "documentId", value: val })}
-              disabled={!state.filters.projectId}
-              options={documentsList.map(d => ({ value: String(d.document_id), label: d.document_name }))}
-              placeholder={t("sm.auditDashboard.documentPlaceholder")}
-              hideValue={true}
-            />
-            <SearchableSelect 
-              label={t("sm.audit.version")} 
-              value={state.filters.versionId} 
-              onChange={(val) => dispatch({ type: "SET_FILTER", key: "versionId", value: val })}
-              disabled={!state.filters.documentId}
-              options={versionsList.map(v => ({ value: String(v.document_version_id), label: v.version }))}
-              placeholder={t("sm.auditDashboard.versionPlaceholder")}
-              hideValue={true}
-            />
-            <Select 
-              label={t("common.status")} 
-              value={state.filters.status} 
-              onChange={(e) => dispatch({ type: "SET_FILTER", key: "status", value: e.target.value })}
-              options={[
-                { value: "", label: t("sm.auditDashboard.statusAll") },
-                { value: "PENDING", label: t("status.pending") },
-                { value: "EXTRACTING", label: t("status.extracting") },
-                { value: "GRADING", label: t("status.grading") },
-                { value: "COMPLETED", label: t("status.completed") },
-                { value: "FAILED", label: t("status.failed") }
-              ]}
-            />
-            <Input 
-              label={t("sm.auditDashboard.fromTime")} 
-              type="datetime-local"
-              value={state.filters.fromTime} 
-              onChange={(e) => dispatch({ type: "SET_FILTER", key: "fromTime", value: e.target.value })}
-            />
-            <Input 
-              label={t("sm.auditDashboard.toTime")} 
-              type="datetime-local"
-              value={state.filters.toTime} 
-              onChange={(e) => dispatch({ type: "SET_FILTER", key: "toTime", value: e.target.value })}
-            />
-          </div>
+      <AuditFiltersSection
+        t={t}
+        filters={state.filters}
+        projectsList={projectsList}
+        documentsList={documentsList}
+        versionsList={versionsList}
+        canExport={canExport}
+        isExporting={isExporting}
+        onSetFilter={(key, value) => dispatch({ type: "SET_FILTER", key, value })}
+        onReset={() => dispatch({ type: "RESET_FILTERS" })}
+        onRefresh={fetchRows}
+        onExport={runExport}
+      />
 
-          <div className="audit-actions">
-            <Button variant="ghost" onClick={() => dispatch({ type: "RESET_FILTERS" })} size="md">
-              {t("sm.auditDashboard.reset")}
-            </Button>
-            <Button variant="outline" onClick={fetchRows} size="md">
-              {t("sm.common.retry")}
-            </Button>
-            <Button 
-              variant="primary" 
-              onClick={runExport} 
-              disabled={!canExport || isExporting}
-              isLoading={isExporting}
-              size="md"
-            >
-              {t("submissions.exportExcel")}
-            </Button>
-          </div>
-        </Card>
-      </section>
-
-      <section aria-label={t("sm.auditDashboard.tableTitle")}>
-        <div className="ds-table-container">
-          <table className="ds-table ds-table--compact">
-            <thead>
-              <tr>
-                <th style={{ width: '80px' }}>{t("sm.audit.gradingRun")}</th>
-                <th style={{ width: '22%' }}>{t("sm.audit.project")}</th>
-                <th style={{ width: '22%' }}>{t("sm.audit.document")}</th>
-                <th style={{ width: '90px' }}>{t("sm.audit.version")}</th>
-                <th style={{ width: '100px' }}>{t("project.totalScore")}</th>
-                <th style={{ width: '130px' }}>{t("common.status")}</th>
-                <th style={{ width: '170px' }}>{t("project.reviewedAt")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {state.status === "loading" ? (
-                <tr><td colSpan={7}><LoadingState title={t("common.loading")} /></td></tr>
-              ) : state.status === "empty" ? (
-                <tr><td colSpan={7}><EmptyState title={t("sm.auditDashboard.empty")} compact /></td></tr>
-              ) : (
-                state.rows.map((row) => (
-                  <tr
-                    key={row.id}
-                    onClick={() => handleSelectRun(row.id)}
-                    className={`audit-table-row ${state.selectedRunId === row.id ? 'is-active' : ''}`}
-                  >
-                    <td>#{String(row.id)}</td>
-                    <td className="ds-text-truncate" title={String(row.project_name || row.project_id)}>
-                      {String(row.project_name || row.project_id || t("common.noValue"))}
-                    </td>
-                    <td className="ds-text-truncate" title={String(row.document_name || '')}>
-                      {String(row.document_name || t("common.noValue"))}
-                    </td>
-                    <td>{String(row.document_version || t("common.noValue"))}</td>
-                    <td className="font-bold">{typeof row.total_score === "number" ? `${row.total_score}/100` : "—"}</td>
-                    <td>
-                      <StatusBadge tone={mapStatusTone(row.status)}>
-                        {renderStatusLabel(row.status, t)}
-                      </StatusBadge>
-                    </td>
-                    <td className="text-muted" style={{ fontSize: '11px' }}>
-                      {row.graded_at ? new Date(row.graded_at).toLocaleString() : "—"}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-
-          <div className="audit-pagination" style={{ borderTop: '1px solid var(--ds-color-border)', paddingTop: '16px', marginTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div className="audit-pagination-info">
-              {String(t("common.pagination", { 
-                start: state.filters.offset + 1, 
-                end: state.filters.offset + state.rows.length,
-                total: state.rows.length 
-              }))}
-            </div>
-            <div className="audit-pagination-btns" style={{ display: 'flex', gap: '8px' }}>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                disabled={state.filters.offset === 0} 
-                onClick={() => dispatch({ type: "SET_FILTER", key: "offset", value: Math.max(0, state.filters.offset - state.filters.limit) })}
-              >
-                <ChevronLeftIcon size="sm" />
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                disabled={state.rows.length < state.filters.limit} 
-                onClick={() => dispatch({ type: "SET_FILTER", key: "offset", value: state.filters.offset + state.filters.limit })}
-              >
-                <ChevronRightIcon size="sm" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
+      <AuditRunsTableSection
+        t={t}
+        status={state.status}
+        rows={state.rows}
+        selectedRunId={state.selectedRunId}
+        offset={state.filters.offset}
+        limit={state.filters.limit}
+        onSelectRun={handleSelectRun}
+        onPreviousPage={() =>
+          dispatch({ type: "SET_FILTER", key: "offset", value: Math.max(0, state.filters.offset - state.filters.limit) })
+        }
+        onNextPage={() => dispatch({ type: "SET_FILTER", key: "offset", value: state.filters.offset + state.filters.limit })}
+      />
 
       <section aria-label={t("sm.auditDashboard.detailTitle")}>
         <Card title={t("sm.auditDashboard.detailTitle")}>
@@ -499,18 +365,18 @@ export default function AuditDashboard() {
                 <div className="audit-detail-item">
                   <span className="audit-detail-label">{String(t("common.status"))}</span>
                   <div className="audit-detail-value" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <StatusBadge tone={mapStatusTone(state.selectedRunDetail.grading_run.status)}>
-                      {renderStatusLabel(state.selectedRunDetail.grading_run.status, t)}
+                    <StatusBadge tone={auditStatusTone(state.selectedRunDetail.grading_run.status)}>
+                      {auditStatusLabel(state.selectedRunDetail.grading_run.status, t)}
                     </StatusBadge>
-                    {(state.selectedRunDetail.grading_run.status || "").toLowerCase() === "failed" && (
+                    {isFailedAuditStatus(state.selectedRunDetail.grading_run.status) && (
                       <Button variant="ghost" size="sm" onClick={handleReGrade} title={String(t("sm.common.retry"))}>
                         <RefreshIcon size="sm" />
                       </Button>
                     )}
                   </div>
                 </div>
-                <DetailField label={String(t("project.reviewedAt"))} value={state.selectedRunDetail.grading_run.graded_at ? new Date(state.selectedRunDetail.grading_run.graded_at).toLocaleString() : "—"} />
-                {(state.selectedRunDetail.grading_run.status || "").toLowerCase() === "failed" && (
+                <DetailField label={String(t("project.reviewedAt"))} value={auditReviewedAtLabel(state.selectedRunDetail.grading_run.graded_at)} />
+                {isFailedAuditStatus(state.selectedRunDetail.grading_run.status) && (
                   <div className="audit-detail-item" style={{ gridColumn: '1 / -1', borderLeft: '4px solid var(--ds-color-danger)' }}>
                     <span className="audit-detail-label" style={{ color: 'var(--ds-color-danger)' }}>
                       <AlertCircleIcon size="sm" /> {String(t("common.error"))}

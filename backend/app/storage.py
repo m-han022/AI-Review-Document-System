@@ -44,6 +44,11 @@ from app.repositories.grading_repository import GradingRepository
 from app.services.file_service import FileStorageService
 from app.services.upload_service import UploadService
 from app.services.grading_service import GradingService
+from app.services.submission_read_models import (
+    build_document_summary_row,
+    build_project_summary_row,
+    build_version_summary_row,
+)
 
 
 @dataclass
@@ -255,15 +260,17 @@ class SubmissionStore:
             graded_at=run.graded_at,
         )
 
+    def _latest_run_for_submission(self, session: Session, submission_id: int) -> GradingRun | None:
+        return GradingRepository(session).get_latest_run_for_submission(submission_id)
+
+    def _latest_run_for_document_version(self, session: Session, document_version_id: int) -> GradingRun | None:
+        return GradingRepository(session).get_latest_run_for_document_version(document_version_id)
+
     def _to_record(self, session: Session, submission: Submission) -> SubmissionRecord:
         repo = SubmissionRepository(session)
         latest_version = repo.get_latest_document_version(submission.id or 0)
         latest_document = repo.get_document_for_version(latest_version) if latest_version else None
-        latest_run = session.exec(
-            select(GradingRun)
-            .where(GradingRun.submission_id == (submission.id or 0))
-            .order_by(col(GradingRun.graded_at).desc(), col(GradingRun.id).desc())
-        ).first()
+        latest_run = self._latest_run_for_submission(session, submission.id or 0)
         
         return SubmissionRecord(
             id=submission.id or 0,
@@ -435,16 +442,8 @@ class SubmissionStore:
 
                 # Resolve latest grading run from actual run history (source of truth),
                 # instead of relying on Submission.latest_grading_run_id which can be stale.
-                latest_run = session.exec(
-                    select(GradingRun)
-                    .where(GradingRun.submission_id == sub.id)
-                    .order_by(col(GradingRun.graded_at).desc(), col(GradingRun.id).desc())
-                ).first()
-                latest_score = (
-                    (latest_run.total_score if latest_run.total_score is not None else latest_run.score)
-                    if latest_run
-                    else None
-                )
+                latest_run = self._latest_run_for_submission(session, sub.id or 0)
+                latest_run_out = self._run_out(session, latest_run) if latest_run else None
 
                 latest_doc = session.exec(
                     select(SubmissionDocument)
@@ -453,16 +452,17 @@ class SubmissionStore:
                 ).first()
                 latest_updated_at = latest_doc.updated_at if latest_doc else sub.uploaded_at
 
-                results.append({
-                    "project_id": sub.project_id,
-                    "project_name": sub.project_name,
-                    "total_documents": int(total_docs),
-                    "latest_updated_at": latest_updated_at,
-                    "latest_score": latest_score,
-                    "latest_status": (latest_run.status if latest_run else sub.status).lower(),
-                    "latest_error_message": latest_run.error_message if latest_run else None,
-                    "project_description": sub.project_description
-                })
+                results.append(
+                    build_project_summary_row(
+                        project_id=sub.project_id,
+                        project_name=sub.project_name,
+                        total_documents=int(total_docs),
+                        latest_updated_at=latest_updated_at,
+                        latest_run_out=latest_run_out,
+                        fallback_status=sub.status,
+                        project_description=sub.project_description,
+                    )
+                )
             return results
 
     def list_document_versions(self, project_id: str) -> list[DocumentVersionOut]:
@@ -504,25 +504,21 @@ class SubmissionStore:
                 ).first()
                 
                 run = None
-                latest_score = None
+                run_out = None
                 if latest_version:
-                    run = session.exec(
-                        select(GradingRun)
-                        .where(GradingRun.document_version_id == latest_version.id)
-                        .order_by(col(GradingRun.graded_at).desc(), col(GradingRun.id).desc())
-                    ).first()
-                    latest_score = (run.total_score if run.total_score is not None else run.score) if run else None
+                    run = self._latest_run_for_document_version(session, latest_version.id)
+                    run_out = self._run_out(session, run) if run else None
 
-                results.append({
-                    "document_id": doc.id,
-                    "document_type": doc.document_type,
-                    "document_name": doc.document_name,
-                    "latest_version": latest_version.document_version if latest_version else None,
-                    "latest_uploaded_at": latest_version.uploaded_at if latest_version else doc.updated_at,
-                    "latest_score": latest_score,
-                    "latest_status": (run.status if run else "pending").lower(),
-                    "latest_error_message": run.error_message if run else None
-                })
+                results.append(
+                    build_document_summary_row(
+                        document_id=doc.id or 0,
+                        document_type=doc.document_type,
+                        document_name=doc.document_name,
+                        latest_version=latest_version,
+                        fallback_uploaded_at=doc.updated_at,
+                        latest_run_out=run_out,
+                    )
+                )
             return results
 
     def list_versions_by_document(self, document_id: int) -> list[dict]:
@@ -532,24 +528,10 @@ class SubmissionStore:
             
             results = []
             for v in versions:
-                run = session.exec(
-                    select(GradingRun)
-                    .where(GradingRun.document_version_id == v.id)
-                    .order_by(col(GradingRun.graded_at).desc(), col(GradingRun.id).desc())
-                ).first()
-                
-                results.append({
-                    "document_version_id": v.id,
-                    "version": v.document_version,
-                    "filename": v.original_filename,
-                    "uploaded_at": v.uploaded_at,
-                    "is_latest": bool(v.is_latest),
-                    "content_hash": v.content_hash,
-                    "binary_hash": v.binary_hash,
-                    "latest_grading_score": (run.total_score if run.total_score is not None else run.score) if run else None,
-                    "latest_status": (run.status if run else "pending").lower(),
-                    "latest_error_message": run.error_message if run else None
-                })
+                run = self._latest_run_for_document_version(session, v.id or 0)
+                run_out = self._run_out(session, run) if run else None
+
+                results.append(build_version_summary_row(version=v, latest_run_out=run_out))
             return results
 
     def list_gradings_by_version(self, document_version_id: int) -> list[dict]:

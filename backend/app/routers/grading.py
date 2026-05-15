@@ -4,6 +4,7 @@ from app.storage import store
 from app.models import GradeResponse, GradeRequest, SubmissionDocumentVersion, Submission, EvaluationSet, SlideReviewOut
 from app.database import engine, get_session
 from app.config import settings
+from app.celery_app import celery_app
 from app.tasks import grade_document_version_task
 from app.repositories.submission_repository import SubmissionRepository
 from app.repositories.grading_repository import GradingRepository
@@ -24,6 +25,42 @@ from app.services.evaluation_set_service import ensure_active_evaluation_set
 
 def _ensure_active_evaluation_set(session: Session, document_type: str, level: str) -> EvaluationSet:
     return ensure_active_evaluation_set(session, document_type, level)
+
+
+def _assert_async_runtime_ready() -> None:
+    try:
+        broker_connection = celery_app.connection_for_read()
+        broker_connection.ensure_connection(max_retries=1)
+        broker_connection.release()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Async grading is enabled but the Celery broker is not reachable. "
+                "Start Redis or disable USE_CELERY for local development."
+            ),
+        ) from exc
+
+    try:
+        inspector = celery_app.control.inspect(timeout=0.5)
+        ping_result = inspector.ping() or {}
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Async grading is enabled but Celery worker inspection failed. "
+                "Start a Celery worker or disable USE_CELERY for local development."
+            ),
+        ) from exc
+
+    if not ping_result:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Async grading is enabled but no Celery worker is responding. "
+                "Start a Celery worker or disable USE_CELERY for local development."
+            ),
+        )
 
 async def _perform_grading(
     service: GradingService,
@@ -86,6 +123,7 @@ async def _perform_grading(
 
             # Check if we should use Celery
             if settings.use_celery:
+                _assert_async_runtime_ready()
                 # Dispatch task for each document
                 run = service.create_pending_run(
                     submission_id=submission.id,

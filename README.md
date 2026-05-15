@@ -85,6 +85,45 @@ npm install
 npm run dev
 ```
 
+### Local Dev Scripts (Recommended on Windows)
+
+For local development, prefer the repo scripts instead of enabling Celery by default.
+
+#### Sync local mode (safe default)
+
+```powershell
+cd e:\workspace\AI-Review-Document-System
+.\scripts\start-dev.ps1
+```
+
+- Forces `USE_CELERY=false` for the local backend process.
+- Prevents orphaned `PENDING` grading runs when Redis / Celery worker are not running.
+- Recommended for normal UI/API development.
+
+#### Async local mode (explicit)
+
+```powershell
+cd e:\workspace\AI-Review-Document-System
+.\scripts\start-dev-async.ps1
+```
+
+- Starts local frontend/backend in async mode.
+- Expects Redis on `localhost:6379`.
+- If Redis is missing and Docker is available, the script starts the `redis` service from `docker-compose.yml`.
+- Also starts a local Celery worker process.
+
+#### Stop local processes
+
+```powershell
+.\scripts\stop-dev.ps1
+```
+
+To stop Redis started through Docker as well:
+
+```powershell
+.\scripts\stop-dev.ps1 -StopRedis
+```
+
 ### 2. Production-like Mode (Docker)
 
 ```bash
@@ -381,6 +420,31 @@ If `pip install -r requirements.txt` fails at `watchfiles` on Windows with Pytho
 1. Use `backend/requirements_temp.txt` (filtered version) or manually install dependencies excluding `watchfiles`.
 2. Run backend without `--reload` if `watchfiles` is missing: `python -m uvicorn app.main:app --host 0.0.0.0 --port 8000`.
 
+### Windows NPM Permission Issue (`EPERM ... lstat C:\Users\...`)
+If `npm run dev` fails with `EPERM` related to user profile path resolution, use the project dev scripts instead:
+
+```powershell
+cd e:\workspace\AI-Review-Document-System
+.\scripts\start-dev.ps1
+```
+
+Stop backend/frontend and local Celery worker:
+
+```powershell
+.\scripts\stop-dev.ps1
+```
+
+If you used async local mode and want to stop Docker Redis too:
+
+```powershell
+.\scripts\stop-dev.ps1 -StopRedis
+```
+
+The fallback script starts:
+- Backend: `python -m uvicorn app.main:app --host 0.0.0.0 --port 8000`
+- Frontend: `node node_modules/vite/bin/vite.js --host 0.0.0.0 --port 5173`
+- Default local mode is synchronous (`USE_CELERY=false`) to avoid stuck `PENDING` runs.
+- For explicit async local testing, use `.\scripts\start-dev-async.ps1`.
 
 ---
 

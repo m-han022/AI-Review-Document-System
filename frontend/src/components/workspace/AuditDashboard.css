@@ -35,6 +35,20 @@
   border-left: 4px solid var(--ds-color-primary);
 }
 
+.audit-status-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.audit-status-reason {
+  max-width: 180px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--ds-color-danger-dark);
+}
+
 .audit-detail-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));

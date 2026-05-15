@@ -5,6 +5,11 @@ import { AreaChart, Area, ResponsiveContainer } from "recharts";
 import { exportSubmissionsExcel, getSubmission } from "../../api/client";
 import { API_BASE_URL } from "../../config";
 import type { Project, LanguageCode, Submission } from "../../types";
+import {
+  buildLatestRows,
+  buildOperationalMetrics,
+  hasReviewedScore,
+} from "./operationalScreens.helpers";
 import { useTranslation } from "../LanguageSelector";
 import { formatUploadedAt } from "../submissions/utils";
 import { getLocalizedText } from "../../locales/utils";
@@ -184,22 +189,7 @@ export default function OperationalScreen({
   });
   const currentRole: AppRole = "admin";
   const canExport = canPerform("review.export", { role: currentRole }, defaultPermissionFlags);
-  const metrics = useMemo(() => {
-    const reviewed = projects.filter((p) => p.latest_score !== null);
-    const pending = projects.length - reviewed.length;
-    const needsAction = reviewed.filter((p) => (p.latest_score ?? 0) < 80);
-    const avgScore = reviewed.length
-      ? Math.round(reviewed.reduce((sum, p) => sum + (p.latest_score ?? 0), 0) / reviewed.length)
-      : null;
-
-    const trend = projects
-      .filter(p => p.latest_score !== null)
-      .sort((a, b) => new Date(a.latest_updated_at).getTime() - new Date(b.latest_updated_at).getTime())
-      .slice(-10)
-      .map(p => ({ value: p.latest_score }));
-
-    return { reviewed, pending, needsAction, avgScore, trend };
-  }, [projects]);
+  const metrics = useMemo(() => buildOperationalMetrics(projects), [projects]);
 
   const handleProcess = async (project: Project) => {
     const score = project.latest_score ?? 0;
@@ -227,13 +217,7 @@ export default function OperationalScreen({
     }
   };
 
-  const latestRows = useMemo(
-    () =>
-      [...projects]
-        .sort((a, b) => new Date(b.latest_updated_at).getTime() - new Date(a.latest_updated_at).getTime())
-        .slice(0, 8),
-    [projects],
-  );
+  const latestRows = useMemo(() => buildLatestRows(projects), [projects]);
   return (
     <div className="workspace-stack">
       <div className="toolbar" style={{ justifyContent: 'flex-start', marginBottom: '24px', gap: '12px' }}>
@@ -588,7 +572,7 @@ export default function OperationalScreen({
             {latestRows.length ? (
               latestRows.map((project) => {
                 const score = project.latest_score;
-                const reviewed = typeof score === "number";
+                const reviewed = hasReviewedScore(project);
                 return (
                   <tr 
                     key={project.project_id} 

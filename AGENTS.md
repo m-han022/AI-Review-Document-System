@@ -401,3 +401,115 @@ Không overwrite
   3. Regression risk
   4. Có cần API mới không
 - Nếu cần backend rewrite lớn hoặc đổi business flow: **không implement**.
+
+---
+
+# REFACTOR WORKFLOW RULES
+
+## Mandatory For Large Refactor Tasks
+
+Nếu nhiệm vụ là refactor / restructure / clean architecture / modularization:
+
+- KHÔNG được code ngay.
+- BẮT BUỘC đọc và phân tích structure hiện tại trước.
+- BẮT BUỘC lập refactor plan trước khi implement.
+- Chỉ được implement sau khi plan được approve rõ ràng.
+
+## Required First Output For Refactor Tasks
+
+Output đầu tiên phải gồm:
+
+1. Current project structure
+2. Main structural/code issues
+3. Refactor goals
+4. Refactor phases
+5. Concrete refactor tickets
+6. Risks
+7. Validation plan
+
+- Không được bỏ qua bước plan rồi chuyển thẳng sang implement.
+
+## Phase Rules
+
+- Refactor phải chia theo phase nhỏ.
+- Mỗi phase phải có:
+  - scope rõ
+  - expected outcome
+  - affected modules
+  - regression risk
+  - rollback approach
+- Mỗi phase phải có tiêu chí hoàn thành rõ ràng trước khi chuyển phase tiếp theo.
+- Không thực hiện big-bang rewrite.
+
+## Scope Protection
+
+- Không sửa file không liên quan.
+- Không move/rename module lớn nếu chưa có lý do rõ và plan tương ứng.
+- Không thay đổi public API / request / response contract nếu chưa được yêu cầu rõ.
+- Không thay đổi DB schema hoặc persistence contract âm thầm.
+
+## Behavior Protection
+
+- Refactor phải giữ nguyên behavior hiện tại trừ khi có yêu cầu khác.
+- Nếu có thay đổi behavior bắt buộc, phải nêu rõ:
+  - old behavior
+  - new behavior
+  - reason
+  - impact
+
+## Validation Gate
+
+Mỗi phase phải nêu rõ validation cần chạy theo đúng module bị ảnh hưởng. Tối thiểu nếu có liên quan:
+
+- Backend: pytest
+- Frontend: typecheck
+- Frontend: build
+- Lint: nếu project/module hiện có lint config
+- Nếu có thay đổi cấu trúc module hoặc wiring runtime: phải nêu rõ smoke test / flow test cần chạy.
+- Nếu không chạy được test/build thì phải nói rõ chưa chạy được gì và vì sao.
+
+## Subagent Collaboration
+
+Với task lớn có nhiều phần độc lập, phải chia vai rõ cho subagents nếu có sử dụng subagents:
+
+- Architecture analysis agent
+- Backend refactor agent
+- Frontend refactor agent
+- Validation/review agent
+
+Main agent chịu trách nhiệm:
+
+- tổng hợp plan
+- chia phase
+- kiểm soát scope
+- review output của subagents
+- đảm bảo consistency cuối cùng
+- không được giao toàn bộ critical path cho subagent mà không có integration review ở main agent
+
+## Risk And Rollback
+
+Mỗi refactor phase phải có:
+
+- risk chính
+- impact area
+- rollback strategy hoặc fallback strategy
+- trigger rõ để quyết định rollback hoặc dừng rollout
+
+## Modular Restructuring Principles
+
+Khi tái cấu trúc theo hướng clean architecture / modular design:
+
+- Tách rõ domain logic, application/service logic, infrastructure, presentation.
+- Dependency direction phải rõ, không để module high-level phụ thuộc ngược vào low-level details.
+- Legacy code phải được cô lập dần qua adapter/facade nếu cần.
+- Ưu tiên strangler pattern hơn là rewrite toàn bộ.
+- Không phá backward compatibility nếu chưa có approval rõ.
+- Ưu tiên refactor theo seam hiện có thay vì tách module đồng loạt nếu chưa có test coverage đủ an toàn.
+
+## Forbidden Actions During Refactor
+
+- Không big-bang rewrite.
+- Không đổi public API ngầm.
+- Không đổi behavior ngầm.
+- Không thêm thư viện mới nếu chưa thực sự cần.
+- Không xóa test cũ nếu không có lý do và thay thế tương ứng.
