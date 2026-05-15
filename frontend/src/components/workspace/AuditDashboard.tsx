@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useState } from "react";
+﻿import { useEffect, useMemo, useReducer, useState } from "react";
 import "./AuditDashboard.css";
 import {
   auditReviewedAtLabel,
@@ -392,16 +392,16 @@ export default function AuditDashboard() {
               <section className="audit-detail-section">
                 <header className="audit-section-header">
                   <h3 className="ds-title-h3" style={{ fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <SparkIcon size="sm" /> {String(t("project.criteriaDetailTitle") || "Phân tích chi tiết từng tiêu chí")}
+                    <SparkIcon size="sm" /> {String(t("project.criteriaDetailTitle") || "PhÃ¢n tÃ­ch chi tiáº¿t tá»«ng tiÃªu chÃ­")}
                   </h3>
                 </header>
                 <div className="ds-table-container">
                   <table className="ds-table ds-table--compact">
                     <thead>
                       <tr>
-                        <th style={{ width: '25%' }}>{t("project.criteria") || "Tiêu chí"}</th>
-                        <th style={{ width: '10%', textAlign: 'center' }}>{t("project.metaScore") || "Điểm"}</th>
-                        <th>{t("project.feedbackTitle") || "Nhận xét từ AI"}</th>
+                        <th style={{ width: '25%' }}>{t("project.criteria") || "TiÃªu chÃ­"}</th>
+                        <th style={{ width: '10%', textAlign: 'center' }}>{t("project.metaScore") || "Äiá»ƒm"}</th>
+                        <th>{t("project.feedbackTitle") || "Nháº­n xÃ©t tá»« AI"}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -433,15 +433,15 @@ export default function AuditDashboard() {
               </section>
 
               {/* Slide Feedback Section */}
-              {state.selectedRunDetail.slide_reviews && state.selectedRunDetail.slide_reviews.length > 0 && (
+              {((state.selectedRunDetail.page_reviews && state.selectedRunDetail.page_reviews.length > 0) || (state.selectedRunDetail.slide_reviews && state.selectedRunDetail.slide_reviews.length > 0)) && (
                 <section className="audit-detail-section">
                   <header className="audit-section-header" style={{ marginBottom: '16px' }}>
                     <h3 className="ds-title-h3" style={{ fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <LayersIcon size="sm" /> {String(t("project.slideDetailTitle") || "Nhận xét chi tiết từng trang")}
+                      <LayersIcon size="sm" /> {String(t("project.slideDetailTitle") || "Nháº­n xÃ©t chi tiáº¿t tá»«ng trang")}
                     </h3>
                   </header>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {Array.isArray(state.selectedRunDetail.slide_reviews) && state.selectedRunDetail.slide_reviews.map((slide, idx) => {
+                    {Array.isArray((state.selectedRunDetail.page_reviews ?? state.selectedRunDetail.slide_reviews)) && (state.selectedRunDetail.page_reviews ?? state.selectedRunDetail.slide_reviews)!.map((slide, idx) => {
                       if (!slide) return null;
                       return (
                         <div key={idx} style={{ 
@@ -463,7 +463,7 @@ export default function AuditDashboard() {
                                 fontWeight: 700,
                                 fontSize: '14px'
                               }}>
-                                {String(slide.slide_number)}
+                                {String((slide.page_number ?? slide.slide_number))}
                               </div>
                               <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600 }}>
                                 {getLocalizedText(slide.title, getLanguage()) || String(t("project.noTitle"))}
@@ -509,7 +509,7 @@ export default function AuditDashboard() {
                                 }}>
                                   <SparkIcon size="sm" style={{ marginTop: '2px' }} />
                                   <div>
-                                    <strong>Gợi ý từ AI:</strong> {getLocalizedText(slide.suggestions, getLanguage())}
+                                    <strong>Gá»£i Ã½ tá»« AI:</strong> {getLocalizedText(slide.suggestions, getLanguage())}
                                   </div>
                                 </div>
                               </div>
@@ -527,7 +527,7 @@ export default function AuditDashboard() {
                 <section className="audit-detail-section">
                   <header className="audit-section-header" style={{ marginBottom: '16px' }}>
                     <h3 className="ds-title-h3" style={{ fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <TrendingUpIcon size="sm" /> {String(t("project.finalPromptSnapshot") || "Prompt thực tế đã sử dụng")}
+                      <TrendingUpIcon size="sm" /> {String(t("project.finalPromptSnapshot") || "Prompt thá»±c táº¿ Ä‘Ã£ sá»­ dá»¥ng")}
                     </h3>
                   </header>
                   <pre style={{ 
@@ -563,3 +563,4 @@ function DetailField({ label, value }: { label: string; value: string | number }
     </div>
   );
 }
+

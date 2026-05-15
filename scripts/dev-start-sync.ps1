@@ -19,15 +19,18 @@ if ($UseCelery) {
 }
 
 Write-Host "[dev] Starting backend on :8000"
-Start-Process python `
-  -ArgumentList "-m","uvicorn","app.main:app","--host","0.0.0.0","--port","8000" `
-  -WorkingDirectory $backendDir `
+if ($UseCelery) {
+  $backendUseCelery = "true"
+} else {
+  $backendUseCelery = "false"
+}
+Start-Process powershell `
+  -ArgumentList "-NoExit","-Command","Set-Location '$backendDir'; Write-Host '[backend] USE_CELERY=' '$backendUseCelery'; `$env:USE_CELERY='$backendUseCelery'; python -m uvicorn app.main:app --host 127.0.0.1 --port 8000" `
   -WindowStyle Normal
 
 Write-Host "[dev] Starting frontend on :5173"
-Start-Process node `
-  -ArgumentList "node_modules/vite/bin/vite.js","--host","0.0.0.0","--port","5173" `
-  -WorkingDirectory $frontendDir `
+Start-Process powershell `
+  -ArgumentList "-NoExit","-Command","Set-Location '$frontendDir'; node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5173" `
   -WindowStyle Normal
 
 if ($UseCelery) {

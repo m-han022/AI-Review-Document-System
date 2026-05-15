@@ -80,7 +80,7 @@ class SubmissionStore:
     Maintains backward compatibility for existing code.
     """
 
-    _RUN_STUCK_TIMEOUT_SECONDS = 60 * 30
+    _RUN_STUCK_TIMEOUT_SECONDS = settings.grading_run_stuck_timeout_seconds
 
     @staticmethod
     def _parse_iso_utc(value: str | None) -> datetime | None:
@@ -241,9 +241,10 @@ class SubmissionStore:
                 )
                 for item in criteria
             ],
-            slide_reviews=[
+            page_reviews=[
                 SlideReviewOut(
                     id=item.id or 0,
+                    page_number=item.page_number or item.slide_number,
                     slide_number=item.slide_number,
                     status="OK" if item.status == "OK" else "NG",
                     title=item.title,
@@ -349,6 +350,8 @@ class SubmissionStore:
                     criteria_result_count=criteria_counts_map.get(run.id or 0, 0),
                     slide_review_count=len(slide_rows),
                     ng_slide_count=ng_slide_count,
+                    page_review_count=len(slide_rows),
+                    ng_page_count=ng_slide_count,
                     issue_count=issue_count_value,
                 )
             )
@@ -646,12 +649,12 @@ class SubmissionStore:
                 for d in top_regressors:
                     insights.append(f"Regression found in '{d.key}' ({d.delta}).")
                     
-                ok_a = sum(1 for s in base_run_out.slide_reviews if s.status == "OK")
-                ok_b = sum(1 for s in compare_run_out.slide_reviews if s.status == "OK")
+                ok_a = sum(1 for s in base_run_out.page_reviews if s.status == "OK")
+                ok_b = sum(1 for s in compare_run_out.page_reviews if s.status == "OK")
                 ok_delta = ok_b - ok_a
                 
-                ng_a = sum(1 for s in base_run_out.slide_reviews if s.status == "NG")
-                ng_b = sum(1 for s in compare_run_out.slide_reviews if s.status == "NG")
+                ng_a = sum(1 for s in base_run_out.page_reviews if s.status == "NG")
+                ng_b = sum(1 for s in compare_run_out.page_reviews if s.status == "NG")
                 ng_delta = ng_b - ng_a
                 
                 if ok_delta > 0:
@@ -669,8 +672,8 @@ class SubmissionStore:
                 compare_run=compare_run_out,
                 score_delta=score_delta,
                 criteria_deltas=criteria_deltas,
-                ok_slide_delta=ok_delta,
-                ng_slide_delta=ng_delta,
+                ok_page_delta=ok_delta,
+                ng_page_delta=ng_delta,
                 insights=insights
             )
 
@@ -853,7 +856,7 @@ class SubmissionStore:
                 grading_run=run_out,
                 rubric=rubric_out,
                 criteria_results=run_out.criteria_results,
-                slide_reviews=run_out.slide_reviews or [],
+                page_reviews=run_out.page_reviews or [],
             )
 
     def save_upload(self, **kwargs) -> SubmissionRecord:

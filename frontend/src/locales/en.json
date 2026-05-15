@@ -638,6 +638,7 @@
     "loadingGradingData": "Loading grading data...",
     "tabAnalysis": "Criteria Analysis",
     "downloadToView": "Download to view",
+    "aiProofLabel": "Evidence from document",
     "aiProofDisclaimer": "[Showing text data only. Image data is analyzed but not displayed here]",
     "hideJson": "Hide JSON",
     "showJson": "Show JSON",

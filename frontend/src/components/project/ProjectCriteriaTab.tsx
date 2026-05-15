@@ -19,14 +19,31 @@ export default function ProjectCriteriaTab({
 
   // Derive evaluations
   const criteriaWithEvaluations = useMemo(() => {
+    const normalize = (str: string) =>
+      (str || "")
+        .toLowerCase()
+        .replace(/[0-9]+[.)]/g, "")
+        .replace(/[*#:\-]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    const fallbackByKey: Record<string, string> = {};
+    const fullDraftFeedback = feedbackSections
+      .flatMap((section) => section.lines || [])
+      .filter(Boolean)
+      .join("\n")
+      .trim();
+
     return orderedScores.map(score => {
       const detail = gradingDetail?.criteria_results.find(cr => cr.key === score.key);
       const suggestion = getLocalizedText(detail?.suggestion as any, lang);
-      const normalize = (str: string) => str.toLowerCase().replace(/[0-9]+[.)]/g, "").replace(/\s+/g, "").trim();
-      let evaluation = suggestion;
-      if (!evaluation && (score.key === "review_tong_the" || score.key === "summary")) {
+      let evaluation = suggestion || fallbackByKey[score.key] || "";
+      if (!evaluation) {
+        evaluation = fullDraftFeedback;
+      }
+      if (!evaluation) {
         const firstSection = feedbackSections.find(s => normalize(s.title).length < 3) || feedbackSections[0];
-        if (firstSection) evaluation = `${t("project.derivedFromDraftFeedback")}: ${firstSection.lines.join(" ")}`;
+        if (firstSection) evaluation = firstSection.lines.join("\n");
       }
 
       return {
@@ -187,12 +204,12 @@ export default function ProjectCriteriaTab({
                           margin: 0,
                           whiteSpace: 'pre-wrap'
                         }}>
-                          {item.evaluation.split('\n').map((para, pidx) => (
+                          {item.evaluation.split('\n').filter(Boolean).map((para, pidx) => (
                             <p key={pidx} style={{ marginBottom: '8px' }}>
                               {para.startsWith('-') || para.startsWith('â€¢') 
                                 ? <span style={{ display: 'block', paddingLeft: '12px', position: 'relative' }}>
                                     <span style={{ position: 'absolute', left: 0, color: 'var(--ds-color-primary)' }}>â€¢</span>
-                                    {para.substring(1).trim()}
+                                    {para.replace(/^[-â€¢]\s*/, "").trim()}
                                   </span>
                                 : para
                               }

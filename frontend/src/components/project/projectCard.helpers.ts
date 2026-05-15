@@ -1,6 +1,6 @@
-import { isUploadCriterionKey } from "../../constants/uploadCriteria";
+﻿import { isUploadCriterionKey } from "../../constants/uploadCriteria";
 import { getLocalizedText } from "../../locales/utils";
-import type { LanguageCode, SlideReview } from "../../types";
+import type { LanguageCode, PageReview } from "../../types";
 import { formatUploadedAt } from "../submissions/utils";
 import { toBusinessStatus } from "../ui/businessStatus";
 import {
@@ -85,7 +85,7 @@ export function splitFeedbackSections(lines: string[]): FeedbackSectionView[] {
     // Handle markdown/numbered headers and keep inline content after ":" / "-" when present.
     if (/^(?:#{1,6}\s+)?(?:\*\*)?[0-9]+[.)]\s*/.test(line)) {
       const normalized = line.replace(/[*#]/g, "").trim();
-      const parts = normalized.split(/[:：]\s*| -\s+| –\s+| —\s+/, 2);
+      const parts = normalized.split(/[:ï¼š]\s*| -\s+| â€“\s+| â€”\s+/, 2);
       const title = (parts[0] || "").trim();
       const inlineContent = (parts[1] || "").trim();
       sections.push({ title, lines: inlineContent ? [inlineContent] : [] });
@@ -99,13 +99,13 @@ export function splitFeedbackSections(lines: string[]): FeedbackSectionView[] {
 }
 
 
-export function buildSlideReviewItems(
-  slideReviews: SlideReview[] | undefined,
+export function buildPageReviewItems(
+  PageReviews: PageReview[] | undefined,
   lang: LanguageCode,
   t: (key: string) => string,
   extractedText?: string,
 ) {
-  const reviews = slideReviews || [];
+  const reviews = PageReviews || [];
   let maxPage = 0;
   if (extractedText) {
     const pageMatches = extractedText.match(/\[(?:Page|Slide)\s+(\d+)\]/g);
@@ -114,9 +114,14 @@ export function buildSlideReviewItems(
     }
   }
   const safeReviews = Array.isArray(reviews) ? reviews : [];
-  const totalSlides = Math.max(maxPage, safeReviews.length ? Math.max(...safeReviews.map((r) => r.slide_number)) : 0);
+  const totalSlides = Math.max(
+    maxPage,
+    safeReviews.length
+      ? Math.max(...safeReviews.map((r) => Number(r.page_number ?? r.slide_number ?? 0)))
+      : 0,
+  );
   const results = [];
-  const reviewMap = new Map(safeReviews.map((r) => [Number(r.slide_number), r]));
+  const reviewMap = new Map(safeReviews.map((r) => [Number(r.page_number ?? r.slide_number), r]));
   for (let i = 1; i <= totalSlides; i++) {
     const item = reviewMap.get(i);
     if (item) {
@@ -127,6 +132,7 @@ export function buildSlideReviewItems(
       const suggestions = getLocalizedText(item.suggestions, lang);
       results.push({
         ...item,
+        page_number: Number((item as any).page_number ?? item.slide_number),
         displayTitle: title || (t("project.slideNumber") || "Slide {number}").replace("{number}", String(i)),
         summary: summary || t("project.noIssuesDetected"),
         issues,
@@ -135,7 +141,7 @@ export function buildSlideReviewItems(
     } else {
       results.push({
         id: -i,
-        slide_number: i,
+        page_number: i,
         status: "OK" as const,
         displayTitle: (t("project.slideNumber") || "Slide {number}").replace("{number}", String(i)),
         summary: t("project.noIssuesDetected"),
@@ -144,10 +150,16 @@ export function buildSlideReviewItems(
       });
     }
   }
-  return results.sort((a, b) => a.slide_number - b.slide_number);
+  return results.sort((a, b) => a.page_number - b.page_number);
 }
 
-export function getCriterionLabel(key: string, t: (key: string) => string) {
+export function getCriterionLabel(
+  key: string,
+  t: (key: string) => string,
+  rubricLabelMap?: Record<string, string>,
+) {
+  const runtimeLabel = rubricLabelMap?.[key]?.trim();
+  if (runtimeLabel) return runtimeLabel;
   if (!isUploadCriterionKey(key)) return key;
   switch (key) {
     case "review_tong_the": return t("upload.criteria.review_tong_the");
@@ -170,3 +182,4 @@ export function getCriterionLabel(key: string, t: (key: string) => string) {
     default: return key;
   }
 }
+

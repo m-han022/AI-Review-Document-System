@@ -43,33 +43,45 @@ export default function ProjectReportView({
   gradingDetail,
   verdictText
 }: Props) {
-  const { slideReviewItems } = slidesViewModel;
+  const { pageReviewItems } = slidesViewModel;
 
 
 
   // Logic to extract slide-specific evidence (same as ProjectSlidesTab)
   const getSlideEvidence = (slideNum: number) => {
     if (!extractedText) return null;
-    const startMarker = `[Slide ${slideNum}]`;
-    const nextMarker = `[Slide ${slideNum + 1}]`;
-    const startIdx = extractedText.indexOf(startMarker);
+    const startMarkerPage = `[Page ${slideNum}]`;
+    const nextMarkerPage = `[Page ${slideNum + 1}]`;
+    const startMarkerSlide = `[Slide ${slideNum}]`;
+    const nextMarkerSlide = `[Slide ${slideNum + 1}]`;
+    let startIdx = extractedText.indexOf(startMarkerPage);
+    let endIdx = -1;
+    let markerLen = startMarkerPage.length;
+    if (startIdx !== -1) {
+      endIdx = extractedText.indexOf(nextMarkerPage, startIdx + markerLen);
+    } else {
+      startIdx = extractedText.indexOf(startMarkerSlide);
+      markerLen = startMarkerSlide.length;
+      if (startIdx !== -1) {
+        endIdx = extractedText.indexOf(nextMarkerSlide, startIdx + markerLen);
+      }
+    }
     if (startIdx === -1) return null;
-    const endIdx = extractedText.indexOf(nextMarker, startIdx + startMarker.length);
-    return extractedText.substring(startIdx + startMarker.length, endIdx === -1 ? extractedText.length : endIdx).trim();
+    return extractedText.substring(startIdx + markerLen, endIdx === -1 ? extractedText.length : endIdx).trim();
   };
 
   // Extract NG slides for priority section
-  const ngSlides = slideReviewItems.filter(s => s.status === "NG").slice(0, 4);
+  const ngSlides = pageReviewItems.filter(s => s.status === "NG").slice(0, 4);
 
   const checklistItems = useMemo(() => {
     const fromCriteria = (gradingDetail?.criteria_results || [])
       .map((item: any) => getLocalizedText(item?.suggestion as any, lang))
       .filter(Boolean);
-    const fromSlides = slideReviewItems
+    const fromSlides = pageReviewItems
       .map((item) => (item?.suggestions || "").toString().trim())
       .filter(Boolean);
     return Array.from(new Set([...fromCriteria, ...fromSlides])).slice(0, 8);
-  }, [gradingDetail, slideReviewItems, lang]);
+  }, [gradingDetail, pageReviewItems, lang]);
 
   // Calculate detailed evaluations (replicated from ProjectCriteriaTab)
   const criteriaWithEvaluations = useMemo(() => {
@@ -258,7 +270,7 @@ export default function ProjectReportView({
             {ngSlides.map((slide, idx) => (
               <div key={idx} style={{ padding: '15px', border: '1px solid #fee2e2', background: '#fef2f2', borderRadius: '8px' }}>
                 <div style={{ fontWeight: 800, fontSize: '12px', color: '#b91c1c', marginBottom: '5px' }}>
-                  {t("project.slideLabel")} {slide.slide_number}
+                  Page {slide.page_number ?? slide.slide_number}
                 </div>
                 <div style={{ fontSize: '13px', color: '#450a0a', lineHeight: '1.4' }}>{slide.summary}</div>
               </div>
@@ -273,12 +285,13 @@ export default function ProjectReportView({
           <LayersIcon size="sm" /> {t("project.tabSlidesResult")}
         </h2>
         <div className="report-print-slides-list">
-          {slideReviewItems.map((slide) => {
-            const evidence = getSlideEvidence(slide.slide_number);
+          {pageReviewItems.map((slide) => {
+            const pageNum = slide.page_number ?? slide.slide_number;
+            const evidence = getSlideEvidence(pageNum);
             return (
               <div key={slide.id} className={`report-print-slide-item ${slide.status === "NG" ? 'is-ng' : ''}`}>
                 <div className="report-print-slide-item__header">
-                  <span className="report-print-slide-number">{t("project.slideLabel")} {slide.slide_number}</span>
+                  <span className="report-print-slide-number">Page {pageNum}</span>
                   <StatusBadge 
                     tone={slide.status === "NG" ? "danger" : "success"}
                     icon={slide.status === "NG" ? <AlertCircleIcon size="sm" /> : <CheckCircleIcon size="sm" />}

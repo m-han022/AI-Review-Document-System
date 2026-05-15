@@ -1,10 +1,10 @@
-# Scripts Guide
+﻿# Scripts Guide
 
 ## Canonical local dev scripts
 
-- `start-dev.ps1`: local sync mode, safe default for day-to-day development.
-- `start-dev-async.ps1`: local async mode with Redis + Celery worker expectations.
-- `stop-dev.ps1`: stop local frontend/backend/worker; use `-StopRedis` to stop Docker Redis too.
+- `dev-start-sync.ps1`: local sync mode, safe default for day-to-day development.
+- `dev-start-async.ps1`: local async mode with Redis + Celery worker expectations.
+- `dev-stop.ps1`: stop local frontend/backend/worker; use `-StopRedis` to stop Docker Redis too.
 
 ## Presentation generators
 
@@ -19,3 +19,4 @@
 
 - Generated `.pptx` outputs belong in the repo-level `artifacts/` directory, not under `scripts/`.
 - One-off backend migration and verification helpers that are no longer part of the main workflow were moved to `backend/scripts/archive/`.
+

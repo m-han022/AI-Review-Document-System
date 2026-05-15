@@ -18,6 +18,7 @@ from app.services.excel_export import build_submissions_excel
 from app.storage import store
 from app.database import engine
 from sqlmodel import Session
+from app.services.evidence_pdf_service import ensure_evidence_pdf
 
 router = APIRouter()
 
@@ -113,14 +114,23 @@ class DeleteProjectsRequest(BaseModel):
     project_ids: list[str]
 
 
+class EvidenceStatusOut(BaseModel):
+    version_id: int
+    status: str
+    message: str | None = None
+
+
 def _resolve_submission_file(filename: str, file_path: str | None = None) -> Path:
     uploads_root = UPLOADS_DIR.resolve()
-    file_path_obj = Path(file_path).resolve() if file_path else (uploads_root / Path(filename).name).resolve()
+    fallback_path = (uploads_root / Path(filename).name).resolve()
+    file_path_obj = Path(file_path).resolve() if file_path else fallback_path
     try:
         file_path_obj.relative_to(uploads_root)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail="Invalid file path") from exc
-    return file_path_obj
+        return file_path_obj
+    except ValueError:
+        # Legacy/test data may keep absolute temp paths outside uploads.
+        # Fall back to the canonical uploads location for safe file serving.
+        return fallback_path
 
 
 def _media_type_for_file(filename: str) -> str:
@@ -139,13 +149,20 @@ async def get_submission_file(project_id: str, disposition: str = "inline"):
         raise HTTPException(status_code=404, detail=f"Project {project_id} not found")
 
     file_path = _resolve_submission_file(submission.filename, submission.file_path)
+    filename = submission.filename
+    if (not file_path.exists() or not file_path.is_file()) and submission.latest_document_version_id:
+        with Session(engine) as session:
+            latest_version = session.get(SubmissionDocumentVersion, submission.latest_document_version_id)
+            if latest_version:
+                file_path = _resolve_submission_file(latest_version.original_filename, latest_version.file_path)
+                filename = latest_version.original_filename
     if not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=404, detail=f"File for project {project_id} not found")
 
     return FileResponse(
         path=file_path,
-        media_type=_media_type_for_file(submission.filename),
-        filename=submission.filename,
+        media_type=_media_type_for_file(filename),
+        filename=filename,
         content_disposition_type="attachment" if disposition == "attachment" else "inline",
     )
 
@@ -167,6 +184,57 @@ async def get_version_file(document_version_id: int, disposition: str = "inline"
             media_type=_media_type_for_file(version.original_filename),
             filename=version.original_filename,
             content_disposition_type="attachment" if disposition == "attachment" else "inline",
+        )
+
+
+@router.get("/versions/{document_version_id}/evidence-file", tags=["Projects"])
+async def get_version_evidence_file(document_version_id: int, disposition: str = "inline"):
+    with Session(engine) as session:
+        version = session.get(SubmissionDocumentVersion, document_version_id)
+        if not version:
+            raise HTTPException(status_code=404, detail=f"Version {document_version_id} not found")
+
+        evidence_path = Path(version.evidence_pdf_path).resolve() if version.evidence_pdf_path else None
+        if evidence_path and evidence_path.exists() and evidence_path.is_file():
+            return FileResponse(
+                path=evidence_path,
+                media_type="application/pdf",
+                filename=f"{Path(version.original_filename).stem}.pdf",
+                content_disposition_type="attachment" if disposition == "attachment" else "inline",
+            )
+
+        source_path = _resolve_submission_file(version.original_filename, version.file_path)
+        pdf_path, status, error = ensure_evidence_pdf(str(source_path), document_version_id)
+        version.evidence_pdf_path = pdf_path
+        version.evidence_pdf_status = status
+        version.evidence_pdf_error = error
+        session.add(version)
+        session.commit()
+
+        if status != "COMPLETED" or not pdf_path:
+            raise HTTPException(
+                status_code=422,
+                detail={"error_code": "EVIDENCE_PDF_UNAVAILABLE", "message": error or "Evidence PDF unavailable"},
+            )
+
+        return FileResponse(
+            path=pdf_path,
+            media_type="application/pdf",
+            filename=f"{Path(version.original_filename).stem}.pdf",
+            content_disposition_type="attachment" if disposition == "attachment" else "inline",
+        )
+
+
+@router.get("/versions/{document_version_id}/evidence-status", response_model=EvidenceStatusOut, tags=["Projects"])
+async def get_version_evidence_status(document_version_id: int):
+    with Session(engine) as session:
+        version = session.get(SubmissionDocumentVersion, document_version_id)
+        if not version:
+            raise HTTPException(status_code=404, detail=f"Version {document_version_id} not found")
+        return EvidenceStatusOut(
+            version_id=document_version_id,
+            status=version.evidence_pdf_status or "PENDING",
+            message=version.evidence_pdf_error,
         )
 
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections import Counter as InMemoryCounter
+from collections import Counter as InMemoryCounter, defaultdict, deque
 from threading import Lock
 from typing import Final
 
@@ -8,6 +8,7 @@ from app.observability import log_event
 
 LABEL_KEYS: Final[tuple[str, str, str]] = ("document_type", "prompt_level", "status")
 API_LABEL_KEYS: Final[tuple[str, str, str]] = ("method", "route", "status_code")
+EVALSET_LABEL_KEYS: Final[tuple[str, str, str, str]] = ("document_type", "prompt_level", "status", "evaluation_set_id")
 COUNTER_NAMES: Final[tuple[str, ...]] = (
     "grading_run_created_total",
     "grading_run_reused_total",
@@ -27,6 +28,10 @@ _mem_export_duration_sum: InMemoryCounter[tuple[str, str]] = InMemoryCounter()
 _mem_export_duration_count: InMemoryCounter[tuple[str, str]] = InMemoryCounter()
 _mem_audit_query_duration_sum: InMemoryCounter[tuple[str]] = InMemoryCounter()
 _mem_audit_query_duration_count: InMemoryCounter[tuple[str]] = InMemoryCounter()
+_mem_evalset_duration_sum: InMemoryCounter[tuple[str, str, str, str]] = InMemoryCounter()
+_mem_evalset_duration_count: InMemoryCounter[tuple[str, str, str, str]] = InMemoryCounter()
+_mem_evalset_latency_samples: dict[tuple[str, str, str, str], deque[float]] = defaultdict(lambda: deque(maxlen=200))
+_mem_resolution_reason_count: InMemoryCounter[tuple[str]] = InMemoryCounter()
 
 try:
     from prometheus_client import Counter as PromCounter  # type: ignore
@@ -54,6 +59,20 @@ def _normalize_api_labels(method: str, route: str, status_code: int | str) -> tu
         (method or "UNKNOWN").strip().upper(),
         (route or "unknown").strip(),
         str(status_code),
+    )
+
+
+def _normalize_evalset_labels(
+    document_type: str,
+    prompt_level: str,
+    status: str,
+    evaluation_set_id: int | None,
+) -> tuple[str, str, str, str]:
+    return (
+        (document_type or "unknown").strip().lower(),
+        (prompt_level or "unknown").strip().lower(),
+        (status or "unknown").strip().upper(),
+        str(evaluation_set_id) if evaluation_set_id is not None else "none",
     )
 
 
@@ -238,6 +257,53 @@ def observe_audit_query_duration_seconds(duration_seconds: float, *, status: str
         histogram.labels(status=normalized_status).observe(float(duration_seconds))
 
 
+def observe_evalset_duration_seconds(
+    duration_seconds: float,
+    *,
+    document_type: str,
+    prompt_level: str,
+    status: str,
+    evaluation_set_id: int | None,
+) -> None:
+    labels = _normalize_evalset_labels(document_type, prompt_level, status, evaluation_set_id)
+    with _lock:
+        _mem_evalset_duration_sum[labels] += float(duration_seconds)
+        _mem_evalset_duration_count[labels] += 1
+        _mem_evalset_latency_samples[labels].append(float(duration_seconds))
+
+    if PromHistogram is not None:
+        histogram = _prom_histograms.get("grading_evalset_duration_seconds")
+        if histogram is None:
+            histogram = PromHistogram(
+                "grading_evalset_duration_seconds",
+                "grading_evalset_duration_seconds histogram",
+                list(EVALSET_LABEL_KEYS),
+            )
+            _prom_histograms["grading_evalset_duration_seconds"] = histogram
+        histogram.labels(
+            document_type=labels[0],
+            prompt_level=labels[1],
+            status=labels[2],
+            evaluation_set_id=labels[3],
+        ).observe(float(duration_seconds))
+
+
+def get_evalset_latency_samples() -> dict[tuple[str, str, str, str], list[float]]:
+    with _lock:
+        return {k: list(v) for k, v in _mem_evalset_latency_samples.items()}
+
+
+def inc_resolution_reason_total(reason: str, amount: int = 1) -> None:
+    normalized = (reason or "unknown").strip()
+    with _lock:
+        _mem_resolution_reason_count[(normalized,)] += int(amount)
+
+
+def get_resolution_reason_totals() -> dict[str, int]:
+    with _lock:
+        return {k[0]: int(v) for k, v in _mem_resolution_reason_count.items()}
+
+
 def render_prometheus_metrics() -> str:
     if prom_generate_latest is not None:
         return prom_generate_latest().decode("utf-8")
@@ -305,6 +371,17 @@ def render_prometheus_metrics() -> str:
         for labels, value in _mem_audit_query_duration_count.items():
             lines.append(
                 f'audit_query_duration_seconds_count{{status="{labels[0]}"}} {float(value)}'
+            )
+
+        lines.append("# TYPE grading_evalset_duration_seconds_sum counter")
+        for labels, value in _mem_evalset_duration_sum.items():
+            lines.append(
+                f'grading_evalset_duration_seconds_sum{{document_type="{labels[0]}",prompt_level="{labels[1]}",status="{labels[2]}",evaluation_set_id="{labels[3]}"}} {float(value)}'
+            )
+        lines.append("# TYPE grading_evalset_duration_seconds_count counter")
+        for labels, value in _mem_evalset_duration_count.items():
+            lines.append(
+                f'grading_evalset_duration_seconds_count{{document_type="{labels[0]}",prompt_level="{labels[1]}",status="{labels[2]}",evaluation_set_id="{labels[3]}"}} {float(value)}'
             )
 
     return "\n".join(lines) + "\n"

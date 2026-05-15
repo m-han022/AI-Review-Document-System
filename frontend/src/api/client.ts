@@ -24,8 +24,17 @@ import type {
   FinalPromptPreviewResponse,
   EvaluationSet,
   EvaluationSetDetail,
+  EvaluationSetRuntimeHealthResponse,
   AuditRunsFilter,
 } from "../types";
+
+function evalSetResourcePath(): string {
+  return "evaluation-bundles";
+}
+
+async function fetchMgmtEvalset(path: string, init?: RequestInit): Promise<Response> {
+  return fetch(`${API_BASE_URL}/mgmt/${path}`, init);
+}
 
 // Language setting
 let currentLanguage = normalizeLanguage(localStorage.getItem(UI_LANGUAGE_STORAGE_KEY) || DEFAULT_UI_LANGUAGE);
@@ -342,6 +351,17 @@ export function getSubmissionFileUrl(projectId: string, disposition: "inline" | 
 export function getVersionFileUrl(versionId: number, disposition: "inline" | "attachment" = "inline") {
   const params = new URLSearchParams({ disposition });
   return `${API_BASE_URL}/versions/${versionId}/file?${params.toString()}`;
+}
+
+export function getVersionEvidenceFileUrl(versionId: number, disposition: "inline" | "attachment" = "inline") {
+  const params = new URLSearchParams({ disposition });
+  return `${API_BASE_URL}/versions/${versionId}/evidence-file?${params.toString()}`;
+}
+
+export async function getVersionEvidenceStatus(versionId: number): Promise<{ version_id: number; status: string; message?: string | null }> {
+  const res = await fetch(`${API_BASE_URL}/versions/${versionId}/evidence-status`);
+  if (!res.ok) throw new Error(`Failed to fetch evidence status: ${res.statusText}`);
+  return res.json();
 }
 
 export async function uploadFile(formData: FormData) {
@@ -918,20 +938,20 @@ export async function listEvaluationSets(documentType?: string, level?: string):
   const params = new URLSearchParams();
   if (documentType) params.set("document_type", documentType);
   if (level) params.set("level", level);
-  const res = await fetch(`${API_BASE_URL}/mgmt/evaluation-sets?${params.toString()}`);
+  const res = await fetchMgmtEvalset(`${evalSetResourcePath()}?${params.toString()}`);
   if (!res.ok) throw createApiError("EVALUATION_SET_FETCH_FAILED", "Failed to fetch evaluation sets", res.status, res.statusText);
   return res.json();
 }
 
 export async function getActiveEvaluationSet(documentType: string, level: string): Promise<EvaluationSet> {
   const params = new URLSearchParams({ document_type: documentType, level });
-  const res = await fetch(`${API_BASE_URL}/mgmt/evaluation-sets/active?${params.toString()}`);
+  const res = await fetchMgmtEvalset(`${evalSetResourcePath()}/active?${params.toString()}`);
   if (!res.ok) throw createApiError("EVALUATION_SET_FETCH_FAILED", "Failed to fetch active evaluation set", res.status, res.statusText);
   return res.json();
 }
 
 export async function getEvaluationSetDetail(id: number): Promise<EvaluationSetDetail> {
-  const res = await fetch(`${API_BASE_URL}/mgmt/evaluation-sets/by-id/${id}`);
+  const res = await fetchMgmtEvalset(`${evalSetResourcePath()}/by-id/${id}`);
   if (!res.ok) throw createApiError("EVALUATION_SET_FETCH_FAILED", "Failed to fetch evaluation set detail", res.status, res.statusText);
   return res.json();
 }
@@ -939,10 +959,10 @@ export async function getEvaluationSetDetail(id: number): Promise<EvaluationSetD
 export async function createEvaluationSet(payload: {
   base_set_id: number;
   name: string;
-  changes: { rubric_content?: string | null; prompt_content?: string | null; policy_content?: string | null; required_rules_content?: string | null };
+  changes: { rubric_content?: string | null; rubric_criteria?: string | null; prompt_content?: string | null; policy_content?: string | null; required_rules_content?: string | null };
   activate: boolean;
 }): Promise<EvaluationSet> {
-  const res = await fetch(`${API_BASE_URL}/mgmt/evaluation-sets`, {
+  const res = await fetchMgmtEvalset(`${evalSetResourcePath()}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -955,7 +975,7 @@ export async function createEvaluationSet(payload: {
 }
 
 export async function activateEvaluationSet(id: number): Promise<EvaluationSet> {
-  const res = await fetch(`${API_BASE_URL}/mgmt/evaluation-sets/${id}/activate`, { method: "POST" });
+  const res = await fetchMgmtEvalset(`${evalSetResourcePath()}/${id}/activate`, { method: "POST" });
   if (!res.ok) throw new Error(`Failed to activate evaluation set: ${res.statusText}`);
   return res.json();
 }
@@ -965,7 +985,7 @@ export async function bootstrapEvaluationSet(payload: {
   level: string;
   name?: string;
 }): Promise<EvaluationSet> {
-  const res = await fetch(`${API_BASE_URL}/mgmt/evaluation-sets/bootstrap`, {
+  const res = await fetchMgmtEvalset(`${evalSetResourcePath()}/bootstrap`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -987,6 +1007,46 @@ export async function getGlobalDefaults(): Promise<GlobalDefaults> {
   const res = await fetch(`${API_BASE_URL}/mgmt/defaults/v2/global`);
   if (!res.ok) throw new Error(`Failed to fetch global defaults: ${res.statusText}`);
   return res.json();
+}
+
+export async function validateEvaluationSet(id: number): Promise<EvaluationSet> {
+  const base = evalSetResourcePath();
+  const endpoint = base === "evaluation-bundles" ? `${base}/${id}/validate` : `${base}/${id}/activate`;
+  const res = await fetchMgmtEvalset(endpoint, { method: "POST" });
+  if (!res.ok) throw new Error(`Failed to validate evaluation set: ${res.statusText}`);
+  return res.json();
+}
+
+export async function approveEvaluationSet(id: number): Promise<EvaluationSet> {
+  const base = evalSetResourcePath();
+  const endpoint = base === "evaluation-bundles" ? `${base}/${id}/approve` : `${base}/${id}/activate`;
+  const res = await fetchMgmtEvalset(endpoint, { method: "POST" });
+  if (!res.ok) throw new Error(`Failed to approve evaluation set: ${res.statusText}`);
+  return res.json();
+}
+
+export async function archiveEvaluationSet(id: number): Promise<EvaluationSet> {
+  const base = evalSetResourcePath();
+  const endpoint = base === "evaluation-bundles" ? `${base}/${id}/archive` : `${base}/${id}/activate`;
+  const res = await fetchMgmtEvalset(endpoint, { method: "POST" });
+  if (!res.ok) throw new Error(`Failed to archive evaluation set: ${res.statusText}`);
+  return res.json();
+}
+
+export async function getEvaluationSetRuntimeHealth(): Promise<EvaluationSetRuntimeHealthResponse> {
+  const res = await fetch(`${API_BASE_URL}/metrics/evaluation-sets/health`);
+  if (!res.ok) throw new Error(`Failed to fetch evaluation set runtime health: ${res.statusText}`);
+  const data = await res.json();
+  return {
+    items: Array.isArray(data?.items) ? data.items : [],
+    thresholds: {
+      fail_rate: Number(data?.thresholds?.fail_rate ?? 0.2),
+      p95_latency_seconds: Number(data?.thresholds?.p95_latency_seconds ?? 120),
+    },
+    resolution_reason_totals: typeof data?.resolution_reason_totals === "object" && data?.resolution_reason_totals
+      ? data.resolution_reason_totals
+      : {},
+  };
 }
 
 

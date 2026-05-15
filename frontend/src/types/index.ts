@@ -1,4 +1,4 @@
-export const SUPPORTED_LANGUAGES = ["vi", "ja", "en"] as const;
+﻿export const SUPPORTED_LANGUAGES = ["vi", "ja", "en"] as const;
 export type LanguageCode = (typeof SUPPORTED_LANGUAGES)[number];
 
 export interface CriteriaResult {
@@ -8,9 +8,11 @@ export interface CriteriaResult {
   suggestion?: Record<string, unknown> | null;
 }
 
-export interface SlideReview {
+export interface PageReview {
   id: number;
-  slide_number: number;
+  page_number: number;
+  // Backward-compatible fallback from legacy payloads.
+  slide_number?: number;
   status: "OK" | "NG";
   title?: Record<string, string> | null;
   summary?: Record<string, string> | null;
@@ -30,6 +32,7 @@ export interface GradingRun {
   prompt_version?: string | null;
   prompt_level?: PromptLevel | string | null;
   evaluation_set_id?: number | null;
+  evaluation_resolution_reason?: string | null;
   policy_version?: string | null;
   policy_hash?: string | null;
   required_rule_hash?: string | null;
@@ -38,7 +41,8 @@ export interface GradingRun {
   grading_schema_version?: string | null;
   final_prompt_snapshot?: string | null;
   criteria_results: CriteriaResult[];
-  slide_reviews?: SlideReview[];
+  slide_reviews?: PageReview[];
+  page_reviews?: PageReview[];
   issue_breakdown?: Record<string, number>;
   draft_feedback: Record<string, string> | null;
   status: string;
@@ -192,7 +196,9 @@ export interface GradingRunDetail {
   grading_run: GradingRun;
   rubric?: RubricVersion | null;
   criteria_results: CriteriaResult[];
-  slide_reviews: SlideReview[];
+  page_reviews: PageReview[];
+  // Legacy fallback (adapter only).
+  slide_reviews?: PageReview[];
 }
 
 export interface CriteriaDelta {
@@ -306,7 +312,8 @@ export interface GradeResponse {
   criteria_scores?: Record<string, number>;
   criteria_suggestions?: Record<string, unknown>;
   draft_feedback: Record<string, string>;
-  slide_reviews?: SlideReview[];
+  slide_reviews?: PageReview[];
+  page_reviews?: PageReview[];
   graded_at: string;
   language: LanguageCode;
   status?: string;
@@ -474,3 +481,26 @@ export interface EvaluationSetDetail extends EvaluationSet {
     sort_order?: number;
   }>;
 }
+
+export interface EvaluationSetRuntimeHealthItem {
+  evaluation_set_id: number | null;
+  document_type: string;
+  prompt_level: string;
+  status: string;
+  run_count: number;
+  avg_latency_seconds: number;
+  p95_latency_seconds?: number;
+  failed_rate_scope: number;
+  recent_counts?: number[];
+}
+
+export interface EvaluationSetRuntimeHealthResponse {
+  items: EvaluationSetRuntimeHealthItem[];
+  thresholds: {
+    fail_rate: number;
+    p95_latency_seconds: number;
+  };
+  resolution_reason_totals?: Record<string, number>;
+}
+
+

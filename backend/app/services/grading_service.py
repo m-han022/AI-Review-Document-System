@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 import json
 import time
 from datetime import datetime, timezone
@@ -17,7 +17,7 @@ from app.services.grading_engine import build_grading_signature, grade_submissio
 from app.services.gemini_manager import GeminiRateLimitError
 from app.services.distributed_lock import grading_lock
 from app.services.issue_analytics import issue_breakdown
-from app.metrics import inc_counter, observe_duration_seconds
+from app.metrics import inc_counter, observe_duration_seconds, observe_evalset_duration_seconds
 from app.observability import log_error, log_event
 
 ALLOWED_STATUS_TRANSITIONS: dict[str, set[str]] = {
@@ -333,6 +333,13 @@ class GradingService:
                 prompt_level=prompt_level,
                 status="COMPLETED",
             )
+            observe_evalset_duration_seconds(
+                time.monotonic() - started_monotonic,
+                document_type=signature.get("document_type", "unknown"),
+                prompt_level=prompt_level,
+                status="COMPLETED",
+                evaluation_set_id=evaluation_set_id,
+            )
 
             return result_data
 
@@ -370,6 +377,13 @@ class GradingService:
                 prompt_level=prompt_level,
                 status="FAILED",
             )
+            observe_evalset_duration_seconds(
+                time.monotonic() - started_monotonic,
+                document_type=signature.get("document_type", "unknown"),
+                prompt_level=prompt_level,
+                status="FAILED",
+                evaluation_set_id=evaluation_set_id,
+            )
             # Even on failure, we want to track this as the latest run for the project
             submission.latest_grading_run_id = run.id
             self.submission_repo.add(submission)
@@ -398,7 +412,7 @@ class GradingService:
         run.final_prompt_snapshot = result_data.get("final_prompt_snapshot")
         run.evaluation_set_id = result_data.get("evaluation_set_id")
         run.draft_feedback = result_data["draft_feedback"]
-        run.status = "COMPLETED"
+        run.status = result_data.get("status", "COMPLETED")
         run.graded_at = datetime.now(timezone.utc).isoformat()
         
         self.grading_repo.add(run)
@@ -431,10 +445,11 @@ class GradingService:
             self.grading_repo.add(criterion)
 
         # Save slide reviews
-        for rev in result_data["slide_reviews"]:
+        for rev in (result_data.get("page_reviews") or result_data.get("slide_reviews") or []):
             slide_review = GradingSlideReview(
                 grading_run_id=run.id,
-                slide_number=rev["slide_number"],
+                slide_number=rev.get("page_number", rev["slide_number"]),
+                page_number=rev.get("page_number", rev["slide_number"]),
                 status=rev["status"],
                 title=rev["title"],
                 summary=rev["summary"],
@@ -501,6 +516,7 @@ class GradingService:
             self.grading_repo.add(GradingSlideReview(
                 grading_run_id=new_run.id,
                 slide_number=item.slide_number,
+                page_number=item.page_number or item.slide_number,
                 status=item.status,
                 title=item.title,
                 summary=item.summary,
@@ -546,8 +562,20 @@ class GradingService:
             # For simplicity, I'll return the full run detail if needed or just minimal for now
             # The grade_submission return format is what we want
             "draft_feedback": new_run.draft_feedback,
-            "slide_reviews": [
+            "page_reviews": [
                 {
+                    "slide_number": s.slide_number,
+                    "page_number": s.page_number or s.slide_number,
+                    "status": s.status,
+                    "title": s.title,
+                    "summary": s.summary,
+                    "issues": s.issues,
+                    "suggestions": s.suggestions
+                } for s in self.grading_repo.get_slide_reviews(new_run.id)
+            ],
+            "page_reviews": [
+                {
+                    "page_number": s.slide_number,
                     "slide_number": s.slide_number,
                     "status": s.status,
                     "title": s.title,
@@ -555,5 +583,6 @@ class GradingService:
                     "issues": s.issues,
                     "suggestions": s.suggestions
                 } for s in self.grading_repo.get_slide_reviews(new_run.id)
-            ]
+            ],
         }
+

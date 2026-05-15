@@ -9,7 +9,7 @@ interface Props {
   feedbackSections: FeedbackSectionView[];
   ngSlideCount: number;
   orderedScores: KPIBarChartProps["data"];
-  slideReviewItems: any[];
+  pageReviewItems: any[];
   actionItems: string[];
 }
 
@@ -18,13 +18,13 @@ export default function ProjectOverviewTab({
   feedbackSections, 
   ngSlideCount, 
   orderedScores,
-  slideReviewItems,
+  pageReviewItems,
   actionItems
 }: Props) {
   useTranslation();
   const hasRenderableFeedback = feedbackSections.some((s) => (s.lines?.length || 0) > 0);
   // Extract top 4 prioritized issues (NG slides)
-  const prioritizedIssues = slideReviewItems
+  const prioritizedIssues = pageReviewItems
     .filter(item => item.status === "NG")
     .slice(0, 4);
 
@@ -173,7 +173,7 @@ export default function ProjectOverviewTab({
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontWeight: 700, fontSize: '12px', color: 'var(--ds-color-danger)' }}>
-                    {t("project.slideLabel")} {issue.slide_number}
+                    Page {issue.page_number ?? issue.slide_number}
                   </span>
                   <div style={{ padding: '2px 6px', background: 'var(--ds-color-danger)', color: 'white', borderRadius: '4px', fontSize: '10px', fontWeight: 800 }}>{t("project.ngBadge")}</div>
                 </div>

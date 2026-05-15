@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { diffWordsWithSpace } from "diff";
 import { useTranslation } from "../LanguageSelector";
 import type { VersionComparison as VersionComparisonData } from "../../types";
-import { isUploadCriterionKey } from "../../constants/uploadCriteria";
+import { getCriterionLabel as getProjectCriterionLabel } from "./projectCard.helpers";
 import { SectionBlock } from "../ui/SectionBlock";
 import Badge from "../ui/Badge";
 import { 
@@ -90,27 +90,9 @@ function DiffText({ oldText, newText }: { oldText: string; newText: string }) {
 export default function VersionComparison({ data }: VersionComparisonProps) {
   const { t, lang } = useTranslation();
   const getCriterionLabel = (key: string) => {
-    if (!isUploadCriterionKey(key)) return key;
-    switch (key) {
-      case "review_tong_the": return t("upload.criteria.review_tong_the");
-      case "diem_tot": return t("upload.criteria.diem_tot");
-      case "diem_xau": return t("upload.criteria.diem_xau");
-      case "chinh_sach": return t("upload.criteria.chinh_sach");
-      case "chat_luong_viet": return t("upload.criteria.chat_luong_viet");
-      case "kha_nang_tai_hien_bug": return t("upload.criteria.kha_nang_tai_hien_bug");
-      case "phan_tich_nguyen_nhan": return t("upload.criteria.phan_tich_nguyen_nhan");
-      case "danh_gia_anh_huong": return t("upload.criteria.danh_gia_anh_huong");
-      case "giai_phap_phong_ngua": return t("upload.criteria.giai_phap_phong_ngua");
-      case "do_ro_rang": return t("upload.criteria.do_ro_rang");
-      case "do_bao_phu": return t("upload.criteria.do_bao_phu");
-      case "kha_nang_truy_vet": return t("upload.criteria.kha_nang_truy_vet");
-      case "tinh_thuc_thi": return t("upload.criteria.tinh_thuc_thi");
-      case "do_ro_rang_de_hieu": return t("upload.criteria.do_ro_rang_de_hieu");
-      case "tinh_day_du_dung_trong_tam": return t("upload.criteria.tinh_day_du_dung_trong_tam");
-      case "tinh_chinh_xac": return t("upload.criteria.tinh_chinh_xac");
-      case "tinh_ung_dung": return t("upload.criteria.tinh_ung_dung");
-      default: return key;
-    }
+    const label = getProjectCriterionLabel(key, t);
+    if (label !== key) return label;
+    return key.replace(/_/g, " ");
   };
 
   const scoreA = data.base_run?.total_score ?? data.base_run?.score ?? null;
@@ -180,13 +162,13 @@ export default function VersionComparison({ data }: VersionComparisonProps) {
              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '24px' }}>
                 <div style={{ textAlign: 'center' }}>
                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#10b981' }}>
-                      {data.base_run?.slide_reviews?.filter(s => s.status === "OK").length ?? 0}
+                      {(data.base_run?.page_reviews ?? data.base_run?.slide_reviews ?? []).filter(s => s.status === "OK").length ?? 0}
                    </div>
                 </div>
                 <div style={{ fontSize: '20px', color: '#94a3b8' }}><ArrowRightIcon size="sm" /></div>
                 <div style={{ textAlign: 'center' }}>
                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#10b981' }}>
-                      {data.compare_run?.slide_reviews?.filter(s => s.status === "OK").length ?? 0}
+                      {(data.compare_run?.page_reviews ?? data.compare_run?.slide_reviews ?? []).filter(s => s.status === "OK").length ?? 0}
                    </div>
                 </div>
              </div>
@@ -202,13 +184,13 @@ export default function VersionComparison({ data }: VersionComparisonProps) {
              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '24px' }}>
                 <div style={{ textAlign: 'center' }}>
                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#ef4444' }}>
-                      {data.base_run?.slide_reviews?.filter(s => s.status === "NG").length ?? 0}
+                      {(data.base_run?.page_reviews ?? data.base_run?.slide_reviews ?? []).filter(s => s.status === "NG").length ?? 0}
                    </div>
                 </div>
                 <div style={{ fontSize: '20px', color: '#94a3b8' }}><ArrowRightIcon size="sm" /></div>
                 <div style={{ textAlign: 'center' }}>
                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#ef4444' }}>
-                      {data.compare_run?.slide_reviews?.filter(s => s.status === "NG").length ?? 0}
+                      {(data.compare_run?.page_reviews ?? data.compare_run?.slide_reviews ?? []).filter(s => s.status === "NG").length ?? 0}
                    </div>
                 </div>
              </div>

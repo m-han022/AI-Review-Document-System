@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 from pydantic import BaseModel
 from sqlalchemy import UniqueConstraint
 from sqlmodel import SQLModel, Field, Column, JSON
@@ -68,6 +68,9 @@ class SubmissionDocumentVersion(SQLModel, table=True):
     filename: str
     original_filename: str
     file_path: Optional[str] = None
+    evidence_pdf_path: Optional[str] = None
+    evidence_pdf_status: str = Field(default="PENDING", index=True)
+    evidence_pdf_error: Optional[str] = None
     extracted_text: str
     content_hash: str = Field(index=True)
     binary_hash: Optional[str] = Field(default=None, index=True)
@@ -203,6 +206,7 @@ class GradingSlideReview(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     grading_run_id: int = Field(foreign_key="gradingrun.id", index=True)
     slide_number: int = Field(index=True)
+    page_number: Optional[int] = Field(default=None, index=True)
     status: str = Field(default="NG", index=True)
     title: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
     summary: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
@@ -227,7 +231,8 @@ class UploadResponse(BaseModel):
 
 class SlideReviewOut(BaseModel):
     id: int
-    slide_number: int
+    page_number: int
+    slide_number: Optional[int] = None
     status: Literal["OK", "NG"]
     title: Optional[Dict[str, Any]] = None
     summary: Optional[Dict[str, Any]] = None
@@ -249,6 +254,7 @@ class GradeResponse(BaseModel):
     prompt_version: Optional[str] = None
     prompt_level: Optional[str] = None
     evaluation_set_id: Optional[int] = None
+    evaluation_resolution_reason: Optional[str] = None
     policy_version: Optional[str] = None
     policy_hash: Optional[str] = None
     required_rule_hash: Optional[str] = None
@@ -258,7 +264,7 @@ class GradeResponse(BaseModel):
     criteria_scores: Optional[Dict[str, float]] = None
     criteria_suggestions: Optional[Dict[str, Any]] = None
     draft_feedback: Optional[Dict[str, Any]] = None
-    slide_reviews: list[SlideReviewOut] = []
+    page_reviews: list[SlideReviewOut] = []
     graded_at: Optional[str] = None
     language: LanguageCode = "ja"
 
@@ -336,7 +342,7 @@ class GradingRunOut(BaseModel):
     grading_schema_version: Optional[str] = None
     final_prompt_snapshot: Optional[str] = None
     criteria_results: list[CriteriaResultOut] = []
-    slide_reviews: list[SlideReviewOut] = []
+    page_reviews: list[SlideReviewOut] = []
     issue_breakdown: Dict[str, int] = {}
     draft_feedback: Optional[Dict[str, Any]] = None
     status: str
@@ -373,6 +379,8 @@ class GradingRunHistoryOut(BaseModel):
     criteria_result_count: int = 0
     slide_review_count: int = 0
     ng_slide_count: int = 0
+    page_review_count: int = 0
+    ng_page_count: int = 0
     issue_count: int = 0
 
 
@@ -465,7 +473,7 @@ class GradingRunDetailOut(BaseModel):
     grading_run: GradingRunOut
     rubric: Optional["RubricVersionOut"] = None
     criteria_results: list[CriteriaResultOut] = []
-    slide_reviews: list[SlideReviewOut] = []
+    page_reviews: list[SlideReviewOut] = []
 
 
 class CriteriaDeltaOut(BaseModel):
@@ -483,8 +491,8 @@ class VersionComparisonOut(BaseModel):
     compare_run: Optional[GradingRunOut] = None
     score_delta: Optional[int] = None
     criteria_deltas: list[CriteriaDeltaOut] = []
-    ok_slide_delta: int = 0
-    ng_slide_delta: int = 0
+    ok_page_delta: int = 0
+    ng_page_delta: int = 0
     insights: list[str] = []
 
 
@@ -599,3 +607,5 @@ class ProjectCreate(BaseModel):
 class ProjectUpdate(BaseModel):
     project_name: Optional[str] = None
     project_description: Optional[str] = None
+
+

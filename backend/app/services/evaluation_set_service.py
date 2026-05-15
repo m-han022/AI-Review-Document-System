@@ -4,10 +4,87 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from sqlmodel import Session, select
-from app.models import EvaluationSet, Rubric, PromptVersion, EvaluationPolicy, RequiredRuleSet
-from app.services.prompt_policy import normalize_prompt_level, _now, get_active_prompt_version, get_active_policy
+from app.models import EvaluationSet, Rubric, PromptVersion, EvaluationPolicy, RequiredRuleSet, RubricCriterionRecord
+from app.services.prompt_policy import normalize_prompt_level, _now, POLICY_TEXT
 from app.services.prompt_composer import get_active_required_rule_set
-from app.rubric import RUBRIC_TEMPLATES_FILE, _normalize_prompt
+from app.rubric import RUBRIC_TEMPLATES, _normalize_prompt
+
+DEFAULT_PROMPT_CONTENT_VI = (
+    "【QUAN TRỌNG: PHẢN HỒI BẰNG TIẾNG VIỆT】\n"
+    "Bạn là chuyên gia PMO. Hãy đánh giá tài liệu theo đúng rubric và policy hiện hành.\n"
+    "Yêu cầu bắt buộc:\n"
+    "- Chỉ trả về JSON hợp lệ theo output schema.\n"
+    "- Không dùng markdown/code block.\n"
+    "- Không bịa thông tin ngoài tài liệu.\n"
+    "- Với từng tiêu chí, nêu rõ Giải thích và Để tăng điểm với hành động cụ thể.\n"
+    "- Review đầy đủ từng slide/page với trạng thái OK/NG, nêu lý do và đề xuất sửa."
+)
+
+
+def _looks_like_mojibake_prompt(content: str) -> bool:
+    text = (content or "").strip()
+    if not text:
+        return False
+    markers = [
+        "QUAN TR?NG",
+        "PH?N H?I",
+        "TI?NG VI?T",
+        "Kh?ng",
+        "B?n l?",
+        "?nh gi?",
+    ]
+    return any(marker in text for marker in markers)
+
+
+def _ensure_active_prompt(session: Session, document_type: str, level: str) -> PromptVersion:
+    active = session.exec(
+        select(PromptVersion).where(
+            PromptVersion.document_type == document_type,
+            PromptVersion.level == level,
+            PromptVersion.status == "active",
+        )
+    ).first()
+    if active:
+        if _looks_like_mojibake_prompt(active.content):
+            active.content = DEFAULT_PROMPT_CONTENT_VI
+            session.add(active)
+            session.commit()
+            session.refresh(active)
+        return active
+    prompt = PromptVersion(
+        document_type=document_type,
+        level=level,
+        version="v1",
+        content=DEFAULT_PROMPT_CONTENT_VI,
+        status="active",
+        created_at=_now(),
+    )
+    session.add(prompt)
+    session.commit()
+    session.refresh(prompt)
+    return prompt
+
+
+def _ensure_active_policy(session: Session, level: str) -> EvaluationPolicy:
+    active = session.exec(
+        select(EvaluationPolicy).where(EvaluationPolicy.level == level, EvaluationPolicy.status == "active")
+    ).first()
+    if active:
+        return active
+    fallback_policy = POLICY_TEXT.get(level) or POLICY_TEXT.get("medium") or "Follow PMO evaluation policy."
+    if isinstance(fallback_policy, dict):
+        fallback_policy = fallback_policy.get("vi") or fallback_policy.get("ja") or json.dumps(fallback_policy, ensure_ascii=False)
+    policy = EvaluationPolicy(
+        level=level,
+        version="v1",
+        content=fallback_policy,
+        status="active",
+        created_at=_now(),
+    )
+    session.add(policy)
+    session.commit()
+    session.refresh(policy)
+    return policy
 
 def _archive_active_sets(session: Session, document_type: str, level: str) -> None:
     lvl = normalize_prompt_level(level)
@@ -65,79 +142,42 @@ def bootstrap_evaluation_set_logic(
             select(Rubric).where(Rubric.document_type == document_type, Rubric.status == "active")
         ).first()
     
-    if not rubric:
-        # We need a rubric. If it's missing, we might need to seed it or fail.
-        # For now, if it's missing, bootstrap will fail, but usually rubrics are seeded on startup.
-        pass
-
-    prompt = session.exec(
-        select(PromptVersion).where(
-            PromptVersion.document_type == document_type,
-            PromptVersion.level == lvl,
-            PromptVersion.status == "active",
+    if not rubric and document_type in RUBRIC_TEMPLATES:
+        template = RUBRIC_TEMPLATES[document_type]
+        timestamp = _now()
+        new_rubric = Rubric(
+            document_type=document_type,
+            version=template.get("version", "v1"),
+            active=True,
+            status="active",
+            prompt=_normalize_prompt(template.get("instruction", {})),
+            created_at=timestamp,
+            updated_at=timestamp,
         )
-    ).first()
-    
-    policy = session.exec(
-        select(EvaluationPolicy).where(EvaluationPolicy.level == lvl, EvaluationPolicy.status == "active")
-    ).first()
+        session.add(new_rubric)
+        session.commit()
+        session.refresh(new_rubric)
 
-    # Note: prompt and policy have auto-seed in prompt_policy.py, 
-    # but here we query directly. To be safe, we could call the get_active_* helpers.
-    if not prompt:
-        from app.services.prompt_policy import get_active_prompt_version
-        prompt = get_active_prompt_version(document_type, lvl)
-    
-    if not policy:
-        from app.services.prompt_policy import get_active_policy
-        policy = get_active_policy(lvl)
+        for index, criterion in enumerate(template.get("criteria", [])):
+            session.add(
+                RubricCriterionRecord(
+                    rubric_id=new_rubric.id,
+                    key=criterion["key"],
+                    max_score=float(criterion["max_score"]),
+                    label_vi=criterion.get("label", {}).get("vi", criterion["key"]),
+                    label_ja=criterion.get("label", {}).get("ja", criterion["key"]),
+                    sort_order=index,
+                )
+            )
+        session.commit()
+        session.refresh(new_rubric)
+        rubric = new_rubric
 
-    if not rubric:
-        # If still no rubric, we can't bootstrap. 
-        # But in a real system, we might want to create a blank or default rubric.
-        # For now, we'll raise an error that will be caught.
-        raise ValueError(f"Cannot bootstrap EvaluationSet: No active rubric for {document_type}")
+    prompt = _ensure_active_prompt(session, document_type, lvl)
+    policy = _ensure_active_policy(session, lvl)
 
     active_rule_set = get_active_required_rule_set(session)
-    
-    if not rubric:
-        # ATTEMPT ON-THE-FLY SEEDING FROM TEMPLATE
-        from app.rubric import RUBRIC_TEMPLATES
-        if document_type in RUBRIC_TEMPLATES:
-            template = RUBRIC_TEMPLATES[document_type]
-            timestamp = _now()
-            from app.models import RubricCriterionRecord
-            
-            # 1. Create Rubric
-            new_rubric = Rubric(
-                document_type=document_type,
-                version=template.get("version", "v1"),
-                active=True,
-                status="active",
-                prompt=_normalize_prompt(template.get("instruction", {})),
-                created_at=timestamp,
-                updated_at=timestamp,
-            )
-            session.add(new_rubric)
-            session.commit()
-            session.refresh(new_rubric)
 
-            # 2. Create Criteria
-            for index, criterion in enumerate(template.get("criteria", [])):
-                session.add(
-                    RubricCriterionRecord(
-                        rubric_id=new_rubric.id,
-                        key=criterion["key"],
-                        max_score=float(criterion["max_score"]),
-                        label_vi=criterion.get("label", {}).get("vi", criterion["key"]),
-                        label_ja=criterion.get("label", {}).get("ja", criterion["key"]),
-                        sort_order=index,
-                    )
-                )
-            session.commit()
-            session.refresh(new_rubric)
-            rubric = new_rubric
-    
     if not rubric:
         # If still no rubric, we can't bootstrap. 
         raise ValueError(f"Cannot bootstrap EvaluationSet: No active rubric for {document_type} and no template found.")

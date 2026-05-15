@@ -14,6 +14,7 @@ from app.services.gemini_manager import get_gemini_client, get_model_for_level
 from app.services.prompt_policy import get_prompt_policy_bundle, normalize_prompt_level, stable_hash
 from app.models import EvaluationSet, Rubric, PromptVersion, EvaluationPolicy, RequiredRuleSet
 from app.services.prompt_composer import PromptComposer, get_active_required_rule_set, parse_required_rules_content
+from app.services.evaluation_bundle_resolver import resolve_evaluation_bundle
 
 _GRADING_CACHE_MAX_SIZE = 200
 
@@ -50,7 +51,7 @@ BILINGUAL_SCHEMA = (
     "\n\nReturn JSON: {score:int, criteria_scores:{key:number}, "
     "criteria_suggestions:{vi:{key:str},ja:{key:str}} (Provide detailed reasoning, issues found AND actionable suggestions), "
     "draft_feedback:{vi:str,ja:str}, "
-    "slide_reviews:[{slide_number:int,status:'OK'|'NG',"
+    "page_reviews:[{page_number:int,status:'OK'|'NG',"
     "title:{vi:str,ja:str},summary:{vi:str,ja:str},"
     "issues:{vi:[str],ja:[str]},suggestions:{vi:str,ja:str}}]}. "
     "All text fields MUST have both vi and ja. NG slides MUST have issues and suggestions."
@@ -137,32 +138,15 @@ def build_grading_signature(
     
     with Session(engine) as session:
         required_rule_set = get_active_required_rule_set(session)
-        eval_set = None
-        if evaluation_set_id is not None:
-            eval_set = session.get(EvaluationSet, evaluation_set_id)
-            if not eval_set:
-                raise ValueError(f"Evaluation set not found: {evaluation_set_id}")
-            if eval_set.status != "active":
-                raise ValueError(f"Evaluation set is not active: {evaluation_set_id}")
-            if document_type and eval_set.document_type != normalized_document_type:
-                raise ValueError(
-                    f"Evaluation set {evaluation_set_id} does not match document_type '{normalized_document_type}'"
-                )
-            normalized_document_type = eval_set.document_type
-            normalized_prompt_level = normalize_prompt_level(eval_set.level)
-        else:
-            eval_set = session.exec(
-                select(EvaluationSet).where(
-                    EvaluationSet.document_type == normalized_document_type,
-                    EvaluationSet.level == normalized_prompt_level,
-                    EvaluationSet.status == "active",
-                )
-            ).first()
-
-        if not eval_set:
-            raise ValueError(
-                f"No active evaluation set for scope: document_type='{normalized_document_type}', level='{normalized_prompt_level}'"
-            )
+        resolved_bundle = resolve_evaluation_bundle(
+            session,
+            document_type=normalized_document_type,
+            level=normalized_prompt_level,
+            evaluation_set_id=evaluation_set_id,
+        )
+        eval_set = resolved_bundle.evaluation_set
+        normalized_document_type = resolved_bundle.document_type
+        normalized_prompt_level = resolved_bundle.level
 
         rubric_obj = session.get(Rubric, eval_set.rubric_version_id)
         prompt_ver = session.get(PromptVersion, eval_set.prompt_version_id)
@@ -213,6 +197,7 @@ def build_grading_signature(
         "project_description_hash": _get_text_hash(project_description or ""),
         "final_system_instruction": bundle.full_prompt,
         "evaluation_set_id": eval_set.id if eval_set else None,
+        "evaluation_resolution_reason": resolved_bundle.resolution_reason,
     }
 
 
@@ -343,7 +328,7 @@ def _normalize_slide_reviews(raw_reviews: Any, language: str) -> list[dict[str, 
         if not isinstance(raw_item, dict):
             continue
 
-        raw_slide_number = raw_item.get("slide_number", raw_item.get("slide", index))
+        raw_slide_number = raw_item.get("page_number", raw_item.get("slide_number", raw_item.get("slide", index)))
         try:
             slide_number = int(raw_slide_number)
         except (TypeError, ValueError):
@@ -359,6 +344,7 @@ def _normalize_slide_reviews(raw_reviews: Any, language: str) -> list[dict[str, 
         normalized_reviews.append(
             {
                 "slide_number": slide_number,
+                "page_number": slide_number,
                 "status": status,
                 "title": _localized_text(raw_item.get("title"), language),
                 "summary": _localized_text(raw_item.get("summary"), language),
@@ -369,6 +355,53 @@ def _normalize_slide_reviews(raw_reviews: Any, language: str) -> list[dict[str, 
         seen_slide_numbers.add(slide_number)
 
     return sorted(normalized_reviews, key=lambda item: item["slide_number"])
+
+
+def _ensure_ui_json_contract(
+    result: dict[str, Any],
+    required_keys: list[str],
+    language: str,
+    text: str,
+) -> dict[str, Any]:
+    if not isinstance(result, dict):
+        result = {}
+    if not isinstance(result.get("criteria_scores"), dict):
+        result["criteria_scores"] = {}
+    if not isinstance(result.get("criteria_suggestions"), dict):
+        result["criteria_suggestions"] = {"vi": {}, "ja": {}}
+    if not isinstance(result.get("draft_feedback"), (dict, str)):
+        result["draft_feedback"] = {"vi": "", "ja": ""}
+    if not isinstance(result.get("slide_reviews"), list):
+        if isinstance(result.get("page_reviews"), list):
+            result["slide_reviews"] = result["page_reviews"]
+        else:
+            result["slide_reviews"] = []
+    if "score" not in result:
+        result["score"] = 0
+
+    # Ensure required keys exist in criteria_scores
+    for key in required_keys:
+        if key not in result["criteria_scores"] or not isinstance(result["criteria_scores"].get(key), (int, float)):
+            result["criteria_scores"][key] = 0
+
+    # Ensure bilingual suggestions per key
+    cs = result["criteria_suggestions"]
+    if "vi" not in cs or not isinstance(cs.get("vi"), dict):
+        cs["vi"] = {}
+    if "ja" not in cs or not isinstance(cs.get("ja"), dict):
+        cs["ja"] = {}
+    for key in required_keys:
+        cs["vi"].setdefault(key, "")
+        cs["ja"].setdefault(key, "")
+
+    # Ensure there is at least placeholder slide review when no parsed slides.
+    if not result["slide_reviews"]:
+        fallback = _recover_minimal_result_from_text("", required_keys, language, text)
+        result["slide_reviews"] = fallback["slide_reviews"]
+        if not result.get("draft_feedback"):
+            result["draft_feedback"] = fallback["draft_feedback"]
+
+    return result
 
 
 def _extract_balanced_json_object(raw_text: str) -> str | None:
@@ -435,6 +468,7 @@ def _recover_minimal_result_from_text(
     raw_text: str,
     required_keys: list[str],
     language: str,
+    document_text: str,
 ) -> dict[str, Any]:
     score_match = re.search(r'"score"\s*:\s*(-?\d+)', raw_text)
     score = int(score_match.group(1)) if score_match else 0
@@ -455,12 +489,32 @@ def _recover_minimal_result_from_text(
     if language == "ja":
         draft_feedback["vi"] = ""
 
+    page_matches = re.findall(r"\[(?:Page|Slide)\s+(\d+)\]", document_text or "", flags=re.IGNORECASE)
+    total_slides = max((int(num) for num in page_matches), default=0)
+    slide_reviews: list[dict[str, Any]] = []
+    for i in range(1, total_slides + 1):
+        slide_reviews.append(
+            {
+                "slide_number": i,
+                "page_number": i,
+                "status": "OK",
+                "title": {"vi": f"Slide {i}", "ja": f"スライド {i}"},
+                "summary": {
+                    "vi": "Không có dữ liệu phân tích slide chi tiết do phản hồi AI lỗi định dạng.",
+                    "ja": "AI応答の形式不正により、詳細なスライド分析は取得できませんでした。",
+                },
+                "issues": {"vi": [], "ja": []},
+                "suggestions": {"vi": "", "ja": ""},
+            }
+        )
+
     return {
         "score": max(0, min(100, score)),
         "criteria_scores": criteria_scores,
         "criteria_suggestions": empty_lang,
         "draft_feedback": draft_feedback,
-        "slide_reviews": [],
+        "slide_reviews": slide_reviews,
+        "page_reviews": slide_reviews,
     }
 
 
@@ -590,12 +644,32 @@ def grade_submission(
         )
     try:
         result = _parse_llm_json_response(response.text)
-    except json.JSONDecodeError as exc:
-        result = _recover_minimal_result_from_text(
-            raw_text=response.text or "",
-            required_keys=required_keys,
-            language=language,
-        )
+    except json.JSONDecodeError:
+        try:
+            result = _recover_minimal_result_from_text(
+                raw_text=response.text or "",
+                required_keys=required_keys,
+                language=language,
+                document_text=text,
+            )
+        except Exception:
+            # Hard-stop fallback with explicit invalid AI response marker.
+            result = {
+                "score": 0,
+                "criteria_scores": {key: 0 for key in required_keys},
+                "criteria_suggestions": {"vi": {}, "ja": {}},
+                "draft_feedback": {"vi": "", "ja": ""},
+                "slide_reviews": [],
+                "page_reviews": [],
+                "_invalid_ai_response": True,
+            }
+
+    result = _ensure_ui_json_contract(
+        result=result,
+        required_keys=required_keys,
+        language=language,
+        text=text,
+    )
 
     score = int(result.get("score", 0))
     score = max(0, min(100, score))
@@ -609,7 +683,8 @@ def grade_submission(
 
     criteria_suggestions = result.get("criteria_suggestions", {})
     draft_feedback = result.get("draft_feedback", {})
-    slide_reviews = _normalize_slide_reviews(result.get("slide_reviews"), language)
+    raw_reviews = result.get("page_reviews") if isinstance(result.get("page_reviews"), list) else result.get("slide_reviews")
+    slide_reviews = _normalize_slide_reviews(raw_reviews, language)
 
     if isinstance(draft_feedback, str):
         draft_feedback = {language: draft_feedback}
@@ -648,6 +723,8 @@ def grade_submission(
         "criteria_suggestions": criteria_suggestions,
         "draft_feedback": draft_feedback,
         "slide_reviews": slide_reviews,
+        "page_reviews": slide_reviews,
+        "status": "FAILED_INVALID_AI_RESPONSE" if result.get("_invalid_ai_response") else "COMPLETED",
     }
 
     # [FIX BUG-04] Only write to cache when use_cache=True.

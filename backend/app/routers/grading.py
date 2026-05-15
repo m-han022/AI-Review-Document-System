@@ -10,7 +10,7 @@ from app.repositories.submission_repository import SubmissionRepository
 from app.repositories.grading_repository import GradingRepository
 from app.services.grading_service import GradingService
 from app.services.prompt_policy import normalize_prompt_level
-from app.metrics import inc_counter
+from app.metrics import inc_counter, inc_resolution_reason_total
 from app.observability import log_error, log_event
 from sqlmodel import Session, select
 
@@ -22,6 +22,7 @@ def get_grading_service(session: Session = Depends(get_session)) -> GradingServi
     return GradingService(sub_repo, grading_repo)
 
 from app.services.evaluation_set_service import ensure_active_evaluation_set
+from app.services.evaluation_bundle_resolver import resolve_evaluation_bundle
 
 def _ensure_active_evaluation_set(session: Session, document_type: str, level: str) -> EvaluationSet:
     return ensure_active_evaluation_set(session, document_type, level)
@@ -106,16 +107,18 @@ async def _perform_grading(
         for version in target_versions:
             doc = service.submission_repo.get_document_for_version(version)
             document_type = doc.document_type if doc else "project-review"
+            evaluation_resolution_reason = "explicit_evaluation_set_id" if evaluation_set_id is not None else None
             
             # Resolve evaluation set for this specific document_type
             current_eval_set_id = evaluation_set_id
             if current_eval_set_id is None:
-                auto_set = _ensure_active_evaluation_set(
+                resolved = resolve_evaluation_bundle(
                     service.submission_repo.session,
-                    document_type,
-                    prompt_level,
+                    document_type=document_type,
+                    level=prompt_level,
                 )
-                current_eval_set_id = auto_set.id if auto_set else None
+                current_eval_set_id = resolved.evaluation_set.id if resolved.evaluation_set else None
+                evaluation_resolution_reason = resolved.resolution_reason
 
             if current_eval_set_id is None:
                 log_event("grading_skipped_no_eval_set", project_id=project_id, document_type=document_type, version_id=version.id)
@@ -155,8 +158,10 @@ async def _perform_grading(
                     document_version=version.document_version,
                     prompt_level=prompt_level,
                     evaluation_set_id=current_eval_set_id,
+                    evaluation_resolution_reason=evaluation_resolution_reason,
                     language=submission.language,
                 )
+                inc_resolution_reason_total(evaluation_resolution_reason or "unknown")
             else:
                 # Synchronous execution (looping might be slow)
                 result_data = service.run_grading(
@@ -178,8 +183,10 @@ async def _perform_grading(
                     document_version=result_data.get("document_version"),
                     rubric_version=result_data.get("rubric_version"),
                     evaluation_set_id=result_data.get("evaluation_set_id"),
+                    evaluation_resolution_reason=result_data.get("evaluation_resolution_reason"),
                     language=submission.language,
                 )
+                inc_resolution_reason_total(last_result.evaluation_resolution_reason or "unknown")
         
         if triggered_count == 0:
              raise HTTPException(

@@ -377,3 +377,20 @@ Cache key/signature ph?i bao g?m t?i thi?u:
 
 - L?p l?i grading c?ng evaluation context ph?i match ??ng run tr?ng th?i `COMPLETED` cho reuse logic.
 - Kh?ng l?m m?t nguy?n t?c append-only/audit trail.
+
+---
+
+## Documentation Governance (Current)
+
+- Nguồn chuẩn vận hành và nghiệp vụ hiện tại được duy trì trực tiếp trong:
+  - `README.md`
+  - `REQUIREMENTS.md`
+  - `AGENTS.md`
+- Không phụ thuộc vào tài liệu phase/docs đã loại bỏ.
+- Trước khi xóa tài liệu cũ, bắt buộc migrate nội dung cần thiết vào 3 tài liệu trên.
+
+### Safe Delete Rules
+
+1. Không xóa tài liệu nếu còn được tham chiếu trong code/script/readme.
+2. Không xóa tài liệu governance nếu chưa có nội dung tương đương trong `README.md`/`REQUIREMENTS.md`/`AGENTS.md`.
+3. Sau khi dọn tài liệu, phải rà soát link chết bằng grep toàn repo.

@@ -673,6 +673,7 @@
     "loadingGradingData": "採点データを読み込み中...",
     "tabAnalysis": "基準分析",
     "downloadToView": "ダウンロードして確認",
+    "aiProofLabel": "資料からの根拠",
     "aiProofDisclaimer": "[テキストデータのみを表示しています。画像データは分析済みですがここには表示されません]",
     "hideJson": "JSONを非表示",
     "showJson": "JSONを表示",

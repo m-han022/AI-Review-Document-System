@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   compareVersions,
@@ -20,7 +20,7 @@ import type {
   VersionListOut,
 } from "../../types";
 import {
-  buildSlideReviewItems,
+  buildPageReviewItems,
   getCriterionIcon,
   getCriterionLabel,
   splitFeedbackLines,
@@ -50,6 +50,7 @@ export function useProjectReviewState({ projectId, lang, t }: UseProjectReviewSt
   const [comparisonMode, setComparisonMode] = useState(false);
   const [baseVersionId] = useState<number | null>(null);
   const [compareVersionId] = useState<number | null>(null);
+  const [lastObservedStatus, setLastObservedStatus] = useState<string | null>(null);
 
   const { data: documents = [], isLoading: loadingDocs, error: docsError, refetch: refetchDocuments } = useQuery<DocumentListOut[]>({
     queryKey: ["project-documents", projectId],
@@ -142,6 +143,25 @@ export function useProjectReviewState({ projectId, lang, t }: UseProjectReviewSt
     }
   }, [gradings, selectedGradingId, loadingGradings, fetchingGradings]);
 
+  useEffect(() => {
+    if (!selectedGradingId) return;
+    const selectedRun = gradings.find((g) => g.grading_run_id === selectedGradingId);
+    const currentStatus = (selectedRun?.status || "").toUpperCase();
+    if (!currentStatus) return;
+
+    const becameCompleted =
+      lastObservedStatus !== "COMPLETED" &&
+      currentStatus === "COMPLETED";
+
+    setLastObservedStatus(currentStatus);
+
+    if (becameCompleted) {
+      void queryClient.invalidateQueries({ queryKey: ["grading-detail", selectedGradingId] });
+      void queryClient.invalidateQueries({ queryKey: ["version-gradings", selectedVersionId] });
+      void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
+    }
+  }, [gradings, selectedGradingId, selectedVersionId, lastObservedStatus, queryClient]);
+
   const currentProject = (projectList || []).find((p: any) => p.project_id === projectId);
   const currentVersion = versions.find((v) => v.document_version_id === selectedVersionId);
   const rerunMutation = useMutation({
@@ -192,41 +212,52 @@ export function useProjectReviewState({ projectId, lang, t }: UseProjectReviewSt
 
   const result = gradingDetail?.grading_run;
   const criteriaResults = gradingDetail?.criteria_results ?? [];
-  const slideReviewItems = useMemo(() => {
-    const slideReviews =
-      gradingDetail?.slide_reviews ??
-      (gradingDetail as any)?.grading_run?.slide_reviews ??
-      [];
-    return buildSlideReviewItems(slideReviews, lang, t, gradingDetail?.document_version?.extracted_text);
+  const pageReviewItems = useMemo(() => {
+    const pageReviews = (gradingDetail as any)?.page_reviews ?? (gradingDetail as any)?.grading_run?.page_reviews ?? gradingDetail?.slide_reviews ?? (gradingDetail as any)?.grading_run?.slide_reviews ?? [];
+    return buildPageReviewItems(pageReviews, lang, t, gradingDetail?.document_version?.extracted_text);
   }, [gradingDetail, lang, t]);
   useEffect(() => {
-    if (slideReviewItems.length > 0 && selectedSlideId === null) {
-      const firstNg = slideReviewItems.find((s) => s.status === "NG");
+    if (pageReviewItems.length > 0 && selectedSlideId === null) {
+      const firstNg = pageReviewItems.find((s) => s.status === "NG");
       if (firstNg) setSelectedSlideId(firstNg.id);
-      else if (slideReviewItems[0]) setSelectedSlideId(slideReviewItems[0].id);
+      else if (pageReviewItems[0]) setSelectedSlideId(pageReviewItems[0].id);
     }
-  }, [slideReviewItems, selectedSlideId]);
+  }, [pageReviewItems, selectedSlideId]);
 
-  const ngSlideCount = slideReviewItems.filter((s) => s.status === "NG").length;
+  const ngSlideCount = pageReviewItems.filter((s) => s.status === "NG").length;
+  const rubricLabelMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    const criteria = (gradingDetail as any)?.rubric?.criteria;
+    if (Array.isArray(criteria)) {
+      for (const c of criteria) {
+        const key = String(c?.key || "").trim();
+        if (!key) continue;
+        const vi = String(c?.label?.vi || c?.label_vi || "").trim();
+        const ja = String(c?.label?.ja || c?.label_ja || "").trim();
+        map[key] = vi || ja || key;
+      }
+    }
+    return map;
+  }, [gradingDetail]);
   const orderedScores = useMemo<OrderedScoreItem[]>(
     () =>
       criteriaResults.map((item) => ({
         key: item.key,
         value: item.score,
         max: item.max_score,
-        label: getCriterionLabel(item.key, t),
+        label: getCriterionLabel(item.key, t, rubricLabelMap),
         Icon: getCriterionIcon(item.key),
       })),
-    [criteriaResults, t],
+    [criteriaResults, t, rubricLabelMap],
   );
   const feedbackLines = useMemo(() => splitFeedbackLines(result?.draft_feedback ?? null, lang), [result, lang]);
   const feedbackSections = useMemo(() => splitFeedbackSections(feedbackLines), [feedbackLines]);
   const activeSlideId = useMemo(() => {
     if (selectedSlideId !== null) return selectedSlideId;
-    const firstNg = slideReviewItems.find((s) => s.status === "NG");
-    return firstNg ? firstNg.id : slideReviewItems[0]?.id ?? null;
-  }, [selectedSlideId, slideReviewItems]);
-  const activeSlide = useMemo(() => slideReviewItems.find((s) => s.id === activeSlideId) ?? null, [slideReviewItems, activeSlideId]);
+    const firstNg = pageReviewItems.find((s) => s.status === "NG");
+    return firstNg ? firstNg.id : pageReviewItems[0]?.id ?? null;
+  }, [selectedSlideId, pageReviewItems]);
+  const activeSlide = useMemo(() => pageReviewItems.find((s) => s.id === activeSlideId) ?? null, [pageReviewItems, activeSlideId]);
   const isInitialLoading = loadingDocs || (selectedDocumentId && loadingVersions) || (selectedVersionId && loadingGradings);
   const riskLevel = useMemo(() => {
     const score = result?.total_score ?? 0;
@@ -238,7 +269,7 @@ export function useProjectReviewState({ projectId, lang, t }: UseProjectReviewSt
     if (!result || orderedScores.length === 0) return null;
     const sorted = [...orderedScores].sort((a, b) => a.value / (a.max || 1) - b.value / (b.max || 1));
     const lowest = sorted.length > 0 ? sorted[0] : null;
-    const firstNg = slideReviewItems.find((s) => s.status === "NG");
+    const firstNg = pageReviewItems.find((s) => s.status === "NG");
     if ((result.total_score ?? 0) >= 90 && !firstNg) {
       return {
         title: t("project.insight.excellentTitle"),
@@ -251,10 +282,10 @@ export function useProjectReviewState({ projectId, lang, t }: UseProjectReviewSt
       title: t("project.insight.priorityAction"),
       message: (t("project.insight.priorityDesc") || "")
         .replace("{criterion}", lowest.label)
-        .replace("{slide}", firstNg ? String(firstNg.slide_number) : "-"),
+        .replace("{slide}", firstNg ? String((firstNg.page_number ?? firstNg.slide_number)) : "-"),
       type: "warning" as const,
     };
-  }, [result, orderedScores, slideReviewItems, t]);
+  }, [result, orderedScores, pageReviewItems, t]);
 
   const scrollToSection = (tab: "overview" | "criteria" | "slides") => {
     setActiveTab(tab);
@@ -324,7 +355,7 @@ export function useProjectReviewState({ projectId, lang, t }: UseProjectReviewSt
     },
     derived: {
       result,
-      slideReviewItems,
+      pageReviewItems,
       ngSlideCount,
       orderedScores,
       feedbackSections,
@@ -339,7 +370,9 @@ export function useProjectReviewState({ projectId, lang, t }: UseProjectReviewSt
     scrollToSection,
     documents, sortedDocuments, loadingDocs, docsError, versions, loadingVersions, gradings,
     loadingGradings, gradingDetail, currentProject, currentVersion,
-    result, slideReviewItems, ngSlideCount, orderedScores, feedbackSections, activeSlide,
+    result, pageReviewItems, ngSlideCount, orderedScores, feedbackSections, activeSlide,
     isInitialLoading, riskLevel, topInsight
   ]);
 }
+
+

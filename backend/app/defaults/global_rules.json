@@ -31,9 +31,9 @@
   },
   {
     "id": 6,
-    "en": "COMPREHENSIVENESS: You MUST review and include EVERY slide/page from the input in the 'slide_reviews' array. Do not skip any slide numbers. If a slide is OK, mark it as 'OK'.",
-    "vi": "Tính toàn diện: Bạn PHẢI xem xét và bao gồm TẤT CẢ các slide/trang trong kết quả. Không bỏ sót slide nào.",
-    "ja": "網羅性：入力されたすべてのスライド/ページを確認し、結果に含める必要があります。スライドをスキップしないでください。"
+    "en": "COMPREHENSIVENESS: You MUST review and include EVERY page from the input in the 'page_reviews' array. Do not skip any page numbers. If a page is OK, mark it as 'OK'.",
+    "vi": "T?nh to?n di?n: B?n PH?I xem x?t v? bao g?m T?T C? c?c trang trong k?t qu? 'page_reviews'. Kh?ng b? s?t trang n?o.",
+    "ja": "?????????????????????'page_reviews' ?????????????????????????????"
   },
   {
     "id": 7,

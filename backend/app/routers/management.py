@@ -18,6 +18,8 @@ from app.services.prompt_composer import (
 )
 from app.services.prompt_policy import _now, normalize_prompt_level
 from app.services.evaluation_set_service import bootstrap_evaluation_set_logic, _next_set_version_label, _archive_active_sets
+from app.services.evaluation_bundle_v2_service import list_bundles, get_bundle_by_id, get_active_bundle
+from app.config import settings
 
 router = APIRouter()
 
@@ -115,6 +117,8 @@ class EvaluationSetOut(BaseModel):
     version_label: Optional[str] = None
     status: str
     created_at: str
+    bundle_hash: Optional[str] = None
+    validation_ok: Optional[bool] = None
 
 
 class EvaluationSetDetailOut(EvaluationSetOut):
@@ -125,6 +129,16 @@ class EvaluationSetDetailOut(EvaluationSetOut):
     policy_version: str
     policy_hash: str
     criteria: list[dict[str, Any]] = []
+    manifest: Optional[dict[str, Any]] = None
+    validation_errors: list[str] = []
+
+
+class EvaluationBundleOut(EvaluationSetOut):
+    pass
+
+
+class EvaluationBundleDetailOut(EvaluationSetDetailOut):
+    pass
 
 class EvaluationSetCreateIn(BaseModel):
     base_set_id: int
@@ -193,6 +207,7 @@ def _evaluation_set_detail(session: Session, row: EvaluationSet) -> EvaluationSe
         for item in criteria_rows
     ]
     rubric_hash = stable_hash({"prompt": rubric.prompt})
+    manifest, validation_ok, validation_errors = _build_bundle_manifest_and_validate(session, row)
     return EvaluationSetDetailOut(
         **row.model_dump(),
         rubric_version=rubric.version,
@@ -202,7 +217,50 @@ def _evaluation_set_detail(session: Session, row: EvaluationSet) -> EvaluationSe
         policy_version=policy.version,
         policy_hash=stable_hash(policy.content),
         criteria=criteria,
+        manifest=manifest,
+        bundle_hash=manifest.get("bundle_hash"),
+        validation_ok=validation_ok,
+        validation_errors=validation_errors,
     )
+
+
+def _build_bundle_manifest_and_validate(
+    session: Session, row: EvaluationSet
+) -> tuple[dict[str, Any], bool, list[str]]:
+    errors: list[str] = []
+    rubric = session.get(Rubric, row.rubric_version_id)
+    prompt = session.get(PromptVersion, row.prompt_version_id)
+    policy = session.get(EvaluationPolicy, row.policy_version_id)
+    rules = session.get(RequiredRuleSet, row.required_rule_set_id) if row.required_rule_set_id else None
+
+    if not rubric:
+        errors.append("missing_rubric")
+    if not prompt:
+        errors.append("missing_prompt")
+    if not policy:
+        errors.append("missing_policy")
+    if not rules:
+        errors.append("missing_required_rules")
+
+    if rubric and not (rubric.prompt or {}).get("vi", "").strip():
+        errors.append("empty_rubric_prompt_vi")
+    if prompt and not (prompt.content or "").strip():
+        errors.append("empty_prompt_content")
+    if policy and not (policy.content or "").strip():
+        errors.append("empty_policy_content")
+    if rules and not (rules.content or "").strip():
+        errors.append("empty_required_rules_content")
+
+    manifest = {
+        "bundle_id": row.id,
+        "scope": {"document_type": row.document_type, "level": row.level},
+        "rubric": {"id": row.rubric_version_id, "version": rubric.version if rubric else None},
+        "prompt": {"id": row.prompt_version_id, "version": prompt.version if prompt else None},
+        "policy": {"id": row.policy_version_id, "version": policy.version if policy else None},
+        "required_rules": {"id": row.required_rule_set_id, "version": rules.version if rules else None},
+    }
+    manifest["bundle_hash"] = stable_hash(manifest)
+    return manifest, len(errors) == 0, errors
 
 
 def _version_num(version: str) -> int:
@@ -621,37 +679,21 @@ async def list_evaluation_sets(
     level: Optional[str] = Query(default=None),
     session: Session = Depends(get_session),
 ):
-    stmt = select(EvaluationSet).order_by(EvaluationSet.created_at.desc(), EvaluationSet.id.desc())
-    if document_type:
-        stmt = stmt.where(EvaluationSet.document_type == document_type)
-    if level:
-        stmt = stmt.where(EvaluationSet.level == normalize_prompt_level(level))
-    rows = session.exec(stmt).all()
-    return [EvaluationSetOut(**row.model_dump()) for row in rows]
+    raise HTTPException(status_code=410, detail="Legacy endpoint removed. Use /api/mgmt/evaluation-bundles")
 
 
 @router.get("/evaluation-sets/by-id/{set_id}", response_model=EvaluationSetDetailOut)
 async def get_evaluation_set(set_id: int, session: Session = Depends(get_session)):
-    row = session.get(EvaluationSet, set_id)
-    if not row:
-        raise HTTPException(status_code=404, detail="Evaluation set not found")
-    return _evaluation_set_detail(session, row)
+    raise HTTPException(status_code=410, detail="Legacy endpoint removed. Use /api/mgmt/evaluation-bundles/by-id/{id}")
 
 @router.get("/evaluation-sets/active")
 async def get_active_evaluation_set(document_type: str, level: str = "medium", session: Session = Depends(get_session)):
-    row = session.exec(
-        select(EvaluationSet).where(
-            EvaluationSet.document_type == document_type,
-            EvaluationSet.level == normalize_prompt_level(level),
-            EvaluationSet.status == "active",
-        )
-    ).first()
-    if not row:
-        raise HTTPException(status_code=404, detail="Active evaluation set not found")
-    return EvaluationSetOut(**row.model_dump())
+    raise HTTPException(status_code=410, detail="Legacy endpoint removed. Use /api/mgmt/evaluation-bundles/active")
 
 @router.post("/evaluation-sets")
 async def create_evaluation_set(payload: EvaluationSetCreateIn, session: Session = Depends(get_session)):
+    raise HTTPException(status_code=410, detail="Legacy endpoint removed. Use /api/mgmt/evaluation-bundles")
+    # dead code retained intentionally for now to minimize diff risk
     base = session.get(EvaluationSet, payload.base_set_id)
     if not base:
         raise HTTPException(status_code=404, detail="Base evaluation set not found")
@@ -672,10 +714,19 @@ async def create_evaluation_set(payload: EvaluationSetCreateIn, session: Session
     prompt_content = payload.changes.get("prompt_content")
     policy_content = payload.changes.get("policy_content")
     required_rules_content = payload.changes.get("required_rules_content")
+    rubric_criteria_raw = payload.changes.get("rubric_criteria")
 
     if rubric_content is not None:
         old = (rubric.prompt or {}).get("vi") or ""
         if rubric_content.strip() != old.strip():
+            criteria_to_use = []
+            if rubric_criteria_raw:
+                try:
+                    parsed = json.loads(rubric_criteria_raw)
+                    if isinstance(parsed, list):
+                        criteria_to_use = parsed
+                except Exception:
+                    raise HTTPException(status_code=400, detail="Invalid rubric_criteria JSON")
             new_rubric = Rubric(
                 document_type=rubric.document_type,
                 version=_next_version_rubric(session, rubric.document_type),
@@ -686,20 +737,47 @@ async def create_evaluation_set(payload: EvaluationSetCreateIn, session: Session
                 updated_at=_now(),
             )
             session.add(new_rubric); session.commit(); session.refresh(new_rubric)
-            old_criteria = session.exec(
-                select(RubricCriterionRecord).where(RubricCriterionRecord.rubric_id == rubric.id).order_by(RubricCriterionRecord.sort_order)
-            ).all()
-            for c in old_criteria:
-                session.add(
-                    RubricCriterionRecord(
-                        rubric_id=new_rubric.id or 0,
-                        key=c.key,
-                        max_score=c.max_score,
-                        label_vi=c.label_vi,
-                        label_ja=c.label_ja,
-                        sort_order=c.sort_order,
+            if criteria_to_use:
+                total = 0.0
+                key_set: set[str] = set()
+                for idx, c in enumerate(criteria_to_use):
+                    key = str(c.get("key", "")).strip()
+                    label_vi = str(c.get("label_vi", "")).strip()
+                    label_ja = str(c.get("label_ja", "")).strip()
+                    max_score = float(c.get("max_score", 0))
+                    if not key or not label_vi or not label_ja:
+                        raise HTTPException(status_code=400, detail="Invalid rubric_criteria: empty key/label")
+                    if key in key_set:
+                        raise HTTPException(status_code=400, detail="Invalid rubric_criteria: duplicate key")
+                    key_set.add(key)
+                    total += max_score
+                    session.add(
+                        RubricCriterionRecord(
+                            rubric_id=new_rubric.id or 0,
+                            key=key,
+                            max_score=max_score,
+                            label_vi=label_vi,
+                            label_ja=label_ja,
+                            sort_order=idx,
+                        )
                     )
-                )
+                if round(total, 2) != 100:
+                    raise HTTPException(status_code=400, detail="Invalid rubric_criteria: total score must be 100")
+            else:
+                old_criteria = session.exec(
+                    select(RubricCriterionRecord).where(RubricCriterionRecord.rubric_id == rubric.id).order_by(RubricCriterionRecord.sort_order)
+                ).all()
+                for c in old_criteria:
+                    session.add(
+                        RubricCriterionRecord(
+                            rubric_id=new_rubric.id or 0,
+                            key=c.key,
+                            max_score=c.max_score,
+                            label_vi=c.label_vi,
+                            label_ja=c.label_ja,
+                            sort_order=c.sort_order,
+                        )
+                    )
             session.commit()
     if prompt_content is not None and prompt_content.strip() != (prompt.content or "").strip():
         new_prompt = PromptVersion(
@@ -759,33 +837,293 @@ async def create_evaluation_set(payload: EvaluationSetCreateIn, session: Session
         created_at=_now(),
     )
     session.add(row); session.commit(); session.refresh(row)
-    return EvaluationSetOut(**row.model_dump())
+    manifest, ok, errors = _build_bundle_manifest_and_validate(session, row)
+    if not ok:
+        raise HTTPException(status_code=400, detail=f"Bundle validation failed: {', '.join(errors)}")
+    return EvaluationSetOut(**row.model_dump(), bundle_hash=manifest.get("bundle_hash"), validation_ok=ok)
 
 @router.post("/evaluation-sets/{set_id}/activate")
 async def activate_evaluation_set(set_id: int, session: Session = Depends(get_session)):
-    row = session.get(EvaluationSet, set_id)
-    if not row:
-        raise HTTPException(status_code=404, detail="Evaluation set not found")
-    _archive_active_sets(session, row.document_type, row.level)
-    row.status = "active"
-    session.add(row); session.commit(); session.refresh(row)
-    return EvaluationSetOut(**row.model_dump())
+    raise HTTPException(status_code=410, detail="Legacy endpoint removed. Use /api/mgmt/evaluation-bundles/{id}/activate")
 
 
 @router.post("/evaluation-sets/bootstrap")
 async def bootstrap_evaluation_set(payload: EvaluationSetBootstrapIn, session: Session = Depends(get_session)):
+    raise HTTPException(status_code=410, detail="Legacy endpoint removed. Use /api/mgmt/evaluation-bundles/bootstrap")
+
+
+# V2 Bundle APIs (compatibility adapter over EvaluationSet storage)
+@router.get("/evaluation-bundles", response_model=list[EvaluationBundleOut])
+async def list_evaluation_bundles(
+    document_type: Optional[str] = Query(default=None),
+    level: Optional[str] = Query(default=None),
+    session: Session = Depends(get_session),
+):
+    stmt = select(EvaluationSet).order_by(EvaluationSet.created_at.desc(), EvaluationSet.id.desc())
+    if document_type:
+        stmt = stmt.where(EvaluationSet.document_type == document_type)
+    if level:
+        stmt = stmt.where(EvaluationSet.level == normalize_prompt_level(level))
+    rows = session.exec(stmt).all()
+    result: list[EvaluationBundleOut] = []
+    for row in rows:
+        manifest, ok, _ = _build_bundle_manifest_and_validate(session, row)
+        result.append(EvaluationBundleOut(**row.model_dump(), bundle_hash=manifest.get("bundle_hash"), validation_ok=ok))
+    return result
+
+
+@router.get("/evaluation-bundles/by-id/{bundle_id}", response_model=EvaluationBundleDetailOut)
+async def get_evaluation_bundle(bundle_id: int, session: Session = Depends(get_session)):
+    row = session.get(EvaluationSet, bundle_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Evaluation bundle not found")
+    detail = _evaluation_set_detail(session, row)
+    return EvaluationBundleDetailOut(**detail.model_dump())
+
+
+@router.get("/evaluation-bundles/active", response_model=EvaluationBundleOut)
+async def get_active_evaluation_bundle(document_type: str, level: str = "medium", session: Session = Depends(get_session)):
+    row = session.exec(
+        select(EvaluationSet).where(
+            EvaluationSet.document_type == document_type,
+            EvaluationSet.level == normalize_prompt_level(level),
+            EvaluationSet.status == "active",
+        )
+    ).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Active evaluation bundle not found")
+    manifest, ok, _ = _build_bundle_manifest_and_validate(session, row)
+    return EvaluationBundleOut(**row.model_dump(), bundle_hash=manifest.get("bundle_hash"), validation_ok=ok)
+
+
+@router.post("/evaluation-bundles/{bundle_id}/activate", response_model=EvaluationBundleOut)
+async def activate_evaluation_bundle(bundle_id: int, session: Session = Depends(get_session)):
+    row = session.get(EvaluationSet, bundle_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Evaluation bundle not found")
+    manifest, ok, errors = _build_bundle_manifest_and_validate(session, row)
+    if not ok:
+        raise HTTPException(status_code=400, detail=f"Bundle validation failed: {', '.join(errors)}")
+    _archive_active_sets(session, row.document_type, row.level)
+    row.status = "active"
+    session.add(row); session.commit(); session.refresh(row)
+    return EvaluationBundleOut(**row.model_dump(), bundle_hash=manifest.get("bundle_hash"), validation_ok=ok)
+
+
+@router.post("/evaluation-bundles/{bundle_id}/validate", response_model=EvaluationBundleOut)
+async def validate_evaluation_bundle(bundle_id: int, session: Session = Depends(get_session)):
+    row = session.get(EvaluationSet, bundle_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Evaluation bundle not found")
+    row.status = "validated"
+    session.add(row); session.commit(); session.refresh(row)
+    return EvaluationBundleOut(**row.model_dump())
+
+
+@router.post("/evaluation-bundles/{bundle_id}/approve", response_model=EvaluationBundleOut)
+async def approve_evaluation_bundle(bundle_id: int, session: Session = Depends(get_session)):
+    row = session.get(EvaluationSet, bundle_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Evaluation bundle not found")
+    row.status = "approved"
+    session.add(row); session.commit(); session.refresh(row)
+    return EvaluationBundleOut(**row.model_dump())
+
+
+@router.post("/evaluation-bundles/{bundle_id}/archive", response_model=EvaluationBundleOut)
+async def archive_evaluation_bundle(bundle_id: int, session: Session = Depends(get_session)):
+    row = session.get(EvaluationSet, bundle_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Evaluation bundle not found")
+    row.status = "archived"
+    session.add(row); session.commit(); session.refresh(row)
+    return EvaluationBundleOut(**row.model_dump())
+
+
+@router.post("/evaluation-bundles/bootstrap", response_model=EvaluationBundleOut)
+async def bootstrap_evaluation_bundle(payload: EvaluationSetBootstrapIn, session: Session = Depends(get_session)):
     try:
         row = bootstrap_evaluation_set_logic(
             session=session,
             document_type=payload.document_type,
             level=payload.level,
-            name=payload.name
+            name=payload.name,
         )
-        return EvaluationSetOut(**row.model_dump())
+        return EvaluationBundleOut(**row.model_dump())
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Bootstrap failed: {str(e)}")
+
+
+async def _create_evaluation_bundle_impl(payload: EvaluationSetCreateIn, session: Session) -> EvaluationBundleOut:
+    base = session.get(EvaluationSet, payload.base_set_id)
+    if not base:
+        raise HTTPException(status_code=404, detail="Base evaluation set not found")
+
+    rubric = session.get(Rubric, base.rubric_version_id)
+    prompt = session.get(PromptVersion, base.prompt_version_id)
+    policy = session.get(EvaluationPolicy, base.policy_version_id)
+    if not rubric or not prompt or not policy:
+        raise HTTPException(status_code=400, detail="Base set component not found")
+
+    new_rubric = rubric
+    new_prompt = prompt
+    new_policy = policy
+    active_rule_set = get_active_required_rule_set(session)
+    base_rule_set = session.get(RequiredRuleSet, base.required_rule_set_id) if base.required_rule_set_id else active_rule_set
+    selected_rule_set = base_rule_set or active_rule_set
+    rubric_content = payload.changes.get("rubric_content")
+    prompt_content = payload.changes.get("prompt_content")
+    policy_content = payload.changes.get("policy_content")
+    required_rules_content = payload.changes.get("required_rules_content")
+    rubric_criteria_raw = payload.changes.get("rubric_criteria")
+
+    if rubric_content is not None:
+        old = (rubric.prompt or {}).get("vi") or ""
+        if rubric_content.strip() != old.strip():
+            criteria_to_use = []
+            if rubric_criteria_raw:
+                try:
+                    parsed = json.loads(rubric_criteria_raw)
+                    if isinstance(parsed, list):
+                        criteria_to_use = parsed
+                except Exception:
+                    raise HTTPException(status_code=400, detail="Invalid rubric_criteria JSON")
+            new_rubric = Rubric(
+                document_type=rubric.document_type,
+                version=_next_version_rubric(session, rubric.document_type),
+                active=False,
+                status="archived",
+                prompt={"vi": rubric_content},
+                created_at=_now(),
+                updated_at=_now(),
+            )
+            session.add(new_rubric); session.commit(); session.refresh(new_rubric)
+            if criteria_to_use:
+                total = 0.0
+                key_set: set[str] = set()
+                for idx, c in enumerate(criteria_to_use):
+                    key = str(c.get("key", "")).strip()
+                    label_vi = str(c.get("label_vi", "")).strip()
+                    label_ja = str(c.get("label_ja", "")).strip()
+                    max_score = float(c.get("max_score", 0))
+                    if not key or not label_vi or not label_ja:
+                        raise HTTPException(status_code=400, detail="Invalid rubric_criteria: empty key/label")
+                    if key in key_set:
+                        raise HTTPException(status_code=400, detail="Invalid rubric_criteria: duplicate key")
+                    key_set.add(key)
+                    total += max_score
+                    session.add(
+                        RubricCriterionRecord(
+                            rubric_id=new_rubric.id or 0,
+                            key=key,
+                            max_score=max_score,
+                            label_vi=label_vi,
+                            label_ja=label_ja,
+                            sort_order=idx,
+                        )
+                    )
+                if round(total, 2) != 100:
+                    raise HTTPException(status_code=400, detail="Invalid rubric_criteria: total score must be 100")
+            else:
+                old_criteria = session.exec(
+                    select(RubricCriterionRecord).where(RubricCriterionRecord.rubric_id == rubric.id).order_by(RubricCriterionRecord.sort_order)
+                ).all()
+                for c in old_criteria:
+                    session.add(
+                        RubricCriterionRecord(
+                            rubric_id=new_rubric.id or 0,
+                            key=c.key,
+                            max_score=c.max_score,
+                            label_vi=c.label_vi,
+                            label_ja=c.label_ja,
+                            sort_order=c.sort_order,
+                        )
+                    )
+            session.commit()
+    if prompt_content is not None and prompt_content.strip() != (prompt.content or "").strip():
+        new_prompt = PromptVersion(
+            document_type=prompt.document_type,
+            level=prompt.level,
+            version=_next_version_prompt(session, prompt.document_type, prompt.level),
+            content=prompt_content,
+            status="archived",
+            created_at=_now(),
+        )
+        session.add(new_prompt); session.commit(); session.refresh(new_prompt)
+    if policy_content is not None and policy_content.strip() != (policy.content or "").strip():
+        new_policy = EvaluationPolicy(
+            level=policy.level,
+            version=_next_version_policy(session, policy.level),
+            content=policy_content,
+            status="archived",
+            created_at=_now(),
+        )
+        session.add(new_policy); session.commit(); session.refresh(new_policy)
+
+    if required_rules_content is not None:
+        normalized_rules = [line.strip() for line in required_rules_content.splitlines() if line.strip()]
+        base_rules = parse_required_rules_content((base_rule_set.content if base_rule_set else None))
+        if normalized_rules and normalized_rules != base_rules:
+            new_hash = stable_hash(normalized_rules)
+            existing_rule_set = session.exec(select(RequiredRuleSet).where(RequiredRuleSet.hash == new_hash)).first()
+            if existing_rule_set:
+                selected_rule_set = existing_rule_set
+            else:
+                selected_rule_set = RequiredRuleSet(
+                    version=_next_required_rules_version(session),
+                    hash=new_hash,
+                    content=json.dumps(normalized_rules, ensure_ascii=False),
+                    status="active" if payload.activate else "archived",
+                    created_at=_now(),
+                )
+                if payload.activate:
+                    _archive_active_required_rules(session)
+                session.add(selected_rule_set); session.commit(); session.refresh(selected_rule_set)
+
+    status = "active" if payload.activate else "archived"
+    if payload.activate:
+        _archive_active_sets(session, base.document_type, base.level)
+    row = EvaluationSet(
+        name=payload.name,
+        document_type=base.document_type,
+        level=base.level,
+        rubric_version_id=new_rubric.id or 0,
+        prompt_version_id=new_prompt.id or 0,
+        policy_version_id=new_policy.id or 0,
+        required_rule_set_id=selected_rule_set.id if selected_rule_set else active_rule_set.id,
+        required_rules_version=selected_rule_set.version if selected_rule_set else active_rule_set.version,
+        required_rule_hash=selected_rule_set.hash if selected_rule_set else active_rule_set.hash,
+        version_label=_next_set_version_label(session, base.document_type, base.level),
+        status=status,
+        created_at=_now(),
+    )
+    session.add(row); session.commit(); session.refresh(row)
+    manifest, ok, errors = _build_bundle_manifest_and_validate(session, row)
+    if not ok:
+        raise HTTPException(status_code=400, detail=f"Bundle validation failed: {', '.join(errors)}")
+    return EvaluationBundleOut(**row.model_dump(), bundle_hash=manifest.get("bundle_hash"), validation_ok=ok)
+
+
+@router.post("/evaluation-bundles", response_model=EvaluationBundleOut)
+async def create_evaluation_bundle(payload: EvaluationSetCreateIn, session: Session = Depends(get_session)):
+    return await _create_evaluation_bundle_impl(payload, session)
+
+
+@router.post("/evaluation-bundles/", response_model=EvaluationBundleOut)
+async def create_evaluation_bundle_with_slash(payload: EvaluationSetCreateIn, session: Session = Depends(get_session)):
+    return await _create_evaluation_bundle_impl(payload, session)
+
+
+@router.put("/evaluation-bundles", response_model=EvaluationBundleOut)
+async def create_evaluation_bundle_put(payload: EvaluationSetCreateIn, session: Session = Depends(get_session)):
+    return await _create_evaluation_bundle_impl(payload, session)
+
+
+@router.put("/evaluation-bundles/", response_model=EvaluationBundleOut)
+async def create_evaluation_bundle_put_with_slash(payload: EvaluationSetCreateIn, session: Session = Depends(get_session)):
+    return await _create_evaluation_bundle_impl(payload, session)
 class RequiredRuleSetOut(BaseModel):
     id: int
     version: str

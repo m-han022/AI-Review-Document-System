@@ -1,6 +1,7 @@
 """Multi-key Gemini API manager with round-robin key rotation."""
 import time
 from typing import Optional, Any
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from google import genai
 from google.genai import types
 from app.config import settings
@@ -139,18 +140,24 @@ class GeminiMultiKeyClient:
                     raise RuntimeError("No Gemini API keys available")
 
                 print(f"[Gemini] Calling model {model} with {_key_label(self.current_key)}")
-                response = self.client.models.generate_content(
-                    model=model,
-                    contents=contents,
-                    config=config
-                )
+                with ThreadPoolExecutor(max_workers=1) as executor:
+                    future = executor.submit(
+                        self.client.models.generate_content,
+                        model=model,
+                        contents=contents,
+                        config=config,
+                    )
+                    response = future.result(timeout=settings.gemini_request_timeout_seconds)
 
                 print(f"[Gemini] Success with {_key_label(self.current_key)}")
                 mark_key_success(self.current_key)
                 return response
                 
             except Exception as e:
-                error_msg = str(e).lower()
+                if isinstance(e, FutureTimeoutError):
+                    error_msg = "timeout"
+                else:
+                    error_msg = str(e).lower()
                 last_error = e
                 
                 if _is_rate_limit_error(error_msg):

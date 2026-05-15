@@ -1,8 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 
 import {
+  activateEvaluationSet,
+  approveEvaluationSet,
+  archiveEvaluationSet,
   ApiClientError,
   bootstrapEvaluationSet,
   createMgmtPolicy,
@@ -10,13 +13,16 @@ import {
   createMgmtRubric,
   createEvaluationSet,
   getActiveEvaluationSet,
+  validateEvaluationSet,
   getRequiredRules,
   listEvaluationSets,
   listMgmtPolicies,
   listMgmtPrompts,
   listMgmtRubrics,
   getGlobalDefaults,
-} from "../../api/client";
+  getEvaluationSetRuntimeHealth,
+  previewFinalPrompt,
+  } from "../../api/client";
 import { AI_CONFIG_COPY } from "../../constants/aiConfigCopy";
 import { getDocumentTypeLabel, getLevelLabel } from "../../constants/uiLabels";
 import { getLocalizedText } from "../../locales/utils";
@@ -47,13 +53,85 @@ function renderSet(setItem: any, t: any) {
 }
 
 export default function AIConfigurationConsole() {
+  const formatPreviewPromptForUi = (text: string): string => {
+    if (!text) return text;
+    const lines = text.split("\n");
+    const sectionOrder = [
+      "---- Rubric ----",
+      "---- Prompt Version ----",
+      "---- Evaluation Policy ----",
+      "---- Required Rules ----",
+      "---- Output Schema ----",
+    ];
+    const sectionMap = new Map<string, string[]>();
+    let currentHeader = "";
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (line.startsWith("---- ") && line.endsWith(" ----")) {
+        currentHeader = line;
+        if (!sectionMap.has(currentHeader)) sectionMap.set(currentHeader, [raw]);
+        continue;
+      }
+      if (!currentHeader) continue;
+      sectionMap.get(currentHeader)!.push(raw);
+    }
+    const normalizedLines = sectionOrder.flatMap((header) => sectionMap.get(header) || []);
+    let inRequiredRules = false;
+    const out: string[] = [];
+    let inOutputSchema = false;
+    for (const raw of normalizedLines) {
+      const line = raw.trim();
+      if (line === "---- Required Rules ----") {
+        inRequiredRules = true;
+        inOutputSchema = false;
+        out.push(raw);
+        continue;
+      }
+      if (line === "---- Output Schema ----") {
+        inRequiredRules = false;
+        inOutputSchema = true;
+        out.push(raw);
+        out.push(
+          "YÃªu cáº§u Ä‘á»‹nh dáº¡ng Ä‘áº§u ra: AI pháº£i tráº£ vá» JSON há»£p lá»‡ theo schema Ä‘Ã£ cáº¥u hÃ¬nh (score, criteria_scores, criteria_suggestions, draft_feedback, page_reviews)."
+        );
+        out.push("LÆ°u Ã½ ká»¹ thuáº­t chi tiáº¿t Ä‘Ã£ Ä‘Æ°á»£c rÃºt gá»n trong mÃ n hÃ¬nh xem láº¡i.");
+        continue;
+      }
+      if (line.startsWith("---- ") && line.endsWith(" ----") && line !== "---- Required Rules ----") {
+        inRequiredRules = false;
+        inOutputSchema = false;
+        out.push(raw);
+        continue;
+      }
+      if (inOutputSchema) {
+        continue;
+      }
+      if (inRequiredRules && line.startsWith("{") && line.endsWith("}")) {
+        try {
+          const obj = JSON.parse(line) as { id?: number; vi?: string; en?: string; ja?: string };
+          const id = typeof obj.id === "number" ? `${obj.id}. ` : "- ";
+          const textVi = (obj.vi || obj.en || obj.ja || "").trim();
+          if (textVi) {
+            out.push(`${id}${textVi}`);
+            continue;
+          }
+        } catch {
+          // keep original line when parse fails
+        }
+      }
+      out.push(raw);
+    }
+    return out.join("\n");
+  };
   const { lang, t } = useTranslation();
   const ui = AI_CONFIG_COPY[lang] ?? AI_CONFIG_COPY.vi;
 
   const mapConfigErrorMessage = (error: unknown): string => {
     if (error instanceof ApiClientError) {
-      return t(mapErrorCodeToI18nKey(error.code));
+      const base = t(mapErrorCodeToI18nKey(error.code));
+      return error.detail ? `${base} (${error.detail})` : base;
     }
+    if (error instanceof Error && error.message) return error.message;
     return t("api.unexpectedError");
   };
   const queryClient = useQueryClient();
@@ -64,6 +142,7 @@ export default function AIConfigurationConsole() {
   const [showArchived] = useState(true);
   const [historyLimit] = useState(50);
   const [historySearch, setHistorySearch] = useState("");
+  const [historyStatusFilter, setHistoryStatusFilter] = useState<"all" | "active" | "validated" | "approved" | "draft" | "archived">("all");
   const [compareLeftId, setCompareLeftId] = useState<number | "">("");
   const [compareRightId, setCompareRightId] = useState<number | "">("");
   const [selectedSetId, setSelectedSetId] = useState<number | "">("");
@@ -85,12 +164,51 @@ export default function AIConfigurationConsole() {
   const [newPromptContent, setNewPromptContent] = useState("");
   const [newPolicyContent, setNewPolicyContent] = useState("");
   const [newRequiredRulesContent, setNewRequiredRulesContent] = useState("");
-  const [manualCriteria] = useState<Array<{ key: string; max_score: number; label_vi: string; label_ja: string }>>([
-    { key: "review_tong_the", max_score: 25, label_vi: "Đánh giá tổng thể", label_ja: "Overall review" },
-    { key: "diem_tot", max_score: 25, label_vi: "Điểm tốt", label_ja: "Strengths" },
-    { key: "diem_xau", max_score: 30, label_vi: "Điểm cần cải thiện", label_ja: "Weak points" },
-    { key: "chinh_sach", max_score: 20, label_vi: "Chính sách cải thiện", label_ja: "Improvement policy" },
+  const [finalPromptPreviewText, setFinalPromptPreviewText] = useState("");
+  const [finalPromptPreviewError, setFinalPromptPreviewError] = useState("");
+  const [manualCriteria, setManualCriteria] = useState<Array<{ key: string; max_score: number; label_vi: string; label_ja: string }>>([
+    { key: "review_tong_the", max_score: 25, label_vi: "ÄÃ¡nh giÃ¡ tá»•ng thá»ƒ", label_ja: "Overall review" },
+    { key: "diem_tot", max_score: 25, label_vi: "Äiá»ƒm tá»‘t", label_ja: "Strengths" },
+    { key: "diem_xau", max_score: 30, label_vi: "Äiá»ƒm cáº§n cáº£i thiá»‡n", label_ja: "Weak points" },
+    { key: "chinh_sach", max_score: 20, label_vi: "ChÃ­nh sÃ¡ch cáº£i thiá»‡n", label_ja: "Improvement policy" },
   ]);
+  const criteriaTotalScore = useMemo(
+    () => manualCriteria.reduce((sum, item) => sum + (Number(item.max_score) || 0), 0),
+    [manualCriteria],
+  );
+  const criteriaHasDuplicateKey = useMemo(() => {
+    const keys = manualCriteria.map((item) => item.key.trim()).filter(Boolean);
+    return new Set(keys).size !== keys.length;
+  }, [manualCriteria]);
+  const criteriaHasEmptyField = useMemo(
+    () =>
+      manualCriteria.some(
+        (item) => !item.key.trim() || !item.label_vi.trim() || !item.label_ja.trim(),
+      ),
+    [manualCriteria],
+  );
+  const canProceedSchemaCheck =
+    !changeRubric || (!criteriaHasDuplicateKey && criteriaTotalScore === 100 && !criteriaHasEmptyField);
+  const isPlaceholderPrompt = (value?: string | null) => {
+    const normalized = (value || "").trim().toLowerCase();
+    return !normalized || normalized === "updated prompt content";
+  };
+  const isTestPolicy = (value?: string | null) => {
+    const normalized = (value || "").trim().toLowerCase();
+    return normalized === "perf policy";
+  };
+  const getDefaultPromptFromTemplate = (docType: string) => {
+    const template = globalDefaults?.rubric_templates?.[docType];
+    if (!template) return "";
+    const instruction = template.instruction || {};
+    return instruction[lang] || instruction.vi || instruction.en || instruction.ja || "";
+  };
+  const getDefaultPolicyFromGlobal = (scopeLevel: string) => {
+    const policy = globalDefaults?.policies?.[scopeLevel];
+    if (!policy) return "";
+    if (typeof policy === "string") return policy;
+    return policy[lang] || policy.vi || policy.en || policy.ja || "";
+  };
 
   const nextVersion = (versions: string[]) => {
     const nums = versions
@@ -130,6 +248,14 @@ export default function AIConfigurationConsole() {
     queryFn: () => getActiveEvaluationSet(documentType, level),
     retry: false,
   });
+  const { data: runtimeHealthData } = useQuery({
+    queryKey: ["runtime-health", documentType, level],
+    queryFn: () => getEvaluationSetRuntimeHealth(),
+    refetchInterval: 10000,
+  });
+  const runtimeHealth = runtimeHealthData?.items ?? [];
+  const runtimeThresholds = runtimeHealthData?.thresholds ?? { fail_rate: 0.2, p95_latency_seconds: 120 };
+  const resolutionReasonTotals = runtimeHealthData?.resolution_reason_totals ?? {};
 
   const documentTypes = useMemo(() => {
     const fromRubrics = [...new Set(rubrics.map((item) => item.document_type))];
@@ -160,9 +286,20 @@ export default function AIConfigurationConsole() {
     const keyword = historySearch.trim().toLowerCase();
     return evaluationSets
       .filter((item) => showArchived || item.status === "active")
+      .filter((item) => historyStatusFilter === "all" || (item.status || "").toLowerCase() === historyStatusFilter)
       .filter((item) => !keyword || item.name.toLowerCase().includes(keyword) || (item.version_label || "").toLowerCase().includes(keyword))
       .slice(0, historyLimit);
-  }, [evaluationSets, showArchived, historySearch, historyLimit]);
+  }, [evaluationSets, showArchived, historySearch, historyLimit, historyStatusFilter]);
+
+  const draftImpact = useMemo(() => {
+    if (!activeDetails) return { rubric: "new", prompt: "new", policy: "new", rules: "new" };
+    return {
+      rubric: changeRubric ? "changed" : "unchanged",
+      prompt: changePrompt ? "changed" : "unchanged",
+      policy: changePolicy ? "changed" : "unchanged",
+      rules: changeRequiredRules ? "changed" : "unchanged",
+    };
+  }, [activeDetails, changeRubric, changePrompt, changePolicy, changeRequiredRules]);
 
   const compareSummary = useMemo(() => {
     if (!leftSet || !rightSet) return null;
@@ -173,6 +310,19 @@ export default function AIConfigurationConsole() {
       rules: leftSet.required_rule_hash === rightSet.required_rule_hash ? "unchanged" : "changed",
     };
   }, [leftSet, rightSet]);
+  const scopedRuntimeHealth = useMemo(
+    () =>
+      runtimeHealth
+        .filter((item) => item.document_type === documentType && item.prompt_level === level)
+        .sort((a, b) => b.run_count - a.run_count),
+    [runtimeHealth, documentType, level],
+  );
+  const lifecycleOrder = ["draft", "validated", "approved", "active", "archived"];
+  const currentLifecycleIndex = lifecycleOrder.indexOf((selectedSet?.status || "").toLowerCase());
+  const canValidate = selectedSet && ["draft"].includes((selectedSet.status || "").toLowerCase());
+  const canApprove = selectedSet && ["validated"].includes((selectedSet.status || "").toLowerCase());
+  const canActivate = selectedSet && ["approved", "validated", "archived"].includes((selectedSet.status || "").toLowerCase());
+  const canArchive = selectedSet && ["draft", "validated", "approved", "active"].includes((selectedSet.status || "").toLowerCase());
 
 
 
@@ -184,6 +334,7 @@ export default function AIConfigurationConsole() {
         name: setName.trim() || `${documentType}-${level}-${Date.now()}`,
         changes: {
           rubric_content: changeRubric ? newRubricContent : null,
+          rubric_criteria: changeRubric ? JSON.stringify(manualCriteria) : null,
           prompt_content: changePrompt ? newPromptContent : null,
           policy_content: changePolicy ? newPolicyContent : null,
           required_rules_content: changeRequiredRules ? newRequiredRulesContent : null,
@@ -204,6 +355,25 @@ export default function AIConfigurationConsole() {
     },
   });
 
+  const mutateBundleState = useMutation({
+    mutationFn: async (vars: { id: number; action: "validate" | "approve" | "activate" | "archive" }) => {
+      if (vars.action === "validate") return validateEvaluationSet(vars.id);
+      if (vars.action === "approve") return approveEvaluationSet(vars.id);
+      if (vars.action === "archive") return archiveEvaluationSet(vars.id);
+      return activateEvaluationSet(vars.id);
+    },
+    onSuccess: async () => {
+      setMessage({ type: "success", text: "Bundle status updated." });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["mgmt-evaluation-sets", documentType, level] }),
+        queryClient.invalidateQueries({ queryKey: ["mgmt-evaluation-set-active", documentType, level] }),
+      ]);
+    },
+    onError: (error) => {
+      setMessage({ type: "error", text: mapConfigErrorMessage(error) });
+    },
+  });
+
   const createFirstSetMutation = useMutation({
     mutationFn: async () => {
       const scopeRubrics = rubrics.filter((r) => r.document_type === documentType);
@@ -211,6 +381,12 @@ export default function AIConfigurationConsole() {
       if (!activeRubric) throw new Error(ui.rubricNotFound);
 
       if (changeRubric && newRubricContent.trim()) {
+         if (criteriaTotalScore !== 100) {
+          throw new Error("Tá»•ng trá»ng sá»‘ tiÃªu chÃ­ pháº£i báº±ng 100.");
+         }
+         if (criteriaHasDuplicateKey) {
+          throw new Error("TiÃªu chÃ­ bá»‹ trÃ¹ng key. Vui lÃ²ng sá»­a trÆ°á»›c khi lÆ°u.");
+         }
          const fallbackManual = manualCriteria.map(item => ({
             key: item.key.trim(),
             max_score: item.max_score,
@@ -267,11 +443,31 @@ export default function AIConfigurationConsole() {
     setChangePolicy(false);
     setChangeRequiredRules(false);
     setNewRubricContent(activeDetails?.rubric?.prompt?.vi || activeDetails?.rubric?.prompt?.ja || "");
-    setNewPromptContent(activeDetails?.prompt?.content || "");
+    const currentPrompt = activeDetails?.prompt?.content || "";
+    const currentPolicy = activeDetails?.policy?.content || "";
+    setNewPromptContent(
+      isPlaceholderPrompt(currentPrompt) ? getDefaultPromptFromTemplate(documentType) : currentPrompt,
+    );
+    setNewPolicyContent(
+      isTestPolicy(currentPolicy) ? getDefaultPolicyFromGlobal(level) : currentPolicy,
+    );
     setNewRequiredRulesContent((requiredRulesData?.rules || []).map((r: any) => 
       typeof r === 'string' ? r : (r[lang] || r.vi || r.en || "")
     ).join("\n"));
+    const activeCriteria = (activeDetails?.rubric as any)?.criteria ?? [];
+    if (activeCriteria.length) {
+      setManualCriteria(
+        activeCriteria.map((c: any) => ({
+          key: c.key || "",
+          max_score: Number(c.max_score) || 0,
+          label_vi: c.labels?.vi || c.label_vi || c.key || "",
+          label_ja: c.labels?.ja || c.label_ja || c.key || "",
+        })),
+      );
+    }
     setCreateStep(1);
+    setFinalPromptPreviewText("");
+    setFinalPromptPreviewError("");
     setActiveTab("create");
   };
 
@@ -279,18 +475,63 @@ export default function AIConfigurationConsole() {
     setActiveTab("create");
     setSetName(`${documentType} ${level} set v1`);
     setCreateStep(1);
+    setFinalPromptPreviewText("");
+    setFinalPromptPreviewError("");
     setChangeRubric(false);
     setChangePrompt(true);
     setChangePolicy(true);
     setChangeRequiredRules(false);
     const activeRubric = rubrics.find((r) => r.document_type === documentType && r.status === "active") || rubrics.find((r) => r.document_type === documentType);
     setNewRubricContent(activeRubric?.prompt?.vi || activeRubric?.prompt?.ja || "");
-    setNewPromptContent("");
-    setNewPolicyContent("");
+    const activePromptForScope =
+      prompts.find((p) => p.document_type === documentType && p.level === level && p.status === "active")
+      || prompts.find((p) => p.document_type === documentType && p.level === level);
+    const activePolicyForLevel =
+      policies.find((p) => p.level === level && p.status === "active")
+      || policies.find((p) => p.level === level);
+    const promptValue = activePromptForScope?.content || "";
+    const policyValue = activePolicyForLevel?.content || "";
+    setNewPromptContent(
+      isPlaceholderPrompt(promptValue) ? getDefaultPromptFromTemplate(documentType) : promptValue,
+    );
+    setNewPolicyContent(
+      isTestPolicy(policyValue) ? getDefaultPolicyFromGlobal(level) : policyValue,
+    );
     setNewRequiredRulesContent((requiredRulesData?.rules || []).map((r: any) => 
       typeof r === 'string' ? r : (r[lang] || r.vi || r.en || "")
     ).join("\n"));
+    const criteriaFromTemplate = globalDefaults?.rubric_templates?.[documentType]?.criteria || [];
+    if (criteriaFromTemplate.length) {
+      setManualCriteria(
+        criteriaFromTemplate.map((c: any) => ({
+          key: c.key || "",
+          max_score: Number(c.max_score) || 0,
+          label_vi: c.label?.vi || c.key || "",
+          label_ja: c.label?.ja || c.key || "",
+        })),
+      );
+    }
   };
+
+  useEffect(() => {
+    const runPreview = async () => {
+      if (createStep !== 2) return;
+      setFinalPromptPreviewError("");
+      if (!canProceedSchemaCheck) {
+        setFinalPromptPreviewText("");
+        setFinalPromptPreviewError("Schema tiÃªu chÃ­ chÆ°a há»£p lá»‡. Vui lÃ²ng sá»­a trÆ°á»›c khi lÆ°u.");
+        return;
+      }
+      try {
+        const res = await previewFinalPrompt(documentType, level);
+        setFinalPromptPreviewText(formatPreviewPromptForUi(res.full_prompt_preview || ""));
+      } catch (e) {
+        setFinalPromptPreviewText("");
+        setFinalPromptPreviewError(e instanceof Error ? e.message : "KhÃ´ng thá»ƒ preview final prompt.");
+      }
+    };
+    runPreview();
+  }, [createStep, canProceedSchemaCheck, documentType, level]);
 
   const bootstrapMutation = useMutation({
     mutationFn: (vars: { type: string; level: string }) => bootstrapEvaluationSet({
@@ -458,16 +699,76 @@ export default function AIConfigurationConsole() {
               <div className="detail-section">
                 <span className="detail-section__title">{guide.partTitle}</span>
                 {guide.partItems.map((item) => (
-                  <div key={item} style={{ fontSize: '13px', color: 'var(--ds-color-text-muted)', marginTop: '4px' }}>• {item}</div>
+                  <div key={item} style={{ fontSize: '13px', color: 'var(--ds-color-text-muted)', marginTop: '4px' }}>â€¢ {item}</div>
                 ))}
               </div>
               <div className="detail-section">
                 <span className="detail-section__title">{guide.factorsTitle}</span>
                 {guide.factorsItems.map((item) => (
-                  <div key={item} style={{ fontSize: '13px', color: 'var(--ds-color-text-muted)', marginTop: '4px' }}>• {item}</div>
+                  <div key={item} style={{ fontSize: '13px', color: 'var(--ds-color-text-muted)', marginTop: '4px' }}>â€¢ {item}</div>
                 ))}
               </div>
             </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={{ padding: "16px", background: "var(--ds-color-surface)", border: "1px solid var(--ds-color-border)", borderRadius: "var(--ds-radius-md)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <strong>Runtime Health</strong>
+          <span style={{ color: "var(--ds-color-text-muted)", fontSize: 12 }}>
+            {documentType} / {level} â€¢ fail&gt;={(runtimeThresholds.fail_rate * 100).toFixed(0)}% â€¢ p95&gt;={runtimeThresholds.p95_latency_seconds}s
+          </span>
+        </div>
+        {scopedRuntimeHealth.length === 0 ? (
+          <div style={{ color: "var(--ds-color-text-muted)", fontSize: 13 }}>No runtime metric yet for this scope.</div>
+        ) : (
+          <div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+              {Object.entries(resolutionReasonTotals).map(([reason, count]) => (
+                <StatusBadge key={reason} tone="muted">{reason}: {count}</StatusBadge>
+              ))}
+            </div>
+            <div className="ds-table-container">
+            <table className="ds-table ds-table--compact">
+              <thead>
+                <tr>
+                  <th>Evaluation Set</th>
+                  <th>Status</th>
+                  <th>Runs</th>
+                  <th>Avg Latency (s)</th>
+                  <th>P95 Latency (s)</th>
+                  <th>Failed Rate (scope)</th>
+                  <th>Trend</th>
+                  <th>Alert</th>
+                </tr>
+              </thead>
+              <tbody>
+                {scopedRuntimeHealth.map((item, idx) => (
+                  <tr key={`${item.evaluation_set_id}-${item.status}-${idx}`} className="ds-table-row-v4">
+                    <td>{item.evaluation_set_id ?? "none"}</td>
+                    <td>{item.status}</td>
+                    <td>{item.run_count}</td>
+                    <td>{item.avg_latency_seconds.toFixed(2)}</td>
+                    <td>{(item.p95_latency_seconds ?? 0).toFixed(2)}</td>
+                    <td>{(item.failed_rate_scope * 100).toFixed(1)}%</td>
+                    <td style={{ fontSize: 12, color: "var(--ds-color-text-muted)" }}>
+                      {(item.recent_counts || []).slice(-5).join(" â†’ ") || "â€”"}
+                    </td>
+                    <td>
+                      {item.failed_rate_scope >= runtimeThresholds.fail_rate ? (
+                        <StatusBadge tone="danger">High fail rate</StatusBadge>
+                      ) : (item.p95_latency_seconds ?? item.avg_latency_seconds) >= runtimeThresholds.p95_latency_seconds ? (
+                        <StatusBadge tone="warning">High p95 latency</StatusBadge>
+                      ) : (
+                        <StatusBadge tone="success">Healthy</StatusBadge>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
             </div>
           </div>
         )}
@@ -524,6 +825,18 @@ export default function AIConfigurationConsole() {
                     onChange={(e) => setHistorySearch(e.target.value)}
                     placeholder={ui.searchPlaceholder}
                   />
+                  <Select
+                    value={historyStatusFilter}
+                    onChange={(e) => setHistoryStatusFilter(e.target.value as any)}
+                    options={[
+                      { value: "all", label: "All status" },
+                      { value: "active", label: "active" },
+                      { value: "validated", label: "validated" },
+                      { value: "approved", label: "approved" },
+                      { value: "draft", label: "draft" },
+                      { value: "archived", label: "archived" },
+                    ]}
+                  />
               </div>
 
               <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -541,7 +854,7 @@ export default function AIConfigurationConsole() {
                       </StatusBadge>
                     </div>
                     <div style={{ fontSize: '11px', color: 'var(--ds-color-text-muted)', marginTop: '4px' }}>
-                      {setItem.created_at} • {setItem.version_label || "v1"}
+                      {setItem.created_at} â€¢ {setItem.version_label || "v1"}
                     </div>
                   </button>
                 ))}
@@ -555,6 +868,34 @@ export default function AIConfigurationConsole() {
 
 
                   <div style={{ padding: '24px', background: 'var(--ds-color-surface)', borderRadius: 'var(--ds-radius-md)', border: '1px solid var(--ds-color-border)' }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                      <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--ds-color-text-title)' }}>Bundle Lifecycle</h3>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <Button size="sm" variant="outline" disabled={!canValidate} onClick={() => mutateBundleState.mutate({ id: selectedSet.id, action: "validate" })} isLoading={mutateBundleState.isPending}>Validate</Button>
+                        <Button size="sm" variant="outline" disabled={!canApprove} onClick={() => mutateBundleState.mutate({ id: selectedSet.id, action: "approve" })} isLoading={mutateBundleState.isPending}>Approve</Button>
+                        <Button size="sm" variant="primary" disabled={!canActivate} onClick={() => mutateBundleState.mutate({ id: selectedSet.id, action: "activate" })} isLoading={mutateBundleState.isPending}>Activate</Button>
+                        <Button size="sm" variant="ghost" disabled={!canArchive} onClick={() => mutateBundleState.mutate({ id: selectedSet.id, action: "archive" })} isLoading={mutateBundleState.isPending}>Archive</Button>
+                      </div>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(5,minmax(0,1fr))", gap: 8, marginBottom: 12 }}>
+                      {lifecycleOrder.map((step, idx) => (
+                        <div
+                          key={step}
+                          style={{
+                            padding: "8px 10px",
+                            borderRadius: 8,
+                            textAlign: "center",
+                            fontSize: 12,
+                            fontWeight: 600,
+                            border: "1px solid var(--ds-color-border)",
+                            background: idx <= currentLifecycleIndex ? "var(--ds-color-primary-soft)" : "var(--ds-color-bg-muted)",
+                            color: idx <= currentLifecycleIndex ? "var(--ds-color-primary)" : "var(--ds-color-text-muted)",
+                          }}
+                        >
+                          {step}
+                        </div>
+                      ))}
+                    </div>
                     <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--ds-color-text-title)', marginBottom: '12px' }}>{ui.rubricReadonly}</h3>
                     <pre style={{ 
                       padding: '16px', borderRadius: 'var(--ds-radius-md)', 
@@ -665,7 +1006,7 @@ export default function AIConfigurationConsole() {
           <div style={{ maxWidth: '900px', margin: '0 auto', width: '100%' }}>
             <div style={{ padding: '32px', background: 'var(--ds-color-surface)', borderRadius: 'var(--ds-radius-md)', border: '1px solid var(--ds-color-border)' }}>
               <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--ds-color-text-title)', marginBottom: '24px', borderBottom: '1px solid var(--ds-color-border)', paddingBottom: '12px' }}>
-                {`${ui.createTitle} — ${ui.step} ${createStep}/2`}
+                {`${ui.createTitle} â€” ${ui.step} ${createStep}/2`}
               </h3>
               {createStep === 1 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -694,13 +1035,61 @@ export default function AIConfigurationConsole() {
                         <span style={{ fontWeight: 600 }}>{ui.changeRubric}</span>
                       </label>
                       {changeRubric && (
-                        <textarea 
-                          className="ds-input ds-input--textarea" 
-                          value={newRubricContent} 
-                          onChange={(e) => setNewRubricContent(e.target.value)} 
-                          rows={4} 
-                          style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--ds-color-border)', fontFamily: 'inherit' }}
-                        />
+                        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                          <textarea 
+                            className="ds-input ds-input--textarea" 
+                            value={newRubricContent} 
+                            onChange={(e) => setNewRubricContent(e.target.value)} 
+                            rows={4} 
+                            style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--ds-color-border)', fontFamily: 'inherit' }}
+                          />
+                          <div style={{ fontSize: 12, color: "var(--ds-color-text-muted)" }}>
+                            Cáº¥u trÃºc tiÃªu chÃ­ (criteria): tá»•ng Ä‘iá»ƒm hiá»‡n táº¡i <strong>{criteriaTotalScore}</strong>/100
+                            {criteriaTotalScore !== 100 ? " - cáº§n báº±ng 100." : ""}
+                            {criteriaHasDuplicateKey ? " - Ä‘ang cÃ³ key trÃ¹ng." : ""}
+                          </div>
+                          {manualCriteria.map((item, idx) => (
+                            <div key={`criteria-${idx}`} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr 2fr auto", gap: 8 }}>
+                              <Input
+                                value={item.key}
+                                onChange={(e) => setManualCriteria((prev) => prev.map((r, i) => i === idx ? { ...r, key: e.target.value } : r))}
+                                placeholder="criterion_key"
+                              />
+                              <Input
+                                type="number"
+                                value={String(item.max_score)}
+                                onChange={(e) => setManualCriteria((prev) => prev.map((r, i) => i === idx ? { ...r, max_score: Number(e.target.value || 0) } : r))}
+                                placeholder="max_score"
+                              />
+                              <Input
+                                value={item.label_vi}
+                                onChange={(e) => setManualCriteria((prev) => prev.map((r, i) => i === idx ? { ...r, label_vi: e.target.value } : r))}
+                                placeholder="label_vi"
+                              />
+                              <Input
+                                value={item.label_ja}
+                                onChange={(e) => setManualCriteria((prev) => prev.map((r, i) => i === idx ? { ...r, label_ja: e.target.value } : r))}
+                                placeholder="label_ja"
+                              />
+                              <Button
+                                variant="ghost"
+                                onClick={() => setManualCriteria((prev) => prev.filter((_, i) => i !== idx))}
+                              >
+                                XÃ³a
+                              </Button>
+                            </div>
+                          ))}
+                          <div>
+                            <Button
+                              variant="outline"
+                              onClick={() =>
+                                setManualCriteria((prev) => [...prev, { key: "", max_score: 0, label_vi: "", label_ja: "" }])
+                              }
+                            >
+                              ThÃªm tiÃªu chÃ­
+                            </Button>
+                          </div>
+                        </div>
                       )}
                     </div>
 
@@ -783,6 +1172,49 @@ export default function AIConfigurationConsole() {
                     <strong>{t("common.confirm")}</strong>
                     <p style={{ marginTop: '4px' }}>{ui.reviewHint}</p>
                   </div>
+                  <div style={{ padding: '14px', borderRadius: 'var(--ds-radius-md)', border: '1px solid var(--ds-color-border)', background: 'var(--ds-color-bg-muted)' }}>
+                    <div style={{ fontWeight: 600, marginBottom: 6 }}>Impact Preview</div>
+                    <div style={{ fontSize: 13 }}>
+                      Scope: <strong>{documentType}</strong> / <strong>{level}</strong>
+                    </div>
+                    <div style={{ fontSize: 13 }}>
+                      Active bundle hiá»‡n táº¡i: <strong>{activeDetails?.name || "N/A"}</strong>
+                    </div>
+                    <div style={{ fontSize: 13 }}>
+                      Bundle má»›i sáº½ áº£nh hÆ°á»Ÿng cÃ¡c lÆ°á»£t cháº¥m má»›i trong scope nÃ y sau khi activate.
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 8, marginTop: 10 }}>
+                      {[
+                        { label: "Rubric", value: draftImpact.rubric },
+                        { label: "Prompt", value: draftImpact.prompt },
+                        { label: "Policy", value: draftImpact.policy },
+                        { label: "Rules", value: draftImpact.rules },
+                      ].map((item) => (
+                        <div key={item.label} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid var(--ds-color-border)", background: item.value === "changed" ? "rgba(245, 158, 11, 0.12)" : "rgba(34,197,94,0.10)", fontSize: 12 }}>
+                          <div style={{ fontWeight: 600 }}>{item.label}</div>
+                          <div>{item.value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {changeRubric && (
+                    <div style={{ fontSize: 13, color: criteriaHasDuplicateKey || criteriaTotalScore !== 100 || criteriaHasEmptyField ? "#b42318" : "var(--ds-color-text-main)" }}>
+                      Kiá»ƒm tra schema tiÃªu chÃ­:
+                      {criteriaTotalScore !== 100 ? " Tá»•ng Ä‘iá»ƒm pháº£i báº±ng 100." : " Tá»•ng Ä‘iá»ƒm há»£p lá»‡."}
+                      {criteriaHasDuplicateKey ? " CÃ³ key bá»‹ trÃ¹ng." : " Key khÃ´ng trÃ¹ng."}
+                      {criteriaHasEmptyField ? " CÃ³ tiÃªu chÃ­ thiáº¿u key/label." : " KhÃ´ng cÃ³ tiÃªu chÃ­ rá»—ng."}
+                    </div>
+                  )}
+                  <div style={{ padding: '16px', borderRadius: 'var(--ds-radius-md)', background: 'var(--ds-color-bg-muted)', border: '1px solid var(--ds-color-border)' }}>
+                    <div style={{ fontWeight: 600, marginBottom: 8 }}>Preview Final Prompt (theo active scope hiá»‡n táº¡i)</div>
+                    {finalPromptPreviewError ? (
+                      <div style={{ color: "#b42318", fontSize: 13 }}>{finalPromptPreviewError}</div>
+                    ) : (
+                      <pre style={{ maxHeight: 240, overflow: 'auto', whiteSpace: 'pre-wrap', margin: 0, fontSize: 12 }}>
+                        {finalPromptPreviewText || "Äang táº¡o preview..."}
+                      </pre>
+                    )}
+                  </div>
 
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
                     <Button variant="outline" onClick={() => setCreateStep(1)}>{t("common.back")}</Button>
@@ -793,6 +1225,7 @@ export default function AIConfigurationConsole() {
                         else createFirstSetMutation.mutate();
                       }} 
                       isLoading={createSetMutation.isPending || createFirstSetMutation.isPending}
+                      disabled={Boolean(finalPromptPreviewError)}
                     >
                       {ui.saveAndActivate}
                     </Button>
@@ -896,3 +1329,4 @@ export default function AIConfigurationConsole() {
     </div>
   );
 }
+

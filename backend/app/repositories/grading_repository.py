@@ -53,7 +53,7 @@ class GradingRepository:
         statement = (
             select(GradingSlideReview)
             .where(GradingSlideReview.grading_run_id == run_id)
-            .order_by(GradingSlideReview.slide_number)
+            .order_by(func.coalesce(GradingSlideReview.page_number, GradingSlideReview.slide_number))
         )
         return list(self.session.exec(statement).all())
 

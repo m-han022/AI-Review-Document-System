@@ -119,7 +119,7 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
   const [confirmReviewOpen, setConfirmReviewOpen] = useState(false);
   const { loadingDocs, docsError, refetchDocuments, versions, gradings, sortedDocuments, gradingDetail, currentProject, currentVersion } = dataState;
   const { rerunMutation, exportMutation } = actions;
-  const { result, slideReviewItems, ngSlideCount, orderedScores, feedbackSections, activeSlide, isInitialLoading } = derived;
+  const { result, pageReviewItems, ngSlideCount, orderedScores, feedbackSections, activeSlide, isInitialLoading } = derived;
   const displayScore = result?.total_score ?? result?.score ?? null;
   const displayModel = result?.gemini_model ?? "Gemini (chưa lưu model cụ thể)";
   const hasActiveRunOnVersion = gradings.some((g) => {
@@ -224,9 +224,9 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
           const parts = [];
           if (lowest) parts.push(`**${lowest.label}** (${lowest.value}/${lowest.max})`);
           
-          const ngSlides = slideReviewItems.filter(s => s.status === "NG");
+          const ngSlides = pageReviewItems.filter(s => s.status === "NG");
           if (ngSlides.length > 0) {
-            parts.push(`${t("project.ngSlideCount")}: **${ngSlides.length}** (${ngSlides.map(s => s.slide_number).slice(0, 3).join(", ")}...)`);
+            parts.push(`${t("project.ngSlideCount")}: **${ngSlides.length}** (${ngSlides.map(s => s.page_number ?? s.slide_number).slice(0, 3).join(", ")}...)`);
           }
 
           const issuesSection = feedbackSections.find(s => 
@@ -258,7 +258,7 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
       }
     ];
 
-  }, [feedbackSections, ngSlideCount, t, orderedScores, result, slideReviewItems]);
+  }, [feedbackSections, ngSlideCount, t, orderedScores, result, pageReviewItems]);
 
   const actionItems = useMemo(() => {
     const fromCriteria = (gradingDetail?.criteria_results || [])
@@ -266,11 +266,11 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
         return getLocalizedText(item?.suggestion as any, lang);
       })
       .filter(Boolean);
-    const fromSlides = slideReviewItems
+    const fromSlides = pageReviewItems
       .map((item) => (item?.suggestions || "").toString().trim())
       .filter(Boolean);
     return Array.from(new Set([...fromCriteria, ...fromSlides]));
-  }, [gradingDetail, slideReviewItems, lang]);
+  }, [gradingDetail, pageReviewItems, lang]);
 
   if (loadingDocs || isInitialLoading) return <ProjectCardSkeleton />;
 
@@ -287,7 +287,7 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
 
   const slidesViewModel: ProjectSlidesTabViewModel = {
     gradingDetail,
-    slideReviewItems,
+    pageReviewItems,
     activeSlide,
   };
 
@@ -464,7 +464,7 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
               feedbackSections={criteriaViewModel.feedbackSections} 
               ngSlideCount={ngSlideCount}
               orderedScores={criteriaViewModel.orderedScores}
-              slideReviewItems={slidesViewModel.slideReviewItems}
+              pageReviewItems={slidesViewModel.pageReviewItems}
               actionItems={actionItems}
             />
           </section>

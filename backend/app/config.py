@@ -35,6 +35,16 @@ class Settings:
         self.celery_result_backend = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/1").strip()
         
         self.allowed_origins = self._build_allowed_origins()
+        self.runtime_health_fail_rate_threshold = float(os.getenv("RUNTIME_HEALTH_FAIL_RATE_THRESHOLD", "0.2"))
+        self.runtime_health_p95_latency_threshold_seconds = float(
+            os.getenv("RUNTIME_HEALTH_P95_LATENCY_THRESHOLD_SECONDS", "120")
+        )
+        self.use_evaluation_bundle_v2_read = os.getenv("USE_EVALUATION_BUNDLE_V2_READ", "false").lower() == "true"
+        self.use_evaluation_bundle_v2_write = os.getenv("USE_EVALUATION_BUNDLE_V2_WRITE", "false").lower() == "true"
+        self.use_evaluation_bundle_v2_ui = os.getenv("USE_EVALUATION_BUNDLE_V2_UI", "false").lower() == "true"
+        self.gemini_request_timeout_seconds = float(os.getenv("GEMINI_REQUEST_TIMEOUT_SECONDS", "120"))
+        self.grading_run_stuck_timeout_seconds = int(os.getenv("GRADING_RUN_STUCK_TIMEOUT_SECONDS", "600"))
+        self.libreoffice_bin = os.getenv("LIBREOFFICE_BIN", "").strip()
 
     def _build_allowed_origins(self) -> List[str]:
         default_origins = [

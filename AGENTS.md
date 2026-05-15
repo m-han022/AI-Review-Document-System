@@ -513,3 +513,12 @@ Khi tÃ¡i cáº¥u trÃºc theo hÆ°á»›ng clean architecture / modular design:
 - KhÃ´ng Ä‘á»•i behavior ngáº§m.
 - KhÃ´ng thÃªm thÆ° viá»‡n má»›i náº¿u chÆ°a thá»±c sá»± cáº§n.
 - KhÃ´ng xÃ³a test cÅ© náº¿u khÃ´ng cÃ³ lÃ½ do vÃ  thay tháº¿ tÆ°Æ¡ng á»©ng.
+
+## Documentation Deletion Rules (Current)
+
+- Khi ngu?i dùng yêu c?u d?n/xóa tài li?u:
+  1. Rà soát tham chi?u toàn repo tru?c khi xóa.
+  2. Ch? xóa khi n?i dung v?n hành c?t lõi dã du?c h?p nh?t vào README.md / REQUIREMENTS.md / AGENTS.md.
+  3. Sau khi xóa, b?t bu?c c?p nh?t l?i link/hu?ng d?n d? không còn dead reference.
+- Không xóa im l?ng tài li?u governance n?u chua có b?n thay th? tuong duong.
+

@@ -182,6 +182,35 @@ def test_legacy_api_compatibility(client: TestClient, session: Session):
     response = client.post(f"/api/grade/{project_id}")
     assert response.status_code == 200
     assert "run_id" in response.json()
+    assert "evaluation_resolution_reason" in response.json()
+    assert response.json()["evaluation_resolution_reason"] in {
+        "explicit_evaluation_set_id",
+        "active_scope_match",
+        "auto_bootstrap_scope",
+        None,
+    }
+
+
+def test_legacy_grade_endpoint_contract_non_breaking_fields(client: TestClient):
+    project_id = "P445"
+    client.post("/api/projects", json={"project_id": project_id, "project_name": "Legacy Contract"})
+    files = {"file": ("P445_Doc.pdf", b"content", "application/pdf")}
+    upload_res = client.post(
+        "/api/upload",
+        files=files,
+        data={"project_id": project_id, "document_type": "project-review"},
+    )
+    assert upload_res.status_code == 200
+    _ensure_manual_eval_set(client)
+
+    res = client.post(f"/api/grade/{project_id}")
+    assert res.status_code == 200
+    payload = res.json()
+    # Legacy required keys still present.
+    for key in ["project_id", "project_name", "run_id", "status", "evaluation_set_id"]:
+        assert key in payload
+    # New field is additive/non-breaking.
+    assert "evaluation_resolution_reason" in payload
 
 def test_upload_requires_selected_project_id(client: TestClient):
     client.post("/api/projects", json={"project_id": "P100", "project_name": "Rule Test"})

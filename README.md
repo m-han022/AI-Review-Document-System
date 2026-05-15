@@ -1,75 +1,75 @@
-# AI Review Document System
+﻿# AI Review Document System
 
-## 🚀 Overview
+## ðŸš€ Overview
 
-Hệ thống AI Review Tài Liệu cho phép:
+Há»‡ thá»‘ng AI Review TÃ i Liá»‡u cho phÃ©p:
 
-* Upload tài liệu (`PDF`, `PPTX`)
-* Tự động trích xuất nội dung
-* Chấm điểm bằng AI (Google Gemini) qua Background Worker (Celery)
-* Quản lý nhiều tài liệu trong cùng một project
-* Lưu lịch sử version của tài liệu (Immutable/Append-only)
-* So sánh kết quả giữa các phiên bản
+* Upload tÃ i liá»‡u (`PDF`, `PPTX`)
+* Tá»± Ä‘á»™ng trÃ­ch xuáº¥t ná»™i dung
+* Cháº¥m Ä‘iá»ƒm báº±ng AI (Google Gemini) qua Background Worker (Celery)
+* Quáº£n lÃ½ nhiá»u tÃ i liá»‡u trong cÃ¹ng má»™t project
+* LÆ°u lá»‹ch sá»­ version cá»§a tÃ i liá»‡u (Immutable/Append-only)
+* So sÃ¡nh káº¿t quáº£ giá»¯a cÃ¡c phiÃªn báº£n
 
 ---
 
-# 🏗️ Architecture
+# ðŸ—ï¸ Architecture
 
 ```text
 Project (Submission)
-  → Document
-      → Document Version
-          → Grading Run (Status: PENDING -> EXTRACTING -> GRADING -> COMPLETED/FAILED)
+  â†’ Document
+      â†’ Document Version
+          â†’ Grading Run (Status: PENDING -> EXTRACTING -> GRADING -> COMPLETED/FAILED)
 ```
 
-### Nguyên tắc cốt lõi:
-* **Không overwrite**: Mọi thay đổi nội dung đều tạo Version mới.
-* **Auditability**: Mọi lần chấm điểm đều được lưu lại thành một Grading Run độc lập.
-* **Decoupling**: API nhận request, Worker thực hiện chấm điểm.
+### NguyÃªn táº¯c cá»‘t lÃµi:
+* **KhÃ´ng overwrite**: Má»i thay Ä‘á»•i ná»™i dung Ä‘á»u táº¡o Version má»›i.
+* **Auditability**: Má»i láº§n cháº¥m Ä‘iá»ƒm Ä‘á»u Ä‘Æ°á»£c lÆ°u láº¡i thÃ nh má»™t Grading Run Ä‘á»™c láº­p.
+* **Decoupling**: API nháº­n request, Worker thá»±c hiá»‡n cháº¥m Ä‘iá»ƒm.
 
 ### Upload & Project Rules
-* **Project là master data**: phải tạo project trước khi upload.
-* **Upload phải chọn project có sẵn**: không auto-create project ngầm từ filename.
-* **Định dạng file bắt buộc**: Filename phải khớp pattern `P\d+[-_].+` (Ví dụ: `P001-ProjectName.pdf`).
-* **Validation bắt buộc**: project_id parse từ filename (phần `Pxxx`) phải khớp project_id đã chọn trên UI.
-* **project_description** là metadata project, không thay thế nội dung tài liệu.
-* **Tái sử dụng nội dung**: Hệ thống dùng binary hash để bỏ qua trích xuất text nếu cùng một file được upload lại.
+* **Project lÃ  master data**: pháº£i táº¡o project trÆ°á»›c khi upload.
+* **Upload pháº£i chá»n project cÃ³ sáºµn**: khÃ´ng auto-create project ngáº§m tá»« filename.
+* **Äá»‹nh dáº¡ng file báº¯t buá»™c**: Filename pháº£i khá»›p pattern `P\d+[-_].+` (VÃ­ dá»¥: `P001-ProjectName.pdf`).
+* **Validation báº¯t buá»™c**: project_id parse tá»« filename (pháº§n `Pxxx`) pháº£i khá»›p project_id Ä‘Ã£ chá»n trÃªn UI.
+* **project_description** lÃ  metadata project, khÃ´ng thay tháº¿ ná»™i dung tÃ i liá»‡u.
+* **TÃ¡i sá»­ dá»¥ng ná»™i dung**: Há»‡ thá»‘ng dÃ¹ng binary hash Ä‘á»ƒ bá» qua trÃ­ch xuáº¥t text náº¿u cÃ¹ng má»™t file Ä‘Æ°á»£c upload láº¡i.
 
 ---
 
-# 🛠️ Modes of Operation
+# ðŸ› ï¸ Modes of Operation
 
-Hệ thống hỗ trợ 2 chế độ chạy chính:
+Há»‡ thá»‘ng há»— trá»£ 2 cháº¿ Ä‘á»™ cháº¡y chÃ­nh:
 
-### 1. Dev Mode (Mặc định)
-Phù hợp cho phát triển local, gọn nhẹ.
+### 1. Dev Mode (Máº·c Ä‘á»‹nh)
+PhÃ¹ há»£p cho phÃ¡t triá»ƒn local, gá»n nháº¹.
 * **Database**: SQLite
-* **Task Processing**: Synchronous (API xử lý trực tiếp)
+* **Task Processing**: Synchronous (API xá»­ lÃ½ trá»±c tiáº¿p)
 * **Storage**: Local filesystem
 
 ### 2. Production-like Mode
-Phù hợp cho môi trường thật hoặc staging.
+PhÃ¹ há»£p cho mÃ´i trÆ°á»ng tháº­t hoáº·c staging.
 * **Database**: PostgreSQL (qua Docker)
 * **Task Processing**: Asynchronous (Redis + Celery Worker)
 * **Storage**: Docker Volumes
 
 ---
 
-# ⚙️ Configuration (Environment Variables)
+# âš™ï¸ Configuration (Environment Variables)
 
 ### Backend (`backend/.env`)
 
 | Variable | Dev Value | Production Value | Description |
 | :--- | :--- | :--- | :--- |
 | `GEMINI_API_KEY` | `your_key` | `your_key` | Google Gemini API Key |
-| `DATABASE_URL` | (trống) | `postgresql+psycopg2://...` | Connection string |
-| `USE_CELERY` | `false` | `true` | Bật/tắt background worker |
+| `DATABASE_URL` | (trá»‘ng) | `postgresql+psycopg2://...` | Connection string |
+| `USE_CELERY` | `false` | `true` | Báº­t/táº¯t background worker |
 | `CELERY_BROKER_URL` | `redis://...` | `redis://...` | Redis broker |
 | `CELERY_RESULT_BACKEND` | `redis://...` | `redis://...` | Redis backend |
 
 ---
 
-# 🚀 Running the System
+# ðŸš€ Running the System
 
 ### 1. Development Mode
 
@@ -93,7 +93,7 @@ For local development, prefer the repo scripts instead of enabling Celery by def
 
 ```powershell
 cd e:\workspace\AI-Review-Document-System
-.\scripts\start-dev.ps1
+.\scripts\dev-start-sync.ps1
 ```
 
 - Forces `USE_CELERY=false` for the local backend process.
@@ -104,7 +104,7 @@ cd e:\workspace\AI-Review-Document-System
 
 ```powershell
 cd e:\workspace\AI-Review-Document-System
-.\scripts\start-dev-async.ps1
+.\scripts\dev-start-async.ps1
 ```
 
 - Starts local frontend/backend in async mode.
@@ -115,37 +115,37 @@ cd e:\workspace\AI-Review-Document-System
 #### Stop local processes
 
 ```powershell
-.\scripts\stop-dev.ps1
+.\scripts\dev-stop.ps1
 ```
 
 To stop Redis started through Docker as well:
 
 ```powershell
-.\scripts\stop-dev.ps1 -StopRedis
+.\scripts\dev-stop.ps1 -StopRedis
 ```
 
 ### 2. Production-like Mode (Docker)
 
 ```bash
-# Khởi động toàn bộ stack (DB, Redis, Backend, Worker)
+# Khá»Ÿi Ä‘á»™ng toÃ n bá»™ stack (DB, Redis, Backend, Worker)
 docker-compose up -d --build
 ```
 
 ### 3. Database Management
 
 ```bash
-# Tạo migration mới
+# Táº¡o migration má»›i
 cd backend
 alembic revision --autogenerate -m "description"
 
-# Update database lên bản mới nhất
+# Update database lÃªn báº£n má»›i nháº¥t
 alembic upgrade head
 
-# Migrate dữ liệu từ SQLite sang PostgreSQL
+# Migrate dá»¯ liá»‡u tá»« SQLite sang PostgreSQL
 python backend/scripts/migrate_sqlite_to_postgres.py
 ```
 
-### 4. Running Worker manually (nếu không dùng Docker)
+### 4. Running Worker manually (náº¿u khÃ´ng dÃ¹ng Docker)
 
 ```bash
 cd backend
@@ -154,29 +154,70 @@ celery -A app.celery_app worker --loglevel=info --pool=solo
 
 ---
 
-# 🧪 Testing
+# ðŸ§ª Testing
 
 ```bash
-# Chạy toàn bộ test suite
+# Cháº¡y toÃ n bá»™ test suite
 cd backend
 $env:PYTHONPATH="."
 pytest
 ```
 
+## Evaluation Bundle V2 Cutover Gate (Phase 4)
+
+```powershell
+cd backend
+$env:PYTHONPATH='.'
+
+# 1) Migration hardening audit (dry-run)
+python scripts/evaluation_bundle_v2_migration_hardening.py --output artifacts/evaluation_bundle_v2_migration_report.pre_cutover.json
+
+# 2) Parity report (all active scopes)
+python scripts/evaluation_bundle_v2_parity_report.py --all-active-scopes --output artifacts/evaluation_bundle_v2_parity_report.pre_cutover.json
+
+# 3) Go/No-Go gate
+python scripts/evaluation_bundle_v2_pre_cutover_gate.py `
+  --migration-report artifacts/evaluation_bundle_v2_migration_report.pre_cutover.json `
+  --parity-report artifacts/evaluation_bundle_v2_parity_report.pre_cutover.json
+```
+
+Expected:
+- Gate must return `"PASS"`.
+- `mismatched = 0`.
+- `active_scope_violations = 0`.
+
+## Official Operation (Local/Internal)
+
+Source of truth: pháº§n "Official Operation (Local/Internal)" trong chÃ­nh `README.md` nÃ y.
+
+Mandatory before internal operation/demo:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/dev-verify-v2.ps1
+```
+
+Rule:
+- Only operate when result is `PASS`.
+
+Go/No-Go criteria (mandatory):
+- `mismatched = 0` in parity report.
+- `invalid_status_count = 0` in migration hardening report.
+- `active_scope_violations = 0` in migration hardening report.
+
 ---
 
-# 🌐 API (High-level)
+# ðŸŒ API (High-level)
 
-* `GET /projects`: Danh sách dự án
-* `POST /api/upload`: Upload tài liệu mới (tạo Version mới)
-* `POST /api/grade`: Bắt đầu chấm điểm (Nếu dùng Celery sẽ trả về PENDING ngay)
-* `GET /versions/{id}/gradings`: Lấy lịch sử chấm điểm
-* `GET /api/audit/export`: Export danh sách audit run (CSV, read-only)
+* `GET /projects`: Danh sÃ¡ch dá»± Ã¡n
+* `POST /api/upload`: Upload tÃ i liá»‡u má»›i (táº¡o Version má»›i)
+* `POST /api/grade`: Báº¯t Ä‘áº§u cháº¥m Ä‘iá»ƒm (Náº¿u dÃ¹ng Celery sáº½ tráº£ vá» PENDING ngay)
+* `GET /versions/{id}/gradings`: Láº¥y lá»‹ch sá»­ cháº¥m Ä‘iá»ƒm
+* `GET /api/audit/export`: Export danh sÃ¡ch audit run (CSV, read-only)
 * `GET /api/documents/{document_id}/versions/diff/export`: Export version diff (CSV, read-only)
 
 ---
 
-# 📄 CSV Export Columns
+# ðŸ“„ CSV Export Columns
 
 ## 1) Audit Export CSV
 
@@ -184,15 +225,15 @@ Endpoint: `GET /api/audit/export`
 
 | Column | Meaning |
 | :--- | :--- |
-| `project_id` | Mã project |
+| `project_id` | MÃ£ project |
 | `document_id` | ID document |
-| `document_version_id` | ID version tài liệu |
+| `document_version_id` | ID version tÃ i liá»‡u |
 | `grading_run_id` | ID grading run |
-| `score` | Điểm tổng (ưu tiên `total_score`, fallback `score`) |
-| `status` | Trạng thái run (`PENDING/EXTRACTING/GRADING/COMPLETED/FAILED`) |
-| `prompt_level` | Mức đánh giá (`low/medium/high`) |
-| `evaluation_set_id` | ID bộ tiêu chuẩn chấm đã dùng |
-| `graded_at` | Thời điểm chấm (ISO datetime) |
+| `score` | Äiá»ƒm tá»•ng (Æ°u tiÃªn `total_score`, fallback `score`) |
+| `status` | Tráº¡ng thÃ¡i run (`PENDING/EXTRACTING/GRADING/COMPLETED/FAILED`) |
+| `prompt_level` | Má»©c Ä‘Ã¡nh giÃ¡ (`low/medium/high`) |
+| `evaluation_set_id` | ID bá»™ tiÃªu chuáº©n cháº¥m Ä‘Ã£ dÃ¹ng |
+| `graded_at` | Thá»i Ä‘iá»ƒm cháº¥m (ISO datetime) |
 
 ## 2) Version Diff Export CSV
 
@@ -200,29 +241,29 @@ Endpoint: `GET /api/documents/{document_id}/versions/diff/export`
 
 | Column | Meaning |
 | :--- | :--- |
-| `row_type` | Loại dòng: `summary` / `criteria` / `warning` |
+| `row_type` | Loáº¡i dÃ²ng: `summary` / `criteria` / `warning` |
 | `document_id` | ID document |
 | `version_a_id` | ID version A |
 | `version_b_id` | ID version B |
-| `run_a_id` | ID run dùng cho version A |
-| `run_b_id` | ID run dùng cho version B |
-| `score_a` | Điểm version A (dòng `summary`) |
-| `score_b` | Điểm version B (dòng `summary`) |
-| `score_delta` | Chênh lệch điểm (dòng `summary`) |
-| `score_direction` | Hướng thay đổi điểm: `up/down/same` (dòng `summary`) |
-| `prompt_level_changed` | Có đổi mức đánh giá hay không (dòng `summary`) |
-| `evaluation_set_changed` | Có đổi bộ tiêu chuẩn hay không (dòng `summary`) |
-| `same_evaluation_context` | Có cùng ngữ cảnh đánh giá hay không (dòng `summary`) |
-| `criterion_key` | Mã tiêu chí (dòng `criteria`) |
-| `criterion_a` | Điểm tiêu chí ở version A (dòng `criteria`) |
-| `criterion_b` | Điểm tiêu chí ở version B (dòng `criteria`) |
-| `criterion_delta` | Chênh lệch theo tiêu chí (dòng `criteria`) |
-| `criterion_direction` | Hướng thay đổi theo tiêu chí: `up/down/same` (dòng `criteria`) |
-| `warning` | Cảnh báo context compare (dòng `warning`) |
+| `run_a_id` | ID run dÃ¹ng cho version A |
+| `run_b_id` | ID run dÃ¹ng cho version B |
+| `score_a` | Äiá»ƒm version A (dÃ²ng `summary`) |
+| `score_b` | Äiá»ƒm version B (dÃ²ng `summary`) |
+| `score_delta` | ChÃªnh lá»‡ch Ä‘iá»ƒm (dÃ²ng `summary`) |
+| `score_direction` | HÆ°á»›ng thay Ä‘á»•i Ä‘iá»ƒm: `up/down/same` (dÃ²ng `summary`) |
+| `prompt_level_changed` | CÃ³ Ä‘á»•i má»©c Ä‘Ã¡nh giÃ¡ hay khÃ´ng (dÃ²ng `summary`) |
+| `evaluation_set_changed` | CÃ³ Ä‘á»•i bá»™ tiÃªu chuáº©n hay khÃ´ng (dÃ²ng `summary`) |
+| `same_evaluation_context` | CÃ³ cÃ¹ng ngá»¯ cáº£nh Ä‘Ã¡nh giÃ¡ hay khÃ´ng (dÃ²ng `summary`) |
+| `criterion_key` | MÃ£ tiÃªu chÃ­ (dÃ²ng `criteria`) |
+| `criterion_a` | Äiá»ƒm tiÃªu chÃ­ á»Ÿ version A (dÃ²ng `criteria`) |
+| `criterion_b` | Äiá»ƒm tiÃªu chÃ­ á»Ÿ version B (dÃ²ng `criteria`) |
+| `criterion_delta` | ChÃªnh lá»‡ch theo tiÃªu chÃ­ (dÃ²ng `criteria`) |
+| `criterion_direction` | HÆ°á»›ng thay Ä‘á»•i theo tiÃªu chÃ­: `up/down/same` (dÃ²ng `criteria`) |
+| `warning` | Cáº£nh bÃ¡o context compare (dÃ²ng `warning`) |
 
 ---
 
-# 🧾 API Export Documentation
+# ðŸ§¾ API Export Documentation
 
 ## `GET /api/audit/export`
 
@@ -238,9 +279,9 @@ Query params:
 
 Behavior:
 
-* Read-only, không mutation.
-* Streaming CSV response để tránh memory spike.
-* Backend paginate nội bộ khi đọc dữ liệu lớn.
+* Read-only, khÃ´ng mutation.
+* Streaming CSV response Ä‘á»ƒ trÃ¡nh memory spike.
+* Backend paginate ná»™i bá»™ khi Ä‘á»c dá»¯ liá»‡u lá»›n.
 
 ## `GET /api/documents/{document_id}/versions/diff/export`
 
@@ -253,21 +294,21 @@ Query params:
 
 Behavior:
 
-* Read-only, không mutation.
-* Export đúng structured diff (không dùng raw LLM text).
-* CSV gồm `summary + criteria + warning`.
+* Read-only, khÃ´ng mutation.
+* Export Ä‘Ãºng structured diff (khÃ´ng dÃ¹ng raw LLM text).
+* CSV gá»“m `summary + criteria + warning`.
 
 ---
 
-# 🔒 Safety & Rollback
+# ðŸ”’ Safety & Rollback
 
-* Dữ liệu trong `backend/data/review_system.db` là nguồn SQLite mặc định.
-* Luôn backup thư mục `backend/uploads` và `backend/data` trước khi migrate.
-* Nếu PostgreSQL gặp sự cố, gỡ biến `DATABASE_URL` để quay lại dùng SQLite.
+* Dá»¯ liá»‡u trong `backend/data/review_system.db` lÃ  nguá»“n SQLite máº·c Ä‘á»‹nh.
+* LuÃ´n backup thÆ° má»¥c `backend/uploads` vÃ  `backend/data` trÆ°á»›c khi migrate.
+* Náº¿u PostgreSQL gáº·p sá»± cá»‘, gá»¡ biáº¿n `DATABASE_URL` Ä‘á»ƒ quay láº¡i dÃ¹ng SQLite.
 
 ---
 
-# 🏁 Summary
+# ðŸ Summary
 
 ```text
 System = Versioned + Immutable + Auditable + Async (Production)
@@ -275,9 +316,9 @@ System = Versioned + Immutable + Auditable + Async (Production)
 
 ---
 
-# 📌 Current Product State (Latest)
+# ðŸ“Œ Current Product State (Latest)
 
-- Phase 1–5 completed and stable.
+- Phase 1â€“5 completed and stable.
 - Core architecture stable: `Project -> Document -> Version -> GradingRun`.
 - i18n dictionaries (VI/JA) are clean:
   - Missing keys: 0
@@ -291,7 +332,7 @@ System = Versioned + Immutable + Auditable + Async (Production)
 
 ---
 
-# 🛡️ Operational Truth Guardrail
+# ðŸ›¡ï¸ Operational Truth Guardrail
 
 All dashboard/UI/UX refinements must be grounded in **real existing system data**.
 
@@ -314,7 +355,7 @@ Before adding any new UI block:
 
 ---
 
-# ✅ Release Validation Gate
+# âœ… Release Validation Gate
 
 For UI polish and documentation-aligned releases:
 
@@ -330,90 +371,81 @@ Expected:
 
 ---
 
-# 🔄 Runtime Behavior (Current)
+# ðŸ”„ Runtime Behavior (Current)
 
 ## Review Flow (Auto Mode)
 
-- Ở màn Upload, hệ thống hiển thị bộ đánh giá theo chế độ `[Auto]`.
-- User vận hành thường không cần chọn `Evaluation Set` thủ công để chạy review.
-- Backend sẽ tự resolve bộ đánh giá active phù hợp theo `(document_type, prompt_level)`.
+- á»ž mÃ n Upload, há»‡ thá»‘ng hiá»ƒn thá»‹ bá»™ Ä‘Ã¡nh giÃ¡ theo cháº¿ Ä‘á»™ `[Auto]`.
+- User váº­n hÃ nh thÆ°á»ng khÃ´ng cáº§n chá»n `Evaluation Set` thá»§ cÃ´ng Ä‘á»ƒ cháº¡y review.
+- Backend sáº½ tá»± resolve bá»™ Ä‘Ã¡nh giÃ¡ active phÃ¹ há»£p theo `(document_type, prompt_level)`.
 
 ## Evaluation Set Auto-Ensure
 
-- Nếu request review không truyền `evaluation_set_id`, backend sẽ tự tìm active set theo scope.
-- Nếu chưa có active set, backend thử auto-ensure theo scope hiện tại để giảm gián đoạn vận hành.
-- Nếu scope chưa đủ cấu hình nâng cao, hệ thống vẫn ưu tiên backward-compatible behavior để không phá luồng review cũ.
+- Náº¿u request review khÃ´ng truyá»n `evaluation_set_id`, backend sáº½ tá»± tÃ¬m active set theo scope.
+- Náº¿u chÆ°a cÃ³ active set, backend thá»­ auto-ensure theo scope hiá»‡n táº¡i Ä‘á»ƒ giáº£m giÃ¡n Ä‘oáº¡n váº­n hÃ nh.
+- Náº¿u scope chÆ°a Ä‘á»§ cáº¥u hÃ¬nh nÃ¢ng cao, há»‡ thá»‘ng váº«n Æ°u tiÃªn backward-compatible behavior Ä‘á»ƒ khÃ´ng phÃ¡ luá»“ng review cÅ©.
 
 ## Auditability
 
-- Mỗi lần chấm vẫn tạo `GradingRun` mới.
-- Metadata cấu hình thực tế dùng để chấm vẫn được lưu trong `GradingRun` (khi có).
+- Má»—i láº§n cháº¥m váº«n táº¡o `GradingRun` má»›i.
+- Metadata cáº¥u hÃ¬nh thá»±c táº¿ dÃ¹ng Ä‘á»ƒ cháº¥m váº«n Ä‘Æ°á»£c lÆ°u trong `GradingRun` (khi cÃ³).
 
 ---
 
-# 🔁 Legacy API Mapping
+# ðŸ” Legacy API Mapping
 
-Các API cũ vẫn được giữ để tương thích ngược, nhưng phải map sang flow mới:
+CÃ¡c API cÅ© váº«n Ä‘Æ°á»£c giá»¯ Ä‘á»ƒ tÆ°Æ¡ng thÃ­ch ngÆ°á»£c, nhÆ°ng pháº£i map sang flow má»›i:
 
 ```text
 project -> document -> version -> grading
 ```
 
-Quy tắc bắt buộc:
+Quy táº¯c báº¯t buá»™c:
 
-* Upload legacy vẫn phải gắn với `project_id` đã tồn tại.
-* Không auto-create project từ upload/filename.
-* Grading legacy endpoint vẫn chấm theo `document_version` (không chấm trực tiếp project).
+* Upload legacy váº«n pháº£i gáº¯n vá»›i `project_id` Ä‘Ã£ tá»“n táº¡i.
+* KhÃ´ng auto-create project tá»« upload/filename.
+* Grading legacy endpoint váº«n cháº¥m theo `document_version` (khÃ´ng cháº¥m trá»±c tiáº¿p project).
 
 ---
 
-# ⚙️ Evaluation Set Operation (Current)
+# âš™ï¸ Evaluation Set Operation (Current)
 
 ## Scope Rule
 
 - 1 scope = `(document_type + prompt_level)`.
-- Mỗi scope chỉ có 1 `active Evaluation Set` dùng cho các lần chấm mới.
+- Má»—i scope chá»‰ cÃ³ 1 `active Evaluation Set` dÃ¹ng cho cÃ¡c láº§n cháº¥m má»›i.
 
 ## Auto Runtime
 
-- Ở màn Upload, user vận hành thường không bắt buộc chọn `evaluation_set_id` thủ công.
-- Backend sẽ tự resolve bộ active theo `(document_type, prompt_level)`.
-- Nếu chưa có active set, backend thử auto-ensure theo scope để giảm gián đoạn vận hành.
+- á»ž mÃ n Upload, user váº­n hÃ nh thÆ°á»ng khÃ´ng báº¯t buá»™c chá»n `evaluation_set_id` thá»§ cÃ´ng.
+- Backend sáº½ tá»± resolve bá»™ active theo `(document_type, prompt_level)`.
+- Náº¿u chÆ°a cÃ³ active set, backend thá»­ auto-ensure theo scope Ä‘á»ƒ giáº£m giÃ¡n Ä‘oáº¡n váº­n hÃ nh.
 
 ## Audit Rule
 
-- Mỗi `GradingRun` vẫn lưu metadata cấu hình đã dùng (khi có) để truy vết/audit.
+- Má»—i `GradingRun` váº«n lÆ°u metadata cáº¥u hÃ¬nh Ä‘Ã£ dÃ¹ng (khi cÃ³) Ä‘á»ƒ truy váº¿t/audit.
 
 ---
 
-# 🧭 Quick Start (Business Flow)
+# ðŸ§­ Quick Start (Business Flow)
 
-1. Tạo Project.
-2. Chọn loại tài liệu + mức độ đánh giá.
-3. Upload tài liệu vào Project đã có.
-4. Bấm review và xem kết quả chi tiết.
-5. Nếu cần thay chuẩn chấm, tạo bộ tiêu chuẩn mới từ bộ hiện tại và kích hoạt.
-
----
-
-# ✅ UAT / Release Gate
-
-- Checklist tổng: `JAPANESE_READY_CHECKLIST.md`
-- UAT nhanh 30 phút: `UAT_30_MIN.md`
-- Biên bản UAT kỹ thuật hiện tại: `UAT_RESULT_2026-05-06.md`
-- Chốt phát hành: `GO_NO_GO_FINAL.md`
+1. Táº¡o Project.
+2. Chá»n loáº¡i tÃ i liá»‡u + má»©c Ä‘á»™ Ä‘Ã¡nh giÃ¡.
+3. Upload tÃ i liá»‡u vÃ o Project Ä‘Ã£ cÃ³.
+4. Báº¥m review vÃ  xem káº¿t quáº£ chi tiáº¿t.
+5. Náº¿u cáº§n thay chuáº©n cháº¥m, táº¡o bá»™ tiÃªu chuáº©n má»›i tá»« bá»™ hiá»‡n táº¡i vÃ  kÃ­ch hoáº¡t.
 
 ---
 
-# ⚙️ Operations / Phase 5 Readiness
+# âœ… UAT / Release Gate
 
-- Runbook vận hành: `PHASE5_RUNBOOK.md`
-- Soak test checklist: `PHASE5_SOAK_TEST_CHECKLIST.md`
-- Game-day checklist: `PHASE5_GAME_DAY_CHECKLIST.md`
+- Cháº¡y gate báº¯t buá»™c: `powershell -ExecutionPolicy Bypass -File scripts/dev-verify-v2.ps1`
+- Chá»‰ váº­n hÃ nh khi káº¿t quáº£ cuá»‘i lÃ  `PASS`
+- Náº¿u gate fail: dá»«ng váº­n hÃ nh vÃ  xá»­ lÃ½ theo log tá»« migration/parity/pre-cutover
 
 ---
 
-# 🛠️ Troubleshooting
+# ðŸ› ï¸ Troubleshooting
 
 ### Python 3.14 + Windows Installation Issue
 If `pip install -r requirements.txt` fails at `watchfiles` on Windows with Python 3.14:
@@ -425,26 +457,26 @@ If `npm run dev` fails with `EPERM` related to user profile path resolution, use
 
 ```powershell
 cd e:\workspace\AI-Review-Document-System
-.\scripts\start-dev.ps1
+.\scripts\dev-start-sync.ps1
 ```
 
 Stop backend/frontend and local Celery worker:
 
 ```powershell
-.\scripts\stop-dev.ps1
+.\scripts\dev-stop.ps1
 ```
 
 If you used async local mode and want to stop Docker Redis too:
 
 ```powershell
-.\scripts\stop-dev.ps1 -StopRedis
+.\scripts\dev-stop.ps1 -StopRedis
 ```
 
 The fallback script starts:
 - Backend: `python -m uvicorn app.main:app --host 0.0.0.0 --port 8000`
 - Frontend: `node node_modules/vite/bin/vite.js --host 0.0.0.0 --port 5173`
 - Default local mode is synchronous (`USE_CELERY=false`) to avoid stuck `PENDING` runs.
-- For explicit async local testing, use `.\scripts\start-dev-async.ps1`.
+- For explicit async local testing, use `.\scripts\dev-start-async.ps1`.
 
 ---
 
@@ -469,3 +501,4 @@ Current grading cache signature includes:
 
 - Verify repeated grading under same evaluation context resolves against `COMPLETED` cache candidate correctly.
 - Keep append-only audit behavior: each grading action must preserve history.
+

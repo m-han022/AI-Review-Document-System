@@ -15,7 +15,8 @@ export interface ProjectCriteriaTabViewModel {
 
 export interface SlideViewItem {
   id: number;
-  slide_number: number;
+  page_number: number;
+  slide_number?: number;
   status: "OK" | "NG";
   displayTitle: string;
   summary: string;
@@ -25,6 +26,6 @@ export interface SlideViewItem {
 
 export interface ProjectSlidesTabViewModel {
   gradingDetail?: GradingRunDetail;
-  slideReviewItems: SlideViewItem[];
+  pageReviewItems: SlideViewItem[];
   activeSlide: SlideViewItem | null;
 }

@@ -32,6 +32,9 @@ def _ensure_sqlite_column(table_name: str, column_name: str, column_type: str) -
 def _migrate_sqlite_schema() -> None:
     _ensure_sqlite_column("submission", "project_description", "VARCHAR")
     _ensure_sqlite_column("submission_document_version", "document_id", "INTEGER")
+    _ensure_sqlite_column("submission_document_version", "evidence_pdf_path", "VARCHAR")
+    _ensure_sqlite_column("submission_document_version", "evidence_pdf_status", "VARCHAR DEFAULT 'PENDING'")
+    _ensure_sqlite_column("submission_document_version", "evidence_pdf_error", "VARCHAR")
     _ensure_sqlite_column("rubric", "status", "VARCHAR DEFAULT 'active'")
     _ensure_sqlite_column("promptversion", "status", "VARCHAR DEFAULT 'active'")
     _ensure_sqlite_column("evaluationpolicy", "status", "VARCHAR DEFAULT 'active'")

@@ -9,6 +9,7 @@ from app.config import UPLOADS_DIR
 from app.models import LanguageCode, UploadResponse
 from app.observability import log_error, log_event
 from app.services.pdf_parser import detect_language_from_text, extract_text_from_file
+from app.services.evidence_pdf_service import queue_evidence_pdf_generation
 from app.storage import store
 
 router = APIRouter()
@@ -160,6 +161,8 @@ async def upload_project(
             document_version=submission.latest_document_version,
             document_type=submission.document_type,
         )
+        if submission.latest_document_version_id:
+            queue_evidence_pdf_generation(submission.latest_document_version_id)
 
         return UploadResponse(
             project_id=resolved_project_id,
