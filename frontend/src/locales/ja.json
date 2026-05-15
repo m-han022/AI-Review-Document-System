@@ -43,7 +43,11 @@
       "regrade": "再採点",
       "grade": "プロジェクト全体を採点",
       "noDocumentsToGrade": "採点対象の資料がありません"
-    }
+    },
+    "success": "Thành công",
+    "improveAction": "Hành động cải thiện",
+    "unknownError": "C? l?i kh?ng x?c ??nh.",
+    "pagination": "Ph?n trang"
   },
   "sm": {
     "common": {
@@ -137,7 +141,8 @@
       "warning": {
         "evaluation_set_changed": "異なる evaluation set で採点されています。",
         "prompt_level_changed": "異なる prompt level で採点されています。"
-      }
+      },
+      "needsGrading": "Cần chấm điểm"
     },
     "auditDashboard": {
       "filterTitle": "検索フィルター",
@@ -277,7 +282,10 @@
     "processing": "処理中",
     "reviewReady": "レビュー準備完了",
     "attentionNeeded": "要対応",
-    "exporting": "出力中"
+    "exporting": "出力中",
+    "lowRisk": "Rủi ro thấp",
+    "mediumRisk": "Rủi ro trung bình",
+    "highRisk": "Rủi ro cao"
   },
   "nav": {
     "dashboard": "ダッシュボード",
@@ -645,7 +653,11 @@
     "insight": {
       "weakestCriterion": "改善が必要な評価基準",
       "importantComments": "重要な指摘事項",
-      "positivePoints": "評価できるポイント"
+      "positivePoints": "評価できるポイント",
+      "priorityAction": "Hành động ưu tiên số 1",
+      "priorityDesc": "Hãy tập trung cải thiện tiêu chí '{criterion}' và rà soát lại Trang {trang} để tối ưu hóa chất lượng tài liệu.",
+      "excellentTitle": "Tài liệu xuất sắc",
+      "excellentDesc": "Tài liệu của bạn đạt tiêu chuẩn rất cao. Không có hành động khẩn cấp nào được yêu cầu lúc này."
     },
     "confirmReviewTitle": "レビューを開始しますか？",
     "confirmReviewDesc": "ドキュメントの再評価を開始します。これにより新しい採点結果が作成されます。",
@@ -674,7 +686,47 @@
     "showJson": "JSONを表示",
     "filterNgOnly": "NG?????",
     "selectSlideForDetails": "?????????????",
-    "metaEvaluationSet": "評価セット"
+    "metaEvaluationSet": "評価セット",
+    "selectDocumentType": "Chọn loại tài liệu...",
+    "noIssuesDetected": "Không phát hiện vấn đề",
+    "exportReport": "Xuất báo cáo",
+    "detailedBreakdown": "Phân tích chi tiết tiêu chí",
+    "noTrendData": "Chưa có dữ liệu so khớp xu hướng",
+    "topAIComments": "Nhận xét quan trọng nhất",
+    "trend": "Xu hướng",
+    "criteriaInsights": "Phân tích chi tiết tiêu chí",
+    "improvementPoints": "điểm cần cải thiện",
+    "scoreLevelExcellent": "Xuất sắc",
+    "scoreLevelGood": "Tốt",
+    "scoreLevelAverage": "Trung bình",
+    "scoreLevelWeak": "Yếu",
+    "bestCriterion": "Tốt nhất:",
+    "worstCriterion": "Cần cải thiện:",
+    "noSpecificSuggestion": "Không có gợi ý cụ thể cho tiêu chí này.",
+    "analysisSummary": "Tóm tắt phân tích",
+    "riskAssessment": "Đánh giá rủi ro",
+    "riskDescription": "Phân tích mức độ rủi ro dựa trên sự kết hợp giữa điểm số tổng quát và số lượng trang phát hiện lỗi NG.",
+    "auditTimeline": "Dòng thời gian kiểm tra",
+    "graded": "Đã chấm điểm",
+    "uploaded": "Tải tài liệu lên",
+    "documentStatus": "Trạng thái tài liệu",
+    "metaRisk": "Mức độ rủi ro",
+    "context": "Ngữ cảnh đang chọn",
+    "version": "Phi?n b?n",
+    "errorAlreadyExists": "M?c ?? t?n t?i.",
+    "derivedFromDraftFeedback": "N?i dung ???c t?ng h?p t? ph?n h?i nh?p.",
+    "rawAiResponse": "Ph?n h?i AI g?c",
+    "documentSnippetLabel": "Tr?ch ?o?n t?i li?u",
+    "noEvidenceFound": "Kh?ng t?m th?y b?ng ch?ng ph? h?p.",
+    "noExtractedText": "Kh?ng c? d? li?u tr?ch xu?t v?n b?n.",
+    "documentName": "T?n t?i li?u",
+    "documentVersion": "Phi?n b?n t?i li?u",
+    "promptVersion": "Phi?n b?n prompt",
+    "promptLevel": "M?c ?? ??nh gi?",
+    "geminiModel": "M? h?nh AI",
+    "slideDetailTitle": "Chi ti?t theo trang",
+    "noTitle": "Kh?ng c? ti?u ??",
+    "finalPromptSnapshot": "Snapshot prompt cu?i"
   },
   "compare": {
     "title": "バージョン比較",
@@ -811,7 +863,8 @@
     "filterAllStatuses": "すべての状態",
     "filterAllLanguages": "すべての言語",
     "createProjectNew": "新規プロジェクト",
-    "viewResult": "結果を見る"
+    "viewResult": "結果を見る",
+    "noSubmissionsDesc": "T?i t?i li?u l?n ?? b?t ??u review."
   },
   "dashboardV6": {
     "governanceCoverage": "ガバナンス・カバレッジ",

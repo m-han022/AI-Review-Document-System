@@ -45,7 +45,9 @@
       "regrade": "Chấm điểm lại",
       "grade": "Chấm điểm toàn bộ dự án",
       "noDocumentsToGrade": "Chưa có tài liệu để chấm điểm"
-    }
+    },
+    "unknownError": "C? l?i kh?ng x?c ??nh.",
+    "pagination": "Ph?n trang"
   },
   "sm": {
     "common": {
@@ -709,7 +711,22 @@
     "confirmReviewStart": "Bắt đầu review",
     "criteria": "Tiêu chí",
     "loadingGradingData": "Đang tải dữ liệu đánh giá...",
-    "metaEvaluationSet": "Bộ tiêu chuẩn"
+    "metaEvaluationSet": "Bộ tiêu chuẩn",
+    "version": "Phi?n b?n",
+    "errorAlreadyExists": "M?c ?? t?n t?i.",
+    "derivedFromDraftFeedback": "N?i dung ???c t?ng h?p t? ph?n h?i nh?p.",
+    "rawAiResponse": "Ph?n h?i AI g?c",
+    "documentSnippetLabel": "Tr?ch ?o?n t?i li?u",
+    "noEvidenceFound": "Kh?ng t?m th?y b?ng ch?ng ph? h?p.",
+    "noExtractedText": "Kh?ng c? d? li?u tr?ch xu?t v?n b?n.",
+    "documentName": "T?n t?i li?u",
+    "documentVersion": "Phi?n b?n t?i li?u",
+    "promptVersion": "Phi?n b?n prompt",
+    "promptLevel": "M?c ?? ??nh gi?",
+    "geminiModel": "M? h?nh AI",
+    "slideDetailTitle": "Chi ti?t theo trang",
+    "noTitle": "Kh?ng c? ti?u ??",
+    "finalPromptSnapshot": "Snapshot prompt cu?i"
   },
   "compare": {
     "title": "So sánh phiên bản",
@@ -846,7 +863,8 @@
     "filterAllStatuses": "Tất cả trạng thái",
     "filterAllLanguages": "Tất cả ngôn ngữ",
     "createProjectNew": "Dự án mới",
-    "viewResult": "Xem kết quả"
+    "viewResult": "Xem kết quả",
+    "noSubmissionsDesc": "T?i t?i li?u l?n ?? b?t ??u review."
   },
   "dashboardV6": {
     "governanceCoverage": "Độ phủ Quản trị",
