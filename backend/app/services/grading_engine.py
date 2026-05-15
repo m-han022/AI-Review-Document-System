@@ -1,5 +1,6 @@
 import hashlib
 import json
+import re
 from collections import OrderedDict
 from typing import Any, Dict, List
 
@@ -370,6 +371,99 @@ def _normalize_slide_reviews(raw_reviews: Any, language: str) -> list[dict[str, 
     return sorted(normalized_reviews, key=lambda item: item["slide_number"])
 
 
+def _extract_balanced_json_object(raw_text: str) -> str | None:
+    start = raw_text.find("{")
+    if start == -1:
+        return None
+
+    depth = 0
+    in_string = False
+    escape = False
+    last_balanced_end = -1
+
+    for idx in range(start, len(raw_text)):
+        ch = raw_text[idx]
+        if in_string:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            continue
+
+        if ch == '"':
+            in_string = True
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                last_balanced_end = idx
+            if depth < 0:
+                break
+
+    if last_balanced_end == -1:
+        return None
+    return raw_text[start : last_balanced_end + 1]
+
+
+def _parse_llm_json_response(raw_text: str) -> dict[str, Any]:
+    cleaned_text = raw_text.strip()
+    start_idx = cleaned_text.find("{")
+    end_idx = cleaned_text.rfind("}")
+    if start_idx != -1 and end_idx != -1 and end_idx >= start_idx:
+        cleaned_text = cleaned_text[start_idx : end_idx + 1]
+
+    try:
+        parsed = json.loads(cleaned_text, strict=False)
+        if isinstance(parsed, dict):
+            return parsed
+    except json.JSONDecodeError:
+        pass
+
+    balanced = _extract_balanced_json_object(raw_text)
+    if balanced:
+        parsed = json.loads(balanced, strict=False)
+        if isinstance(parsed, dict):
+            return parsed
+
+    raise json.JSONDecodeError("Could not decode response as JSON object", cleaned_text, 0)
+
+
+def _recover_minimal_result_from_text(
+    raw_text: str,
+    required_keys: list[str],
+    language: str,
+) -> dict[str, Any]:
+    score_match = re.search(r'"score"\s*:\s*(-?\d+)', raw_text)
+    score = int(score_match.group(1)) if score_match else 0
+
+    criteria_scores: dict[str, float] = {}
+    for key in required_keys:
+        key_pattern = rf'"{re.escape(key)}"\s*:\s*(-?\d+(?:\.\d+)?)'
+        key_match = re.search(key_pattern, raw_text)
+        if key_match:
+            criteria_scores[key] = round(float(key_match.group(1)), 1)
+
+    empty_lang = {"vi": {}, "ja": {}}
+    draft_vi = "Phản hồi AI bị lỗi định dạng JSON, hệ thống đã tự phục hồi kết quả tối thiểu."
+    draft_ja = "AIのJSON形式応答が不正だったため、最小限の結果で自動復旧しました。"
+    draft_feedback = {"vi": draft_vi, "ja": draft_ja}
+    if language == "vi":
+        draft_feedback["ja"] = ""
+    if language == "ja":
+        draft_feedback["vi"] = ""
+
+    return {
+        "score": max(0, min(100, score)),
+        "criteria_scores": criteria_scores,
+        "criteria_suggestions": empty_lang,
+        "draft_feedback": draft_feedback,
+        "slide_reviews": [],
+    }
+
+
 def grade_submission(
     text: str,
     language: str = "ja",
@@ -495,15 +589,13 @@ def grade_submission(
             "Gemini returned an empty response. The content may have been filtered or blocked."
         )
     try:
-        cleaned_text = response.text.strip()
-        start_idx = cleaned_text.find("{")
-        end_idx = cleaned_text.rfind("}")
-        if start_idx != -1 and end_idx != -1 and end_idx >= start_idx:
-            cleaned_text = cleaned_text[start_idx:end_idx+1]
-        result = json.loads(cleaned_text, strict=False)
+        result = _parse_llm_json_response(response.text)
     except json.JSONDecodeError as exc:
-        excerpt = response.text[:400] if response.text else ""
-        raise RuntimeError(f"Gemini returned an invalid JSON response. Please retry. (Details: {exc} | Excerpt: {excerpt})") from exc
+        result = _recover_minimal_result_from_text(
+            raw_text=response.text or "",
+            required_keys=required_keys,
+            language=language,
+        )
 
     score = int(result.get("score", 0))
     score = max(0, min(100, score))
