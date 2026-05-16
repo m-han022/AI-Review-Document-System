@@ -12,7 +12,7 @@ import {
 } from "./AuditDashboard.sections";
 import { 
   RefreshIcon, AlertCircleIcon, SparkIcon, AlertTriangleIcon, 
-  CheckCircleIcon, TrendingUpIcon, LayersIcon 
+  CheckCircleIcon, LayersIcon 
 } from "../ui/Icon";
 
 import { 
@@ -301,6 +301,7 @@ export default function AuditDashboard() {
       });
   };
 
+
   return (
     <div className="audit-container">
       <AuditFiltersSection
@@ -522,29 +523,6 @@ export default function AuditDashboard() {
                 </section>
               )}
 
-              {/* Audit History Snapshot */}
-              {state.selectedRunDetail.grading_run.final_prompt_snapshot && (
-                <section className="audit-detail-section">
-                  <header className="audit-section-header" style={{ marginBottom: '16px' }}>
-                    <h3 className="ds-title-h3" style={{ fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <TrendingUpIcon size="sm" /> {String(t("project.finalPromptSnapshot") || "Prompt thá»±c táº¿ Ä‘Ã£ sá»­ dá»¥ng")}
-                    </h3>
-                  </header>
-                  <pre style={{ 
-                    padding: '20px', 
-                    background: 'var(--ds-color-bg-muted)', 
-                    borderRadius: '12px', 
-                    fontSize: '12px', 
-                    overflowX: 'auto',
-                    whiteSpace: 'pre-wrap',
-                    color: 'var(--ds-color-text-body)',
-                    border: '1px solid var(--ds-color-border)',
-                    lineHeight: 1.6
-                  }}>
-                    {String(state.selectedRunDetail.grading_run.final_prompt_snapshot)}
-                  </pre>
-                </section>
-              )}
             </div>
           ) : (
             <EmptyState title={String(t("sm.auditDashboard.selectRun"))} description={String(t("sm.auditDashboard.selectRunDesc"))} compact />

@@ -334,6 +334,7 @@ export default function Dashboard() {
           onToggleSidebar={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
           onBreadcrumbClick={handleBreadcrumbClick}
+          mode={activeView === "detail" ? "detail" : "default"}
         />
       }
     >

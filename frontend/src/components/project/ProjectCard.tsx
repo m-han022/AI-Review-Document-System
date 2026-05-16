@@ -145,7 +145,7 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
   } = uiState;
   const [confirmReviewOpen, setConfirmReviewOpen] = useState(false);
   const { loadingDocs, docsError, refetchDocuments, versions, gradings, sortedDocuments, gradingDetail, currentProject, currentVersion } = dataState;
-  const { rerunMutation, exportMutation } = actions;
+  const { rerunMutation } = actions;
   const { result, pageReviewItems, ngPageCount, orderedScores, feedbackSections, activeSlide, isInitialLoading } = derived;
   const displayScore = result?.total_score ?? result?.score ?? null;
   const displayModel = result?.gemini_model ?? "Gemini (chưa lưu model cụ thể)";

@@ -39,20 +39,34 @@ const LEVELS = ["low", "medium", "high"] as const;
 type ConfigTab = "sets" | "create" | "compare";
 
 import { Tooltip } from "../ui/States";
-import { HelpIcon, InfoIcon } from "../ui/Icon";
+import { InfoIcon } from "../ui/Icon";
+import "../../styles/globals.css";
 
 function renderSet(setItem: any, t: any) {
   if (!setItem) return t("common.noData");
-  return JSON.stringify({
-    name: setItem.name,
-    version: setItem.version_label,
-    rubric: setItem.rubric?.version,
-    prompt: setItem.prompt?.version,
-    policy: setItem.policy?.version
-  }, null, 2);
+  return {
+    name: setItem.name || "-",
+    version: setItem.version_label || "-",
+    status: setItem.status || "-",
+    rubric: setItem.rubric?.version || "-",
+    prompt: setItem.prompt?.version || "-",
+    policy: setItem.policy?.version || "-",
+    rules: setItem.required_rules_version || "-",
+  };
 }
 
 export default function AIConfigurationConsole() {
+  const formatDateTimeFriendly = (value?: string | null) => {
+    if (!value) return "-";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return value;
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const yyyy = d.getFullYear();
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mi = String(d.getMinutes()).padStart(2, "0");
+    return `${dd}/${mm}/${yyyy} - ${hh}:${mi}`;
+  };
   const formatPreviewPromptForUi = (text: string): string => {
     if (!text) return text;
     const lines = text.split("\n");
@@ -125,6 +139,84 @@ export default function AIConfigurationConsole() {
   };
   const { lang, t } = useTranslation();
   const ui = AI_CONFIG_COPY[lang] ?? AI_CONFIG_COPY.vi;
+  const uiText = {
+    runtimeHealthTitle: lang === "vi" ? "Sức khỏe runtime" : "Runtime Health",
+    runtimeHealthEmpty: lang === "vi" ? "Chưa có dữ liệu runtime cho phạm vi này." : "No runtime metric yet for this scope.",
+    evaluationSetColumn: lang === "vi" ? "Bộ tiêu chuẩn chấm" : "Evaluation Set",
+    highFailRate: lang === "vi" ? "Tỷ lệ lỗi cao" : "High fail rate",
+    highP95: lang === "vi" ? "Độ trễ p95 cao" : "High p95 latency",
+    healthy: lang === "vi" ? "Ổn định" : "Healthy",
+    allStatuses: lang === "vi" ? "Tất cả trạng thái" : "All status",
+    selectSetPlaceholder: lang === "vi" ? "Chọn bộ tiêu chuẩn..." : ui.searchPlaceholder,
+    btnValidate: lang === "vi" ? "Xác thực" : "Validate",
+    btnApprove: lang === "vi" ? "Phê duyệt" : "Approve",
+    btnActivate: lang === "vi" ? "Kích hoạt" : "Activate",
+    btnArchive: lang === "vi" ? "Lưu trữ" : "Archive",
+    btnRemove: lang === "vi" ? "Xóa" : "Remove",
+    btnAddCriterion: lang === "vi" ? "Thêm tiêu chí" : "Add criterion",
+    impactPreview: lang === "vi" ? "Xem trước tác động" : "Impact Preview",
+    scopeLabel: lang === "vi" ? "Phạm vi" : "Scope",
+    activeBundleLabel: lang === "vi" ? "Bộ đang active" : "Current active bundle",
+    impactHint:
+      lang === "vi"
+        ? "Bộ mới sẽ áp dụng cho các lần chấm sau khi kích hoạt trong phạm vi này."
+        : "The new bundle will affect future grading runs in this scope after activation.",
+    criteriaSchemaCheck: lang === "vi" ? "Kiểm tra schema tiêu chí:" : "Criteria schema check:",
+    criteriaTotalInvalid: lang === "vi" ? " Tổng điểm phải bằng 100." : " Total score must equal 100.",
+    criteriaTotalValid: lang === "vi" ? " Tổng điểm hợp lệ." : " Total score is valid.",
+    criteriaDupFound: lang === "vi" ? " Có key bị trùng." : " Duplicate keys found.",
+    criteriaDupNone: lang === "vi" ? " Không có key trùng." : " No duplicate keys.",
+    criteriaEmptyFound: lang === "vi" ? " Một số tiêu chí thiếu key/label." : " Some criteria are missing key/label.",
+    criteriaEmptyNone: lang === "vi" ? " Không có tiêu chí rỗng." : " No empty criteria.",
+    finalPromptPreview:
+      lang === "vi" ? "Xem trước Final Prompt (scope active hiện tại)" : "Preview Final Prompt (current active scope)",
+    generatingPreview: lang === "vi" ? "Đang tạo bản xem trước..." : "Generating preview...",
+    status: lang === "vi" ? "Trạng thái" : "Status",
+    runs: lang === "vi" ? "Lượt chạy" : "Runs",
+    avgLatency: lang === "vi" ? "Độ trễ TB (s)" : "Avg Latency (s)",
+    p95Latency: lang === "vi" ? "Độ trễ P95 (s)" : "P95 Latency (s)",
+    failedRate: lang === "vi" ? "Tỷ lệ lỗi (scope)" : "Failed Rate (scope)",
+    trend: lang === "vi" ? "Xu hướng" : "Trend",
+    alert: lang === "vi" ? "Cảnh báo" : "Alert",
+    bundleLifecycle: lang === "vi" ? "Vòng đời bộ tiêu chuẩn" : "Bundle Lifecycle",
+    copy: lang === "vi" ? "Sao chép" : "Copy",
+    expand: lang === "vi" ? "Mở rộng" : "Expand",
+    collapse: lang === "vi" ? "Thu gọn" : "Collapse",
+    none: lang === "vi" ? "không có" : "none",
+    na: lang === "vi" ? "Không có" : "N/A",
+    bundleStatusUpdated: lang === "vi" ? "Đã cập nhật trạng thái bộ tiêu chuẩn." : "Bundle status updated.",
+    criteriaStructure: lang === "vi" ? "Cấu trúc tiêu chí: tổng điểm hiện tại" : "Criteria structure: current total score",
+    mustEqual100: lang === "vi" ? " - phải bằng 100." : " - must equal 100.",
+    duplicateKeysDetected: lang === "vi" ? " - phát hiện key bị trùng." : " - duplicate keys detected.",
+    statusAll: lang === "vi" ? "Tất cả trạng thái" : "All statuses",
+    statusActive: lang === "vi" ? "Đang hoạt động" : "Active",
+    statusValidated: lang === "vi" ? "Đã xác thực" : "Validated",
+    statusApproved: lang === "vi" ? "Đã phê duyệt" : "Approved",
+    statusDraft: lang === "vi" ? "Bản nháp" : "Draft",
+    statusArchived: lang === "vi" ? "Đã lưu trữ" : "Archived",
+    bizRubric: lang === "vi" ? "Khung tiêu chí chấm điểm" : "Rubric Framework",
+    bizPrompt: lang === "vi" ? "Hướng dẫn phản hồi AI" : "AI Response Guide",
+    bizPolicy: lang === "vi" ? "Nguyên tắc đánh giá" : "Evaluation Policy",
+    bizRules: lang === "vi" ? "Quy tắc bắt buộc" : "Required Rules",
+  };
+  const lifecycleLabelMap: Record<string, string> = {
+    draft: uiText.statusDraft,
+    validated: uiText.statusValidated,
+    approved: uiText.statusApproved,
+    active: uiText.statusActive,
+    archived: uiText.statusArchived,
+  };
+  const statusLabelMap: Record<string, string> = {
+    active: uiText.statusActive,
+    validated: uiText.statusValidated,
+    approved: uiText.statusApproved,
+    draft: uiText.statusDraft,
+    archived: uiText.statusArchived,
+  };
+  const toStatusLabel = (status?: string | null) => {
+    const key = (status || "").toLowerCase();
+    return statusLabelMap[key] || status || uiText.none;
+  };
 
   const mapConfigErrorMessage = (error: unknown): string => {
     if (error instanceof ApiClientError) {
@@ -141,7 +233,7 @@ export default function AIConfigurationConsole() {
   const [activateConfirmOpen, setActivateConfirmOpen] = useState(false);
   const [showArchived] = useState(true);
   const [historyLimit] = useState(50);
-  const [historySearch, setHistorySearch] = useState("");
+  const [historySearch] = useState("");
   const [historyStatusFilter, setHistoryStatusFilter] = useState<"all" | "active" | "validated" | "approved" | "draft" | "archived">("all");
   const [compareLeftId, setCompareLeftId] = useState<number | "">("");
   const [compareRightId, setCompareRightId] = useState<number | "">("");
@@ -149,6 +241,7 @@ export default function AIConfigurationConsole() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [activeTab, setActiveTab] = useState<ConfigTab>("sets");
   const [showGuide, setShowGuide] = useState(false);
+  const [collapseRubricView, setCollapseRubricView] = useState(true);
   const [isNewTypeModalOpen, setIsNewTypeModalOpen] = useState(false);
   const [newTypeName, setNewTypeName] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState("");
@@ -159,6 +252,7 @@ export default function AIConfigurationConsole() {
   const [changePrompt, setChangePrompt] = useState(true);
   const [changePolicy, setChangePolicy] = useState(false);
   const [changeRequiredRules, setChangeRequiredRules] = useState(false);
+  const [requiredRulesConfirmOpen, setRequiredRulesConfirmOpen] = useState(false);
   const [setName, setSetName] = useState("");
   const [newRubricContent, setNewRubricContent] = useState("");
   const [newPromptContent, setNewPromptContent] = useState("");
@@ -166,6 +260,8 @@ export default function AIConfigurationConsole() {
   const [newRequiredRulesContent, setNewRequiredRulesContent] = useState("");
   const [finalPromptPreviewText, setFinalPromptPreviewText] = useState("");
   const [finalPromptPreviewError, setFinalPromptPreviewError] = useState("");
+  const [finalPromptReadonlyText, setFinalPromptReadonlyText] = useState("");
+  const [finalPromptReadonlyError, setFinalPromptReadonlyError] = useState("");
   const [manualCriteria, setManualCriteria] = useState<Array<{ key: string; max_score: number; label_vi: string; label_ja: string }>>([
     { key: "review_tong_the", max_score: 25, label_vi: "Danh gia tong the", label_ja: "Overall review" },
     { key: "diem_tot", max_score: 25, label_vi: "Diem tot", label_ja: "Strengths" },
@@ -189,6 +285,7 @@ export default function AIConfigurationConsole() {
   );
   const canProceedSchemaCheck =
     !changeRubric || (!criteriaHasDuplicateKey && criteriaTotalScore === 100 && !criteriaHasEmptyField);
+  const hasEffectiveChange = changeRubric || changePrompt || changePolicy || changeRequiredRules;
   const isPlaceholderPrompt = (value?: string | null) => {
     const normalized = (value || "").trim().toLowerCase();
     return !normalized || normalized === "updated prompt content";
@@ -196,6 +293,24 @@ export default function AIConfigurationConsole() {
   const isTestPolicy = (value?: string | null) => {
     const normalized = (value || "").trim().toLowerCase();
     return normalized === "perf policy";
+  };
+  const detectScopeConsistencyWarning = (scopeLevel: string, promptText: string, policyText: string): string => {
+    const text = `${promptText || ""}\n${policyText || ""}`.toLowerCase();
+    const hasStrictSignal =
+      /(nghiêm|nghiêm ngặt|chặt|khắt khe|strict|evidence|bằng chứng bắt buộc|must|mandatory)/i.test(text);
+    const hasSoftSignal =
+      /(nhanh|nhẹ|linh hoạt|tối giản|quick|light|lenient|overview)/i.test(text);
+    if (scopeLevel === "high" && hasSoftSignal && !hasStrictSignal) {
+      return lang === "vi"
+        ? "Cảnh báo: Mức độ đánh giá đang là Cao nhưng Prompt/Policy có xu hướng quá mềm."
+        : "Warning: Evaluation level is High but Prompt/Policy appears too soft.";
+    }
+    if (scopeLevel === "low" && hasStrictSignal && !hasSoftSignal) {
+      return lang === "vi"
+        ? "Cảnh báo: Mức độ đánh giá đang là Thấp nhưng Prompt/Policy có xu hướng quá nghiêm ngặt."
+        : "Warning: Evaluation level is Low but Prompt/Policy appears too strict.";
+    }
+    return "";
   };
   const getDefaultPromptFromTemplate = (docType: string) => {
     const template = globalDefaults?.rubric_templates?.[docType];
@@ -310,6 +425,22 @@ export default function AIConfigurationConsole() {
       rules: leftSet.required_rule_hash === rightSet.required_rule_hash ? "unchanged" : "changed",
     };
   }, [leftSet, rightSet]);
+  const isSameCompareSet = Boolean(compareLeftId && compareRightId && compareLeftId === compareRightId);
+  const scopeConsistencyWarning = useMemo(
+    () => detectScopeConsistencyWarning(level, newPromptContent, newPolicyContent),
+    [level, newPromptContent, newPolicyContent, lang],
+  );
+  const buildDiffSnippet = (left?: string | null, right?: string | null) => {
+    const l = (left || "").trim();
+    const r = (right || "").trim();
+    if (!l && !r) return lang === "vi" ? "Không có dữ liệu." : "No data.";
+    if (l === r) return lang === "vi" ? "Không có khác biệt nội dung." : "No content difference.";
+    const lLines = l.split("\n").map((x) => x.trim()).filter(Boolean);
+    const rLines = r.split("\n").map((x) => x.trim()).filter(Boolean);
+    const leftOnly = lLines.find((line) => !rLines.includes(line));
+    const rightOnly = rLines.find((line) => !lLines.includes(line));
+    return `${lang === "vi" ? "Bên trái" : "Left"}: ${leftOnly || "-"}\n${lang === "vi" ? "Bên phải" : "Right"}: ${rightOnly || "-"}`;
+  };
   const scopedRuntimeHealth = useMemo(
     () =>
       runtimeHealth
@@ -363,7 +494,7 @@ export default function AIConfigurationConsole() {
       return activateEvaluationSet(vars.id);
     },
     onSuccess: async () => {
-      setMessage({ type: "success", text: "Bundle status updated." });
+      setMessage({ type: "success", text: uiText.bundleStatusUpdated });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["mgmt-evaluation-sets", documentType, level] }),
         queryClient.invalidateQueries({ queryKey: ["mgmt-evaluation-set-active", documentType, level] }),
@@ -439,7 +570,7 @@ export default function AIConfigurationConsole() {
     if (!activeDetails) return;
     setSetName(`${documentType} ${level} set ${new Date().toISOString().slice(0, 16)}`);
     setChangeRubric(false);
-    setChangePrompt(false);
+    setChangePrompt(true);
     setChangePolicy(false);
     setChangeRequiredRules(false);
     setNewRubricContent(activeDetails?.rubric?.prompt?.vi || activeDetails?.rubric?.prompt?.ja || "");
@@ -479,7 +610,7 @@ export default function AIConfigurationConsole() {
     setFinalPromptPreviewError("");
     setChangeRubric(false);
     setChangePrompt(true);
-    setChangePolicy(true);
+    setChangePolicy(false);
     setChangeRequiredRules(false);
     const activeRubric = rubrics.find((r) => r.document_type === documentType && r.status === "active") || rubrics.find((r) => r.document_type === documentType);
     setNewRubricContent(activeRubric?.prompt?.vi || activeRubric?.prompt?.ja || "");
@@ -532,6 +663,21 @@ export default function AIConfigurationConsole() {
     };
     runPreview();
   }, [createStep, canProceedSchemaCheck, documentType, level]);
+
+  useEffect(() => {
+    const runReadonlyPreview = async () => {
+      if (!selectedSet) return;
+      setFinalPromptReadonlyError("");
+      try {
+        const res = await previewFinalPrompt(documentType, level);
+        setFinalPromptReadonlyText(formatPreviewPromptForUi(res.full_prompt_preview || ""));
+      } catch (e) {
+        setFinalPromptReadonlyText("");
+        setFinalPromptReadonlyError(e instanceof Error ? e.message : "Cannot load final prompt.");
+      }
+    };
+    runReadonlyPreview();
+  }, [selectedSetId, documentType, level]);
 
   const bootstrapMutation = useMutation({
     mutationFn: (vars: { type: string; level: string }) => bootstrapEvaluationSet({
@@ -605,21 +751,16 @@ export default function AIConfigurationConsole() {
 
   return (
     <div className="workspace-stack">
-      <div className="analytical-header-v4__selectors" style={{ padding: 'var(--ds-space-3) var(--ds-space-4)', background: 'var(--ds-color-surface)', borderRadius: 'var(--ds-radius-md)', border: '1px solid var(--ds-color-border)' }}>
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between',
-          gap: 'var(--ds-space-6)'
-        }}>
-          {/* Left: Document Type Scope */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--ds-space-4)', flex: 1 }}>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span className="ds-caption" style={{ fontWeight: 700, color: 'var(--ds-color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px' }}>
+      <div className="analytical-header-v4__selectors ai-config-selectors-card">
+        <div className="ai-config-selectors-grid">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
+              <span className="ds-caption" style={{ fontWeight: 700, color: 'var(--ds-color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px', display: 'inline-flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 {ui.scopeDocumentType || "Document Type"}
+                <button type="button" onClick={() => setIsNewTypeModalOpen(true)} style={{ marginLeft: '10px', border: 'none', background: 'transparent', color: 'var(--ds-color-primary)', fontWeight: 600, cursor: 'pointer' }}>
+                  + Thêm mới
+                </button>
               </span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '420px' }}>
-                <div style={{ flex: 1 }}>
+              <div style={{ width: '100%', minWidth: 0 }}>
                   <Select 
                     value={documentType} 
                     onChange={(e) => setDocumentType(e.target.value)}
@@ -628,26 +769,18 @@ export default function AIConfigurationConsole() {
                       label: `${getDocumentTypeLabel(item, lang)} (${item})`
                     }))}
                   />
-                </div>
-                <Button 
-                  variant="secondary" 
-                  size="sm" 
-                  onClick={() => setIsNewTypeModalOpen(true)}
-                  title={ui.newTypeBtnTooltip}
-                  style={{ height: 'var(--ds-control-height)' }}
-                >
-                  +
-                </Button>
               </div>
-            </div>
-
-            {/* Middle: Level Scope */}
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span className="ds-caption" style={{ fontWeight: 700, color: 'var(--ds-color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px' }}>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
+              <span className="ds-caption" style={{ fontWeight: 700, color: 'var(--ds-color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                 {ui.scopeLevel || "Evaluation Level"}
+                <Tooltip content={globalDefaults?.policies[level]?.[lang] || "..."}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '16px', height: '16px', borderRadius: '50%', backgroundColor: 'var(--ds-color-bg-app)', color: 'var(--ds-color-primary)', cursor: 'help' }}>
+                    <InfoIcon size="sm" />
+                  </span>
+                </Tooltip>
               </span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '220px' }}>
-                <div style={{ flex: 1 }}>
+              <div style={{ width: '100%', minHeight: 'var(--ds-control-height)' }}>
                   <Select 
                     value={level} 
                     onChange={(e) => setLevel(e.target.value)}
@@ -656,35 +789,14 @@ export default function AIConfigurationConsole() {
                       label: getLevelLabel(item, lang)
                     }))}
                   />
-                </div>
-                <Tooltip content={globalDefaults?.policies[level]?.[lang] || "..."}>
-                  <div style={{ 
-                    width: '32px', 
-                    height: '32px', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center',
-                    borderRadius: 'var(--ds-radius-full)',
-                    backgroundColor: 'var(--ds-color-bg-app)',
-                    color: 'var(--ds-color-primary)',
-                    cursor: 'help'
-                  }}>
-                    <InfoIcon size="sm" />
-                  </div>
-                </Tooltip>
               </div>
-            </div>
           </div>
-
-          {/* Right: Quick Guide Toggle */}
-          <div style={{ display: 'flex', alignItems: 'center', alignSelf: 'flex-end', height: 'var(--ds-control-height)' }}>
+          <div className="ai-config-guide-btn-wrap">
             <Button 
               variant={showGuide ? "primary" : "outline"}
-              size="sm"
+              size="md"
               onClick={() => setShowGuide((prev) => !prev)}
-              style={{ gap: '8px' }}
             >
-              <HelpIcon size="sm" />
               {showGuide ? ui.quickGuideHide : ui.quickGuideShow}
             </Button>
           </div>
@@ -715,14 +827,17 @@ export default function AIConfigurationConsole() {
       </div>
 
       <div style={{ padding: "16px", background: "var(--ds-color-surface)", border: "1px solid var(--ds-color-border)", borderRadius: "var(--ds-radius-md)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <strong>Runtime Health</strong>
-          <span style={{ color: "var(--ds-color-text-muted)", fontSize: 12 }}>
-            {documentType} / {level} • fail&gt;={(runtimeThresholds.fail_rate * 100).toFixed(0)}% • p95&gt;={runtimeThresholds.p95_latency_seconds}s
-          </span>
+        <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", gap: "12px", flexWrap: "wrap", marginBottom: 10 }}>
+          <strong>{uiText.runtimeHealthTitle}</strong>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <StatusBadge tone="danger"><strong>Tỷ lệ lỗi:</strong> ≥ {(runtimeThresholds.fail_rate * 100).toFixed(0)}%</StatusBadge>
+            <StatusBadge tone="warning"><strong>Độ trễ P95:</strong> ≥ {runtimeThresholds.p95_latency_seconds}s</StatusBadge>
+          </div>
         </div>
         {scopedRuntimeHealth.length === 0 ? (
-          <div style={{ color: "var(--ds-color-text-muted)", fontSize: 13 }}>No runtime metric yet for this scope.</div>
+          <div style={{ color: "var(--ds-color-text-muted)", fontSize: 13 }}>
+            {uiText.runtimeHealthEmpty}
+          </div>
         ) : (
           <div>
             <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
@@ -734,35 +849,35 @@ export default function AIConfigurationConsole() {
             <table className="ds-table ds-table--compact">
               <thead>
                 <tr>
-                  <th>Evaluation Set</th>
-                  <th>Status</th>
-                  <th>Runs</th>
-                  <th>Avg Latency (s)</th>
-                  <th>P95 Latency (s)</th>
-                  <th>Failed Rate (scope)</th>
-                  <th>Trend</th>
-                  <th>Alert</th>
+                  <th>{uiText.evaluationSetColumn}</th>
+                  <th>{uiText.status}</th>
+                  <th>{uiText.runs}</th>
+                  <th>{uiText.avgLatency}</th>
+                  <th>{uiText.p95Latency}</th>
+                  <th>{uiText.failedRate}</th>
+                  <th>{uiText.trend}</th>
+                  <th>{uiText.alert}</th>
                 </tr>
               </thead>
               <tbody>
                 {scopedRuntimeHealth.map((item, idx) => (
                   <tr key={`${item.evaluation_set_id}-${item.status}-${idx}`} className="ds-table-row-v4">
-                    <td>{item.evaluation_set_id ?? "none"}</td>
-                    <td>{item.status}</td>
+                    <td>{item.evaluation_set_id ?? uiText.none}</td>
+                    <td>{toStatusLabel(item.status)}</td>
                     <td>{item.run_count}</td>
                     <td>{item.avg_latency_seconds.toFixed(2)}</td>
                     <td>{(item.p95_latency_seconds ?? 0).toFixed(2)}</td>
                     <td>{(item.failed_rate_scope * 100).toFixed(1)}%</td>
                     <td style={{ fontSize: 12, color: "var(--ds-color-text-muted)" }}>
-                      {(item.recent_counts || []).slice(-5).join(" â†’ ") || "â€”"}
+                      {(item.recent_counts || []).slice(-5).join(" -> ") || "-"}
                     </td>
                     <td>
                       {item.failed_rate_scope >= runtimeThresholds.fail_rate ? (
-                        <StatusBadge tone="danger">High fail rate</StatusBadge>
+                        <StatusBadge tone="danger">{uiText.highFailRate}</StatusBadge>
                       ) : (item.p95_latency_seconds ?? item.avg_latency_seconds) >= runtimeThresholds.p95_latency_seconds ? (
-                        <StatusBadge tone="warning">High p95 latency</StatusBadge>
+                        <StatusBadge tone="warning">{uiText.highP95}</StatusBadge>
                       ) : (
-                        <StatusBadge tone="success">Healthy</StatusBadge>
+                        <StatusBadge tone="success">{uiText.healthy}</StatusBadge>
                       )}
                     </td>
                   </tr>
@@ -774,15 +889,17 @@ export default function AIConfigurationConsole() {
         )}
       </div>
 
-      <div className="toolbar" style={{ marginBottom: 'var(--ds-space-5)', display: 'flex', gap: '8px' }}>
-        <Button 
-          variant={activeTab === "sets" ? "primary" : "outline"} 
+      <div className="toolbar" style={{ marginBottom: 'var(--ds-space-3)', display: 'flex', gap: '4px', borderBottom: '1px solid var(--ds-color-border)', paddingBottom: '6px' }}>
+        <button
+          type="button"
           onClick={() => setActiveTab("sets")}
+          className={`ds-tabs__item ${activeTab === "sets" ? "is-active" : ""}`}
+          style={{ border: 'none', background: 'transparent', padding: '8px 12px', fontWeight: 600, color: activeTab === "sets" ? 'var(--ds-color-primary)' : 'var(--ds-color-text-muted)' }}
         >
           {ui.tabSets}
-        </Button>
-        <Button 
-          variant={activeTab === "create" ? "primary" : "outline"} 
+        </button>
+        <button
+          type="button"
           onClick={() => {
             if (hasCurrentSet) {
               setActiveTab("create");
@@ -791,16 +908,20 @@ export default function AIConfigurationConsole() {
               openCreateFromScratch();
             }
           }}
+          className={`ds-tabs__item ${activeTab === "create" ? "is-active" : ""}`}
+          style={{ border: 'none', background: 'transparent', padding: '8px 12px', fontWeight: 600, color: activeTab === "create" ? 'var(--ds-color-primary)' : 'var(--ds-color-text-muted)' }}
         >
           {ui.tabCreate}
-        </Button>
-        <Button 
-          variant={activeTab === "compare" ? "primary" : "outline"} 
+        </button>
+        <button
+          type="button"
           onClick={() => setActiveTab("compare")}
           disabled={!hasCurrentSet}
+          className={`ds-tabs__item ${activeTab === "compare" ? "is-active" : ""}`}
+          style={{ border: 'none', background: 'transparent', padding: '8px 12px', fontWeight: 600, color: activeTab === "compare" ? 'var(--ds-color-primary)' : 'var(--ds-color-text-muted)', opacity: hasCurrentSet ? 1 : 0.5, cursor: hasCurrentSet ? 'pointer' : 'not-allowed' }}
         >
           {ui.tabCompare}
-        </Button>
+        </button>
       </div>
 
       {message && (
@@ -814,29 +935,39 @@ export default function AIConfigurationConsole() {
       <main>
         {activeTab === "sets" && (
           <div className="governance-explorer">
-            <aside className="governance-explorer__sidebar" style={{ width: '300px' }}>
+            <aside className="governance-explorer__sidebar ai-config-sidebar">
               <div style={{ marginBottom: '16px' }}>
                 <h3 className="detail-section__title">{ui.sectionSetList}</h3>
+                <p style={{ marginTop: '6px', marginBottom: 0, fontSize: '12px', color: 'var(--ds-color-text-muted)' }}>
+                  {ui.sectionSetListSub}
+                </p>
               </div>
 
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-                  <Input 
-                    value={historySearch} 
-                    onChange={(e) => setHistorySearch(e.target.value)}
-                    placeholder={ui.searchPlaceholder}
-                  />
+              <div className="ai-config-filter-row">
+                  <div className="ai-config-filter-row__set">
+                    <Select
+                      value={selectedSetId ? String(selectedSetId) : ""}
+                      onChange={(e) => setSelectedSetId(e.target.value ? Number(e.target.value) : "")}
+                      options={[
+                        { value: "", label: uiText.selectSetPlaceholder },
+                        ...evaluationSets.map((item) => ({ value: String(item.id), label: `${item.name} (${item.version_label || "v1"})` })),
+                      ]}
+                    />
+                  </div>
+                  <div className="ai-config-filter-row__status">
                   <Select
                     value={historyStatusFilter}
                     onChange={(e) => setHistoryStatusFilter(e.target.value as any)}
                     options={[
-                      { value: "all", label: "All status" },
-                      { value: "active", label: "active" },
-                      { value: "validated", label: "validated" },
-                      { value: "approved", label: "approved" },
-                      { value: "draft", label: "draft" },
-                      { value: "archived", label: "archived" },
+                      { value: "all", label: uiText.statusAll },
+                      { value: "active", label: uiText.statusActive },
+                      { value: "validated", label: uiText.statusValidated },
+                      { value: "approved", label: uiText.statusApproved },
+                      { value: "draft", label: uiText.statusDraft },
+                      { value: "archived", label: uiText.statusArchived },
                     ]}
                   />
+                  </div>
               </div>
 
               <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -850,11 +981,11 @@ export default function AIConfigurationConsole() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ fontWeight: 600 }}>{setItem.name}</div>
                       <StatusBadge tone={setItem.status === "active" ? "success" : "muted"}>
-                        {setItem.status}
+                        {toStatusLabel(setItem.status)}
                       </StatusBadge>
                     </div>
                     <div style={{ fontSize: '11px', color: 'var(--ds-color-text-muted)', marginTop: '4px' }}>
-                      {setItem.created_at} • {setItem.version_label || "v1"}
+                      {formatDateTimeFriendly(setItem.created_at)} • {setItem.version_label || "v1"}
                     </div>
                   </button>
                 ))}
@@ -869,19 +1000,16 @@ export default function AIConfigurationConsole() {
 
                   <div style={{ padding: '24px', background: 'var(--ds-color-surface)', borderRadius: 'var(--ds-radius-md)', border: '1px solid var(--ds-color-border)' }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                      <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--ds-color-text-title)' }}>Bundle Lifecycle</h3>
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <Button size="sm" variant="outline" disabled={!canValidate} onClick={() => mutateBundleState.mutate({ id: selectedSet.id, action: "validate" })} isLoading={mutateBundleState.isPending}>Validate</Button>
-                        <Button size="sm" variant="outline" disabled={!canApprove} onClick={() => mutateBundleState.mutate({ id: selectedSet.id, action: "approve" })} isLoading={mutateBundleState.isPending}>Approve</Button>
-                        <Button size="sm" variant="primary" disabled={!canActivate} onClick={() => mutateBundleState.mutate({ id: selectedSet.id, action: "activate" })} isLoading={mutateBundleState.isPending}>Activate</Button>
-                        <Button size="sm" variant="ghost" disabled={!canArchive} onClick={() => mutateBundleState.mutate({ id: selectedSet.id, action: "archive" })} isLoading={mutateBundleState.isPending}>Archive</Button>
-                      </div>
+                      <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--ds-color-text-title)' }}>{uiText.bundleLifecycle}</h3>
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(5,minmax(0,1fr))", gap: 8, marginBottom: 12 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(5,minmax(0,1fr))", gap: 8, marginBottom: 12, position: "relative" }}>
+                      <div style={{ position: "absolute", left: "10%", right: "10%", top: "18px", height: "2px", background: "var(--ds-color-border)", zIndex: 0 }} />
                       {lifecycleOrder.map((step, idx) => (
                         <div
                           key={step}
                           style={{
+                            position: "relative",
+                            zIndex: 1,
                             padding: "8px 10px",
                             borderRadius: 8,
                             textAlign: "center",
@@ -892,31 +1020,32 @@ export default function AIConfigurationConsole() {
                             color: idx <= currentLifecycleIndex ? "var(--ds-color-primary)" : "var(--ds-color-text-muted)",
                           }}
                         >
-                          {step}
+                          {lifecycleLabelMap[step] ?? step}
+                          {idx === currentLifecycleIndex && (
+                            <div style={{ marginTop: 8, display: "flex", justifyContent: "center" }}>
+                              {step === "draft" && <Button size="sm" variant="outline" disabled={!canValidate} onClick={() => mutateBundleState.mutate({ id: selectedSet.id, action: "validate" })} isLoading={mutateBundleState.isPending}>{uiText.btnValidate}</Button>}
+                              {step === "validated" && <Button size="sm" variant="outline" disabled={!canApprove} onClick={() => mutateBundleState.mutate({ id: selectedSet.id, action: "approve" })} isLoading={mutateBundleState.isPending}>{uiText.btnApprove}</Button>}
+                              {(step === "approved" || step === "archived" || step === "validated") && <Button size="sm" variant="primary" disabled={!canActivate} onClick={() => mutateBundleState.mutate({ id: selectedSet.id, action: "activate" })} isLoading={mutateBundleState.isPending}>{uiText.btnActivate}</Button>}
+                              {step === "active" && <Button size="sm" variant="outline" disabled={!canArchive} onClick={() => mutateBundleState.mutate({ id: selectedSet.id, action: "archive" })} isLoading={mutateBundleState.isPending}>{uiText.btnArchive}</Button>}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
-                    <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--ds-color-text-title)', marginBottom: '12px' }}>{ui.rubricReadonly}</h3>
-                    <pre style={{ 
+                    <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--ds-color-text-title)', marginBottom: '12px' }}>Final prompt (chỉ xem)</h3>
+                    <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: 8 }}>
+                      <Button size="sm" variant="outline" onClick={() => navigator.clipboard?.writeText(selectedSet.rubric?.prompt ? getLocalizedText(selectedSet.rubric.prompt, lang) : "")}>{uiText.copy}</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setCollapseRubricView((v) => !v)}>{collapseRubricView ? uiText.expand : uiText.collapse}</Button>
+                    </div>
+                    {!collapseRubricView && <pre style={{ 
                       padding: '16px', borderRadius: 'var(--ds-radius-md)', 
-                      backgroundColor: 'var(--ds-color-bg-muted)', fontSize: '13px',
+                      backgroundColor: '#0b1220', fontSize: '13px',
                       whiteSpace: 'pre-wrap',
-                      color: 'var(--ds-color-text-main)'
+                      color: '#cbd5e1',
+                      overflowX: 'auto'
                     }}>
-                      {selectedSet.rubric?.prompt ? getLocalizedText(selectedSet.rubric.prompt, lang) : ""}
-                    </pre>
-                  </div>
-
-                  <div style={{ padding: '24px', background: 'var(--ds-color-surface)', borderRadius: 'var(--ds-radius-md)', border: '1px solid var(--ds-color-border)' }}>
-                    <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--ds-color-text-title)', marginBottom: '12px' }}>{ui.promptReadonly}</h3>
-                    <pre style={{ 
-                      padding: '16px', borderRadius: 'var(--ds-radius-md)', 
-                      backgroundColor: 'var(--ds-color-bg-muted)', fontSize: '13px',
-                      whiteSpace: 'pre-wrap',
-                      color: 'var(--ds-color-text-main)'
-                    }}>
-                      {selectedSet.prompt?.content ? getLocalizedText(selectedSet.prompt.content, lang) : ""}
-                    </pre>
+                      {finalPromptReadonlyError || finalPromptReadonlyText || (lang === "vi" ? "Đang tải final prompt..." : "Loading final prompt...")}
+                    </pre>}
                   </div>
                 </div>
               ) : (
@@ -930,7 +1059,7 @@ export default function AIConfigurationConsole() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             <div style={{ padding: '24px', background: 'var(--ds-color-surface)', borderRadius: 'var(--ds-radius-md)', border: '1px solid var(--ds-color-border)' }}>
               <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--ds-color-text-title)', marginBottom: '20px' }}>{ui.compareTitle}</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', marginBottom: '24px' }}>
                 <Select 
                   label={ui.leftSet}
                   value={String(compareLeftId)} 
@@ -950,28 +1079,59 @@ export default function AIConfigurationConsole() {
                   ]}
                 />
               </div>
+              {isSameCompareSet && (
+                <div style={{ marginBottom: "16px" }}>
+                  <StatusBadge tone="warning">
+                    {lang === "vi" ? "Bạn đang chọn cùng một bộ ở cả hai bên. Vui lòng chọn hai bộ khác nhau để so sánh." : "You selected the same set on both sides. Please choose two different sets."}
+                  </StatusBadge>
+                </div>
+              )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
                 <div style={{ 
                   padding: '16px', backgroundColor: 'var(--ds-color-bg-muted)', 
                   borderRadius: 'var(--ds-radius-md)'
                 }}>
-                  <pre style={{ fontSize: '12px', whiteSpace: 'pre-wrap', color: 'var(--ds-color-text-main)' }}>
-                    {renderSet(leftSet, t)}
-                  </pre>
+                  {(() => {
+                    const s = renderSet(leftSet, t) as any;
+                    if (typeof s === "string") return <div style={{ fontSize: 13, color: "var(--ds-color-text-muted)" }}>{s}</div>;
+                    return (
+                      <div style={{ display: "grid", gap: "8px", fontSize: "13px" }}>
+                        <div><strong>{lang === "vi" ? "Tên bộ" : "Set name"}:</strong> {s.name}</div>
+                        <div><strong>{lang === "vi" ? "Mã phiên bản" : "Version tag"}:</strong> {s.version}</div>
+                        <div><strong>{lang === "vi" ? "Trạng thái" : "Status"}:</strong> {s.status}</div>
+                        <div><strong>{uiText.bizRubric}:</strong> {s.rubric}</div>
+                        <div><strong>{uiText.bizPrompt}:</strong> {s.prompt}</div>
+                        <div><strong>{uiText.bizPolicy}:</strong> {s.policy}</div>
+                        <div><strong>{uiText.bizRules}:</strong> {s.rules}</div>
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div style={{ 
                   padding: '16px', backgroundColor: 'var(--ds-color-bg-muted)', 
                   borderRadius: 'var(--ds-radius-md)'
                 }}>
-                  <pre style={{ fontSize: '12px', whiteSpace: 'pre-wrap', color: 'var(--ds-color-text-main)' }}>
-                    {renderSet(rightSet, t)}
-                  </pre>
+                  {(() => {
+                    const s = renderSet(rightSet, t) as any;
+                    if (typeof s === "string") return <div style={{ fontSize: 13, color: "var(--ds-color-text-muted)" }}>{s}</div>;
+                    return (
+                      <div style={{ display: "grid", gap: "8px", fontSize: "13px" }}>
+                        <div><strong>{lang === "vi" ? "Tên bộ" : "Set name"}:</strong> {s.name}</div>
+                        <div><strong>{lang === "vi" ? "Mã phiên bản" : "Version tag"}:</strong> {s.version}</div>
+                        <div><strong>{lang === "vi" ? "Trạng thái" : "Status"}:</strong> {s.status}</div>
+                        <div><strong>{uiText.bizRubric}:</strong> {s.rubric}</div>
+                        <div><strong>{uiText.bizPrompt}:</strong> {s.prompt}</div>
+                        <div><strong>{uiText.bizPolicy}:</strong> {s.policy}</div>
+                        <div><strong>{uiText.bizRules}:</strong> {s.rules}</div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
 
-            {compareSummary && (
+            {compareSummary && !isSameCompareSet && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
                 <div style={{ padding: '16px', background: 'var(--ds-color-surface)', borderRadius: 'var(--ds-radius-md)', border: '1px solid var(--ds-color-border)' }}>
                   <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ds-color-text-muted)', marginBottom: '8px' }}>{ui.rubricCompareLabel}</div>
@@ -999,6 +1159,28 @@ export default function AIConfigurationConsole() {
                 </div>
               </div>
             )}
+            {compareSummary && !isSameCompareSet && (
+              <div style={{ display: "grid", gap: "12px" }}>
+                <div style={{ padding: "12px 14px", borderRadius: 10, border: "1px solid var(--ds-color-border)", background: "var(--ds-color-surface)" }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>{uiText.bizPrompt} · {lang === "vi" ? "Khác biệt rút gọn" : "Quick diff"}</div>
+                  <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontSize: 12, color: "var(--ds-color-text-main)" }}>
+                    {buildDiffSnippet(String(leftSet?.prompt?.content || ""), String(rightSet?.prompt?.content || ""))}
+                  </pre>
+                </div>
+                <div style={{ padding: "12px 14px", borderRadius: 10, border: "1px solid var(--ds-color-border)", background: "var(--ds-color-surface)" }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>{uiText.bizPolicy} · {lang === "vi" ? "Khác biệt rút gọn" : "Quick diff"}</div>
+                  <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontSize: 12, color: "var(--ds-color-text-main)" }}>
+                    {buildDiffSnippet(String(leftSet?.policy?.content || ""), String(rightSet?.policy?.content || ""))}
+                  </pre>
+                </div>
+                <div style={{ padding: "12px 14px", borderRadius: 10, border: "1px solid var(--ds-color-border)", background: "var(--ds-color-surface)" }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>{uiText.bizRules} · {lang === "vi" ? "Khác biệt rút gọn" : "Quick diff"}</div>
+                  <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontSize: 12, color: "var(--ds-color-text-main)" }}>
+                    {buildDiffSnippet(String(leftSet?.required_rule_hash || ""), String(rightSet?.required_rule_hash || ""))}
+                  </pre>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1006,7 +1188,7 @@ export default function AIConfigurationConsole() {
           <div style={{ maxWidth: '900px', margin: '0 auto', width: '100%' }}>
             <div style={{ padding: '32px', background: 'var(--ds-color-surface)', borderRadius: 'var(--ds-radius-md)', border: '1px solid var(--ds-color-border)' }}>
               <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--ds-color-text-title)', marginBottom: '24px', borderBottom: '1px solid var(--ds-color-border)', paddingBottom: '12px' }}>
-                {`${ui.createTitle} â€” ${ui.step} ${createStep}/2`}
+                {`${ui.createTitle} - ${ui.step} ${createStep}/2`}
               </h3>
               {createStep === 1 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -1020,11 +1202,11 @@ export default function AIConfigurationConsole() {
                   <div className="governance-grid">
                     <div className="detail-section">
                       <span className="detail-section__title">{ui.docType}</span>
-                      <strong>{documentType}</strong>
+                      <strong>{`: ${getDocumentTypeLabel(documentType, lang)}`}</strong>
                     </div>
                     <div className="detail-section">
                       <span className="detail-section__title">{ui.promptLevel}</span>
-                      <strong>{level}</strong>
+                      <strong>{`: ${getLevelLabel(level, lang)}`}</strong>
                     </div>
                   </div>
 
@@ -1033,6 +1215,11 @@ export default function AIConfigurationConsole() {
                       <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', marginBottom: '8px' }}>
                         <input type="checkbox" checked={changeRubric} onChange={(e) => setChangeRubric(e.target.checked)} style={{ width: '18px', height: '18px' }} />
                         <span style={{ fontWeight: 600 }}>{ui.changeRubric}</span>
+                        <Tooltip content={lang === "vi" ? "Đổi tiêu chí/trọng số chấm điểm. Chỉ bật khi thật sự cần thay đổi thang đánh giá." : "Change criteria/weights. Enable only when scoring structure must change."}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '16px', height: '16px', borderRadius: '50%', backgroundColor: 'var(--ds-color-bg-app)', color: 'var(--ds-color-primary)', cursor: 'help' }}>
+                            <InfoIcon size="sm" />
+                          </span>
+                        </Tooltip>
                       </label>
                       {changeRubric && (
                         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
@@ -1044,9 +1231,9 @@ export default function AIConfigurationConsole() {
                             style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--ds-color-border)', fontFamily: 'inherit' }}
                           />
                           <div style={{ fontSize: 12, color: "var(--ds-color-text-muted)" }}>
-                            Criteria structure: current total score <strong>{criteriaTotalScore}</strong>/100
-                            {criteriaTotalScore !== 100 ? " - must equal 100." : ""}
-                            {criteriaHasDuplicateKey ? " - duplicate keys detected." : ""}
+                            {uiText.criteriaStructure} <strong>{criteriaTotalScore}</strong>/100
+                            {criteriaTotalScore !== 100 ? uiText.mustEqual100 : ""}
+                            {criteriaHasDuplicateKey ? uiText.duplicateKeysDetected : ""}
                           </div>
                           {manualCriteria.map((item, idx) => (
                             <div key={`criteria-${idx}`} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr 2fr auto", gap: 8 }}>
@@ -1075,7 +1262,7 @@ export default function AIConfigurationConsole() {
                                 variant="ghost"
                                 onClick={() => setManualCriteria((prev) => prev.filter((_, i) => i !== idx))}
                               >
-                                Remove
+                                {uiText.btnRemove}
                               </Button>
                             </div>
                           ))}
@@ -1086,7 +1273,7 @@ export default function AIConfigurationConsole() {
                                 setManualCriteria((prev) => [...prev, { key: "", max_score: 0, label_vi: "", label_ja: "" }])
                               }
                             >
-                              Add criterion
+                              {uiText.btnAddCriterion}
                             </Button>
                           </div>
                         </div>
@@ -1097,6 +1284,12 @@ export default function AIConfigurationConsole() {
                       <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', marginBottom: '8px' }}>
                         <input type="checkbox" checked={changePrompt} onChange={(e) => setChangePrompt(e.target.checked)} style={{ width: '18px', height: '18px' }} />
                         <span style={{ fontWeight: 600 }}>{ui.changePrompt}</span>
+                        <StatusBadge tone="success">{lang === "vi" ? "Khuyến nghị" : "Recommended"}</StatusBadge>
+                        <Tooltip content={lang === "vi" ? "Ưu tiên bật mục này để tinh chỉnh chất lượng phản hồi AI mà ít ảnh hưởng cấu trúc điểm." : "Recommended first. Improves AI feedback quality with lower scoring-structure risk."}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '16px', height: '16px', borderRadius: '50%', backgroundColor: 'var(--ds-color-bg-app)', color: 'var(--ds-color-primary)', cursor: 'help' }}>
+                            <InfoIcon size="sm" />
+                          </span>
+                        </Tooltip>
                       </label>
                       {changePrompt && (
                         <textarea 
@@ -1113,6 +1306,11 @@ export default function AIConfigurationConsole() {
                       <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', marginBottom: '8px' }}>
                         <input type="checkbox" checked={changePolicy} onChange={(e) => setChangePolicy(e.target.checked)} style={{ width: '18px', height: '18px' }} />
                         <span style={{ fontWeight: 600 }}>{ui.changePolicy}</span>
+                        <Tooltip content={lang === "vi" ? "Điều chỉnh độ nghiêm và quy tắc trừ điểm theo level (low/medium/high)." : "Adjust strictness and deduction policy by level (low/medium/high)."}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '16px', height: '16px', borderRadius: '50%', backgroundColor: 'var(--ds-color-bg-app)', color: 'var(--ds-color-primary)', cursor: 'help' }}>
+                            <InfoIcon size="sm" />
+                          </span>
+                        </Tooltip>
                       </label>
                       {changePolicy && (
                         <textarea 
@@ -1127,8 +1325,24 @@ export default function AIConfigurationConsole() {
 
                     <div className="detail-section">
                       <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', marginBottom: '8px' }}>
-                        <input type="checkbox" checked={changeRequiredRules} onChange={(e) => setChangeRequiredRules(e.target.checked)} style={{ width: '18px', height: '18px' }} />
+                        <input
+                          type="checkbox"
+                          checked={changeRequiredRules}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setRequiredRulesConfirmOpen(true);
+                              return;
+                            }
+                            setChangeRequiredRules(false);
+                          }}
+                          style={{ width: '18px', height: '18px' }}
+                        />
                         <span style={{ fontWeight: 600 }}>{ui.changeRules}</span>
+                        <Tooltip content={lang === "vi" ? "Luật hệ thống bắt buộc (JSON/schema/no hallucination). Chỉ đổi khi có quyết định governance." : "System guardrails (JSON/schema/no hallucination). Change only with governance approval."}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '16px', height: '16px', borderRadius: '50%', backgroundColor: 'var(--ds-color-bg-app)', color: 'var(--ds-color-primary)', cursor: 'help' }}>
+                            <InfoIcon size="sm" />
+                          </span>
+                        </Tooltip>
                       </label>
                       {changeRequiredRules && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -1156,10 +1370,15 @@ export default function AIConfigurationConsole() {
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
-                    <Button variant="primary" onClick={() => setCreateStep(2)} disabled={!setName.trim() || (!hasCurrentSet && (!newPromptContent.trim() || !newPolicyContent.trim()))}>
+                    <Button variant="primary" onClick={() => setCreateStep(2)} disabled={!setName.trim() || !hasEffectiveChange || (!hasCurrentSet && (!newPromptContent.trim() || !newPolicyContent.trim()))}>
                       {ui.review}
                     </Button>
                   </div>
+                  {!hasEffectiveChange && (
+                    <div style={{ fontSize: 12, color: "var(--ds-color-text-muted)", textAlign: "right" }}>
+                      {lang === "vi" ? "Vui lòng chọn ít nhất một mục thay đổi trước khi tiếp tục." : "Select at least one change before continuing."}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -1172,16 +1391,29 @@ export default function AIConfigurationConsole() {
                     <strong>{t("common.confirm")}</strong>
                     <p style={{ marginTop: '4px' }}>{ui.reviewHint}</p>
                   </div>
+                  {scopeConsistencyWarning && (
+                    <div style={{
+                      padding: "12px 14px",
+                      borderRadius: "10px",
+                      border: "1px solid rgba(245, 158, 11, 0.35)",
+                      background: "rgba(245, 158, 11, 0.12)",
+                      color: "#92400e",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                    }}>
+                      {scopeConsistencyWarning}
+                    </div>
+                  )}
                   <div style={{ padding: '14px', borderRadius: 'var(--ds-radius-md)', border: '1px solid var(--ds-color-border)', background: 'var(--ds-color-bg-muted)' }}>
-                    <div style={{ fontWeight: 600, marginBottom: 6 }}>Impact Preview</div>
+                    <div style={{ fontWeight: 600, marginBottom: 6 }}>{uiText.impactPreview}</div>
                     <div style={{ fontSize: 13 }}>
-                      Scope: <strong>{documentType}</strong> / <strong>{level}</strong>
+                      {uiText.scopeLabel}: <strong>{documentType}</strong> / <strong>{level}</strong>
                     </div>
                     <div style={{ fontSize: 13 }}>
-                      Current active bundle: <strong>{activeDetails?.name || "N/A"}</strong>
+                      {uiText.activeBundleLabel}: <strong>{activeDetails?.name || uiText.na}</strong>
                     </div>
                     <div style={{ fontSize: 13 }}>
-                      The new bundle will affect future grading runs in this scope after activation.
+                      {uiText.impactHint}
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 8, marginTop: 10 }}>
                       {[
@@ -1199,19 +1431,21 @@ export default function AIConfigurationConsole() {
                   </div>
                   {changeRubric && (
                     <div style={{ fontSize: 13, color: criteriaHasDuplicateKey || criteriaTotalScore !== 100 || criteriaHasEmptyField ? "#b42318" : "var(--ds-color-text-main)" }}>
-                      Criteria schema check:
-                      {criteriaTotalScore !== 100 ? " Total score must equal 100." : " Total score is valid."}
-                      {criteriaHasDuplicateKey ? " Duplicate keys found." : " No duplicate keys."}
-                      {criteriaHasEmptyField ? " Some criteria are missing key/label." : " No empty criteria."}
+                      {uiText.criteriaSchemaCheck}
+                      {criteriaTotalScore !== 100 ? uiText.criteriaTotalInvalid : uiText.criteriaTotalValid}
+                      {criteriaHasDuplicateKey ? uiText.criteriaDupFound : uiText.criteriaDupNone}
+                      {criteriaHasEmptyField ? uiText.criteriaEmptyFound : uiText.criteriaEmptyNone}
                     </div>
                   )}
                   <div style={{ padding: '16px', borderRadius: 'var(--ds-radius-md)', background: 'var(--ds-color-bg-muted)', border: '1px solid var(--ds-color-border)' }}>
-                    <div style={{ fontWeight: 600, marginBottom: 8 }}>Preview Final Prompt (current active scope)</div>
+                    <div style={{ fontWeight: 600, marginBottom: 8 }}>
+                      {uiText.finalPromptPreview}
+                    </div>
                     {finalPromptPreviewError ? (
                       <div style={{ color: "#b42318", fontSize: 13 }}>{finalPromptPreviewError}</div>
                     ) : (
                       <pre style={{ maxHeight: 240, overflow: 'auto', whiteSpace: 'pre-wrap', margin: 0, fontSize: 12 }}>
-                        {finalPromptPreviewText || "Generating preview..."}
+                        {finalPromptPreviewText || uiText.generatingPreview}
                       </pre>
                     )}
                   </div>
@@ -1248,6 +1482,21 @@ export default function AIConfigurationConsole() {
         onConfirm={() => {
           setActivateConfirmOpen(false);
           createSetMutation.mutate(true);
+        }}
+      />
+      <ConfirmDialog
+        open={requiredRulesConfirmOpen}
+        title={lang === "vi" ? "Xác nhận sửa Quy tắc bắt buộc" : "Confirm Required Rules Change"}
+        description={lang === "vi" ? "Bạn sắp chỉnh Quy tắc bắt buộc ở mức hệ thống. Chỉ tiếp tục khi thật sự cần." : "You are about to edit system-level required rules. Continue only if necessary."}
+        confirmLabel={lang === "vi" ? "Tôi hiểu, tiếp tục" : "I understand, continue"}
+        cancelLabel={ui.cancel}
+        onCancel={() => {
+          setRequiredRulesConfirmOpen(false);
+          setChangeRequiredRules(false);
+        }}
+        onConfirm={() => {
+          setRequiredRulesConfirmOpen(false);
+          setChangeRequiredRules(true);
         }}
       />
       {/* New Document Type Modal */}
@@ -1329,4 +1578,3 @@ export default function AIConfigurationConsole() {
     </div>
   );
 }
-

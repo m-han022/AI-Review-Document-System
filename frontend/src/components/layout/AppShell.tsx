@@ -78,7 +78,7 @@ export default function AppShell({
           </div>
         </header>
         <main id="main-scroll-container" className="app-content">
-          <div className={fluid ? "ds-container-fluid" : "ds-container"}>
+          <div className={fluid ? "ds-container-fluid" : "ds-container app-content-container"}>
             {children}
           </div>
         </main>

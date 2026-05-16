@@ -16,6 +16,7 @@ interface TopbarProps {
   onToggleCollapse?: () => void;
   onBreadcrumbClick?: (index: number) => void;
   actions?: ReactNode;
+  mode?: "default" | "detail" | "minimal";
 }
 
 export default function Topbar({
@@ -28,7 +29,10 @@ export default function Topbar({
   onToggleSidebar,
   onBreadcrumbClick,
   actions,
+  mode = "default",
 }: TopbarProps) {
+  const isDetailMode = mode === "detail";
+  const isMinimalMode = mode === "minimal";
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     if (typeof window === "undefined") return "light";
     return localStorage.getItem(UI_THEME_STORAGE_KEY) === "dark" ? "dark" : "light";
@@ -45,21 +49,40 @@ export default function Topbar({
         <button className="mobile-toggle" onClick={onToggleSidebar} aria-label="Toggle Menu">
           <MenuIcon />
         </button>
-        {!hideMain && (
+        {!hideMain && !isMinimalMode && (
           <div className="app-topbar__page-info">
+            {isDetailMode && breadcrumb && breadcrumb.length > 0 && (
+              <nav className="app-breadcrumb app-breadcrumb--top" aria-label="Breadcrumb">
+                {breadcrumb.map((item, index) => (
+                  <span key={item} className="app-breadcrumb__item">
+                    <button
+                      type="button"
+                      className={`app-breadcrumb__btn ${index === breadcrumb.length - 1 ? "is-active" : ""}`}
+                      onClick={() => onBreadcrumbClick?.(index)}
+                      disabled={index === breadcrumb.length - 1}
+                    >
+                      {item}
+                    </button>
+                    {index < breadcrumb.length - 1 && <span className="app-breadcrumb__sep">/</span>}
+                  </span>
+                ))}
+              </nav>
+            )}
             <div className="app-topbar__title-row">
-              <h1 className="app-topbar__title">{title}</h1>
+              <h1 className="app-topbar__title">
+                {isDetailMode && subtitle ? `${title} - ${subtitle}` : title}
+              </h1>
               {rightBadge && <span className="app-topbar__badge">{rightBadge}</span>}
             </div>
-            {subtitle && <p className="app-topbar__subtitle">{subtitle}</p>}
+            {!isDetailMode && subtitle && <p className="app-topbar__subtitle">{subtitle}</p>}
           </div>
         )}
 
-        {breadcrumb && breadcrumb.length > 0 && (
+        {!isDetailMode && !isMinimalMode && breadcrumb && breadcrumb.length > 0 && (
           <nav className="app-breadcrumb" aria-label="Breadcrumb">
             {breadcrumb.map((item, index) => (
               <span key={item} className="app-breadcrumb__item">
-                <button 
+                <button
                   type="button"
                   className={`app-breadcrumb__btn ${index === breadcrumb.length - 1 ? "is-active" : ""}`}
                   onClick={() => onBreadcrumbClick?.(index)}
