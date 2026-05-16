@@ -3,6 +3,7 @@ import { SparkIcon, AlertTriangleIcon, ShieldCheckIcon, TargetIcon, WorkflowIcon
 import { useTranslation } from "../LanguageSelector";
 import type { FeedbackSectionView } from "./ProjectReviewPanels";
 import type { KPIBarChartProps } from "../ui/KPICharts";
+import type { ActionChecklistItem } from "./projectCard.helpers";
 
 interface Props {
   t: (key: string) => string;
@@ -10,7 +11,7 @@ interface Props {
   ngPageCount: number;
   orderedScores: KPIBarChartProps["data"];
   pageReviewItems: any[];
-  actionItems: string[];
+  actionItems: ActionChecklistItem[];
 }
 
 export default function ProjectOverviewTab({ 
@@ -101,14 +102,26 @@ export default function ProjectOverviewTab({
               {t("project.actionChecklist")}
             </header>
             <div className="action-checklist-v4__list">
-              {actionItems.slice(0, 5).map((line, idx) => (
+              {actionItems.slice(0, 5).map((item, idx) => (
                   <div key={idx} className="action-checklist-v4__item">
                     <input type="checkbox" className="action-checklist-v4__checkbox" />
                     <div className="action-checklist-v4__content">
-                      <div className="action-checklist-v4__text">{line}</div>
+                      <div className="action-checklist-v4__text">{item.text}</div>
                       <div className="action-checklist-v4__meta">
                         <span className="action-checklist-v4__tag">{t("project.aiSuggestionLabel")}</span>
-                        <span>{t("project.priorityHigh")}</span>
+                        <span>
+                          {item.priority === "high"
+                            ? t("project.priorityHigh")
+                            : item.priority === "medium"
+                            ? t("project.priorityMedium")
+                            : t("project.priorityLow")}
+                        </span>
+                        {item.criterionKeys.length > 0 && (
+                          <span>{`Criteria: ${item.criterionKeys.join(", ")}`}</span>
+                        )}
+                        {item.pageNumbers.length > 0 && (
+                          <span>{`Pages: ${item.pageNumbers.join(", ")}`}</span>
+                        )}
                       </div>
                     </div>
                   </div>

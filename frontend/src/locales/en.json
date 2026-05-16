@@ -660,6 +660,8 @@
                     "actionChecklist":  "Action Checklist",
                     "aiSuggestionLabel":  "AI Suggestion",
                     "priorityHigh":  "High Priority",
+                    "priorityMedium":  "Medium Priority",
+                    "priorityLow":  "Low Priority",
                     "noActionRequired":  "Excellent! No action required for this version.",
                     "slideLabel":  "Page",
                     "ngBadge":  "NG",

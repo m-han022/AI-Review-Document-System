@@ -667,6 +667,8 @@
     "actionChecklist": "アクションチェックリスト",
     "aiSuggestionLabel": "AI 提案",
     "priorityHigh": "優先度 高",
+    "priorityMedium": "優先度 中",
+    "priorityLow": "優先度 低",
     "noActionRequired": "素晴らしい！このバージョンで必要なアクションはありません。",
     "slideLabel": "Page",
     "ngBadge": "NG",

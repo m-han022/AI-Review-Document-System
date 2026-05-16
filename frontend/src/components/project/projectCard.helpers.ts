@@ -22,6 +22,115 @@ export interface OrderedScoreItem {
   Icon: ReturnType<typeof getCriterionIcon>;
 }
 
+export interface ActionChecklistItem {
+  text: string;
+  priority: "high" | "medium" | "low";
+  criterionKeys: string[];
+  pageNumbers: number[];
+}
+
+function normalizeChecklistText(value: string): string {
+  return (value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function rankPriority(value: "high" | "medium" | "low"): number {
+  if (value === "high") return 3;
+  if (value === "medium") return 2;
+  return 1;
+}
+
+function chooseHigherPriority(
+  a: "high" | "medium" | "low",
+  b: "high" | "medium" | "low",
+): "high" | "medium" | "low" {
+  return rankPriority(a) >= rankPriority(b) ? a : b;
+}
+
+export function buildActionChecklist(
+  criteriaResults: any[],
+  pageReviewItems: any[],
+  lang: LanguageCode,
+  maxItems: number = 8,
+): ActionChecklistItem[] {
+  const merged = new Map<
+    string,
+    { text: string; priority: "high" | "medium" | "low"; criterionKeys: Set<string>; pageNumbers: Set<number> }
+  >();
+
+  const pushItem = (
+    text: string,
+    priority: "high" | "medium" | "low",
+    criterionKey?: string,
+    pageNumber?: number,
+  ) => {
+    const cleanText = (text || "").trim();
+    if (!cleanText) return;
+    const key = normalizeChecklistText(cleanText);
+    if (!key) return;
+
+    const existing = merged.get(key);
+    if (!existing) {
+      merged.set(key, {
+        text: cleanText,
+        priority,
+        criterionKeys: new Set(criterionKey ? [criterionKey] : []),
+        pageNumbers: new Set(typeof pageNumber === "number" ? [pageNumber] : []),
+      });
+      return;
+    }
+
+    existing.priority = chooseHigherPriority(existing.priority, priority);
+    if (criterionKey) existing.criterionKeys.add(criterionKey);
+    if (typeof pageNumber === "number") existing.pageNumbers.add(pageNumber);
+  };
+
+  for (const item of criteriaResults || []) {
+    const max = Number(item?.max_score || 0);
+    const score = Number(item?.score || 0);
+    const ratio = max > 0 ? score / max : 1;
+    const priority: "high" | "medium" | "low" = ratio < 0.5 ? "high" : ratio < 0.75 ? "medium" : "low";
+
+    const loc = item?.suggestion?.[lang] ?? item?.suggestion?.[lang === "vi" ? "ja" : "vi"];
+    let text = "";
+    if (loc && typeof loc === "object") {
+      text = String(loc.improvement || loc.evaluation || "").trim();
+    } else {
+      text = getLocalizedText(item?.suggestion as any, lang);
+    }
+
+    pushItem(text, priority, String(item?.key || "").trim() || undefined, undefined);
+  }
+
+  for (const page of pageReviewItems || []) {
+    const status = String(page?.status || "").toUpperCase();
+    const text = String(page?.suggestions || "").trim();
+    if (!text) continue;
+    const pageNumber = Number(page?.page_number ?? page?.slide_number ?? 0) || undefined;
+    const priority: "high" | "medium" | "low" = status === "NG" ? "high" : "medium";
+    pushItem(text, priority, undefined, pageNumber);
+  }
+
+  return Array.from(merged.values())
+    .map((item) => ({
+      text: item.text,
+      priority: item.priority,
+      criterionKeys: Array.from(item.criterionKeys),
+      pageNumbers: Array.from(item.pageNumbers).sort((a, b) => a - b),
+    }))
+    .sort((a, b) => {
+      const p = rankPriority(b.priority) - rankPriority(a.priority);
+      if (p !== 0) return p;
+      return b.pageNumbers.length - a.pageNumbers.length;
+    })
+    .slice(0, maxItems);
+}
+
 
 export function getCriterionIcon(criterionKey: string) {
   switch (criterionKey) {

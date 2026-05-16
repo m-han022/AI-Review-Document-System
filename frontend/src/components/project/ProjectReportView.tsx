@@ -5,6 +5,7 @@ import { getLocalizedText } from "../../locales/utils";
 import type { FeedbackSectionView } from "./ProjectReviewPanels";
 import type { KPIBarChartProps } from "../ui/KPICharts";
 import type { ProjectSlidesTabViewModel } from "./projectCard.viewModels";
+import { buildActionChecklist } from "./projectCard.helpers";
 
 interface Props {
   t: (key: string) => string;
@@ -73,21 +74,10 @@ export default function ProjectReportView({
   // Extract NG pages for priority section
   const ngSlides = pageReviewItems.filter(s => s.status === "NG").slice(0, 4);
 
-  const checklistItems = useMemo(() => {
-    const fromCriteria = (gradingDetail?.criteria_results || [])
-      .map((item: any) => {
-        const loc = item?.suggestion?.[lang] ?? item?.suggestion?.[lang === "vi" ? "ja" : "vi"];
-        if (loc && typeof loc === "object") {
-          return [loc.evaluation, loc.improvement].filter(Boolean).join(" ");
-        }
-        return getLocalizedText(item?.suggestion as any, lang);
-      })
-      .filter(Boolean);
-    const fromSlides = pageReviewItems
-      .map((item) => (item?.suggestions || "").toString().trim())
-      .filter(Boolean);
-    return Array.from(new Set([...fromCriteria, ...fromSlides])).slice(0, 8);
-  }, [gradingDetail, pageReviewItems, lang]);
+  const checklistItems = useMemo(
+    () => buildActionChecklist(gradingDetail?.criteria_results || [], pageReviewItems, lang as any, 8),
+    [gradingDetail, pageReviewItems, lang],
+  );
 
   // Calculate detailed evaluations (replicated from ProjectCriteriaTab)
   const criteriaWithEvaluations = useMemo(() => {
@@ -238,7 +228,14 @@ export default function ProjectReportView({
             {checklistItems.map((item, idx) => (
               <div key={idx} style={{ display: 'flex', gap: '10px', marginBottom: '10px', fontSize: '12px', alignItems: 'flex-start' }}>
                 <div style={{ width: '14px', height: '14px', border: '1px solid #cbd5e1', borderRadius: '3px', marginTop: '2px' }} />
-                <div style={{ flex: 1, color: '#334155' }}>{item}</div>
+                <div style={{ flex: 1, color: '#334155' }}>
+                  <div>{item.text}</div>
+                  <div style={{ marginTop: '4px', fontSize: '10px', color: '#64748b' }}>
+                    {item.priority.toUpperCase()}
+                    {item.criterionKeys.length > 0 ? ` · criteria: ${item.criterionKeys.join(", ")}` : ""}
+                    {item.pageNumbers.length > 0 ? ` · pages: ${item.pageNumbers.join(", ")}` : ""}
+                  </div>
+                </div>
               </div>
             ))}
           </div>

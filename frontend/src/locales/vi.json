@@ -645,6 +645,8 @@
     "improvementPoints": "điểm cần cải thiện",
     "aiSuggestionLabel": "AI Gợi ý",
     "priorityHigh": "Ưu tiên Cao",
+    "priorityMedium": "Ưu tiên Trung bình",
+    "priorityLow": "Ưu tiên Thấp",
     "slideLabel": "Trang",
     "ngBadge": "NG",
     "scoreLevelExcellent": "Xuất sắc",

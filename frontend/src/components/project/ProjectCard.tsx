@@ -20,8 +20,8 @@ import { EmptyState } from "../ui/States";
 import { Button, SearchableSelect } from "../ui";
 import ConfirmDialog from "../ui/ConfirmDialog";
 import { formatDateTime } from "./projectCard.helpers";
+import { buildActionChecklist } from "./projectCard.helpers";
 import { useProjectReviewState } from "./useProjectReviewState";
-import { getLocalizedText } from "../../locales/utils";
 import "./ProjectCard.css";
 
 interface ProjectCardProps {
@@ -311,17 +311,10 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
     return t("project.summaryScoreCritical", { score: displayScore });
   }, [displayScore, orderedScores, pageReviewItems, t]);
 
-  const actionItems = useMemo(() => {
-    const fromCriteria = (gradingDetail?.criteria_results || [])
-      .map((item) => {
-        return getLocalizedText(item?.suggestion as any, lang);
-      })
-      .filter(Boolean);
-    const fromSlides = pageReviewItems
-      .map((item) => (item?.suggestions || "").toString().trim())
-      .filter(Boolean);
-    return Array.from(new Set([...fromCriteria, ...fromSlides]));
-  }, [gradingDetail, pageReviewItems, lang]);
+  const actionItems = useMemo(
+    () => buildActionChecklist(gradingDetail?.criteria_results || [], pageReviewItems, lang, 10),
+    [gradingDetail, pageReviewItems, lang],
+  );
 
   if (loadingDocs || isInitialLoading) return <ProjectCardSkeleton />;
 
