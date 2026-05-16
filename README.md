@@ -545,6 +545,54 @@ The fallback script starts:
 - Default local mode is synchronous (`USE_CELERY=false`) to avoid stuck `PENDING` runs.
 - For explicit async local testing, use `.\scripts\dev-start-async.ps1`.
 
+### Rerun Review Không Chạy / Không Thấy Kết Quả Mới
+
+Triệu chứng thường gặp:
+- UI báo `ERR_CONNECTION_REFUSED` khi gọi `http://127.0.0.1:8000/...`
+- Bấm **Review lại** nhưng trạng thái không đổi hoặc vẫn thấy run cũ
+
+Checklist kiểm tra nhanh (Windows):
+
+1. Xác nhận backend đang lắng nghe cổng `8000`:
+```powershell
+Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/api/health
+```
+
+2. Nếu fail, khởi động lại theo mode đồng bộ (khuyến nghị khi debug):
+```powershell
+cd e:\workspace\AI-Review-Document-System
+.\scripts\dev-stop.ps1
+.\scripts\dev-start-sync.ps1
+```
+
+3. Xác nhận frontend chạy cổng `5173`:
+```powershell
+cd e:\workspace\AI-Review-Document-System\frontend
+npm run dev -- --host 127.0.0.1 --port 5173
+```
+
+4. Kiểm tra API list project có phản hồi:
+```powershell
+Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:8000/api/projects?limit=100&offset=0"
+```
+
+5. Khi dùng async mode (`USE_CELERY=true`), bắt buộc có Redis + Worker:
+```powershell
+cd e:\workspace\AI-Review-Document-System
+.\scripts\dev-start-async.ps1
+```
+Nếu thiếu worker, run sẽ đứng ở `PENDING/EXTRACTING/GRADING`.
+
+6. Kiểm tra run mới có thật sự được tạo:
+- Sau khi bấm review lại, gọi `GET /api/versions/{document_version_id}/gradings`.
+- Nếu có `grading_run_id` mới, rerun đã chạy; khi đó UI có thể đang giữ run cũ.
+- Nếu không có run mới, kiểm tra lại mode chạy (sync/async), log backend, và kết nối Redis/worker.
+
+Lưu ý vận hành:
+- Muốn debug nhanh và ổn định: dùng `sync mode` (`USE_CELERY=false`).
+- Chỉ dùng `async mode` khi đã chắc Redis + Celery worker đang sống.
+- Nếu Python path có khoảng trắng (ví dụ `C:\Users\NHU HIEN\...`), luôn đặt trong dấu `"..."` khi chạy lệnh thủ công.
+
 ---
 
 # Patch Notes (2026-05-13)
