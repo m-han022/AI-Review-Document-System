@@ -521,7 +521,7 @@ def test_cache_not_reused_when_prompt_level_changes(client: TestClient):
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
         mock_response = MagicMock()
-        mock_response.text = '{"score": 85, "criteria_scores": {"review_tong_the": 20, "diem_tot": 20, "diem_xau": 25, "chinh_sach": 20}, "criteria_suggestions": {"vi": {}, "ja": {}}, "draft_feedback": {"vi": "Tot", "ja": "Good"}, "slide_reviews": []}'
+        mock_response.text = '{"score":85,"criteria_scores":{"review_tong_the":20,"diem_tot":20,"diem_xau":25,"chinh_sach":20},"criteria_suggestions":{"vi":{"review_tong_the":{"evaluation":"tot","improvement":"giu vung"},"diem_tot":{"evaluation":"tot","improvement":"bo sung bang chung"},"diem_xau":{"evaluation":"can cai thien","improvement":"lam ro issue"},"chinh_sach":{"evaluation":"co huong","improvement":"bo sung owner/deadline"}},"ja":{"review_tong_the":{"evaluation":"ok","improvement":"maintain"},"diem_tot":{"evaluation":"ok","improvement":"add evidence"},"diem_xau":{"evaluation":"needs work","improvement":"clarify issues"},"chinh_sach":{"evaluation":"partial","improvement":"add owner/deadline"}}},"draft_feedback":{"vi":"Tot","ja":"Good"},"page_reviews":[]}'
         mock_client.generate_content.return_value = mock_response
 
         grade_medium = client.post("/api/grade", json={"document_version_id": version_id, "prompt_level": "medium"})
@@ -543,7 +543,7 @@ def test_cache_not_reused_when_project_description_changes(client: TestClient):
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
         mock_response = MagicMock()
-        mock_response.text = '{"score": 85, "criteria_scores": {"review_tong_the": 20, "diem_tot": 20, "diem_xau": 25, "chinh_sach": 20}, "criteria_suggestions": {"vi": {}, "ja": {}}, "draft_feedback": {"vi": "Tot", "ja": "Good"}, "slide_reviews": []}'
+        mock_response.text = '{"score":85,"criteria_scores":{"review_tong_the":20,"diem_tot":20,"diem_xau":25,"chinh_sach":20},"criteria_suggestions":{"vi":{"review_tong_the":{"evaluation":"tot","improvement":"giu vung"},"diem_tot":{"evaluation":"tot","improvement":"bo sung bang chung"},"diem_xau":{"evaluation":"can cai thien","improvement":"lam ro issue"},"chinh_sach":{"evaluation":"co huong","improvement":"bo sung owner/deadline"}},"ja":{"review_tong_the":{"evaluation":"ok","improvement":"maintain"},"diem_tot":{"evaluation":"ok","improvement":"add evidence"},"diem_xau":{"evaluation":"needs work","improvement":"clarify issues"},"chinh_sach":{"evaluation":"partial","improvement":"add owner/deadline"}}},"draft_feedback":{"vi":"Tot","ja":"Good"},"page_reviews":[]}'
         mock_client.generate_content.return_value = mock_response
 
         grade_1 = client.post("/api/grade", json={"document_version_id": version_id, "prompt_level": "medium"})

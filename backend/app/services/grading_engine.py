@@ -1,4 +1,4 @@
-import hashlib
+﻿import hashlib
 import json
 import re
 from collections import OrderedDict
@@ -15,6 +15,8 @@ from app.services.prompt_policy import get_prompt_policy_bundle, normalize_promp
 from app.models import EvaluationSet, Rubric, PromptVersion, EvaluationPolicy, RequiredRuleSet
 from app.services.prompt_composer import PromptComposer, get_active_required_rule_set, parse_required_rules_content
 from app.services.evaluation_bundle_resolver import resolve_evaluation_bundle
+from app.services.output_schema import OUTPUT_SCHEMA_HINT, validate_ai_output_shape
+from app.metrics import inc_counter
 
 _GRADING_CACHE_MAX_SIZE = 200
 
@@ -47,15 +49,7 @@ class _BoundedCache:
 _grading_cache: _BoundedCache = _BoundedCache()
 GRADING_SCHEMA_VERSION = "v2_full_coverage"
 
-BILINGUAL_SCHEMA = (
-    "\n\nReturn JSON: {score:int, criteria_scores:{key:number}, "
-    "criteria_suggestions:{vi:{key:str},ja:{key:str}} (Provide detailed reasoning, issues found AND actionable suggestions), "
-    "draft_feedback:{vi:str,ja:str}, "
-    "page_reviews:[{page_number:int,status:'OK'|'NG',"
-    "title:{vi:str,ja:str},summary:{vi:str,ja:str},"
-    "issues:{vi:[str],ja:[str]},suggestions:{vi:str,ja:str}}]}. "
-    "All text fields MUST have both vi and ja. NG slides MUST have issues and suggestions."
-)
+BILINGUAL_SCHEMA = OUTPUT_SCHEMA_HINT
 
 DOCUMENT_CONFIGS = {
     "project-review": {
@@ -106,8 +100,8 @@ DOCUMENT_CONFIGS = {
 }
 
 PROMPT_PREFIXES = {
-    "vi": "Chấm điểm tài liệu sau:",
-    "ja": "以下の資料を採点してください:",
+    "vi": "Cháº¥m Ä‘iá»ƒm tÃ i liá»‡u sau:",
+    "ja": "ä»¥ä¸‹ã®è³‡æ–™ã‚’æŽ¡ç‚¹ã—ã¦ãã ã•ã„:",
 }
 
 
@@ -371,11 +365,16 @@ def _ensure_ui_json_contract(
         result["criteria_suggestions"] = {"vi": {}, "ja": {}}
     if not isinstance(result.get("draft_feedback"), (dict, str)):
         result["draft_feedback"] = {"vi": "", "ja": ""}
-    if not isinstance(result.get("slide_reviews"), list):
-        if isinstance(result.get("page_reviews"), list):
-            result["slide_reviews"] = result["page_reviews"]
+    # Compatibility contract:
+    # - `page_reviews` is canonical.
+    # - `slide_reviews` is deprecated but still accepted/returned for legacy clients.
+    if not isinstance(result.get("page_reviews"), list):
+        if isinstance(result.get("slide_reviews"), list):
+            result["page_reviews"] = result["slide_reviews"]
         else:
-            result["slide_reviews"] = []
+            result["page_reviews"] = []
+    if not isinstance(result.get("slide_reviews"), list):
+        result["slide_reviews"] = result["page_reviews"]
     if "score" not in result:
         result["score"] = 0
 
@@ -391,12 +390,23 @@ def _ensure_ui_json_contract(
     if "ja" not in cs or not isinstance(cs.get("ja"), dict):
         cs["ja"] = {}
     for key in required_keys:
-        cs["vi"].setdefault(key, "")
-        cs["ja"].setdefault(key, "")
+        vi_item = cs["vi"].get(key)
+        ja_item = cs["ja"].get(key)
+        if not isinstance(vi_item, dict):
+            vi_item = {"evaluation": "", "improvement": ""}
+        if not isinstance(ja_item, dict):
+            ja_item = {"evaluation": "", "improvement": ""}
+        vi_item.setdefault("evaluation", "")
+        vi_item.setdefault("improvement", "")
+        ja_item.setdefault("evaluation", "")
+        ja_item.setdefault("improvement", "")
+        cs["vi"][key] = vi_item
+        cs["ja"][key] = ja_item
 
     # Ensure there is at least placeholder slide review when no parsed slides.
-    if not result["slide_reviews"]:
+    if not result["page_reviews"]:
         fallback = _recover_minimal_result_from_text("", required_keys, language, text)
+        result["page_reviews"] = fallback["slide_reviews"]
         result["slide_reviews"] = fallback["slide_reviews"]
         if not result.get("draft_feedback"):
             result["draft_feedback"] = fallback["draft_feedback"]
@@ -476,6 +486,21 @@ def _recover_minimal_result_from_text(
     language: str,
     document_text: str,
 ) -> dict[str, Any]:
+    def _extract_page_snippets(source_text: str, limit: int = 180) -> dict[int, str]:
+        snippets: dict[int, str] = {}
+        if not source_text:
+            return snippets
+        pattern = re.compile(
+            r"\[(?:Page|Slide)\s+(\d+)\](.*?)(?=\[(?:Page|Slide)\s+\d+\]|$)",
+            re.IGNORECASE | re.DOTALL,
+        )
+        for match in pattern.finditer(source_text):
+            page_no = int(match.group(1))
+            body = re.sub(r"\s+", " ", (match.group(2) or "").strip())
+            if body:
+                snippets[page_no] = body[:limit]
+        return snippets
+
     score_match = re.search(r'"score"\s*:\s*(-?\d+)', raw_text)
     score = int(score_match.group(1)) if score_match else 0
 
@@ -487,8 +512,8 @@ def _recover_minimal_result_from_text(
             criteria_scores[key] = round(float(key_match.group(1)), 1)
 
     empty_lang = {"vi": {}, "ja": {}}
-    draft_vi = "Phản hồi AI bị lỗi định dạng JSON, hệ thống đã tự phục hồi kết quả tối thiểu."
-    draft_ja = "AIのJSON形式応答が不正だったため、最小限の結果で自動復旧しました。"
+    draft_vi = "Phản hồi AI không đúng định dạng JSON. Hệ thống đã tự phục hồi dữ liệu tối thiểu để tiếp tục hiển thị."
+    draft_ja = "AI応答のJSON形式が不正だったため、表示継続のため最小限データで自動復旧しました。"
     draft_feedback = {"vi": draft_vi, "ja": draft_ja}
     if language == "vi":
         draft_feedback["ja"] = ""
@@ -497,17 +522,27 @@ def _recover_minimal_result_from_text(
 
     page_matches = re.findall(r"\[(?:Page|Slide)\s+(\d+)\]", document_text or "", flags=re.IGNORECASE)
     total_slides = max((int(num) for num in page_matches), default=0)
+    page_snippets = _extract_page_snippets(document_text or "")
     slide_reviews: list[dict[str, Any]] = []
     for i in range(1, total_slides + 1):
+        snippet = page_snippets.get(i, "")
         slide_reviews.append(
             {
                 "slide_number": i,
                 "page_number": i,
                 "status": "OK",
-                "title": {"vi": f"Slide {i}", "ja": f"スライド {i}"},
+                "title": {"vi": f"Trang {i}", "ja": f"ページ {i}"},
                 "summary": {
-                    "vi": "Không có dữ liệu phân tích page chi tiết do phản hồi AI lỗi định dạng.",
-                    "ja": "AI応答の形式不正により、詳細なページ分析は取得できませんでした。",
+                    "vi": (
+                        f"Tự phục hồi dữ liệu trang từ nội dung trích xuất: {snippet}"
+                        if snippet
+                        else "Tự phục hồi dữ liệu trang do phản hồi AI sai định dạng JSON."
+                    ),
+                    "ja": (
+                        f"抽出テキストからページデータを自動復旧: {snippet}"
+                        if snippet
+                        else "AI応答JSON不正のため、ページデータを自動復旧しました。"
+                    ),
                 },
                 "issues": {"vi": [], "ja": []},
                 "suggestions": {"vi": "", "ja": ""},
@@ -522,8 +557,6 @@ def _recover_minimal_result_from_text(
         "slide_reviews": slide_reviews,
         "page_reviews": slide_reviews,
     }
-
-
 def grade_submission(
     text: str,
     language: str = "ja",
@@ -591,8 +624,22 @@ def grade_submission(
                 "evaluation_set_id": existing_run.evaluation_set_id,
                 "criteria_scores": {item.key: item.score for item in existing_run.criteria_results},
                 "criteria_suggestions": {
-                    "vi": {item.key: item.suggestion.get("vi", "") for item in existing_run.criteria_results if item.suggestion},
-                    "ja": {item.key: item.suggestion.get("ja", "") for item in existing_run.criteria_results if item.suggestion}
+                    "vi": {
+                        item.key: (
+                            item.suggestion.get("vi")
+                            if isinstance(item.suggestion.get("vi"), dict)
+                            else {"evaluation": str(item.suggestion.get("vi", "")), "improvement": ""}
+                        )
+                        for item in existing_run.criteria_results if item.suggestion
+                    },
+                    "ja": {
+                        item.key: (
+                            item.suggestion.get("ja")
+                            if isinstance(item.suggestion.get("ja"), dict)
+                            else {"evaluation": str(item.suggestion.get("ja", "")), "improvement": ""}
+                        )
+                        for item in existing_run.criteria_results if item.suggestion
+                    }
                 },
                 "draft_feedback": existing_run.draft_feedback or {"vi": "", "ja": ""},
                 "slide_reviews": [
@@ -650,7 +697,9 @@ def grade_submission(
         )
     try:
         result = _parse_llm_json_response(response.text)
+        parse_failed = False
     except json.JSONDecodeError:
+        parse_failed = True
         try:
             result = _recover_minimal_result_from_text(
                 raw_text=response.text or "",
@@ -658,6 +707,7 @@ def grade_submission(
                 language=language,
                 document_text=text,
             )
+            used_recovery_fallback = True
         except Exception:
             # Hard-stop fallback with explicit invalid AI response marker.
             result = {
@@ -669,6 +719,14 @@ def grade_submission(
                 "page_reviews": [],
                 "_invalid_ai_response": True,
             }
+            used_recovery_fallback = False
+    else:
+        used_recovery_fallback = False
+
+    contract_errors = validate_ai_output_shape(result, required_keys)
+    if contract_errors:
+        result["_invalid_ai_response"] = True
+        result["_invalid_ai_response_reason"] = ";".join(contract_errors)
 
     result = _ensure_ui_json_contract(
         result=result,
@@ -731,7 +789,22 @@ def grade_submission(
         "slide_reviews": slide_reviews,
         "page_reviews": slide_reviews,
         "status": "FAILED_INVALID_AI_RESPONSE" if result.get("_invalid_ai_response") else "COMPLETED",
+        "invalid_ai_response_reason": result.get("_invalid_ai_response_reason"),
+        "ai_parse_failed": parse_failed,
+        "ai_used_recovery_fallback": used_recovery_fallback,
+        "ai_invalid_schema": bool(contract_errors),
     }
+
+    metric_context = {
+        "document_type": signature.get("document_type", "unknown"),
+        "prompt_level": signature.get("prompt_level", "unknown"),
+    }
+    if parse_failed:
+        inc_counter("grading_ai_parse_failed_total", status="PARSE_FAILED", **metric_context)
+    if used_recovery_fallback:
+        inc_counter("grading_ai_fallback_total", status="RECOVERY_FALLBACK", **metric_context)
+    if contract_errors:
+        inc_counter("grading_ai_invalid_schema_total", status="INVALID_SCHEMA", **metric_context)
 
     # [FIX BUG-04] Only write to cache when use_cache=True.
     # refresh_cache=True means "force re-grade", not "cache the result for future use_cache=False calls".

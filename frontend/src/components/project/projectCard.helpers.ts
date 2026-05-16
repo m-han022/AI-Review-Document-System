@@ -120,6 +120,19 @@ export function buildPageReviewItems(
       ? Math.max(...safeReviews.map((r) => Number(r.page_number ?? r.slide_number ?? 0)))
       : 0,
   );
+  if (totalSlides <= 0) {
+    return [
+      {
+        id: -1,
+        page_number: 1,
+        status: "OK" as const,
+        displayTitle: (t("project.slideNumber") || "Slide {number}").replace("{number}", "1"),
+        summary: t("project.noIssuesDetected"),
+        issues: [],
+        suggestions: "",
+      },
+    ];
+  }
   const results = [];
   const reviewMap = new Map(safeReviews.map((r) => [Number(r.page_number ?? r.slide_number), r]));
   for (let i = 1; i <= totalSlides; i++) {

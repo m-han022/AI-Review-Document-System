@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from sqlmodel import Session, select
 from app.models import Rubric, EvaluationPolicy, PromptVersion, RequiredRuleSet
 from app.services.prompt_policy import _now
+from app.services.output_schema import OUTPUT_SCHEMA_HINT
 
 @dataclass
 class FinalPromptBundle:
@@ -55,16 +56,6 @@ def get_active_required_rule_set(session: Session) -> RequiredRuleSet:
     session.commit()
     session.refresh(seeded)
     return seeded
-
-OUTPUT_SCHEMA_HINT = (
-    "\n\nReturn JSON: {score:int, criteria_scores:{key:number}, "
-    "criteria_suggestions:{vi:{key:str},ja:{key:str}} (Provide detailed reasoning, issues found AND actionable suggestions), "
-    "draft_feedback:{vi:str,ja:str}, "
-    "page_reviews:[{page_number:int,status:'OK'|'NG',"
-    "title:{vi:str,ja:str},summary:{vi:str,ja:str},"
-    "issues:{vi:[str],ja:[str]},suggestions:{vi:str,ja:str}}]}. "
-    "\nCRITICAL INSTRUCTION FOR LLM: Your response MUST be a valid JSON string. You are STRICTLY FORBIDDEN from using unescaped double quotes (\") inside your string values. Internal quotes MUST be escaped as \\\" or replaced by single quotes (''). Failure to produce valid JSON syntax will crash the system."
-)
 
 def stable_hash(value: Any) -> str:
     if isinstance(value, str):

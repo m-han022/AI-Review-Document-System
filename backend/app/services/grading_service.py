@@ -340,7 +340,8 @@ class GradingService:
                 status="COMPLETED",
                 evaluation_set_id=evaluation_set_id,
             )
-
+            result_data["run_id"] = run.id
+            result_data["grading_run_id"] = run.id
             return result_data
 
         except Exception as e:
@@ -428,19 +429,28 @@ class GradingService:
 
         # Defensive dedupe by criterion_key for idempotency safety.
         for key, score in dict(scores.items()).items():
+            vi_raw = suggestions.get("vi", {}).get(key, {}) if isinstance(suggestions, dict) else {}
+            ja_raw = suggestions.get("ja", {}).get(key, {}) if isinstance(suggestions, dict) else {}
+            if isinstance(vi_raw, str):
+                vi_raw = {"evaluation": vi_raw, "improvement": ""}
+            if isinstance(ja_raw, str):
+                ja_raw = {"evaluation": ja_raw, "improvement": ""}
             criterion = GradingCriteriaResult(
                 grading_run_id=run.id,
                 criterion_key=key,
                 score=score,
                 max_score=max_scores.get(key, 0.0),
-                suggestion=suggestions.get("vi", {}).get(key, "") or suggestions.get("ja", {}).get(key, "") 
-                if isinstance(suggestions, dict) else None
+                suggestion=None
             )
-            # Handle bilingual suggestions if needed, but the model has Optional[Dict[str, Any]] for suggestion
-            # Let's check model again. 135: suggestion: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
             criterion.suggestion = {
-                "vi": suggestions.get("vi", {}).get(key, "") if isinstance(suggestions, dict) else "",
-                "ja": suggestions.get("ja", {}).get(key, "") if isinstance(suggestions, dict) else ""
+                "vi": {
+                    "evaluation": str((vi_raw or {}).get("evaluation", "")),
+                    "improvement": str((vi_raw or {}).get("improvement", "")),
+                },
+                "ja": {
+                    "evaluation": str((ja_raw or {}).get("evaluation", "")),
+                    "improvement": str((ja_raw or {}).get("improvement", "")),
+                },
             }
             self.grading_repo.add(criterion)
 

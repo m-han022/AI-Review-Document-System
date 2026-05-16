@@ -74,7 +74,10 @@ const missingInEn = viKeys.filter((k) => !enKeys.has(k));
 const missingInVi = [...ja.keys()].filter((k) => !vi.has(k));
 
 const usedKeys = extractUsedKeys(listTsxFiles(SOURCE_ROOT));
-const missingUsedKeys = [...usedKeys].filter((k) => !vi.has(k) || !ja.has(k) || !en.has(k));
+const isDynamicKey = (k) => /\$\{[^}]+\}/.test(k);
+const missingUsedKeys = [...usedKeys]
+  .filter((k) => !isDynamicKey(k))
+  .filter((k) => !vi.has(k) || !ja.has(k) || !en.has(k));
 
 const viMojibake = viKeys.filter((k) => typeof vi.get(k) === "string" && hasMojibake(String(vi.get(k))));
 const jaMojibake = [...ja.keys()].filter((k) => typeof ja.get(k) === "string" && hasMojibake(String(ja.get(k))));

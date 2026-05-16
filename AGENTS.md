@@ -239,6 +239,7 @@ binary_hash (dùng để bỏ qua bước trích xuất text nếu file trùng l
 
 * Hardcode criteria
 * Assume 1 document per type
+* Sửa text/i18n bằng replace thô gây bể encoding
 
 ---
 
@@ -252,6 +253,26 @@ Version
 Rubric version
 Prompt version
 Level
+
+---
+
+## UI Terminology Policy (Current)
+
+- UI business term chuẩn: dùng `page` / `trang`.
+- Chỉ giữ `slide_*` cho compatibility key/API/DB legacy (ví dụ `slide_number`, `slide_reviews`).
+- Không đổi contract key/public API chỉ để rename terminology nếu chưa có migration plan rõ.
+- Khi render UI: ưu tiên `page_number`, fallback `slide_number`.
+
+---
+
+## Frontend Validation Gate (Current)
+
+- Trước merge/release, bắt buộc pass:
+  - `npm run build` (frontend)
+  - `npm run check:i18n` (bao gồm check missing keys + mojibake)
+- Nếu fail gate:
+  - không merge
+  - phải ghi rõ nguyên nhân và phạm vi ảnh hưởng.
 
 ---
 
@@ -516,11 +537,11 @@ Khi tái cấu trúc theo hướng clean architecture / modular design:
 
 ## Documentation Deletion Rules (Current)
 
-- Khi ngu?i d�ng y�u c?u d?n/x�a t�i li?u:
-  1. R� so�t tham chi?u to�n repo tru?c khi x�a.
-  2. Ch? x�a khi n?i dung v?n h�nh c?t l�i d� du?c h?p nh?t v�o README.md / REQUIREMENTS.md / AGENTS.md.
-  3. Sau khi x�a, b?t bu?c c?p nh?t l?i link/hu?ng d?n d? kh�ng c�n dead reference.
-- Kh�ng x�a im l?ng t�i li?u governance n?u chua c� b?n thay th? tuong duong.
+- Khi người dùng yêu cầu dọn/xóa tài liệu:
+  1. Rà soát tham chiếu toàn repo trước khi xóa.
+  2. Chỉ xóa khi nội dung vận hành cốt lõi đã được hợp nhất vào README.md / REQUIREMENTS.md / AGENTS.md.
+  3. Sau khi xóa, bắt buộc cập nhật lại link/hướng dẫn để không còn dead reference.
+- Không xóa im lặng tài liệu governance nếu chưa có bản thay thế tương đương.
 
 ---
 

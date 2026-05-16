@@ -1,4 +1,4 @@
-import type { LanguageCode } from "../types";
+﻿import type { LanguageCode } from "../types";
 import type { DocumentType } from "./documentTypes";
 
 export const UPLOAD_COPY = {
@@ -309,3 +309,4 @@ export const DOCUMENT_CARD_COPY: Record<
     },
   },
 };
+

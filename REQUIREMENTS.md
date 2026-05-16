@@ -360,7 +360,7 @@ Khi gọi review:
 
 ## Cache Signature (Patch 2026-05-13)
 
-Cache key/signature ph?i bao g?m t?i thi?u:
+Cache key/signature phải bao gồm tối thiểu:
 
 - project_id
 - content_hash
@@ -375,8 +375,8 @@ Cache key/signature ph?i bao g?m t?i thi?u:
 
 ## Regression Check Add-on
 
-- L?p l?i grading c?ng evaluation context ph?i match ??ng run tr?ng th?i `COMPLETED` cho reuse logic.
-- Kh?ng l?m m?t nguy?n t?c append-only/audit trail.
+- Lặp lại grading cùng evaluation context phải match đúng run trạng thái `COMPLETED` cho reuse logic.
+- Không làm mất nguyên tắc append-only/audit trail.
 
 ---
 

@@ -1,55 +1,58 @@
 {
   "project-review": {
-    "label": { "vi": "Review Dự án", "ja": "プロジェクトレビュー" },
+    "label": { "vi": "Review du an", "ja": "プロジェクトレビュー" },
     "version": "v1.2",
     "criteria": [
-      { "key": "review_tong_the", "max_score": 25, "label": { "vi": "Đánh giá tổng thể", "ja": "全体評価" } },
-      { "key": "diem_tot", "max_score": 25, "label": { "vi": "Điểm tốt", "ja": "長所" } },
-      { "key": "diem_xau", "max_score": 30, "label": { "vi": "Điểm cần cải thiện", "ja": "改善点" } },
-      { "key": "chinh_sach", "max_score": 20, "label": { "vi": "Chính sách cải thiện", "ja": "改善方針" } }
+      { "key": "review_tong_the", "max_score": 25, "label": { "vi": "Danh gia tong the", "ja": "全体評価" } },
+      { "key": "diem_tot", "max_score": 25, "label": { "vi": "Diem tot", "ja": "強み" } },
+      { "key": "diem_xau", "max_score": 30, "label": { "vi": "Diem can cai thien", "ja": "改善点" } },
+      { "key": "chinh_sach", "max_score": 20, "label": { "vi": "Chinh sach cai thien", "ja": "改善方針" } }
     ],
     "instruction": {
-      "vi": "【QUAN TRỌNG: PHẢN HỒI BẰNG TIẾNG VIỆT】\n\nBạn là một người quản lý dự án cấp cao trong công ty phần mềm...\n(Nội dung chi tiết đã được tối ưu hóa cho AI)",
-      "ja": "【重要：日本語で回答してください】\n\nあなたはソフトウェア会社のシニアプロジェクトマネージャーです...\n(AI向けに最適化された詳細内容)"
+      "vi": "Tra ve JSON hop le. Moi criteria_suggestions.<lang>.<key> phai co 2 truong: evaluation va improvement. Bao phu day du page_reviews.",
+      "ja": "有効なJSONを返してください。criteria_suggestions.<lang>.<key> は evaluation と improvement の2項目を必須とし、page_reviews を網羅してください。"
     }
   },
   "bug-analysis": {
-    "label": { "vi": "Phân tích Bug", "ja": "バグ分析" },
+    "label": { "vi": "Phan tich bug", "ja": "バグ分析" },
     "version": "v1.2",
     "criteria": [
-      { "key": "nguyen_nhan", "max_score": 40, "label": { "vi": "Phân tích nguyên nhân", "ja": "原因分析" } },
-      { "key": "giai_phap", "max_score": 40, "label": { "vi": "Giải pháp khắc phục", "ja": "対策" } },
-      { "key": "phong_ngua", "max_score": 20, "label": { "vi": "Phòng ngừa tái phát", "ja": "再発防止" } }
+      { "key": "kha_nang_tai_hien_bug", "max_score": 25, "label": { "vi": "Kha nang tai hien bug", "ja": "再現性" } },
+      { "key": "phan_tich_nguyen_nhan", "max_score": 25, "label": { "vi": "Phan tich nguyen nhan", "ja": "原因分析" } },
+      { "key": "danh_gia_anh_huong", "max_score": 25, "label": { "vi": "Danh gia anh huong", "ja": "影響評価" } },
+      { "key": "giai_phap_phong_ngua", "max_score": 25, "label": { "vi": "Giai phap phong ngua", "ja": "再発防止策" } }
     ],
     "instruction": {
-      "vi": "Phân tích sâu về nguyên nhân gốc rễ của lỗi kỹ thuật...",
-      "ja": "技術的エラーの根本原因を深く分析してください..."
+      "vi": "Moi tieu chi tra ve tach 2 phan evaluation/improvement. Dua tren bang chung va xuat dung schema.",
+      "ja": "各基準で evaluation/improvement を分離して返し、根拠ベースでスキーマ準拠してください。"
     }
   },
   "qa-review": {
-    "label": { "vi": "Kiểm soát chất lượng (QA)", "ja": "品質管理レビュー" },
+    "label": { "vi": "Review QA", "ja": "QAレビュー" },
     "version": "v1.2",
     "criteria": [
-      { "key": "quy_trinh", "max_score": 30, "label": { "vi": "Tuân thủ quy trình", "ja": "プロセス遵守" } },
-      { "key": "bang_chung", "max_score": 40, "label": { "vi": "Bằng chứng kiểm thử", "ja": "テストエビデンス" } },
-      { "key": "rui_ro", "max_score": 30, "label": { "vi": "Quản trị rủi ro", "ja": "リスク管理" } }
+      { "key": "do_ro_rang", "max_score": 25, "label": { "vi": "Do ro rang", "ja": "明確性" } },
+      { "key": "do_bao_phu", "max_score": 25, "label": { "vi": "Do bao phu", "ja": "網羅性" } },
+      { "key": "kha_nang_truy_vet", "max_score": 25, "label": { "vi": "Kha nang truy vet", "ja": "追跡可能性" } },
+      { "key": "tinh_thuc_thi", "max_score": 25, "label": { "vi": "Tinh thuc thi", "ja": "実行可能性" } }
     ],
     "instruction": {
-      "vi": "Đánh giá mức độ tuân thủ tiêu chuẩn chất lượng của dự án...",
-      "ja": "プロジェクトの品質基準への準拠状況を評価してください..."
+      "vi": "Bat buoc criteria_suggestions theo object evaluation/improvement cho tung key, va du page_reviews.",
+      "ja": "criteria_suggestions は各キーごとに evaluation/improvement オブジェクト必須。page_reviews も完全に返してください。"
     }
   },
   "explanation-review": {
-    "label": { "vi": "Review Giải trình", "ja": "釈明・説明レビュー" },
+    "label": { "vi": "Review giai trinh", "ja": "説明レビュー" },
     "version": "v1.2",
     "criteria": [
-      { "key": "tinh_trung_thuc", "max_score": 30, "label": { "vi": "Tính trung thực & Khách quan", "ja": "誠実さと客観性" } },
-      { "key": "logic_giai_trinh", "max_score": 40, "label": { "vi": "Logic giải trình", "ja": "説明の論理性" } },
-      { "key": "cam_ket", "max_score": 30, "label": { "vi": "Cam kết cải thiện", "ja": "改善へのコミットメント" } }
+      { "key": "do_ro_rang_de_hieu", "max_score": 25, "label": { "vi": "Ro rang de hieu", "ja": "明快さ" } },
+      { "key": "tinh_day_du_dung_trong_tam", "max_score": 25, "label": { "vi": "Day du dung trong tam", "ja": "十分性と焦点" } },
+      { "key": "tinh_chinh_xac", "max_score": 25, "label": { "vi": "Tinh chinh xac", "ja": "正確性" } },
+      { "key": "tinh_ung_dung", "max_score": 25, "label": { "vi": "Tinh ung dung", "ja": "実用性" } }
     ],
     "instruction": {
-      "vi": "Đánh giá tính thuyết phục của các bản giải trình sự cố...",
-      "ja": "障害報告や釈明の説得力を評価してください..."
+      "vi": "Can tach ro nhan xet hien trang (evaluation) va de xuat hanh dong (improvement) cho tung tieu chi.",
+      "ja": "各基準で現状評価（evaluation）と改善提案（improvement）を明確に分離してください。"
     }
   }
 }

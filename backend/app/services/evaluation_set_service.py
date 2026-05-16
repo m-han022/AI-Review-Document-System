@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+import re
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -10,14 +11,16 @@ from app.services.prompt_composer import get_active_required_rule_set
 from app.rubric import RUBRIC_TEMPLATES, _normalize_prompt
 
 DEFAULT_PROMPT_CONTENT_VI = (
-    "【QUAN TRỌNG: PHẢN HỒI BẰNG TIẾNG VIỆT】\n"
-    "Bạn là chuyên gia PMO. Hãy đánh giá tài liệu theo đúng rubric và policy hiện hành.\n"
-    "Yêu cầu bắt buộc:\n"
-    "- Chỉ trả về JSON hợp lệ theo output schema.\n"
-    "- Không dùng markdown/code block.\n"
-    "- Không bịa thông tin ngoài tài liệu.\n"
-    "- Với từng tiêu chí, nêu rõ Giải thích và Để tăng điểm với hành động cụ thể.\n"
-    "- Review đầy đủ từng slide/page với trạng thái OK/NG, nêu lý do và đề xuất sửa."
+    "[QUAN TRONG: PHAN HOI BANG TIENG VIET]\n"
+    "Ban la chuyen gia PMO. Hay danh gia tai lieu theo dung rubric va policy hien hanh.\n"
+    "Yeu cau bat buoc:\n"
+    "- Chi tra ve JSON hop le theo output schema, khong them text ngoai JSON.\n"
+    "- Khong dung markdown/code block.\n"
+    "- Khong bia thong tin ngoai tai lieu.\n"
+    "- Voi tung tieu chi, neu ro van de va de xuat hanh dong cai thien cu the.\n"
+    "- Review day du tung trang voi trang thai OK/NG, neu ly do va huong sua.\n"
+    "- Schema toi thieu phai co: score, criteria_scores, criteria_suggestions{vi,ja}, draft_feedback{vi,ja}, page_reviews[].\n"
+    "- Moi item trong page_reviews phai co: page_number, status, title{vi,ja}, summary{vi,ja}, issues{vi,ja}, suggestions{vi,ja}."
 )
 
 
@@ -25,13 +28,15 @@ def _looks_like_mojibake_prompt(content: str) -> bool:
     text = (content or "").strip()
     if not text:
         return False
+    if re.search(r"[A-Za-z]\?[A-Za-z]|\?{2,}", text):
+        return True
     markers = [
-        "QUAN TR?NG",
-        "PH?N H?I",
-        "TI?NG VI?T",
-        "Kh?ng",
-        "B?n l?",
-        "?nh gi?",
+        "QUAN TRONG",
+        "PHAN HOI",
+        "TIENG VIET",
+        "Khong",
+        "bia",
+        "danh gia",
     ]
     return any(marker in text for marker in markers)
 

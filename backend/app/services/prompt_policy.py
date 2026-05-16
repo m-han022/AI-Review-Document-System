@@ -121,7 +121,7 @@ def get_prompt_policy_bundle(
         "prompt_level": level,
         "criteria_keys": required_keys,
         "max_scores": max_scores,
-        "output_schema": "bilingual_criteria_slide_reviews",
+        "output_schema": "bilingual_criteria_page_reviews_v1",
     }
     
     return PromptPolicyBundle(

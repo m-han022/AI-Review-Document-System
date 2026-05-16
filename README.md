@@ -364,6 +364,12 @@ npm run build
 npm run check:i18n
 ```
 
+Enable local pre-commit hook (recommended):
+```bash
+git config core.hooksPath .githooks
+```
+Hook will run `frontend/npm run check:i18n` before each commit.
+
 Expected:
 - Missing in vi/ja = 0
 - Used keys missing in dictionary = 0

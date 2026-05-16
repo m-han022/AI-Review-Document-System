@@ -1,0 +1,12 @@
+{
+  "name": "bilingual_criteria_page_reviews_v1",
+  "hint": "Return JSON: {score:int, criteria_scores:{key:number}, criteria_suggestions:{vi:{key:{evaluation:str,improvement:str}},ja:{key:{evaluation:str,improvement:str}}}, draft_feedback:{vi:str,ja:str}, page_reviews:[{page_number:int,status:'OK'|'NG',title:{vi:str,ja:str},summary:{vi:str,ja:str},issues:{vi:[str],ja:[str]},suggestions:{vi:str,ja:str}}]}. All text fields must contain both vi and ja.",
+  "required_root_keys": [
+    "score",
+    "criteria_scores",
+    "criteria_suggestions",
+    "draft_feedback",
+    "page_reviews"
+  ],
+  "status_enum": ["OK", "NG"]
+}

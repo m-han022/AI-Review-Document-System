@@ -14,6 +14,9 @@ COUNTER_NAMES: Final[tuple[str, ...]] = (
     "grading_run_reused_total",
     "grading_run_failed_total",
     "grading_retry_total",
+    "grading_ai_parse_failed_total",
+    "grading_ai_fallback_total",
+    "grading_ai_invalid_schema_total",
 )
 DURATION_METRIC_NAME: Final[str] = "grading_duration_seconds"
 

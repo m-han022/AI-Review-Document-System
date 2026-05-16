@@ -1,14 +1,14 @@
 {
   "low": {
-    "vi": "Đánh giá ở mức PMO thấp: tập trung vào lỗi rõ ràng, khả năng đọc hiểu, thiếu thông tin quan trọng và hành động sửa trực tiếp.",
-    "ja": "PMO低レベル評価：明らかなエラー、読みやすさ、重要な情報の欠落、および trực tiếp な修正アクションに焦点を当てます。"
+    "vi": "Danh gia PMO thap: tap trung loi ro rang va hanh dong sua truc tiep. Moi tieu chi can tach evaluation va improvement.",
+    "ja": "PMO低レベル評価：明確な不備と直接修正に焦点。各基準で evaluation と improvement を分離してください。"
   },
   "medium": {
-    "vi": "Đánh giá ở mức PMO vừa: ngoài lỗi rõ ràng, phân tích tính nhất quán, độ đủ bằng chứng, tác động vận hành và khả năng phòng ngừa tái diễn.",
-    "ja": "PMO中レベル評価：明らかなエラーに加え、一貫性、エビデンスの十分性、運用への影響、および再発防止策を分析します。"
+    "vi": "Danh gia PMO vua: phan tich tinh nhat quan, bang chung, tac dong van hanh. Moi tieu chi bat buoc co evaluation va improvement.",
+    "ja": "PMO中レベル評価：一貫性・根拠・運用影響を分析。各基準で evaluation と improvement を必須にしてください。"
   },
   "high": {
-    "vi": "Đánh giá ở mức PMO cao: áp dụng chuẩn quản trị nghiêm ngặt, kiểm tra logic nguyên nhân gốc, KPI, owner, deadline, policy, risk và khả năng audit.",
-    "ja": "PMO高レベル評価：厳格なガバナンス基準を適用し、根本原因のロジック、KPI、責任者、期限、ポリシー、リスク、および監査可能性を検証します。"
+    "vi": "Danh gia PMO cao: kiem tra root-cause, KPI, owner, deadline, risk va auditability. Mỗi tieu chi phai tra ve evaluation va improvement hanh dong duoc.",
+    "ja": "PMO高レベル評価：根本原因、KPI、担当者、期限、リスク、監査可能性を確認。各基準で実行可能な evaluation と improvement を返してください。"
   }
 }

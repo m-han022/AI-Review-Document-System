@@ -75,7 +75,13 @@ export default function ProjectReportView({
 
   const checklistItems = useMemo(() => {
     const fromCriteria = (gradingDetail?.criteria_results || [])
-      .map((item: any) => getLocalizedText(item?.suggestion as any, lang))
+      .map((item: any) => {
+        const loc = item?.suggestion?.[lang] ?? item?.suggestion?.[lang === "vi" ? "ja" : "vi"];
+        if (loc && typeof loc === "object") {
+          return [loc.evaluation, loc.improvement].filter(Boolean).join(" ");
+        }
+        return getLocalizedText(item?.suggestion as any, lang);
+      })
       .filter(Boolean);
     const fromSlides = pageReviewItems
       .map((item) => (item?.suggestions || "").toString().trim())
@@ -85,14 +91,34 @@ export default function ProjectReportView({
 
   // Calculate detailed evaluations (replicated from ProjectCriteriaTab)
   const criteriaWithEvaluations = useMemo(() => {
+    const genericFallback = feedbackSections
+      .flatMap((section) => section.lines || [])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join(" ")
+      .trim();
     return orderedScores.map(score => {
       const detail = gradingDetail?.criteria_results.find((cr: any) => cr.key === score.key);
-      const suggestion = getLocalizedText(detail?.suggestion as any, lang as any);
-      const normalize = (str: string) => str.toLowerCase().replace(/[0-9]+[.)]/g, "").replace(/\s+/g, "").trim();
-      let evaluation = suggestion;
+      const loc = detail?.suggestion?.[lang] ?? detail?.suggestion?.[lang === "vi" ? "ja" : "vi"];
+      const evaluationPart = typeof loc?.evaluation === "string" ? loc.evaluation.trim() : "";
+      const improvementPart = typeof loc?.improvement === "string" ? loc.improvement.trim() : "";
+      const legacy = getLocalizedText(detail?.suggestion as any, lang as any);
+      let evaluation = [evaluationPart, improvementPart].filter(Boolean).join("\n");
+      if (!evaluation) evaluation = legacy;
+      if (!evaluation) {
+        const sectionByKey = feedbackSections.find((s) =>
+          (s.lines || []).some((line) => line?.toLowerCase().includes((score.label || "").toLowerCase()))
+        );
+        if (sectionByKey) {
+          evaluation = sectionByKey.lines.join(" ");
+        }
+      }
       if (!evaluation && (score.key === "review_tong_the" || score.key === "summary")) {
-        const firstSection = feedbackSections.find(s => normalize(s.title).length < 3) || feedbackSections[0];
+        const firstSection = feedbackSections[0];
         if (firstSection) evaluation = `${t("project.derivedFromDraftFeedback")}: ${firstSection.lines.join(" ")}`;
+      }
+      if (!evaluation) {
+        evaluation = genericFallback;
       }
 
       return {
@@ -339,7 +365,7 @@ export default function ProjectReportView({
       </section>
 
       <footer className="report-print-footer">
-        Â© {new Date().getFullYear()} {t("common.appName")} - Enterprise Design System
+        © {new Date().getFullYear()} {t("common.appName")} - Enterprise Design System
       </footer>
     </div>
   );

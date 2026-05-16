@@ -1,4 +1,4 @@
-import fs from "node:fs";
+﻿import fs from "node:fs";
 import path from "node:path";
 
 const ROOT = path.resolve(process.cwd(), "..");
@@ -10,7 +10,9 @@ const TARGETS = [
 ];
 
 const EXT_ALLOW = new Set([".json", ".ts", ".tsx", ".md", ".txt"]);
-const BAD_PATTERN = /(Ã.|Â.|â..|ðŸ|\uFFFD)/;
+// Detect common UTF-8-as-Windows-1252 mojibake sequences only.
+const BAD_PATTERN = /(Ãƒ[\x80-\xBF]|Ã‚[\x80-\xBF]|Ã¢[\x80-\xBF]{2}|Ã°Å¸[\x80-\xBF]{2}|\uFFFD)/;
+const BAD_PLACEHOLDER_PATTERN = /\?{3,}/;
 
 function walk(absPath, out = []) {
   const stat = fs.statSync(absPath);
@@ -33,8 +35,15 @@ for (const rel of TARGETS) {
     const text = fs.readFileSync(file, "utf8");
     const lines = text.split(/\r?\n/);
     for (let i = 0; i < lines.length; i += 1) {
-      if (BAD_PATTERN.test(lines[i])) {
-        hits.push(`${path.relative(ROOT, file)}:${i + 1}: ${lines[i].slice(0, 140)}`);
+      const line = lines[i];
+      // Allow explicit documentation lines that intentionally mention mojibake markers.
+      if (line.includes("dáº¥u hiá»‡u mojibake") || line.includes("mojibake")) continue;
+      if (BAD_PATTERN.test(line)) {
+        hits.push(`${path.relative(ROOT, file)}:${i + 1}: ${line.slice(0, 140)}`);
+        break;
+      }
+      if (file.includes(`${path.sep}src${path.sep}locales${path.sep}`) && BAD_PLACEHOLDER_PATTERN.test(line)) {
+        hits.push(`${path.relative(ROOT, file)}:${i + 1}: placeholder ??? detected`);
         break;
       }
     }

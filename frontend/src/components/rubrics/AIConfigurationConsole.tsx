@@ -92,9 +92,9 @@ export default function AIConfigurationConsole() {
         inOutputSchema = true;
         out.push(raw);
         out.push(
-          "YÃªu cáº§u Ä‘á»‹nh dáº¡ng Ä‘áº§u ra: AI pháº£i tráº£ vá» JSON há»£p lá»‡ theo schema Ä‘Ã£ cáº¥u hÃ¬nh (score, criteria_scores, criteria_suggestions, draft_feedback, page_reviews)."
+          "Output format requirement: AI must return valid JSON following the configured schema (score, criteria_scores, criteria_suggestions, draft_feedback, page_reviews)."
         );
-        out.push("LÆ°u Ã½ ká»¹ thuáº­t chi tiáº¿t Ä‘Ã£ Ä‘Æ°á»£c rÃºt gá»n trong mÃ n hÃ¬nh xem láº¡i.");
+        out.push("Implementation details are intentionally summarized in this preview.");
         continue;
       }
       if (line.startsWith("---- ") && line.endsWith(" ----") && line !== "---- Required Rules ----") {
@@ -167,10 +167,10 @@ export default function AIConfigurationConsole() {
   const [finalPromptPreviewText, setFinalPromptPreviewText] = useState("");
   const [finalPromptPreviewError, setFinalPromptPreviewError] = useState("");
   const [manualCriteria, setManualCriteria] = useState<Array<{ key: string; max_score: number; label_vi: string; label_ja: string }>>([
-    { key: "review_tong_the", max_score: 25, label_vi: "ÄÃ¡nh giÃ¡ tá»•ng thá»ƒ", label_ja: "Overall review" },
-    { key: "diem_tot", max_score: 25, label_vi: "Äiá»ƒm tá»‘t", label_ja: "Strengths" },
-    { key: "diem_xau", max_score: 30, label_vi: "Äiá»ƒm cáº§n cáº£i thiá»‡n", label_ja: "Weak points" },
-    { key: "chinh_sach", max_score: 20, label_vi: "ChÃ­nh sÃ¡ch cáº£i thiá»‡n", label_ja: "Improvement policy" },
+    { key: "review_tong_the", max_score: 25, label_vi: "Danh gia tong the", label_ja: "Overall review" },
+    { key: "diem_tot", max_score: 25, label_vi: "Diem tot", label_ja: "Strengths" },
+    { key: "diem_xau", max_score: 30, label_vi: "Diem can cai thien", label_ja: "Weak points" },
+    { key: "chinh_sach", max_score: 20, label_vi: "Chinh sach cai thien", label_ja: "Improvement policy" },
   ]);
   const criteriaTotalScore = useMemo(
     () => manualCriteria.reduce((sum, item) => sum + (Number(item.max_score) || 0), 0),
@@ -382,10 +382,10 @@ export default function AIConfigurationConsole() {
 
       if (changeRubric && newRubricContent.trim()) {
          if (criteriaTotalScore !== 100) {
-          throw new Error("Tá»•ng trá»ng sá»‘ tiÃªu chÃ­ pháº£i báº±ng 100.");
+          throw new Error("Total criteria weight must equal 100.");
          }
          if (criteriaHasDuplicateKey) {
-          throw new Error("TiÃªu chÃ­ bá»‹ trÃ¹ng key. Vui lÃ²ng sá»­a trÆ°á»›c khi lÆ°u.");
+          throw new Error("Duplicate criterion keys detected. Please fix before saving.");
          }
          const fallbackManual = manualCriteria.map(item => ({
             key: item.key.trim(),
@@ -519,7 +519,7 @@ export default function AIConfigurationConsole() {
       setFinalPromptPreviewError("");
       if (!canProceedSchemaCheck) {
         setFinalPromptPreviewText("");
-        setFinalPromptPreviewError("Schema tiÃªu chÃ­ chÆ°a há»£p lá»‡. Vui lÃ²ng sá»­a trÆ°á»›c khi lÆ°u.");
+        setFinalPromptPreviewError("Invalid criteria schema. Please fix before saving.");
         return;
       }
       try {
@@ -527,7 +527,7 @@ export default function AIConfigurationConsole() {
         setFinalPromptPreviewText(formatPreviewPromptForUi(res.full_prompt_preview || ""));
       } catch (e) {
         setFinalPromptPreviewText("");
-        setFinalPromptPreviewError(e instanceof Error ? e.message : "KhÃ´ng thá»ƒ preview final prompt.");
+        setFinalPromptPreviewError(e instanceof Error ? e.message : "Cannot preview final prompt.");
       }
     };
     runPreview();
@@ -699,13 +699,13 @@ export default function AIConfigurationConsole() {
               <div className="detail-section">
                 <span className="detail-section__title">{guide.partTitle}</span>
                 {guide.partItems.map((item) => (
-                  <div key={item} style={{ fontSize: '13px', color: 'var(--ds-color-text-muted)', marginTop: '4px' }}>â€¢ {item}</div>
+                  <div key={item} style={{ fontSize: '13px', color: 'var(--ds-color-text-muted)', marginTop: '4px' }}>• {item}</div>
                 ))}
               </div>
               <div className="detail-section">
                 <span className="detail-section__title">{guide.factorsTitle}</span>
                 {guide.factorsItems.map((item) => (
-                  <div key={item} style={{ fontSize: '13px', color: 'var(--ds-color-text-muted)', marginTop: '4px' }}>â€¢ {item}</div>
+                  <div key={item} style={{ fontSize: '13px', color: 'var(--ds-color-text-muted)', marginTop: '4px' }}>• {item}</div>
                 ))}
               </div>
             </div>
@@ -718,7 +718,7 @@ export default function AIConfigurationConsole() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <strong>Runtime Health</strong>
           <span style={{ color: "var(--ds-color-text-muted)", fontSize: 12 }}>
-            {documentType} / {level} â€¢ fail&gt;={(runtimeThresholds.fail_rate * 100).toFixed(0)}% â€¢ p95&gt;={runtimeThresholds.p95_latency_seconds}s
+            {documentType} / {level} • fail&gt;={(runtimeThresholds.fail_rate * 100).toFixed(0)}% • p95&gt;={runtimeThresholds.p95_latency_seconds}s
           </span>
         </div>
         {scopedRuntimeHealth.length === 0 ? (
@@ -854,7 +854,7 @@ export default function AIConfigurationConsole() {
                       </StatusBadge>
                     </div>
                     <div style={{ fontSize: '11px', color: 'var(--ds-color-text-muted)', marginTop: '4px' }}>
-                      {setItem.created_at} â€¢ {setItem.version_label || "v1"}
+                      {setItem.created_at} • {setItem.version_label || "v1"}
                     </div>
                   </button>
                 ))}
@@ -1044,9 +1044,9 @@ export default function AIConfigurationConsole() {
                             style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--ds-color-border)', fontFamily: 'inherit' }}
                           />
                           <div style={{ fontSize: 12, color: "var(--ds-color-text-muted)" }}>
-                            Cáº¥u trÃºc tiÃªu chÃ­ (criteria): tá»•ng Ä‘iá»ƒm hiá»‡n táº¡i <strong>{criteriaTotalScore}</strong>/100
-                            {criteriaTotalScore !== 100 ? " - cáº§n báº±ng 100." : ""}
-                            {criteriaHasDuplicateKey ? " - Ä‘ang cÃ³ key trÃ¹ng." : ""}
+                            Criteria structure: current total score <strong>{criteriaTotalScore}</strong>/100
+                            {criteriaTotalScore !== 100 ? " - must equal 100." : ""}
+                            {criteriaHasDuplicateKey ? " - duplicate keys detected." : ""}
                           </div>
                           {manualCriteria.map((item, idx) => (
                             <div key={`criteria-${idx}`} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr 2fr auto", gap: 8 }}>
@@ -1075,7 +1075,7 @@ export default function AIConfigurationConsole() {
                                 variant="ghost"
                                 onClick={() => setManualCriteria((prev) => prev.filter((_, i) => i !== idx))}
                               >
-                                XÃ³a
+                                Remove
                               </Button>
                             </div>
                           ))}
@@ -1086,7 +1086,7 @@ export default function AIConfigurationConsole() {
                                 setManualCriteria((prev) => [...prev, { key: "", max_score: 0, label_vi: "", label_ja: "" }])
                               }
                             >
-                              ThÃªm tiÃªu chÃ­
+                              Add criterion
                             </Button>
                           </div>
                         </div>
@@ -1178,10 +1178,10 @@ export default function AIConfigurationConsole() {
                       Scope: <strong>{documentType}</strong> / <strong>{level}</strong>
                     </div>
                     <div style={{ fontSize: 13 }}>
-                      Active bundle hiá»‡n táº¡i: <strong>{activeDetails?.name || "N/A"}</strong>
+                      Current active bundle: <strong>{activeDetails?.name || "N/A"}</strong>
                     </div>
                     <div style={{ fontSize: 13 }}>
-                      Bundle má»›i sáº½ áº£nh hÆ°á»Ÿng cÃ¡c lÆ°á»£t cháº¥m má»›i trong scope nÃ y sau khi activate.
+                      The new bundle will affect future grading runs in this scope after activation.
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 8, marginTop: 10 }}>
                       {[
@@ -1199,19 +1199,19 @@ export default function AIConfigurationConsole() {
                   </div>
                   {changeRubric && (
                     <div style={{ fontSize: 13, color: criteriaHasDuplicateKey || criteriaTotalScore !== 100 || criteriaHasEmptyField ? "#b42318" : "var(--ds-color-text-main)" }}>
-                      Kiá»ƒm tra schema tiÃªu chÃ­:
-                      {criteriaTotalScore !== 100 ? " Tá»•ng Ä‘iá»ƒm pháº£i báº±ng 100." : " Tá»•ng Ä‘iá»ƒm há»£p lá»‡."}
-                      {criteriaHasDuplicateKey ? " CÃ³ key bá»‹ trÃ¹ng." : " Key khÃ´ng trÃ¹ng."}
-                      {criteriaHasEmptyField ? " CÃ³ tiÃªu chÃ­ thiáº¿u key/label." : " KhÃ´ng cÃ³ tiÃªu chÃ­ rá»—ng."}
+                      Criteria schema check:
+                      {criteriaTotalScore !== 100 ? " Total score must equal 100." : " Total score is valid."}
+                      {criteriaHasDuplicateKey ? " Duplicate keys found." : " No duplicate keys."}
+                      {criteriaHasEmptyField ? " Some criteria are missing key/label." : " No empty criteria."}
                     </div>
                   )}
                   <div style={{ padding: '16px', borderRadius: 'var(--ds-radius-md)', background: 'var(--ds-color-bg-muted)', border: '1px solid var(--ds-color-border)' }}>
-                    <div style={{ fontWeight: 600, marginBottom: 8 }}>Preview Final Prompt (theo active scope hiá»‡n táº¡i)</div>
+                    <div style={{ fontWeight: 600, marginBottom: 8 }}>Preview Final Prompt (current active scope)</div>
                     {finalPromptPreviewError ? (
                       <div style={{ color: "#b42318", fontSize: 13 }}>{finalPromptPreviewError}</div>
                     ) : (
                       <pre style={{ maxHeight: 240, overflow: 'auto', whiteSpace: 'pre-wrap', margin: 0, fontSize: 12 }}>
-                        {finalPromptPreviewText || "Äang táº¡o preview..."}
+                        {finalPromptPreviewText || "Generating preview..."}
                       </pre>
                     )}
                   </div>

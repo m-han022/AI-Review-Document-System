@@ -28,27 +28,33 @@ export default function ProjectCriteriaTab({
         .trim();
 
     const fallbackByKey: Record<string, string> = {};
-    const fullDraftFeedback = feedbackSections
+    const genericFallback = feedbackSections
       .flatMap((section) => section.lines || [])
       .filter(Boolean)
+      .slice(0, 2)
       .join("\n")
       .trim();
 
     return orderedScores.map(score => {
       const detail = gradingDetail?.criteria_results.find(cr => cr.key === score.key);
-      const suggestion = getLocalizedText(detail?.suggestion as any, lang);
-      let evaluation = suggestion || fallbackByKey[score.key] || "";
-      if (!evaluation) {
-        evaluation = fullDraftFeedback;
-      }
+      const localized = (detail?.suggestion as any)?.[lang] ?? (detail?.suggestion as any)?.[lang === "vi" ? "ja" : "vi"] ?? null;
+      const evaluationText = typeof localized?.evaluation === "string" ? localized.evaluation.trim() : "";
+      const improvementText = typeof localized?.improvement === "string" ? localized.improvement.trim() : "";
+      const legacySuggestion = getLocalizedText(detail?.suggestion as any, lang);
+      let evaluation = evaluationText || legacySuggestion || fallbackByKey[score.key] || "";
+      const improvement = improvementText;
       if (!evaluation) {
         const firstSection = feedbackSections.find(s => normalize(s.title).length < 3) || feedbackSections[0];
         if (firstSection) evaluation = firstSection.lines.join("\n");
       }
+      if (!evaluation) {
+        evaluation = genericFallback;
+      }
 
       return {
         ...score,
-        evaluation: evaluation || t("project.noDetailedComment")
+        evaluation: evaluation || t("project.noDetailedComment"),
+        improvement,
       };
     });
   }, [orderedScores, gradingDetail, feedbackSections, lang, t]);
@@ -197,25 +203,31 @@ export default function ProjectCriteriaTab({
                         </div>
                       </td>
                       <td>
-                        <div style={{ 
+                        <div style={{
                           fontSize: '13.5px', 
                           lineHeight: '1.6', 
                           color: '#334155', 
                           margin: 0,
                           whiteSpace: 'pre-wrap'
                         }}>
-                          {item.evaluation.split('\n').filter(Boolean).map((para, pidx) => (
+                          <p style={{ marginBottom: '8px', fontWeight: 700 }}>{t("project.feedbackTitle")}:</p>
+                          {item.evaluation.split('\n').filter(Boolean).map((para: string, pidx: number) => (
                             <p key={pidx} style={{ marginBottom: '8px' }}>
-                              {para.startsWith('-') || para.startsWith('â€¢') 
+                              {para.startsWith("-") || para.startsWith("•")
                                 ? <span style={{ display: 'block', paddingLeft: '12px', position: 'relative' }}>
-                                    <span style={{ position: 'absolute', left: 0, color: 'var(--ds-color-primary)' }}>â€¢</span>
-                                    {para.replace(/^[-â€¢]\s*/, "").trim()}
+                                    <span style={{ position: 'absolute', left: 0, color: 'var(--ds-color-primary)' }}>•</span>
+                                    {para.replace(/^[-•]\s*/, "").trim()}
                                   </span>
                                 : para
                               }
                             </p>
                           ))}
                         </div>
+                        {item.improvement && (
+                          <div style={{ marginTop: '6px', whiteSpace: 'pre-wrap', color: '#0f766e', fontSize: '13px' }}>
+                            <strong>{t("project.suggestions")}:</strong> {item.improvement}
+                          </div>
+                        )}
                         {item.value / item.max < 0.7 && (
                           <div style={{ 
                             marginTop: '12px', 

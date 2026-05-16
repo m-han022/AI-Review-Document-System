@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+set -e
+
+echo "[pre-commit] Running frontend encoding/i18n gate..."
+cd frontend
+npm run check:i18n
+echo "[pre-commit] OK"

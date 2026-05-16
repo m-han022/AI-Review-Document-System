@@ -29,9 +29,17 @@ async def get_evaluation_set_runtime_health() -> dict:
     failed_re = re.compile(
         r'^grading_run_failed_total\{document_type="([^"]+)",prompt_level="([^"]+)",status="([^"]+)"\}\s+([0-9.eE+-]+)$'
     )
+    parse_fail_re = re.compile(
+        r'^grading_ai_parse_failed_total\{document_type="([^"]+)",prompt_level="([^"]+)",status="([^"]+)"\}\s+([0-9.eE+-]+)$'
+    )
+    fallback_re = re.compile(
+        r'^grading_ai_fallback_total\{document_type="([^"]+)",prompt_level="([^"]+)",status="([^"]+)"\}\s+([0-9.eE+-]+)$'
+    )
 
     by_set: dict[tuple[str, str, str, str], dict[str, float]] = defaultdict(lambda: {"sum": 0.0, "count": 0.0})
     failed_by_scope: dict[tuple[str, str], float] = defaultdict(float)
+    parse_fail_by_scope: dict[tuple[str, str], float] = defaultdict(float)
+    fallback_by_scope: dict[tuple[str, str], float] = defaultdict(float)
     total_by_scope: dict[tuple[str, str], float] = defaultdict(float)
     trend_buffer: dict[tuple[str, str], deque[float]] = defaultdict(lambda: deque(maxlen=20))
 
@@ -58,6 +66,16 @@ async def get_evaluation_set_runtime_health() -> dict:
             doc_type, level, status, value = m_failed.groups()
             if status.upper() == "FAILED":
                 failed_by_scope[(doc_type, level)] += float(value)
+            continue
+        m_parse = parse_fail_re.match(line)
+        if m_parse:
+            doc_type, level, _status, value = m_parse.groups()
+            parse_fail_by_scope[(doc_type, level)] += float(value)
+            continue
+        m_fallback = fallback_re.match(line)
+        if m_fallback:
+            doc_type, level, _status, value = m_fallback.groups()
+            fallback_by_scope[(doc_type, level)] += float(value)
 
     items = []
     for (set_id, doc_type, level, status), agg in sorted(by_set.items()):
@@ -65,7 +83,11 @@ async def get_evaluation_set_runtime_health() -> dict:
         avg_latency = (agg["sum"] / count) if count > 0 else 0.0
         scope_total = total_by_scope.get((doc_type, level), 0.0)
         scope_failed = failed_by_scope.get((doc_type, level), 0.0)
+        scope_parse_fail = parse_fail_by_scope.get((doc_type, level), 0.0)
+        scope_fallback = fallback_by_scope.get((doc_type, level), 0.0)
         failed_rate = (scope_failed / scope_total) if scope_total > 0 else 0.0
+        parse_fail_rate = (scope_parse_fail / scope_total) if scope_total > 0 else 0.0
+        fallback_rate = (scope_fallback / scope_total) if scope_total > 0 else 0.0
         latencies = sorted(latency_samples.get((doc_type, level, status.upper(), set_id), []))
         p95_latency = 0.0
         if latencies:
@@ -81,6 +103,8 @@ async def get_evaluation_set_runtime_health() -> dict:
                 "avg_latency_seconds": round(avg_latency, 3),
                 "p95_latency_seconds": round(p95_latency, 3),
                 "failed_rate_scope": round(failed_rate, 4),
+                "ai_parse_fail_rate_scope": round(parse_fail_rate, 4),
+                "ai_fallback_rate_scope": round(fallback_rate, 4),
                 "recent_counts": list(trend_buffer.get((set_id, status.upper()), [])),
             }
         )
@@ -90,6 +114,8 @@ async def get_evaluation_set_runtime_health() -> dict:
         "thresholds": {
             "fail_rate": settings.runtime_health_fail_rate_threshold,
             "p95_latency_seconds": settings.runtime_health_p95_latency_threshold_seconds,
+            "ai_parse_fail_rate": settings.runtime_health_ai_parse_fail_rate_threshold,
+            "ai_fallback_rate": settings.runtime_health_ai_fallback_rate_threshold,
         },
         "resolution_reason_totals": get_resolution_reason_totals(),
     }

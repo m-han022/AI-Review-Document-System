@@ -39,6 +39,12 @@ class Settings:
         self.runtime_health_p95_latency_threshold_seconds = float(
             os.getenv("RUNTIME_HEALTH_P95_LATENCY_THRESHOLD_SECONDS", "120")
         )
+        self.runtime_health_ai_parse_fail_rate_threshold = float(
+            os.getenv("RUNTIME_HEALTH_AI_PARSE_FAIL_RATE_THRESHOLD", "0.05")
+        )
+        self.runtime_health_ai_fallback_rate_threshold = float(
+            os.getenv("RUNTIME_HEALTH_AI_FALLBACK_RATE_THRESHOLD", "0.1")
+        )
         self.use_evaluation_bundle_v2_read = os.getenv("USE_EVALUATION_BUNDLE_V2_READ", "false").lower() == "true"
         self.use_evaluation_bundle_v2_write = os.getenv("USE_EVALUATION_BUNDLE_V2_WRITE", "false").lower() == "true"
         self.use_evaluation_bundle_v2_ui = os.getenv("USE_EVALUATION_BUNDLE_V2_UI", "false").lower() == "true"
