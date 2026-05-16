@@ -30,6 +30,23 @@ interface ProjectCardProps {
   setTopbarActions?: (actions: React.ReactNode) => void;
 }
 
+function resolveRunErrorMessage(status: string | undefined | null, errorMessage: string | null | undefined, t: (key: string) => string): string {
+  if (errorMessage && errorMessage.trim()) return errorMessage.trim();
+  const normalized = String(status || "").toLowerCase();
+  if (normalized.includes("invalid_ai_response")) {
+    return "Phan hoi AI khong dung dinh dang mong doi. Vui long thu review lai hoac kiem tra cau hinh prompt/rubric.";
+  }
+  if (normalized.startsWith("failed")) {
+    return "Run da that bai nhung backend khong tra ve chi tiet loi.";
+  }
+  return t("common.unknownError");
+}
+
+function isSoftInvalidAiResponse(status: string | undefined | null, hasUsableData: boolean): boolean {
+  const normalized = String(status || "").toLowerCase();
+  return hasUsableData && normalized.includes("invalid_ai_response");
+}
+
 function phase2Text(t: (key: string) => string) {
   return {
     loadingDocuments: t("sm.document.loading"),
@@ -132,6 +149,12 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
     resultStatusUpper === "PENDING" ||
     resultStatusUpper === "EXTRACTING" ||
     resultStatusUpper === "GRADING";
+  const hasUsableRunData = !!(
+    (pageReviewItems && pageReviewItems.length > 0) ||
+    (gradingDetail?.criteria_results && gradingDetail.criteria_results.length > 0) ||
+    (typeof displayScore === "number")
+  );
+  const isSoftFail = isSoftInvalidAiResponse(result?.status, hasUsableRunData);
   const [selectedType, setSelectedType] = useState<string | null>(null);
 
   // Filter 1: Document Types (Unique from all documents in project)
@@ -391,14 +414,16 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
             display: 'flex', 
             alignItems: 'center', 
             gap: '12px',
-            background: isFailedStatus ? 'var(--ds-color-danger-soft)' : 'var(--ds-color-bg-app)',
-            border: `1px solid ${isFailedStatus ? 'var(--ds-color-danger-light)' : 'var(--ds-color-border)'}`,
-            color: isFailedStatus ? 'var(--ds-color-danger-dark)' : 'var(--ds-color-text-body)'
+            background: isFailedStatus && !isSoftFail ? 'var(--ds-color-danger-soft)' : 'var(--ds-color-bg-app)',
+            border: `1px solid ${isFailedStatus && !isSoftFail ? 'var(--ds-color-danger-light)' : 'var(--ds-color-border)'}`,
+            color: isFailedStatus && !isSoftFail ? 'var(--ds-color-danger-dark)' : 'var(--ds-color-text-body)'
           }}>
-            {isFailedStatus ? <AlertCircleIcon size="sm" /> : <RefreshIcon size="sm" className={isProcessingStatus ? "spin" : ""} />}
+            {isFailedStatus && !isSoftFail ? <AlertCircleIcon size="sm" /> : <RefreshIcon size="sm" className={isProcessingStatus ? "spin" : ""} />}
             <div style={{ flex: 1, fontSize: '13.5px', fontWeight: 600 }}>
-              {isFailedStatus 
-                ? `${t("project.gradingFailedLabel")}: ${result.error_message || t("common.unknownError")}`
+              {isSoftFail
+                ? "Canh bao chat luong AI: He thong da tu chuan hoa phan hoi, ket qua chi tiet van co the su dung."
+                : isFailedStatus 
+                ? `${t("project.gradingFailedLabel")}: ${resolveRunErrorMessage(result.status, result.error_message, t)}`
                 : isProcessingStatus
                 ? `${t("project.gradingProcessing")} (${result.status})`
                 : `${result.status}`

@@ -54,8 +54,10 @@ export default function TableRow({
   const renderStatus = () => {
     const status = project.latest_status?.toUpperCase() || "PENDING";
     const businessStatus = toBusinessStatus(status);
+    const isFailedStatus = status.startsWith("FAILED");
+    const isSoftFail = status.includes("INVALID_AI_RESPONSE") && latestScore !== null;
 
-    if (status === "FAILED") {
+    if (isFailedStatus && !isSoftFail) {
       return (
         <div className="status-cell-stack">
           <StatusBadge tone="danger" icon={<AlertCircleIcon size="sm" />}>
@@ -67,6 +69,14 @@ export default function TableRow({
             </span>
           )}
         </div>
+      );
+    }
+
+    if (isSoftFail) {
+      return (
+        <StatusBadge tone="warning" icon={<AlertCircleIcon size="sm" />}>
+          {t("statusBiz.processing")}
+        </StatusBadge>
       );
     }
 

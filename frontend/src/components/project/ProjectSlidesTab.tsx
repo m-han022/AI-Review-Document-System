@@ -15,6 +15,18 @@ interface Props {
   setFilterNG: (val: boolean) => void;
 }
 
+function resolveRunErrorMessage(status: string | undefined | null, errorMessage: string | null | undefined, t: (key: string) => string): string {
+  if (errorMessage && errorMessage.trim()) return errorMessage.trim();
+  const normalized = String(status || "").toLowerCase();
+  if (normalized.includes("invalid_ai_response")) {
+    return "Phan hoi AI khong dung dinh dang mong doi. Vui long thu review lai hoac kiem tra cau hinh prompt/rubric.";
+  }
+  if (normalized.startsWith("failed")) {
+    return "Run da that bai nhung backend khong tra ve chi tiet loi.";
+  }
+  return t("common.unknownError");
+}
+
 export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedSlideId, filterNG, setFilterNG }: Props) {
   const { gradingDetail, pageReviewItems, activeSlide } = viewModel;
   const [showJson, setShowJson] = useState(false);
@@ -22,6 +34,11 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
   const [evidenceStatus, setEvidenceStatus] = useState("PENDING");
   const runStatus = String(gradingDetail?.grading_run?.status || "").toUpperCase();
   const runError = gradingDetail?.grading_run?.error_message;
+  const isSoftFail = runStatus.includes("INVALID_AI_RESPONSE") && (
+    (pageReviewItems && pageReviewItems.length > 0) ||
+    ((gradingDetail as any)?.criteria_results?.length > 0) ||
+    typeof (gradingDetail as any)?.grading_run?.total_score === "number"
+  );
 
 
   useEffect(() => {
@@ -49,7 +66,7 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
   }, [gradingDetail?.document_version?.id, gradingDetail?.document_version?.filename]);
 
   if (!(pageReviewItems.length > 0 && activeSlide)) {
-    const isFailed = runStatus.startsWith("FAILED");
+    const isFailed = runStatus.startsWith("FAILED") && !isSoftFail;
     return (
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--ds-color-bg-app)", borderRadius: "12px", border: "1px dashed var(--ds-color-border)" }}>
         <EmptyState
@@ -57,7 +74,7 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
           description={
             pageReviewItems.length === 0
               ? isFailed
-                ? `${t("project.gradingFailedLabel")}: ${runError || t("common.unknownError")}`
+                ? `${t("project.gradingFailedLabel")}: ${resolveRunErrorMessage(runStatus, runError, t)}`
                 : t("project.noSlideReviewsText")
               : undefined
           }

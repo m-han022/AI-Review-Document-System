@@ -24,9 +24,10 @@ const PROCESSING_STATUSES = new Set(["PENDING", "EXTRACTING", "GRADING"]);
 
 function toStatusKey(status: string) {
   const normalized = (status || "").toLowerCase();
-  if (["pending", "extracting", "grading", "completed", "failed"].includes(normalized)) {
+  if (normalized === "pending" || normalized === "extracting" || normalized === "grading" || normalized === "completed") {
     return normalized as "pending" | "extracting" | "grading" | "completed" | "failed";
   }
+  if (normalized.startsWith("failed")) return "failed";
   return "pending";
 }
 
@@ -81,11 +82,11 @@ export default function DashboardOverview({
     const healthIndex = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
 
     const byStatus = {
-      pending: projects.filter((p) => (p.latest_status || "").toUpperCase() === "PENDING").length,
-      extracting: projects.filter((p) => (p.latest_status || "").toUpperCase() === "EXTRACTING").length,
-      grading: projects.filter((p) => (p.latest_status || "").toUpperCase() === "GRADING").length,
-      completed: projects.filter((p) => (p.latest_status || "").toUpperCase() === "COMPLETED").length,
-      failed: projects.filter((p) => (p.latest_status || "").toUpperCase() === "FAILED").length,
+      pending: projects.filter((p) => toStatusKey(p.latest_status || "") === "pending").length,
+      extracting: projects.filter((p) => toStatusKey(p.latest_status || "") === "extracting").length,
+      grading: projects.filter((p) => toStatusKey(p.latest_status || "") === "grading").length,
+      completed: projects.filter((p) => toStatusKey(p.latest_status || "") === "completed").length,
+      failed: projects.filter((p) => toStatusKey(p.latest_status || "") === "failed").length,
     };
 
     let nextStep = t("dashboardV6.nextStepUpload");
@@ -148,8 +149,8 @@ export default function DashboardOverview({
         bucket.scoreSum += score;
         bucket.scoreCount += 1;
       }
-      if ((p.latest_status || "").toUpperCase() === "COMPLETED") bucket.completedCount += 1;
-      if ((p.latest_status || "").toUpperCase() === "FAILED") bucket.failedCount += 1;
+      if (toStatusKey(p.latest_status || "") === "completed") bucket.completedCount += 1;
+      if (toStatusKey(p.latest_status || "") === "failed") bucket.failedCount += 1;
     });
 
     const coverage = days.map((day) => ({

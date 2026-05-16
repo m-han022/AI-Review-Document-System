@@ -176,7 +176,7 @@ async def _perform_grading(
                 last_result = GradeResponse(
                     project_id=project_id,
                     project_name=submission.project_name,
-                    run_id=result_data.get("run_id") or result_data.get("grading_run_id"),
+                    run_id=result_data.get("run_id") or result_data.get("grading_run_id") or result_data.get("id"),
                     score=result_data.get("score"),
                     status=result_data.get("status", "COMPLETED"),
                     document_version_id=result_data.get("document_version_id"),

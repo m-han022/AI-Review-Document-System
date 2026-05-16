@@ -723,17 +723,19 @@ def grade_submission(
     else:
         used_recovery_fallback = False
 
-    contract_errors = validate_ai_output_shape(result, required_keys)
-    if contract_errors:
-        result["_invalid_ai_response"] = True
-        result["_invalid_ai_response_reason"] = ";".join(contract_errors)
-
     result = _ensure_ui_json_contract(
         result=result,
         required_keys=required_keys,
         language=language,
         text=text,
     )
+
+    # Validate AFTER UI-contract normalization so legacy/near-miss payloads
+    # that can be safely repaired are not incorrectly marked as hard failures.
+    contract_errors = validate_ai_output_shape(result, required_keys)
+    if contract_errors:
+        result["_invalid_ai_response"] = True
+        result["_invalid_ai_response_reason"] = ";".join(contract_errors)
 
     score = int(result.get("score", 0))
     score = max(0, min(100, score))

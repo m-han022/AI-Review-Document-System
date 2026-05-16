@@ -453,6 +453,67 @@ Quy tắc bắt buộc:
 
 # 🛠️ Troubleshooting
 
+### Backend Start Checklist (Sync / Async)
+
+Khi backend không lên hoặc UI báo `ERR_CONNECTION_REFUSED`, làm theo checklist này theo đúng mode:
+
+#### A) Sync mode (không worker) — khuyến nghị cho local dev
+
+```powershell
+cd e:\workspace\AI-Review-Document-System
+.\scripts\dev-start-sync.ps1
+```
+
+Verify nhanh:
+
+```powershell
+Invoke-WebRequest http://127.0.0.1:8000/api/health -UseBasicParsing
+Invoke-WebRequest "http://127.0.0.1:8000/api/projects?limit=5&offset=0" -UseBasicParsing
+```
+
+Expected:
+- `/api/health` trả `{"status":"healthy"}`
+- `/api/projects` trả HTTP `200`
+
+Nếu fail:
+- Chạy `.\scripts\dev-stop.ps1` rồi start lại `dev-start-sync.ps1`
+- Kiểm tra process đang chiếm cổng `8000`:
+
+```powershell
+Get-NetTCPConnection -LocalPort 8000 -State Listen
+```
+
+#### B) Async mode (có worker: Redis + Celery)
+
+```powershell
+cd e:\workspace\AI-Review-Document-System
+.\scripts\dev-start-async.ps1
+```
+
+Điều kiện bắt buộc:
+- Redis reachable tại `localhost:6379`
+- Có Celery worker đang chạy
+
+Verify nhanh:
+
+```powershell
+Invoke-WebRequest http://127.0.0.1:8000/api/health -UseBasicParsing
+Get-NetTCPConnection -LocalPort 6379 -State Listen
+```
+
+Lưu ý quan trọng:
+- Nếu thiếu Redis/worker, run review sẽ kẹt `PENDING/EXTRACTING/GRADING`.
+- Khi cần chạy ổn định ngay để dev UI/API, quay về sync mode (`dev-start-sync.ps1`).
+
+#### C) Symptom → Root Cause map
+
+- `ERR_CONNECTION_REFUSED` tới `127.0.0.1:8000`:
+  - Backend chưa chạy hoặc đã crash.
+- Review đứng `PENDING` lâu:
+  - Đang bật async nhưng Redis/Celery worker chưa sẵn sàng.
+- Có kết quả nhưng status cũ gây nhiễu:
+  - Chọn lại run mới nhất trong dropdown `Review run`, hoặc rerun lại 1 lần.
+
 ### Python 3.14 + Windows Installation Issue
 If `pip install -r requirements.txt` fails at `watchfiles` on Windows with Python 3.14:
 1. Use `backend/requirements_temp.txt` (filtered version) or manually install dependencies excluding `watchfiles`.

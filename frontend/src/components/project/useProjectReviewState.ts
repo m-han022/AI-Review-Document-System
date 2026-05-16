@@ -190,6 +190,17 @@ export function useProjectReviewState({ projectId, lang, t }: UseProjectReviewSt
         queryClient.invalidateQueries({ queryKey: projectsQueryKey }),
         queryClient.invalidateQueries({ queryKey: ["version-gradings", selectedVersionId!] }),
       ]);
+      // Some backend paths may return COMPLETED without run_id; recover by selecting latest run.
+      if ((!data || !data.run_id) && selectedVersionId) {
+        const refreshed = await queryClient.fetchQuery<GradingListOut[]>({
+          queryKey: ["version-gradings", selectedVersionId],
+          queryFn: () => listVersionGradings(selectedVersionId),
+          staleTime: 0,
+        });
+        if (Array.isArray(refreshed) && refreshed.length > 0) {
+          setSelectedGradingId(refreshed[0].grading_run_id);
+        }
+      }
     },
     onError: (error) => {
       setActionMessage({
@@ -226,7 +237,12 @@ export function useProjectReviewState({ projectId, lang, t }: UseProjectReviewSt
     return buildPageReviewItems(pageReviews, lang, t, gradingDetail?.document_version?.extracted_text);
   }, [gradingDetail, lang, t]);
   useEffect(() => {
-    if (pageReviewItems.length > 0 && selectedSlideId === null) {
+    if (pageReviewItems.length === 0) {
+      if (selectedSlideId !== null) setSelectedSlideId(null);
+      return;
+    }
+    const selectedExists = selectedSlideId !== null && pageReviewItems.some((s) => s.id === selectedSlideId);
+    if (!selectedExists) {
       const firstNg = pageReviewItems.find((s) => s.status === "NG");
       if (firstNg) setSelectedSlideId(firstNg.id);
       else if (pageReviewItems[0]) setSelectedSlideId(pageReviewItems[0].id);

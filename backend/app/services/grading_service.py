@@ -553,6 +553,9 @@ class GradingService:
         return {
             "score": new_run.score,
             "total_score": new_run.total_score,
+            "run_id": new_run.id,
+            "grading_run_id": new_run.id,
+            "status": "COMPLETED",
             "content_hash": new_run.content_hash,
             "document_version_id": new_run.document_version_id,
             "rubric_version": new_run.rubric_version,
@@ -572,17 +575,6 @@ class GradingService:
             # For simplicity, I'll return the full run detail if needed or just minimal for now
             # The grade_submission return format is what we want
             "draft_feedback": new_run.draft_feedback,
-            "page_reviews": [
-                {
-                    "slide_number": s.slide_number,
-                    "page_number": s.page_number or s.slide_number,
-                    "status": s.status,
-                    "title": s.title,
-                    "summary": s.summary,
-                    "issues": s.issues,
-                    "suggestions": s.suggestions
-                } for s in self.grading_repo.get_slide_reviews(new_run.id)
-            ],
             "page_reviews": [
                 {
                     "page_number": s.slide_number,
