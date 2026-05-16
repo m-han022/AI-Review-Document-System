@@ -20,6 +20,8 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
   const [showJson, setShowJson] = useState(false);
   const [pdfUnavailable, setPdfUnavailable] = useState(false);
   const [evidenceStatus, setEvidenceStatus] = useState("PENDING");
+  const runStatus = String(gradingDetail?.grading_run?.status || "").toUpperCase();
+  const runError = gradingDetail?.grading_run?.error_message;
 
 
   useEffect(() => {
@@ -47,9 +49,19 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
   }, [gradingDetail?.document_version?.id, gradingDetail?.document_version?.filename]);
 
   if (!(pageReviewItems.length > 0 && activeSlide)) {
+    const isFailed = runStatus.startsWith("FAILED");
     return (
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--ds-color-bg-app)", borderRadius: "12px", border: "1px dashed var(--ds-color-border)" }}>
-        <EmptyState title={pageReviewItems.length === 0 ? t("project.noSlideReviewsTitle") : t("project.selectSlideForDetails")} description={pageReviewItems.length === 0 ? t("project.noSlideReviewsText") : undefined} />
+        <EmptyState
+          title={pageReviewItems.length === 0 ? t("project.noSlideReviewsTitle") : t("project.selectSlideForDetails")}
+          description={
+            pageReviewItems.length === 0
+              ? isFailed
+                ? `${t("project.gradingFailedLabel")}: ${runError || t("common.unknownError")}`
+                : t("project.noSlideReviewsText")
+              : undefined
+          }
+        />
       </div>
     );
   }

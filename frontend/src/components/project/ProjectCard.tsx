@@ -126,6 +126,12 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
     const s = (g.status || "").toLowerCase();
     return s === "pending" || s === "extracting" || s === "grading";
   });
+  const resultStatusUpper = (result?.status || "").toUpperCase();
+  const isFailedStatus = resultStatusUpper.startsWith("FAILED");
+  const isProcessingStatus =
+    resultStatusUpper === "PENDING" ||
+    resultStatusUpper === "EXTRACTING" ||
+    resultStatusUpper === "GRADING";
   const [selectedType, setSelectedType] = useState<string | null>(null);
 
   // Filter 1: Document Types (Unique from all documents in project)
@@ -377,7 +383,7 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
         </div>
 
         {/* Status Notification Banner for non-completed runs */}
-        {result && result.status !== "COMPLETED" && (
+        {result && resultStatusUpper !== "COMPLETED" && (
           <div className={`status-banner-v4 is-${result.status?.toLowerCase()}`} style={{ 
             padding: '12px 20px', 
             borderRadius: '10px', 
@@ -385,15 +391,17 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
             display: 'flex', 
             alignItems: 'center', 
             gap: '12px',
-            background: result.status === "FAILED" ? 'var(--ds-color-danger-soft)' : 'var(--ds-color-bg-app)',
-            border: `1px solid ${result.status === "FAILED" ? 'var(--ds-color-danger-light)' : 'var(--ds-color-border)'}`,
-            color: result.status === "FAILED" ? 'var(--ds-color-danger-dark)' : 'var(--ds-color-text-body)'
+            background: isFailedStatus ? 'var(--ds-color-danger-soft)' : 'var(--ds-color-bg-app)',
+            border: `1px solid ${isFailedStatus ? 'var(--ds-color-danger-light)' : 'var(--ds-color-border)'}`,
+            color: isFailedStatus ? 'var(--ds-color-danger-dark)' : 'var(--ds-color-text-body)'
           }}>
-            {result.status === "FAILED" ? <AlertCircleIcon size="sm" /> : <RefreshIcon size="sm" className="spin" />}
+            {isFailedStatus ? <AlertCircleIcon size="sm" /> : <RefreshIcon size="sm" className={isProcessingStatus ? "spin" : ""} />}
             <div style={{ flex: 1, fontSize: '13.5px', fontWeight: 600 }}>
-              {result.status === "FAILED" 
+              {isFailedStatus 
                 ? `${t("project.gradingFailedLabel")}: ${result.error_message || t("common.unknownError")}`
-                : `${t("project.gradingProcessing")} (${result.status})`
+                : isProcessingStatus
+                ? `${t("project.gradingProcessing")} (${result.status})`
+                : `${result.status}`
               }
             </div>
           </div>

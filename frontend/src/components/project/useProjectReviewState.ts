@@ -134,9 +134,18 @@ export function useProjectReviewState({ projectId, lang, t }: UseProjectReviewSt
     if (fetchingGradings) return;
     if (gradings.length > 0) {
       const currentExists = gradings.some((g) => g.grading_run_id === selectedGradingId);
+      const completed = gradings.find((g) => g.status?.toLowerCase() === "completed");
       if (!currentExists) {
-        const completed = gradings.find((g) => g.status?.toLowerCase() === "completed") || gradings[0];
-        setSelectedGradingId(completed.grading_run_id);
+        const preferred = completed || gradings[0];
+        setSelectedGradingId(preferred.grading_run_id);
+      } else {
+        const selected = gradings.find((g) => g.grading_run_id === selectedGradingId);
+        const selectedStatus = (selected?.status || "").toLowerCase();
+        const selectedFailed = selectedStatus.startsWith("failed");
+        if (selectedFailed && completed && completed.grading_run_id !== selectedGradingId) {
+          // Prefer a successful run for detailed tabs when available.
+          setSelectedGradingId(completed.grading_run_id);
+        }
       }
     } else if (!loadingGradings) {
       setSelectedGradingId(null);

@@ -3,7 +3,7 @@ function getApiBaseUrl() {
 
   if (!baseUrl) {
     if (typeof window === "undefined") {
-      baseUrl = "http://localhost:8000/api";
+      baseUrl = "http://127.0.0.1:8000/api";
     } else {
       const hostname = window.location.hostname;
       const resolvedHost = resolveApiHost(hostname || "localhost");
@@ -39,7 +39,7 @@ function resolveApiHost(hostname: string): string {
     || normalized === "::1"
     || normalized === "[::1]"
   ) {
-    return "localhost";
+    return "127.0.0.1";
   }
   return formatHostForUrl(hostname);
 }
