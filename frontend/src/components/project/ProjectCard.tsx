@@ -222,12 +222,13 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
 
   // Categorize AI feedback into 3 specific buckets as requested
   const categorizedInsights = useMemo(() => {
-    // 1. TiÃªu chÃ­ cáº§n cáº£i thiá»‡n (Weakest Link)
+    // 1. Tiêu chí cần cải thiện (from structured criteria/page signals first)
     const sortedScores = [...orderedScores].sort((a, b) => (a.value / (a.max || 1)) - (b.value / (b.max || 1)));
     const lowest = sortedScores.length > 0 ? sortedScores[0] : null;
+    const ngSlides = pageReviewItems.filter((s) => s.status === "NG");
+    const topNgSlide = ngSlides[0];
 
-    
-    // 2. Nháº­n xÃ©t quan trá»ng (Important Comments) - Cháº¯t lá»c ná»™i dung chiáº¿n lÆ°á»£c
+    // 2. Nhận xét quan trọng (prefer page-level evidence, fallback draft feedback)
     const generalSection = feedbackSections.find(s => 
       /kết luận|tổng quan|nhận xét|tóm tắt|executive|総評|要約/i.test(s.title)
     ) || feedbackSections[0];
@@ -236,15 +237,14 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
       line.length > 30 && !/slide|trang|trường hợp|ページ/i.test(line)
     ) || generalSection?.lines[0];
 
-    // 3. Äiá»ƒm tÃ­ch cá»±c (Positive Points) - Cháº¯t lá»c ná»™i dung tá»« vÄƒn báº£n AI
+    // 3. Điểm tích cực (prefer structured strongest criterion, fallback feedback)
     const positiveSection = feedbackSections.find(s => 
       /tốt|tích cực|ưu điểm|đạt|excellent|success|良い|強み/i.test(s.title)
     );
     const distilledPositive = positiveSection?.lines.find(line => 
       line.length > 25 && !/slide|trang/i.test(line)
     ) || positiveSection?.lines[0];
-
-    const highest = [...orderedScores].sort((a, b) => (b.value / (a.max || 1)) - (a.value / (b.max || 1)))[0];
+    const highest = [...orderedScores].sort((a, b) => (b.value / (b.max || 1)) - (a.value / (a.max || 1)))[0];
 
     return [
       {
@@ -252,8 +252,7 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
         content: (() => {
           const parts = [];
           if (lowest) parts.push(`**${lowest.label}** (${lowest.value}/${lowest.max})`);
-          
-          const ngSlides = pageReviewItems.filter(s => s.status === "NG");
+
           if (ngSlides.length > 0) {
             parts.push(`${t("project.ngSlideCount")}: **${ngSlides.length}** (${ngSlides.map(s => s.page_number ?? s.slide_number).slice(0, 3).join(", ")}...)`);
           }
@@ -264,8 +263,8 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
 
           if (issuesSection?.lines[0]) {
             parts.push(issuesSection.lines[0]);
-          } else if (ngSlides.length > 0 && ngSlides[0].summary) {
-            parts.push(ngSlides[0].summary);
+          } else if (topNgSlide?.summary) {
+            parts.push(topNgSlide.summary);
           }
 
           return parts.length > 0 ? parts.join(". ") : t("project.noSeriousIssues");
@@ -275,19 +274,42 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
       },
       {
         title: t("project.insight.importantComments"),
-        content: distilledSummary || t("project.executiveSummarySubtitle"),
+        content: topNgSlide?.summary || distilledSummary || t("project.executiveSummarySubtitle"),
         type: "primary",
         Icon: TargetIcon
       },
       {
         title: t("project.insight.positivePoints"),
-        content: distilledPositive || (highest && highest.value / highest.max >= 0.8 ? `**${highest.label}**` : t("project.positivePointPlaceholder")),
+        content:
+          distilledPositive ||
+          (highest && highest.value / highest.max >= 0.8
+            ? `**${highest.label}** (${highest.value}/${highest.max})`
+            : t("project.positivePointPlaceholder")),
         type: "success",
         Icon: ShieldCheckIcon
       }
     ];
 
-  }, [feedbackSections, ngPageCount, t, orderedScores, result, pageReviewItems]);
+  }, [feedbackSections, ngPageCount, t, orderedScores, pageReviewItems]);
+
+  const verdictText = useMemo(() => {
+    if (typeof displayScore !== "number") return t("project.executiveSummarySubtitle");
+    const sortedScores = [...orderedScores].sort(
+      (a, b) => (a.value / (a.max || 1)) - (b.value / (b.max || 1)),
+    );
+    const weakest = sortedScores[0];
+    const ngSlides = pageReviewItems.filter((s) => s.status === "NG");
+
+    if (weakest && ngSlides.length > 0) {
+      return `Tài liệu đang ở mức ${displayScore}/100; mất điểm nhiều ở "${weakest.label}" (${weakest.value}/${weakest.max}) và còn ${ngSlides.length} trang cần xử lý trước khi chốt.`;
+    }
+    if (weakest) {
+      return `Tài liệu đang ở mức ${displayScore}/100; nên ưu tiên cải thiện tiêu chí "${weakest.label}" (${weakest.value}/${weakest.max}) trước khi chốt.`;
+    }
+    if (displayScore >= 80) return t("project.summaryScoreHealthy", { score: displayScore });
+    if (displayScore >= 60) return t("project.summaryScoreWatch", { score: displayScore });
+    return t("project.summaryScoreCritical", { score: displayScore });
+  }, [displayScore, orderedScores, pageReviewItems, t]);
 
   const actionItems = useMemo(() => {
     const fromCriteria = (gradingDetail?.criteria_results || [])
@@ -441,12 +463,7 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
             <div className="ai-verdict-banner__content">
               <div className="ai-verdict-banner__title">{t("project.executiveSummary")}</div>
               <div className="ai-verdict-banner__text">
-                {typeof displayScore === "number" && displayScore >= 80 
-                  ? t("project.summaryScoreHealthy", { score: displayScore })
-                  : typeof displayScore === "number" && displayScore >= 60
-                  ? t("project.summaryScoreWatch", { score: displayScore })
-                  : t("project.summaryScoreCritical", { score: displayScore || 0 })
-                }
+                {verdictText}
               </div>
             </div>
           </div>

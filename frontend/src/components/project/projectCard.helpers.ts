@@ -85,7 +85,7 @@ export function splitFeedbackSections(lines: string[]): FeedbackSectionView[] {
     // Handle markdown/numbered headers and keep inline content after ":" / "-" when present.
     if (/^(?:#{1,6}\s+)?(?:\*\*)?[0-9]+[.)]\s*/.test(line)) {
       const normalized = line.replace(/[*#]/g, "").trim();
-      const parts = normalized.split(/[:ï¼š]\s*| -\s+| â€“\s+| â€”\s+/, 2);
+      const parts = normalized.split(/[:：]\s*|\s[-–—]\s+/, 2);
       const title = (parts[0] || "").trim();
       const inlineContent = (parts[1] || "").trim();
       sections.push({ title, lines: inlineContent ? [inlineContent] : [] });
