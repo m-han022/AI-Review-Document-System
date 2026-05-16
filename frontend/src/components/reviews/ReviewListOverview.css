@@ -145,38 +145,41 @@
 .kpi-card-v4::before {
   content: "";
   position: absolute;
-  inset: auto -20% -56% -20%;
-  height: 72%;
-  background: radial-gradient(circle at 50% 35%, var(--ds-color-primary-soft), transparent 70%);
-  opacity: 0.35;
+  left: 14%;
+  right: 14%;
+  bottom: -32px;
+  height: 86px;
+  background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--ds-color-primary) 20%, white), transparent 72%);
+  opacity: 0.22;
   pointer-events: none;
 }
 
 .kpi-card-v4__sparkline {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -8px;
-  height: 48px;
+  left: 16px;
+  right: 16px;
+  bottom: 10px;
+  height: 32px;
   display: flex;
   align-items: flex-end;
-  gap: 6px;
-  opacity: 0.38;
+  gap: 5px;
+  opacity: 0.24;
   pointer-events: none;
 }
 
 .kpi-card-v4__sparkline span {
   flex: 1;
   border-radius: 999px;
-  background: linear-gradient(180deg, var(--ds-color-primary), transparent);
+  min-height: 7px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ds-color-primary) 62%, white), transparent);
 }
 
 .kpi-card-v4:nth-child(2) .kpi-card-v4__sparkline span {
-  background: linear-gradient(180deg, var(--ds-color-success), transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ds-color-success) 62%, white), transparent);
 }
 
 .kpi-card-v4:nth-child(3) .kpi-card-v4__sparkline span {
-  background: linear-gradient(180deg, var(--ds-color-warning), transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ds-color-warning) 62%, white), transparent);
 }
 
 /* List Main Section */

@@ -1,15 +1,12 @@
-﻿import { KPIProgressList } from "../ui/KPICharts";
-import { SparkIcon, AlertTriangleIcon, ShieldCheckIcon, TargetIcon, WorkflowIcon } from "../ui/Icon";
+﻿import { SparkIcon, AlertTriangleIcon, ShieldCheckIcon, TargetIcon, WorkflowIcon } from "../ui/Icon";
 import { useTranslation } from "../LanguageSelector";
 import type { FeedbackSectionView } from "./ProjectReviewPanels";
-import type { KPIBarChartProps } from "../ui/KPICharts";
 import type { ActionChecklistItem } from "./projectCard.helpers";
 
 interface Props {
   t: (key: string) => string;
   feedbackSections: FeedbackSectionView[];
   ngPageCount: number;
-  orderedScores: KPIBarChartProps["data"];
   pageReviewItems: any[];
   actionItems: ActionChecklistItem[];
 }
@@ -17,8 +14,7 @@ interface Props {
 export default function ProjectOverviewTab({ 
   t, 
   feedbackSections, 
-  ngPageCount, 
-  orderedScores,
+  ngPageCount,
   pageReviewItems,
   actionItems
 }: Props) {
@@ -33,10 +29,10 @@ export default function ProjectOverviewTab({
     <div className="project-overview-v4" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       
       {/* Block 1: Top Row Split Layout */}
-      <div className="overview-row-split-v4" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '24px' }}>
+      <div className="overview-row-split-v4" style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: '24px', alignItems: 'start' }}>
         
         {/* Block 1-1: AI Overview (Left) */}
-        <section className="overview-pane-v4">
+        <section className="overview-pane-v4" style={{ marginTop: 0 }}>
           <header className="section-header-v3">
             <h2 className="section-title-v3">
               <SparkIcon size="sm" /> {t("project.executiveSummary")}
@@ -77,12 +73,17 @@ export default function ProjectOverviewTab({
                       {section.title}
                     </h5>}
                     <ul style={{ paddingLeft: "0", listStyle: 'none', color: "var(--ds-color-text-body)", lineHeight: "1.6", fontSize: '13.5px', margin: 0 }}>
-                      {(section.lines.length > 0 ? section.lines : [section.title]).map((line, lidx) => (
+                      {(section.lines.length > 0 ? section.lines : [section.title]).map((line, lidx) => {
+                        const normalizedLine = String(line || "")
+                          .replace(/^\s*(?:\d+[.)]|[①②③④⑤⑥⑦⑧⑨⑩])\s*/u, "")
+                          .trim();
+                        return (
                         <li key={lidx} style={{ marginBottom: "6px", display: 'flex', gap: '8px' }}>
-                          <span style={{ color: 'var(--ds-color-primary)', opacity: 0.5 }}>-</span>
-                          {line}
+                          <span style={{ color: 'var(--ds-color-primary)', opacity: 0.85, fontWeight: 700, minWidth: '14px' }}>{lidx + 1}.</span>
+                          {normalizedLine}
                         </li>
-                      ))}
+                        );
+                      })}
                     </ul>
                   </div>
                 ))
@@ -93,10 +94,10 @@ export default function ProjectOverviewTab({
           </div>
         </section>
 
-        {/* Block 1-2: Action Checklist & Criteria Scores (Right) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        {/* Block 1-2: Action Checklist (Right) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', alignSelf: 'start' }}>
           {/* Action Checklist */}
-          <section className="action-checklist-v4">
+          <section className="action-checklist-v4" style={{ marginTop: 0 }}>
             <header className="action-checklist-v4__header">
               <WorkflowIcon size="sm" color="var(--ds-color-primary)" />
               {t("project.actionChecklist")}
@@ -109,7 +110,7 @@ export default function ProjectOverviewTab({
                       <div className="action-checklist-v4__text">{item.text}</div>
                       <div className="action-checklist-v4__meta">
                         <span className="action-checklist-v4__tag">{t("project.aiSuggestionLabel")}</span>
-                        <span>
+                        <span className={`action-checklist-v4__priority action-checklist-v4__priority--${item.priority}`}>
                           {item.priority === "high"
                             ? t("project.priorityHigh")
                             : item.priority === "medium"
@@ -134,24 +135,6 @@ export default function ProjectOverviewTab({
             </div>
           </section>
 
-          {/* Criteria Scores */}
-          <section className="overview-pane-v4">
-            <header className="section-header-v3">
-              <h2 className="section-title-v3">
-                <TargetIcon size="sm" /> {t("project.scoreByCriteria")}
-              </h2>
-            </header>
-            <div className="scores-card-v4" style={{ 
-              background: "var(--ds-color-surface)", 
-              border: "1px solid var(--ds-color-border)", 
-              padding: "20px", 
-              borderRadius: "12px",
-              boxShadow: 'var(--ds-shadow-sm)',
-              height: 'auto'
-            }}>
-              <KPIProgressList data={orderedScores} onHover={() => {}} />
-            </div>
-          </section>
         </div>
       </div>
 
@@ -178,10 +161,11 @@ export default function ProjectOverviewTab({
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '8px',
-                transition: 'transform 0.2s',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
+                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
                 cursor: 'pointer'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
               onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -224,6 +208,9 @@ export default function ProjectOverviewTab({
     </div>
   );
 }
+
+
+
 
 
 

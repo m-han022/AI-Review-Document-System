@@ -58,6 +58,7 @@ export function AuditFiltersSection({
             onChange={(val) => onSetFilter("projectId", val)}
             options={projectsList.map((p) => ({ value: p.project_id, label: p.project_name || p.project_id }))}
             placeholder={t("sm.auditDashboard.projectPlaceholder")}
+            clearable={false}
           />
           <SearchableSelect
             label={t("sm.audit.document")}
@@ -67,6 +68,7 @@ export function AuditFiltersSection({
             options={documentsList.map((d) => ({ value: String(d.document_id), label: d.document_name }))}
             placeholder={t("sm.auditDashboard.documentPlaceholder")}
             hideValue={true}
+            clearable={false}
           />
           <SearchableSelect
             label={t("sm.audit.version")}
@@ -76,6 +78,7 @@ export function AuditFiltersSection({
             options={versionsList.map((v) => ({ value: String(v.document_version_id), label: v.version }))}
             placeholder={t("sm.auditDashboard.versionPlaceholder")}
             hideValue={true}
+            clearable={false}
           />
           <Select
             label={t("common.status")}
@@ -105,8 +108,8 @@ export function AuditFiltersSection({
         </div>
 
         <div className="audit-actions">
-          <Button variant="ghost" onClick={onReset} size="md">
-            {t("sm.auditDashboard.reset")}
+          <Button variant="ghost" onClick={onReset} size="sm">
+            Xóa bộ lọc
           </Button>
           <Button variant="outline" onClick={onRefresh} size="md">
             {t("sm.common.retry")}

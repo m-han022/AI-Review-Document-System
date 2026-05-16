@@ -3,6 +3,7 @@ import { getLocalizedText } from "../../locales/utils";
 import { SparkIcon, TargetIcon, AlertTriangleIcon, AlertCircleIcon, CheckCircleIcon, TrendingUpIcon } from "../ui/Icon";
 import { LoadingState } from "../ui/States";
 import { Card } from "../ui";
+import "../ui/KPICharts.css";
 import type { ProjectCriteriaTabViewModel } from "./projectCard.viewModels";
 
 interface Props {
@@ -177,8 +178,12 @@ export default function ProjectCriteriaTab({
                 </thead>
                 <tbody>
                   {criteriaWithEvaluations.map((item, idx) => (
-                    <tr key={idx} className="ds-table-row-v4">
-                      <td>
+                    <tr key={idx} className="ds-table-row-v4" style={{ height: '96px' }}>
+                      <td style={{ verticalAlign: 'top', paddingTop: '12px' }}>
+                        {(() => {
+                          const percent = Math.max(0, Math.min(100, Math.round((item.value / item.max) * 100)));
+                          const status = percent >= 80 ? "success" : percent >= 60 ? "warning" : "danger";
+                          return (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                           <div style={{ 
                             width: '32px', height: '32px', borderRadius: '8px', 
@@ -188,24 +193,35 @@ export default function ProjectCriteriaTab({
                           }}>
                             <TargetIcon size="sm" />
                           </div>
-                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', minHeight: '72px' }}>
                             <span style={{ fontWeight: 700, fontSize: '13.5px', color: '#1E293B' }}>{item.label}</span>
-                            <span style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 600 }}>{item.key}</span>
+                            <div style={{ marginTop: '8px', width: '240px', maxWidth: '100%' }}>
+                              <div className="kpi-progress-track-v4">
+                                <div
+                                  className={`kpi-progress-fill-v4 kpi-progress-fill-v4--${status}`}
+                                  style={{ width: `${percent}%` }}
+                                >
+                                  {percent > 15 && <span className="kpi-progress-percent-tag-v4">{percent}%</span>}
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </div>
+                          );
+                        })()}
                       </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                          <div style={{ fontSize: '18px', fontWeight: 800, color: item.value / item.max >= 0.8 ? '#10B981' : item.value / item.max >= 0.5 ? '#F59E0B' : '#EF4444' }}>
+                      <td style={{ textAlign: 'center', verticalAlign: 'top', paddingTop: '12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '2px', minHeight: '28px' }}>
+                          <span style={{ fontSize: '18px', fontWeight: 800, lineHeight: 1, color: item.value / item.max >= 0.8 ? '#10B981' : item.value / item.max >= 0.5 ? '#F59E0B' : '#EF4444' }}>
                             {item.value}
-                          </div>
-                          <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>/ {item.max}</div>
+                          </span>
+                          <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600, lineHeight: 1 }}>/ {item.max}</span>
                         </div>
                       </td>
-                      <td>
+                      <td style={{ verticalAlign: 'top', paddingTop: '12px' }}>
                         <div style={{
                           fontSize: '13.5px', 
-                          lineHeight: '1.6', 
+                          lineHeight: '1.7', 
                           color: '#334155', 
                           margin: 0,
                           whiteSpace: 'pre-wrap'
@@ -224,7 +240,7 @@ export default function ProjectCriteriaTab({
                           ))}
                         </div>
                         {item.improvement && (
-                          <div style={{ marginTop: '6px', whiteSpace: 'pre-wrap', color: '#0f766e', fontSize: '13px' }}>
+                          <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px dashed #dbe4ee', whiteSpace: 'pre-wrap', color: '#0f766e', fontSize: '13px', lineHeight: '1.6' }}>
                             <strong>{t("project.suggestions")}:</strong> {item.improvement}
                           </div>
                         )}

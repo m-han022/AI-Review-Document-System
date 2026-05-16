@@ -240,9 +240,6 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
                     <h3 className="analysis-section-title-v3 is-meta" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                       <LayersIcon size="sm" /> {t("project.documentViewer.title")}
                     </h3>
-                    <p style={{ fontSize: '11px', color: 'var(--ds-color-text-muted)', marginBottom: '12px', fontStyle: 'italic', lineHeight: '1.4' }}>
-                      {t("project.aiProofDisclaimer")}
-                    </p>
 
                     {gradingDetail?.document_version?.filename.toLowerCase().endsWith(".pdf") && !pdfUnavailable ? (
                       <div className="evidence-card-v3" style={{ width: '100%', aspectRatio: '16 / 9', minHeight: '360px', maxHeight: '540px', padding: 0, overflow: 'hidden', background: '#f1f5f9', borderRadius: '12px', border: '1px solid var(--ds-color-border)' }}>

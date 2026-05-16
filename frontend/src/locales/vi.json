@@ -612,7 +612,7 @@
     "expand": "Mở rộng",
     "collapse": "Thu gọn",
     "aiProofLabel": "Bằng chứng từ tài liệu",
-    "aiProofDisclaimer": "[Chỉ hiển thị dữ liệu chữ, còn dữ liệu hình ảnh mặc dù được phân tích nhưng không hiển thị ở đây]",
+    "aiProofDisclaimer": "",
     "noStructuredTitle": "Chưa phát hiện phản hồi có cấu trúc",
     "noStructuredText": "Phản hồi gốc vẫn có sẵn nhưng chưa thể nhóm tự động.",
     "slideReviews": "Review theo từng trang",

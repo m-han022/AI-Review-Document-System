@@ -88,6 +88,16 @@ function phase2Text(t: (key: string) => string) {
   };
 }
 
+function renderInlineMarkdownBold(text: string): React.ReactNode {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, index) => {
+    if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+      return <strong key={`b-${index}`}>{part.slice(2, -2)}</strong>;
+    }
+    return <span key={`t-${index}`}>{part}</span>;
+  });
+}
+
 function ProjectCardSkeleton() {
   return (
     <div className="project-layout-v3 ds-skeleton-wrapper">
@@ -189,34 +199,12 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
   };
 
   useEffect(() => {
-    if (setTopbarActions) {
-      setTopbarActions(
-        <div className="project-toolbar__actions">
-          <Button 
-            variant="primary" 
-            size="md" 
-            onClick={() => setConfirmReviewOpen(true)} 
-            disabled={rerunMutation.isPending || !selectedVersionId || hasActiveRunOnVersion}
-            isLoading={rerunMutation.isPending}
-          >
-            <RefreshIcon size="sm" />
-            {hasActiveRunOnVersion ? t("project.gradingProcessing") : t("project.rerunReview")}
-          </Button>
-          <Button 
-            variant="primary" 
-            size="md" 
-            onClick={() => window.print()} 
-            disabled={!selectedGradingId || !gradingDetail}
-          >
-            <ShieldCheckIcon size="sm" /> {t("project.exportPdfReport")}
-          </Button>
-        </div>
-      );
-    }
+    if (!setTopbarActions) return;
+    setTopbarActions(null);
     return () => {
-      if (setTopbarActions) setTopbarActions(null);
+      setTopbarActions(null);
     };
-  }, [setTopbarActions, rerunMutation.isPending, selectedVersionId, t, exportMutation.isPending, selectedGradingId, gradingDetail]);
+  }, [setTopbarActions]);
 
 
 
@@ -418,6 +406,26 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
               <ShieldCheckIcon size="sm" /> {displayModel}
             </span>
           </div>
+          <div className="header-actions-inline-v4">
+            <Button 
+              variant="primary" 
+              size="md" 
+              onClick={() => setConfirmReviewOpen(true)} 
+              disabled={rerunMutation.isPending || !selectedVersionId || hasActiveRunOnVersion}
+              isLoading={rerunMutation.isPending}
+            >
+              <RefreshIcon size="sm" />
+              {hasActiveRunOnVersion ? t("project.gradingProcessing") : t("project.rerunReview")}
+            </Button>
+            <Button 
+              variant="outline" 
+              size="md" 
+              onClick={() => window.print()} 
+              disabled={!selectedGradingId || !gradingDetail}
+            >
+              <ShieldCheckIcon size="sm" /> {t("project.exportPdfReport")}
+            </Button>
+          </div>
         </div>
 
         {/* Status Notification Banner for non-completed runs */}
@@ -471,7 +479,7 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
                 <span>{insight.title}</span>
               </div>
               <div className="insight-card-v4__content">
-                {insight.content}
+                {renderInlineMarkdownBold(insight.content)}
               </div>
             </div>
           ))}
@@ -506,7 +514,6 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
               t={t} 
               feedbackSections={criteriaViewModel.feedbackSections} 
               ngPageCount={ngPageCount}
-              orderedScores={criteriaViewModel.orderedScores}
               pageReviewItems={slidesViewModel.pageReviewItems}
               actionItems={actionItems}
             />
@@ -515,7 +522,7 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
           <div className="section-divider" />
 
           <section id="section-criteria" className="scroll-section">
-            <header className="section-header-v3" style={{ marginBottom: '16px' }}>
+            <header className="section-header-v3" style={{ marginTop: '14px', marginBottom: '16px' }}>
               <h2 className="section-title-v3">
                 <TargetIcon size="sm" /> {t("project.tabAnalysis")}
               </h2>

@@ -18,6 +18,7 @@ interface SearchableSelectProps {
   className?: string;
   hideValue?: boolean;
   style?: React.CSSProperties;
+  clearable?: boolean;
 }
 
 export const SearchableSelect: React.FC<SearchableSelectProps> = ({
@@ -31,6 +32,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   className = '',
   hideValue = false,
   style,
+  clearable = true,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -114,7 +116,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         </div>
         
         <div className="ds-select-actions">
-          {value && !disabled && (
+          {clearable && value && !disabled && (
             <button className="ds-select-clear-btn" onClick={handleClear}>
               <XIcon size="sm" />
             </button>

@@ -43,7 +43,7 @@ interface NavGroup {
 
 export default function Sidebar({ activeView, onChangeView, isCollapsed = false }: SidebarProps) {
   const { t } = useTranslation();
-  const selectedView = activeView === "detail" ? "reviews" : activeView;
+  const selectedView: Exclude<WorkspaceView, "detail"> = activeView === "detail" ? "reviews" : activeView;
 
   const navGroups: NavGroup[] = [
     {
