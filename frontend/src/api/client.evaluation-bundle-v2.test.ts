@@ -26,7 +26,7 @@ describe("api/client evaluation bundle v2 switch", () => {
     expect(calledUrl).toContain("/mgmt/evaluation-bundles?");
   });
 
-  it("uses /mgmt/evaluation-sets when VITE_USE_EVALUATION_BUNDLE_V2_UI=false", async () => {
+  it("uses /mgmt/evaluation-bundles even when VITE_USE_EVALUATION_BUNDLE_V2_UI=false", async () => {
     vi.stubEnv("VITE_USE_EVALUATION_BUNDLE_V2_UI", "false");
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -39,7 +39,7 @@ describe("api/client evaluation bundle v2 switch", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const calledUrl = String(fetchMock.mock.calls[0][0]);
-    expect(calledUrl).toContain("/mgmt/evaluation-sets?");
+    expect(calledUrl).toContain("/mgmt/evaluation-bundles?");
   });
 
   it("uses lifecycle endpoints on /mgmt/evaluation-bundles when V2 UI flag is enabled", async () => {
@@ -63,7 +63,7 @@ describe("api/client evaluation bundle v2 switch", () => {
     expect(urls[3]).toContain("/mgmt/evaluation-bundles/12/archive");
   });
 
-  it("falls back lifecycle calls to /mgmt/evaluation-sets/*/activate when V2 UI flag is disabled", async () => {
+  it("uses lifecycle endpoints on /mgmt/evaluation-bundles when V2 UI flag is disabled", async () => {
     vi.stubEnv("VITE_USE_EVALUATION_BUNDLE_V2_UI", "false");
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -77,8 +77,8 @@ describe("api/client evaluation bundle v2 switch", () => {
     await client.archiveEvaluationSet(8);
 
     const urls = fetchMock.mock.calls.map((c) => String(c[0]));
-    expect(urls[0]).toContain("/mgmt/evaluation-sets/8/activate");
-    expect(urls[1]).toContain("/mgmt/evaluation-sets/8/activate");
-    expect(urls[2]).toContain("/mgmt/evaluation-sets/8/activate");
+    expect(urls[0]).toContain("/mgmt/evaluation-bundles/8/validate");
+    expect(urls[1]).toContain("/mgmt/evaluation-bundles/8/approve");
+    expect(urls[2]).toContain("/mgmt/evaluation-bundles/8/archive");
   });
 });

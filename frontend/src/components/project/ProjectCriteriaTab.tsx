@@ -24,7 +24,7 @@ export default function ProjectCriteriaTab({
       (str || "")
         .toLowerCase()
         .replace(/[0-9]+[.)]/g, "")
-        .replace(/[*#:\-]/g, " ")
+        .replace(/[*#:-]/g, " ")
         .replace(/\s+/g, " ")
         .trim();
 

@@ -124,6 +124,28 @@ To stop Redis started through Docker as well:
 .\scripts\dev-stop.ps1 -StopRedis
 ```
 
+#### Recommended local startup sequence
+
+```powershell
+cd e:\workspace\AI-Review-Document-System
+.\scripts\dev-start-sync.ps1
+Invoke-WebRequest http://127.0.0.1:8000/api/health -UseBasicParsing
+```
+
+Expected:
+- Backend docs reachable: `http://127.0.0.1:8000/docs`
+- Frontend reachable: `http://127.0.0.1:5173`
+- `/api/health` returns healthy status
+
+If UI shows `ERR_CONNECTION_REFUSED` for `127.0.0.1:8000`:
+1. Run `.\scripts\dev-stop.ps1`
+2. Start again with `.\scripts\dev-start-sync.ps1`
+3. Verify port 8000 is listening:
+
+```powershell
+Get-NetTCPConnection -LocalPort 8000 -State Listen
+```
+
 ### 2. Production-like Mode (Docker)
 
 ```bash
@@ -398,6 +420,24 @@ Expected:
 
 ---
 
+# 🧩 UI Business Terminology (Current)
+
+Các thuật ngữ hiển thị trên UI phải dùng nhất quán:
+
+- `Evaluation Set` hiển thị là: `Bộ tiêu chuẩn chấm`
+- `Rubric` hiển thị là: `Khung tiêu chí chấm điểm`
+- `Prompt` hiển thị là: `Hướng dẫn phản hồi AI`
+- `Policy` hiển thị là: `Nguyên tắc đánh giá`
+- `Required Rules` hiển thị là: `Quy tắc bắt buộc`
+
+Terminology rule:
+- Dùng `page` / `trang` cho business term trên UI.
+- Chỉ giữ `slide_*` cho compatibility key/API/DB legacy (ví dụ: `slide_number`, `slide_reviews`).
+- Không đổi public API/contract chỉ để rename terminology nếu chưa có migration plan rõ.
+- Khi render UI: ưu tiên `page_number`, fallback `slide_number`.
+
+---
+
 # 🔁 Legacy API Mapping
 
 Các API cũ vẫn được giữ để tương thích ngược, nhưng phải map sang flow mới:
@@ -544,6 +584,17 @@ The fallback script starts:
 - Frontend: `node node_modules/vite/bin/vite.js --host 0.0.0.0 --port 5173`
 - Default local mode is synchronous (`USE_CELERY=false`) to avoid stuck `PENDING` runs.
 - For explicit async local testing, use `.\scripts\dev-start-async.ps1`.
+
+Quick verify after startup:
+
+```powershell
+Invoke-WebRequest http://127.0.0.1:8000/api/health -UseBasicParsing
+Invoke-WebRequest "http://127.0.0.1:8000/api/projects?limit=5&offset=0" -UseBasicParsing
+```
+
+Expected:
+- `/api/health` returns healthy status
+- `/api/projects` returns HTTP 200
 
 ### Rerun Review Không Chạy / Không Thấy Kết Quả Mới
 

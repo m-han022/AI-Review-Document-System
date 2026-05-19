@@ -1,24 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-
-import { bulkDeleteSubmissions, deleteSubmission, gradeSubmission } from "../api/client";
-import { projectsQueryKey } from "../query";
-import type { Project, LanguageCode } from "../types";
+import { useCallback, useMemo, useState } from "react";
+import type { Project } from "../types";
 
 import { useTranslation } from "./LanguageSelector";
-import ConfirmDialog from "./ui/ConfirmDialog";
-import ToastStack, { type ToastItem } from "./ui/ToastStack";
-
-import TableHeader from "./submissions/TableHeader";
-import TableRow from "./submissions/TableRow";
+import ToastStack from "./ui/ToastStack";
 import TableToolbar from "./submissions/TableToolbar";
-import TableFooter from "./submissions/TableFooter";
-import ProjectCreateDialog from "./project/ProjectCreateDialog";
-import ProjectEditDialog from "./project/ProjectEditDialog";
-import { EmptyState } from "./ui/States";
-import { Button } from "./ui";
-import { PlusIcon } from "./ui/Icon";
-import { toHumanErrorMessage } from "../utils/humanizeError";
+import SubmissionsDialogs from "./submissions/SubmissionsDialogs";
+import SubmissionsTableSection from "./submissions/SubmissionsTableSection";
+import { useSubmissionsFilters } from "./submissions/useSubmissionsFilters";
+import { filterProjects } from "./submissions/tableFilters";
+import { paginateProjects, resolvePageSize } from "./submissions/tablePagination";
+import { useSubmissionTableState } from "./submissions/useSubmissionTableState";
+import { useSubmissionActions } from "./submissions/useSubmissionActions";
+import { useActiveProjectSelection } from "./submissions/useActiveProjectSelection";
 
 interface SubmissionsTableProps {
   projects: Project[];
@@ -27,200 +20,84 @@ interface SubmissionsTableProps {
   variant?: "full" | "dashboard" | "reference";
 }
 
-type DeleteMode = "single" | "selected";
-const PAGE_SIZE = {
-  dashboard: 5,
-  full: 10,
-  reference: 20,
-} as const;
-
-interface PendingDelete {
-  mode: DeleteMode;
-  projectIds: string[];
-  description: string;
-  details: string[];
-}
-
 export default function SubmissionsTable({
   projects,
   activeProjectId: controlledActiveProjectId,
   onSelectProject,
   variant = "full",
 }: SubmissionsTableProps) {
-  const [gradingId, setGradingId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [internalActiveProjectId, setInternalActiveProjectId] = useState<string | null>(projects[0]?.project_id ?? null);
-  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
-  const [toasts, setToasts] = useState<ToastItem[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "completed" | "pending">("all");
-  const documentTypeFilter = "all";
-  const [languageFilter, setLanguageFilter] = useState<LanguageCode | "all">("all");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
-  
-  const queryClient = useQueryClient();
+  const {
+    searchQuery,
+    setSearchQuery,
+    statusFilter,
+    setStatusFilter,
+    languageFilter,
+    setLanguageFilter,
+  } = useSubmissionsFilters();
+
   const { t } = useTranslation();
 
-  const activeProjectId = controlledActiveProjectId ?? internalActiveProjectId;
-  const isDashboardVariant = variant === "dashboard";
+  const {
+    selectedIds,
+    selectIds,
+    clearSelection,
+    currentPage,
+    toggleSelect,
+    goPreviousPage,
+    goNextPage,
+  } = useSubmissionTableState();
 
-  useEffect(() => {
-    if (!projects.length) {
-      setInternalActiveProjectId(null);
-      return;
-    }
-    if (!activeProjectId || !projects.some((item) => item.project_id === activeProjectId)) {
-      setInternalActiveProjectId(projects[0].project_id);
-    }
-  }, [activeProjectId, projects]);
-
-  useEffect(() => {
-    if (!toasts.length) return;
-
-    const timers = toasts.map((toast) =>
-      window.setTimeout(() => {
-        setToasts((current) => current.filter((item) => item.id !== toast.id));
-      }, 3600),
-    );
-
-    return () => timers.forEach((timer) => window.clearTimeout(timer));
-  }, [toasts]);
-
-  const pushToast = (tone: ToastItem["tone"], message: string) => {
-    setToasts((current) => [...current, { id: Date.now() + Math.random(), tone, message }]);
-  };
-
-  const dismissToast = (id: number) => {
-    setToasts((current) => current.filter((toast) => toast.id !== id));
-  };
-
-  const gradeMutation = useMutation({
-    mutationFn: gradeSubmission,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: projectsQueryKey });
-    },
+  const { activeProjectId, setInternalActiveProjectId } = useActiveProjectSelection({
+    projects,
+    controlledActiveProjectId,
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: deleteSubmission,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: projectsQueryKey });
-    },
+  const {
+    gradingId,
+    deletingId,
+    pendingDelete,
+    setPendingDelete,
+    toasts,
+    dismissToast,
+    handleGrade,
+    openDeleteDialog,
+    confirmDelete,
+    isActionPending,
+  } = useSubmissionActions({
+    projects,
+    t,
+    onClearSelection: clearSelection,
   });
 
-  const bulkDeleteMutation = useMutation({
-    mutationFn: bulkDeleteSubmissions,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: projectsQueryKey });
+  const filteredProjects = useMemo(
+    () => filterProjects(projects, searchQuery, statusFilter, languageFilter),
+    [projects, searchQuery, statusFilter, languageFilter],
+  );
+
+  const pageSize = resolvePageSize(variant);
+  const totalPages = Math.max(1, Math.ceil(filteredProjects.length / pageSize));
+  const pagedProjects = useMemo(
+    () => paginateProjects(filteredProjects, currentPage, pageSize),
+    [filteredProjects, currentPage, pageSize],
+  );
+
+  const handleSelectProject = useCallback(
+    (projectId: string) => {
+      setInternalActiveProjectId(projectId);
+      onSelectProject?.(projectId);
     },
-  });
+    [onSelectProject, setInternalActiveProjectId],
+  );
 
-  const filteredProjects = useMemo(() => {
-    return projects.filter((project) => {
-      // Search logic
-      const matchesSearch =
-        project.project_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.project_name.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      // Status filter
-      const isCompleted = project.latest_score !== null;
-      const matchesStatus =
-        statusFilter === "all" ||
-        (statusFilter === "completed" && isCompleted) ||
-        (statusFilter === "pending" && !isCompleted);
-
-      // Document Type filter (Cast to any for property access)
-      const matchesDocType = 
-        documentTypeFilter === "all" || 
-        (project as any).document_type === documentTypeFilter;
-
-      // Language filter
-      const matchesLanguage = 
-        languageFilter === "all" || 
-        (project as any).language === languageFilter;
-
-      return matchesSearch && matchesStatus && matchesDocType && matchesLanguage;
-    });
-  }, [projects, searchQuery, statusFilter, documentTypeFilter, languageFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredProjects.length / PAGE_SIZE[variant === "dashboard" ? "dashboard" : variant === "reference" ? "reference" : "full"]));
-  const pagedProjects = useMemo(() => {
-    const size = PAGE_SIZE[variant === "dashboard" ? "dashboard" : variant === "reference" ? "reference" : "full"];
-    const start = (currentPage - 1) * size;
-    return filteredProjects.slice(start, start + size);
-  }, [filteredProjects, currentPage, variant]);
-
-  const handleSelectProject = (projectId: string) => {
-    setInternalActiveProjectId(projectId);
-    onSelectProject?.(projectId);
-  };
-
-  const toggleSelect = (projectId: string) => {
-    setSelectedIds((current) => {
-      const next = new Set(current);
-      if (next.has(projectId)) next.delete(projectId);
-      else next.add(projectId);
-      return next;
-    });
-  };
-
-  const toggleSelectAll = () => {
+  const toggleSelectAll = useCallback(() => {
     if (selectedIds.size === pagedProjects.length) {
-      setSelectedIds(new Set());
+      clearSelection();
     } else {
-      setSelectedIds(new Set(pagedProjects.map((p) => p.project_id)));
+      selectIds(pagedProjects.map((p) => p.project_id));
     }
-  };
-
-  const handleGrade = async (projectId: string) => {
-    setGradingId(projectId);
-    try {
-      await gradeMutation.mutateAsync({ projectId, force: true });
-      pushToast("success", t("submissions.gradingSuccess"));
-    } catch (error) {
-      pushToast("danger", toHumanErrorMessage(error, t("submissions.gradingFailed")));
-    } finally {
-      setGradingId(null);
-    }
-  };
-
-
-
-  const openDeleteDialog = (ids: string[], mode: DeleteMode) => {
-    const targets = projects.filter((p) => ids.includes(p.project_id));
-    setPendingDelete({
-      mode,
-      projectIds: ids,
-      description: mode === "single" ? t("submissions.deleteConfirm") : t("submissions.deleteSelectedConfirm"),
-      details: targets.map((p) => `${p.project_id}: ${p.project_name}`),
-    });
-  };
-
-  const confirmDelete = async () => {
-    if (!pendingDelete) return;
-    const { mode, projectIds } = pendingDelete;
-    setDeletingId(projectIds[0]);
-
-    try {
-      if (mode === "single") {
-        await deleteMutation.mutateAsync(projectIds[0]);
-      } else {
-        await bulkDeleteMutation.mutateAsync(projectIds);
-        setSelectedIds(new Set());
-      }
-      pushToast("success", t("submissions.deleteSuccess"));
-    } catch (error) {
-      pushToast("danger", toHumanErrorMessage(error, t("submissions.deleteFailed")));
-    } finally {
-      setDeletingId(null);
-      setPendingDelete(null);
-    }
-  };
-
-  const isActionPending = gradeMutation.isPending || deleteMutation.isPending || bulkDeleteMutation.isPending;
+  }, [clearSelection, pagedProjects, selectIds, selectedIds.size]);
 
   return (
     <div className="submissions-table-wrap">
@@ -243,91 +120,45 @@ export default function SubmissionsTable({
         />
       )}
 
-      <div className="ds-table-container">
-        <table className={`ds-table ${variant === "dashboard" || variant === "reference" ? "ds-table--compact" : ""}`}>
-          <TableHeader
-            allSelected={pagedProjects.length > 0 && selectedIds.size === pagedProjects.length}
-            onToggleSelectAll={toggleSelectAll}
-            showCheckbox={!isDashboardVariant}
-          />
-          <tbody>
-            {pagedProjects.length ? (
-              pagedProjects.map((project) => (
-                <TableRow
-                  key={project.project_id}
-                  project={project}
-                  isActive={project.project_id === activeProjectId}
-                  isSelected={selectedIds.has(project.project_id)}
-                  showCheckbox={!isDashboardVariant}
-                  gradingId={gradingId}
-                  deletingId={deletingId}
-                  isActionPending={isActionPending}
-                  onSelect={handleSelectProject}
-                  onToggleSelect={toggleSelect}
-                  onGrade={handleGrade}
-                  onDelete={(id) => openDeleteDialog([id], "single")}
-                  onEdit={(p) => setEditingProject(p)}
-                />
-              ))
-            ) : (
-              <tr>
-                <td colSpan={7} style={{ padding: 0 }}>
-                  <EmptyState 
-                    title={t("submissions.noSubmissions")} 
-                    description={t("submissions.noSubmissionsDesc") || "Bắt đầu bằng cách tạo dự án đầu tiên của bạn."}
-                    compact 
-                    action={
-                      <Button variant="primary" size="sm" onClick={() => setShowCreateDialog(true)}>
-                        <PlusIcon size="sm" /> {t("submissions.createProjectNew")}
-                      </Button>
-                    }
-                  />
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      <SubmissionsTableSection
+        variant={variant}
+        pagedProjects={pagedProjects}
+        selectedIds={selectedIds}
+        activeProjectId={activeProjectId}
+        gradingId={gradingId}
+        deletingId={deletingId}
+        isActionPending={isActionPending}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalFilteredCount={filteredProjects.length}
+        countLabel={t("submissions.count", { count: filteredProjects.length })}
+        noSubmissionsLabel={t("submissions.noSubmissions")}
+        noSubmissionsDesc={t("submissions.noSubmissionsDesc") || "Bắt đầu bằng cách tạo dự án đầu tiên của bạn."}
+        createProjectLabel={t("submissions.createProjectNew")}
+        onCreateProject={() => setShowCreateDialog(true)}
+        onToggleSelectAll={toggleSelectAll}
+        onSelectProject={handleSelectProject}
+        onToggleSelect={toggleSelect}
+        onGrade={handleGrade}
+        onDelete={(id) => openDeleteDialog([id], "single")}
+        onEdit={(p) => setEditingProject(p)}
+        onPreviousPage={goPreviousPage}
+        onNextPage={() => goNextPage(totalPages)}
+      />
 
-        {variant !== "dashboard" && (
-          <TableFooter
-            totalCount={filteredProjects.length}
-            resultSummary={t("submissions.count", { count: filteredProjects.length })}
-            currentPage={currentPage}
-            canGoPrevious={currentPage > 1}
-            canGoNext={currentPage < totalPages}
-            onPrevious={() => setCurrentPage(p => Math.max(1, p - 1))}
-            onNext={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-            variant={variant === "reference" ? "reference" : "default"}
-          />
-        )}
-      </div>
-
-      {pendingDelete && (
-        <ConfirmDialog
-          open={!!pendingDelete}
-          title={t("submissions.deleteConfirmTitle")}
-          description={pendingDelete.description}
-          details={pendingDelete.details}
-          onConfirm={confirmDelete}
-          onCancel={() => setPendingDelete(null)}
-          confirmLabel={t("common.delete")}
-          cancelLabel={t("common.cancel")}
-          isLoading={deletingId !== null}
-        />
-      )}
+      <SubmissionsDialogs
+        pendingDelete={pendingDelete}
+        deletingId={deletingId}
+        editingProject={editingProject}
+        showCreateDialog={showCreateDialog}
+        t={t}
+        onConfirmDelete={confirmDelete}
+        onCancelDelete={() => setPendingDelete(null)}
+        onCloseCreate={() => setShowCreateDialog(false)}
+        onCloseEdit={() => setEditingProject(null)}
+      />
 
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
-
-      <ProjectCreateDialog 
-        open={showCreateDialog} 
-        onClose={() => setShowCreateDialog(false)} 
-      />
-      
-      <ProjectEditDialog
-        open={!!editingProject}
-        project={editingProject}
-        onClose={() => setEditingProject(null)}
-      />
     </div>
   );
 }

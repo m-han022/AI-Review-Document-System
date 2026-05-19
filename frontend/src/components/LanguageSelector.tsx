@@ -55,7 +55,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<LanguageContextValue>(() => {
     const t = (key: string, params?: Record<string, string | number>) => {
-      let value = getTranslation(lang as any, key);
+      let value = getTranslation(lang, key);
 
       if (params) {
         for (const [paramKey, paramValue] of Object.entries(params)) {

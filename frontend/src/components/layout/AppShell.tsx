@@ -25,6 +25,12 @@ export default function AppShell({
   onToggleSidebar,
   onToggleCollapse
 }: AppShellProps) {
+  type SidebarProps = { isCollapsed?: boolean };
+  type TopbarProps = {
+    onToggleSidebar?: () => void;
+    onToggleCollapse?: () => void;
+    isSidebarCollapsed?: boolean;
+  };
   // Lock scroll when mobile sidebar is open
   useEffect(() => {
     if (isSidebarOpen) {
@@ -37,11 +43,11 @@ export default function AppShell({
 
   // Inject props into sidebar and topbar if they're valid elements
   const sidebarWithProps = isValidElement(sidebar)
-    ? cloneElement(sidebar as any, { isCollapsed })
+    ? cloneElement(sidebar as React.ReactElement<SidebarProps>, { isCollapsed })
     : sidebar;
 
   const topbarWithToggle = isValidElement(topbar)
-    ? cloneElement(topbar as any, { 
+    ? cloneElement(topbar as React.ReactElement<TopbarProps>, { 
         onToggleSidebar,
         onToggleCollapse,
         isSidebarCollapsed: isCollapsed

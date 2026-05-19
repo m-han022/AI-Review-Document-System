@@ -79,8 +79,9 @@ export default function ProjectCreateDialog({ open, onClose, onCreated }: Projec
       setDescription("");
       setError(null);
     },
-    onError: (err: any) => {
-      const msg = err?.message || "";
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : "";
+      const msg = message || "";
       if (msg.includes("already exists")) {
         setError(t("project.errorAlreadyExists") || `Project ID ${id} đã tồn tại. Vui lòng chọn ID khác.`);
       } else {
@@ -98,7 +99,7 @@ export default function ProjectCreateDialog({ open, onClose, onCreated }: Projec
     setLoading(true);
     try {
       await createMutation.mutateAsync({ id, name, description });
-    } catch (err) {
+    } catch {
       // Error handled by useMutation onError
     } finally {
       setLoading(false);

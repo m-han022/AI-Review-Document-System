@@ -1,16 +1,29 @@
-﻿# Scripts AGENTS
+# Scripts AGENTS
 
 ## Scope
 
-Ãp dá»¥ng cho `scripts/` á»Ÿ repo root.
+Áp dụng cho thư mục `scripts/` ở repo root.
 
-File nÃ y Ä‘iá»u chá»‰nh cÃ¡ch quáº£n lÃ½ dev scripts, presentation generators, vÃ  script hygiene.
+File này quy định cách quản lý dev scripts, presentation generators và script hygiene.
 
 ## Canonical Scripts
 
-- `dev-start-sync.ps1`: local sync mode máº·c Ä‘á»‹nh
-- `dev-start-async.ps1`: local async mode
-- `dev-stop.ps1`: stop local processes
+- `dev-start-sync.ps1`: local sync mode (mặc định, khuyến nghị cho dev hằng ngày).
+- `dev-start-async.ps1`: local async mode (cần Redis + Celery worker).
+- `dev-stop.ps1`: dừng local frontend/backend/worker; dùng `-StopRedis` nếu cần dừng Redis Docker.
+
+## Startup Verification
+
+Sau khi chạy `dev-start-sync.ps1`, verify tối thiểu:
+
+```powershell
+Invoke-WebRequest http://127.0.0.1:8000/api/health -UseBasicParsing
+Invoke-WebRequest "http://127.0.0.1:8000/api/projects?limit=5&offset=0" -UseBasicParsing
+```
+
+Expected:
+- `/api/health` healthy
+- `/api/projects` HTTP 200
 
 ## Presentation Generators
 
@@ -21,21 +34,20 @@ File nÃ y Ä‘iá»u chá»‰nh cÃ¡ch quáº£n lÃ½ dev scripts, prese
 - `generate_future_business_direction_exec_ppt.py`
 - `generate_future_business_direction_exec_vi_ppt.py`
 
-Generated outputs pháº£i Ä‘i vÃ o `artifacts/`.
+Generated outputs phải lưu trong `artifacts/`.
 
 ## Rules
 
-- KhÃ´ng thÃªm script má»›i náº¿u chá»‰ lÃ  biáº¿n thá»ƒ nhá» cá»§a script hiá»‡n cÃ³; Æ°u tiÃªn thÃªm option/argument.
-- KhÃ´ng Ä‘á»ƒ generated artifacts trong `scripts/`.
-- Script má»›i pháº£i ghi rÃµ:
+- Không thêm script mới nếu chỉ là biến thể nhỏ; ưu tiên thêm option/argument.
+- Không để generated artifacts trong `scripts/`.
+- Script mới phải ghi rõ:
   - purpose
   - input/source of truth
   - output location
-- Script bá»‹ thay tháº¿ hoáº·c one-off nÃªn chuyá»ƒn sang `archive/` hoáº·c module archive tÆ°Æ¡ng á»©ng, khÃ´ng xÃ³a ngay náº¿u chÆ°a cháº¯c.
+- Script one-off hoặc đã thay thế nên chuyển sang vùng `archive/` phù hợp, không xóa ngay khi chưa chắc.
 
 ## Forbidden Actions
 
-- KhÃ´ng táº¡o script trÃ¹ng chá»©c nÄƒng khi cÃ³ thá»ƒ gá»™p.
-- KhÃ´ng Ä‘á»ƒ script runtime chÃ­nh phá»¥ thuá»™c vÃ o artifact/manual step khÃ´ng Ä‘Æ°á»£c tÃ i liá»‡u hÃ³a.
-- KhÃ´ng thÃªm script â€œdebug táº¡mâ€ vÃ o flow chÃ­nh cá»§a repo.
-
+- Không tạo script trùng chức năng khi có thể gộp.
+- Không để script runtime chính phụ thuộc bước thủ công chưa được tài liệu hóa.
+- Không thêm script debug tạm vào flow chính của repo.

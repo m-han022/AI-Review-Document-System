@@ -394,3 +394,45 @@ Cache key/signature phải bao gồm tối thiểu:
 1. Không xóa tài liệu nếu còn được tham chiếu trong code/script/readme.
 2. Không xóa tài liệu governance nếu chưa có nội dung tương đương trong `README.md`/`REQUIREMENTS.md`/`AGENTS.md`.
 3. Sau khi dọn tài liệu, phải rà soát link chết bằng grep toàn repo.
+
+---
+
+## Local Startup Requirements (Current)
+
+### Default local mode
+
+- Dùng `sync mode` (`USE_CELERY=false`) cho phát triển hằng ngày để tránh kẹt trạng thái chấm.
+
+### Start backend + frontend (recommended)
+
+```powershell
+cd e:\workspace\AI-Review-Document-System
+.\scripts\dev-start-sync.ps1
+```
+
+### Health checks bắt buộc sau khi start
+
+```powershell
+Invoke-WebRequest http://127.0.0.1:8000/api/health -UseBasicParsing
+Invoke-WebRequest "http://127.0.0.1:8000/api/projects?limit=5&offset=0" -UseBasicParsing
+```
+
+Expected:
+- `/api/health` trả healthy status.
+- `/api/projects` trả HTTP 200.
+
+### Stop local processes
+
+```powershell
+.\scripts\dev-stop.ps1
+```
+
+### Async mode (optional)
+
+```powershell
+.\scripts\dev-start-async.ps1
+```
+
+Điều kiện:
+- Redis chạy tại `localhost:6379`.
+- Celery worker chạy ổn định.

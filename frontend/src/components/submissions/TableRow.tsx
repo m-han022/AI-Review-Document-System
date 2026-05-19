@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { Project } from "../../types";
 import { useTranslation } from "../LanguageSelector";
 import { toBusinessStatus } from "../ui/businessStatus";
@@ -21,7 +22,7 @@ interface TableRowProps {
   onEdit: (project: Project) => void;
 }
 
-export default function TableRow({
+function TableRow({
   project,
   isActive,
   isSelected,
@@ -202,4 +203,6 @@ export default function TableRow({
     </tr>
   );
 }
+
+export default memo(TableRow);
 

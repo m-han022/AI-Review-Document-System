@@ -585,4 +585,42 @@ Khi tái cấu trúc theo hướng clean architecture / modular design:
 - Không sửa schema DB chỉ để xử lý encoding docs/i18n.
 - Không rewrite hàng loạt ngoài scope file đã xác nhận lỗi.
 
+---
+
+## Local Startup Runbook (Current)
+
+- Mặc định local dev chạy `sync mode` để tránh run bị kẹt `PENDING` khi thiếu Redis/Worker.
+
+### Start nhanh (khuyến nghị)
+
+```powershell
+cd e:\workspace\AI-Review-Document-System
+.\scripts\dev-start-sync.ps1
+```
+
+### Verify sau khi start
+
+```powershell
+Invoke-WebRequest http://127.0.0.1:8000/api/health -UseBasicParsing
+Invoke-WebRequest "http://127.0.0.1:8000/api/projects?limit=5&offset=0" -UseBasicParsing
+```
+
+- Backend: `http://127.0.0.1:8000/docs`
+- Frontend: `http://127.0.0.1:5173`
+
+### Stop local processes
+
+```powershell
+.\scripts\dev-stop.ps1
+```
+
+### Async mode (chỉ khi cần test queue thật)
+
+```powershell
+.\scripts\dev-start-async.ps1
+```
+
+- Bắt buộc có Redis `localhost:6379` và Celery worker.
+- Nếu UI báo `ERR_CONNECTION_REFUSED` tới `127.0.0.1:8000`: stop rồi start lại bằng `dev-start-sync.ps1`.
+
 
