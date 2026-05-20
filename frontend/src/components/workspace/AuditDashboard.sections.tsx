@@ -128,6 +128,7 @@ export function AuditRunsTableSection({
   status,
   rows,
   selectedRunId,
+  detailStatus,
   offset,
   limit,
   onSelectRun,
@@ -138,12 +139,14 @@ export function AuditRunsTableSection({
   status: "idle" | "loading" | "ready" | "empty" | "error";
   rows: GradingRunHistory[];
   selectedRunId: number | null;
+  detailStatus: "idle" | "loading" | "ready" | "error";
   offset: number;
   limit: number;
   onSelectRun: (runId: number) => void;
   onPreviousPage: () => void;
   onNextPage: () => void;
 }) {
+  const lockSelection = detailStatus === "loading";
   return (
     <section aria-label={t("sm.auditDashboard.tableTitle")}>
       <div className="ds-table-container">
@@ -166,7 +169,15 @@ export function AuditRunsTableSection({
               <tr><td colSpan={7}><EmptyState title={t("sm.auditDashboard.empty")} compact /></td></tr>
             ) : (
               rows.map((row) => (
-                <tr key={row.id} onClick={() => onSelectRun(row.id)} className={`audit-table-row ${selectedRunId === row.id ? "is-active" : ""}`}>
+                <tr
+                  key={row.id}
+                  onClick={() => {
+                    if (lockSelection) return;
+                    onSelectRun(row.id);
+                  }}
+                  className={`audit-table-row ${selectedRunId === row.id ? "is-active" : ""}`}
+                  style={selectedRunId === row.id && lockSelection ? { cursor: "wait", opacity: 0.72 } : undefined}
+                >
                   <td>#{String(row.id)}</td>
                   <td className="ds-text-truncate" title={String(row.project_name || row.project_id)}>{String(row.project_name || row.project_id || t("common.noValue"))}</td>
                   <td className="ds-text-truncate" title={String(row.document_name || "")}>{String(row.document_name || t("common.noValue"))}</td>

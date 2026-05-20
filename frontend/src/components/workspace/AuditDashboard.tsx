@@ -322,6 +322,7 @@ export default function AuditDashboard() {
         status={state.status}
         rows={state.rows}
         selectedRunId={state.selectedRunId}
+        detailStatus={state.detailStatus}
         offset={state.filters.offset}
         limit={state.filters.limit}
         onSelectRun={handleSelectRun}
