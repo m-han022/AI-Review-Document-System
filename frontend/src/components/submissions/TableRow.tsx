@@ -1,4 +1,4 @@
-import { memo } from "react";
+﻿import { memo } from "react";
 import type { Project } from "../../types";
 import { useTranslation } from "../LanguageSelector";
 import { toBusinessStatus } from "../ui/businessStatus";
@@ -22,6 +22,64 @@ interface TableRowProps {
   onEdit: (project: Project) => void;
 }
 
+function readProjectScore(project: Project): number | null {
+  const raw =
+    project.latest_score ??
+    (project as any).total_score ??
+    (project as any).score ??
+    (project as any).latest_run?.total_score ??
+    (project as any).latest_run?.score ??
+    null;
+  if (raw === null || raw === undefined) return null;
+  const n = typeof raw === "number" ? raw : Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+function StatusCell({ project, latestScore }: { project: Project; latestScore: number | null }) {
+  const { t } = useTranslation();
+  const status = project.latest_status?.toUpperCase() || "PENDING";
+  const businessStatus = toBusinessStatus(status);
+  const isFailedStatus = status.startsWith("FAILED");
+  const isSoftFail = status.includes("INVALID_AI_RESPONSE") && latestScore !== null;
+
+  if (isFailedStatus && !isSoftFail) {
+    return (
+      <div className="status-cell-stack">
+        <StatusBadge tone="danger" icon={<AlertCircleIcon size="sm" />}>
+          {t("statusBiz.attentionNeeded")}
+        </StatusBadge>
+        {project.latest_error_message && (
+          <span className="error-message-mini ds-text-truncate" title={project.latest_error_message}>
+            {project.latest_error_message}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  if (isSoftFail) {
+    return (
+      <StatusBadge tone="warning" icon={<AlertCircleIcon size="sm" />}>
+        {t("statusBiz.processing")}
+      </StatusBadge>
+    );
+  }
+
+  if (businessStatus === "reviewReady") {
+    return (
+      <StatusBadge tone="success" icon={<CheckCircleIcon size="sm" />}>
+        {t("statusBiz.reviewReady")}
+      </StatusBadge>
+    );
+  }
+
+  return (
+    <StatusBadge tone="warning" icon={<RefreshIcon size="sm" className="animate-spin" />}>
+      {t("statusBiz.processing")}
+    </StatusBadge>
+  );
+}
+
 function TableRow({
   project,
   isActive,
@@ -37,65 +95,8 @@ function TableRow({
   onEdit,
 }: TableRowProps) {
   const { t, lang } = useTranslation();
-  const readProjectScore = (p: Project): number | null => {
-    const raw =
-      p.latest_score ??
-      (p as any).total_score ??
-      (p as any).score ??
-      (p as any).latest_run?.total_score ??
-      (p as any).latest_run?.score ??
-      null;
-    if (raw === null || raw === undefined) return null;
-    const n = typeof raw === "number" ? raw : Number(raw);
-    return Number.isFinite(n) ? n : null;
-  };
   const latestScore = readProjectScore(project);
   const scoreValue = latestScore ?? 0;
-
-  const renderStatus = () => {
-    const status = project.latest_status?.toUpperCase() || "PENDING";
-    const businessStatus = toBusinessStatus(status);
-    const isFailedStatus = status.startsWith("FAILED");
-    const isSoftFail = status.includes("INVALID_AI_RESPONSE") && latestScore !== null;
-
-    if (isFailedStatus && !isSoftFail) {
-      return (
-        <div className="status-cell-stack">
-          <StatusBadge tone="danger" icon={<AlertCircleIcon size="sm" />}>
-            {t("statusBiz.attentionNeeded")}
-          </StatusBadge>
-          {project.latest_error_message && (
-            <span className="error-message-mini ds-text-truncate" title={project.latest_error_message}>
-              {project.latest_error_message}
-            </span>
-          )}
-        </div>
-      );
-    }
-
-    if (isSoftFail) {
-      return (
-        <StatusBadge tone="warning" icon={<AlertCircleIcon size="sm" />}>
-          {t("statusBiz.processing")}
-        </StatusBadge>
-      );
-    }
-
-    if (businessStatus === "reviewReady") {
-      return (
-        <StatusBadge tone="success" icon={<CheckCircleIcon size="sm" />}>
-          {t("statusBiz.reviewReady")}
-        </StatusBadge>
-      );
-    }
-
-    return (
-      <StatusBadge tone="warning" icon={<RefreshIcon size="sm" className="animate-spin" />}>
-        {t("statusBiz.processing")}
-      </StatusBadge>
-    );
-  };
-
   const scoreColor = scoreValue >= 80 ? "var(--ds-color-success)" : scoreValue >= 60 ? "var(--ds-color-warning)" : "var(--ds-color-danger)";
 
   return (
@@ -129,7 +130,9 @@ function TableRow({
         <span className="doc-count-badge-v4">{project.total_documents}</span>
       </td>
 
-      <td>{renderStatus()}</td>
+      <td>
+        <StatusCell project={project} latestScore={latestScore} />
+      </td>
 
       <td>
         {latestScore !== null ? (
@@ -164,7 +167,7 @@ function TableRow({
           <button
             type="button"
             className="action-btn-v4"
-            style={{ color: 'var(--ds-color-primary)' }}
+            style={{ color: "var(--ds-color-primary)" }}
             onClick={() => onGrade(project.project_id)}
             disabled={gradingId === project.project_id || isActionPending}
             title={t("common.tooltips.grade")}
@@ -205,4 +208,3 @@ function TableRow({
 }
 
 export default memo(TableRow);
-
