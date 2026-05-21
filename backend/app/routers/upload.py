@@ -14,11 +14,11 @@ from app.storage import store
 
 router = APIRouter()
 
-PROJECT_PATTERN = re.compile(r"^(P\d+)[_\-](.+?)\.(pdf|pptx)$", re.IGNORECASE)
+PROJECT_PATTERN = re.compile(r"^(P\d+)[_\-](.+?)\.(pdf|pptx|txt|xlsx|png|jpg|jpeg)$", re.IGNORECASE)
 
 MESSAGES = {
     "vi": {
-        "pdf_only": "Only PDF and PowerPoint (.pptx) files are accepted.",
+        "pdf_only": "Supported file types: PDF, PowerPoint (.pptx), text (.txt), Excel (.xlsx), image (.png/.jpg/.jpeg).",
         "invalid_filename": "Invalid filename format.",
         "missing_project_selection": "Please select an existing project before upload.",
         "project_id_mismatch": "Filename project_id does not match selected project.",
@@ -29,7 +29,7 @@ MESSAGES = {
         "upload_success": "Upload successful",
     },
     "ja": {
-        "pdf_only": "Only PDF and PowerPoint (.pptx) files are accepted.",
+        "pdf_only": "Supported file types: PDF, PowerPoint (.pptx), text (.txt), Excel (.xlsx), image (.png/.jpg/.jpeg).",
         "invalid_filename": "Invalid filename format.",
         "missing_project_selection": "Please select an existing project before upload.",
         "project_id_mismatch": "Filename project_id does not match selected project.",
@@ -73,7 +73,7 @@ async def upload_project(
     project_description: str | None = Form(default=None),
 ):
     log_event("upload_received", project_id=project_id, filename=getattr(file, "filename", None), document_type=document_type)
-    if not file.filename or not file.filename.lower().endswith((".pdf", ".pptx")):
+    if not file.filename or not file.filename.lower().endswith((".pdf", ".pptx", ".txt", ".xlsx", ".png", ".jpg", ".jpeg")):
         raise HTTPException(status_code=400, detail=MESSAGES[ui_language]["pdf_only"])
 
     match = PROJECT_PATTERN.match(file.filename)

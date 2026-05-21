@@ -416,16 +416,16 @@ export default function AuditDashboard() {
               <section className="audit-detail-section">
                 <header className="audit-section-header">
                   <h3 className="ds-title-h3" style={{ fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <SparkIcon size="sm" /> {String(t("project.criteriaDetailTitle") || "PhÃ¢n tÃ­ch chi tiáº¿t tá»«ng tiÃªu chÃ­")}
+                    <SparkIcon size="sm" /> {String(t("project.criteriaDetailTitle") || "Phân tích chi tiết từng tiêu chí")}
                   </h3>
                 </header>
                 <div className="ds-table-container">
                   <table className="ds-table ds-table--compact">
                     <thead>
                       <tr>
-                        <th style={{ width: '25%' }}>{t("project.criteria") || "TiÃªu chÃ­"}</th>
+                        <th style={{ width: '25%' }}>{t("project.criteria") || "Tiêu chí"}</th>
                         <th style={{ width: '10%', textAlign: 'center' }}>{t("project.metaScore") || "Äiá»ƒm"}</th>
-                        <th>{t("project.feedbackTitle") || "Nháº­n xÃ©t tá»« AI"}</th>
+                        <th>{t("project.feedbackTitle") || "Nhận xét từ AI"}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -461,7 +461,7 @@ export default function AuditDashboard() {
                 <section className="audit-detail-section">
                   <header className="audit-section-header" style={{ marginBottom: '16px' }}>
                     <h3 className="ds-title-h3" style={{ fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <LayersIcon size="sm" /> {String(t("project.slideDetailTitle") || "Nháº­n xÃ©t chi tiáº¿t tá»«ng trang")}
+                      <LayersIcon size="sm" /> {String(t("project.slideDetailTitle") || "Nhận xét chi tiết từng trang")}
                     </h3>
                   </header>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

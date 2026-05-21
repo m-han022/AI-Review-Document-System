@@ -30,9 +30,9 @@ import { FieldError, StatusBadge } from "./ui/States";
 import { Button, Card, Input, Select } from "./ui";
 import "./FileUpload.css";
 
-const ACCEPTED_EXTENSIONS = [".pdf", ".pptx"];
+const ACCEPTED_EXTENSIONS = [".pdf", ".pptx", ".txt", ".xlsx", ".png", ".jpg", ".jpeg"];
 const MAX_FILE_SIZE = 100 * 1024 * 1024;
-const PROJECT_FILENAME_PATTERN = /^(P\d+)[_-](.+?)\.(pdf|pptx)$/i;
+const PROJECT_FILENAME_PATTERN = /^(P\d+)[_-](.+?)\.(pdf|pptx|txt|xlsx|png|jpg|jpeg)$/i;
 
 interface FileUploadProps {
   onReviewComplete?: (projectId: string) => void;
@@ -532,7 +532,7 @@ export default function FileUpload({ onReviewComplete }: FileUploadProps) {
                       <input
                         ref={inputRef}
                         type="file"
-                        accept=".pdf,.pptx"
+                        accept=".pdf,.pptx,.txt,.xlsx,.png,.jpg,.jpeg"
                         onChange={(event) => void handleFileChange(event)}
                         disabled={!documentType || uploadState === "uploading" || reviewing}
                         hidden

@@ -28,6 +28,9 @@ ALLOWED_STATUS_TRANSITIONS: dict[str, set[str]] = {
     "FAILED": {"PENDING"},
 }
 
+class InvalidAIResultError(ValueError):
+    pass
+
 class GradingService:
     def __init__(
         self, 
@@ -355,12 +358,13 @@ class GradingService:
                     detail=str(e),
                 )
                 raise
+            error_code = "GRADING_INVALID_AI_OUTPUT" if isinstance(e, InvalidAIResultError) else "GRADING_EXECUTION_FAILED"
             # A failed flush/commit leaves Session in failed state; rollback before any extra writes.
             self.grading_repo.rollback()
             self.update_status(run.id, "FAILED", str(e))
             log_error(
                 "grading_execution_failed",
-                error_code="GRADING_EXECUTION_FAILED",
+                error_code=error_code,
                 project_id=project_id,
                 grading_run_id=run.id,
                 detail=str(e),
@@ -396,6 +400,9 @@ class GradingService:
         self.grading_repo.clear_run_children(run.id or 0)
         if result_data.get("evaluation_set_id") is None:
             raise ValueError("evaluation_set_id is required for new grading runs")
+        scores = result_data.get("criteria_scores")
+        if not isinstance(scores, dict) or len(scores) == 0:
+            raise InvalidAIResultError("Invalid AI output: missing criteria_scores")
         run.score = result_data["score"]
         run.total_score = result_data["total_score"]
         run.rubric_hash = result_data["rubric_hash"]
@@ -419,7 +426,6 @@ class GradingService:
         self.grading_repo.add(run)
         
         # Save criteria
-        scores = result_data["criteria_scores"]
         suggestions = result_data["criteria_suggestions"]
         # In this system, max_scores might be needed. We can get them from engine or just trust result_data if it had them.
         # Actually criteria_scores is a dict {key: score}
@@ -428,6 +434,7 @@ class GradingService:
         _, max_scores = _get_criteria_config(result_data.get("document_type"), result_data["rubric_version"])
 
         # Defensive dedupe by criterion_key for idempotency safety.
+        inserted_criteria = 0
         for key, score in dict(scores.items()).items():
             vi_raw = suggestions.get("vi", {}).get(key, {}) if isinstance(suggestions, dict) else {}
             ja_raw = suggestions.get("ja", {}).get(key, {}) if isinstance(suggestions, dict) else {}
@@ -453,6 +460,10 @@ class GradingService:
                 },
             }
             self.grading_repo.add(criterion)
+            inserted_criteria += 1
+
+        if inserted_criteria == 0:
+            raise InvalidAIResultError("Invalid AI output: no criteria rows persisted")
 
         # Save slide reviews
         for rev in (result_data.get("page_reviews") or result_data.get("slide_reviews") or []):

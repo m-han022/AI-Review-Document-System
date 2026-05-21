@@ -75,6 +75,34 @@ def test_upload_to_non_existent_project_fails(client: TestClient):
     project_check = client.get("/api/projects/P888")
     assert project_check.status_code == 404
 
+
+@pytest.mark.parametrize(
+    "filename,content,mime_type",
+    [
+        ("P120_Notes.txt", b"plain text content", "text/plain"),
+        ("P120_Report.xlsx", b"fake xlsx bytes", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+        ("P120_Screenshot.png", b"fake png bytes", "image/png"),
+    ],
+)
+def test_upload_accepts_extended_file_types(
+    client: TestClient,
+    session: Session,
+    filename: str,
+    content: bytes,
+    mime_type: str,
+):
+    project_id = "P120"
+    client.post("/api/projects", json={"project_id": project_id, "project_name": "Extended Upload Types"})
+
+    files = {"file": (filename, content, mime_type)}
+    data = {"language": "ja", "project_id": project_id, "document_type": "project-review"}
+    response = client.post("/api/upload", files=files, data=data)
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["document_version"] == "v1"
+    version = session.get(SubmissionDocumentVersion, payload["document_version_id"])
+    assert version is not None
+
 def test_grading_flow_with_state_machine(client: TestClient, session: Session):
     # Setup: Create project and upload
     project_id = "P777"
@@ -170,6 +198,48 @@ def test_grading_failure_state(client: TestClient, session: Session):
         run = session.exec(select(GradingRun).where(GradingRun.document_version_id == v1_id)).first()
         assert run.status == "FAILED"
         assert "Gemini is down" in run.error_message
+
+def test_grading_rejects_completed_without_criteria_scores(client: TestClient, session: Session):
+    project_id = "P556"
+    client.post("/api/projects", json={"project_id": project_id, "project_name": "Invalid AI Output"})
+    files = {"file": ("P556_Doc.pdf", b"content", "application/pdf")}
+    res = client.post("/api/upload", files=files, data={"project_id": project_id, "document_name": "Doc", "document_type": "project-review"})
+    v1_id = res.json()["document_version_id"]
+    _ensure_manual_eval_set(client)
+
+    with patch("app.services.grading_service.grade_submission") as mock_grade:
+        mock_grade.return_value = {
+            "score": 88,
+            "total_score": 88,
+            "content_hash": "x",
+            "document_version_id": v1_id,
+            "rubric_version": "v1",
+            "rubric_hash": "rh",
+            "gemini_model": "mock-model",
+            "prompt_version": "v1",
+            "prompt_level": "medium",
+            "policy_version": "v1",
+            "policy_hash": "ph",
+            "required_rule_hash": "rrh",
+            "prompt_hash": "prh",
+            "criteria_hash": "ch",
+            "grading_schema_version": "v1",
+            "final_prompt_snapshot": "snapshot",
+            "evaluation_set_id": 1,
+            "criteria_scores": {},
+            "criteria_suggestions": {"vi": {}, "ja": {}},
+            "draft_feedback": {"vi": "x", "ja": "y"},
+            "slide_reviews": [],
+            "page_reviews": [],
+            "status": "COMPLETED",
+        }
+        grade_res = client.post("/api/grade", json={"document_version_id": v1_id, "prompt_level": "medium"})
+        assert grade_res.status_code == 422
+
+    run = session.exec(select(GradingRun).where(GradingRun.document_version_id == v1_id).order_by(GradingRun.id.desc())).first()
+    assert run is not None
+    assert run.status == "FAILED"
+    assert "missing criteria_scores" in (run.error_message or "")
 
 def test_legacy_api_compatibility(client: TestClient, session: Session):
     project_id = "P444"

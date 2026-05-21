@@ -433,7 +433,7 @@
                    "dropzoneText":  "Drag \u0026 drop or select file",
                    "dropzoneActive":  "Drop file to start upload",
                    "dropzoneHint":  "Support: PDF, PPTX (max 100MB)",
-                   "invalidType":  "Only PDF or PowerPoint (.pptx) supported.",
+                   "invalidType":  "Supported: PDF, PowerPoint (.pptx), text (.txt), Excel (.xlsx), image (.png/.jpg/.jpeg).",
                    "multipleFiles":  "Please select only one file per upload.",
                    "failed":  "File upload failed.",
                    "processingOptions":  "Processing Options",
@@ -903,3 +903,4 @@
                         "nextStepUpload":  "Upload more documents to start review."
                     }
 }
+
