@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Any, Optional
 from sqlmodel import Session, col, select, func, delete
+from sqlalchemy import update, exists
 from app.models import (
     GradingRun,
     GradingCriteriaResult,
@@ -141,6 +142,29 @@ class GradingRepository:
         )
         # Ensure child deletions are flushed before any subsequent inserts for the same run.
         self.session.flush()
+
+    def count_criteria_results(self, run_id: int) -> int:
+        return int(
+            self.session.exec(
+                select(func.count())
+                .select_from(GradingCriteriaResult)
+                .where(GradingCriteriaResult.grading_run_id == run_id)
+            ).one()
+        )
+
+    def complete_run_guarded(self, run_id: int, graded_at_iso: str) -> bool:
+        stmt = (
+            update(GradingRun)
+            .where(
+                GradingRun.id == run_id,
+                exists(
+                    select(1).where(GradingCriteriaResult.grading_run_id == run_id)
+                ),
+            )
+            .values(status="COMPLETED", graded_at=graded_at_iso)
+        )
+        result = self.session.exec(stmt)
+        return bool(getattr(result, "rowcount", 0))
 
     def add(self, entity: Any):
         self.session.add(entity)

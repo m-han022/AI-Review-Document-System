@@ -110,6 +110,10 @@ export type ApiErrorCode =
   | "REQUEST_TIMEOUT"
   | "UPLOAD_FAILED"
   | "GRADING_FAILED"
+  | "FAILED_INVALID_AI_RESPONSE"
+  | "FAILED_PERSIST_CRITERIA"
+  | "FAILED_RUNTIME_UNAVAILABLE"
+  | "FAILED_TIMEOUT"
   | "EVALUATION_SET_REQUIRED"
   | "EVALUATION_SET_INVALID"
   | "EVALUATION_SET_INACTIVE"
@@ -452,12 +456,21 @@ interface GradeSubmissionParams {
   evaluationSetId?: number | null;
 }
 
-function mapGradeErrorDetail(detail: string): ApiErrorCode {
+function mapGradeErrorDetail(detail: string, errorCode?: string | null): ApiErrorCode {
+  const explicit = (errorCode || "").trim().toUpperCase();
+  if (explicit === "FAILED_INVALID_AI_RESPONSE") return "FAILED_INVALID_AI_RESPONSE";
+  if (explicit === "FAILED_PERSIST_CRITERIA") return "FAILED_PERSIST_CRITERIA";
+  if (explicit === "FAILED_RUNTIME_UNAVAILABLE") return "FAILED_RUNTIME_UNAVAILABLE";
+  if (explicit === "FAILED_TIMEOUT") return "FAILED_TIMEOUT";
   const normalized = (detail || "").toLowerCase();
   if (normalized.includes("evaluation_set_id is required")) return "EVALUATION_SET_REQUIRED";
   if (normalized.includes("status must be active")) return "EVALUATION_SET_INACTIVE";
   if (normalized.includes("document_type mismatch")) return "EVALUATION_SET_SCOPE_MISMATCH";
   if (normalized.includes("invalid evaluation_set_id")) return "EVALUATION_SET_INVALID";
+  if (normalized.includes("broker is not reachable")) return "FAILED_RUNTIME_UNAVAILABLE";
+  if (normalized.includes("worker inspection failed")) return "FAILED_RUNTIME_UNAVAILABLE";
+  if (normalized.includes("no celery worker is responding")) return "FAILED_RUNTIME_UNAVAILABLE";
+  if (normalized.includes("timeout")) return "FAILED_TIMEOUT";
   return "GRADING_FAILED";
 }
 
@@ -580,8 +593,19 @@ export async function gradeSubmission({
         throw createApiError("REQUEST_TIMEOUT", apiMessage("gradingTimeout"), res.status, res.statusText);
       }
       const err = await res.json().catch(() => ({ detail: res.statusText }));
-      const code = mapGradeErrorDetail(err.detail || "");
-      throw createApiError(code, apiMessage("gradingFailed"), res.status, err.detail || res.statusText);
+      const errDetailRaw = err?.detail;
+      const errDetail =
+        typeof errDetailRaw === "string"
+          ? errDetailRaw
+          : typeof errDetailRaw?.message === "string"
+            ? errDetailRaw.message
+            : res.statusText;
+      const errCodeRaw =
+        typeof errDetailRaw === "object" && errDetailRaw
+          ? String(errDetailRaw.error_code || "")
+          : String(err?.error_code || "");
+      const code = mapGradeErrorDetail(errDetail || "", errCodeRaw);
+      throw createApiError(code, apiMessage("gradingFailed"), res.status, errDetail || res.statusText);
     }
     return res.json();
   } catch (error) {

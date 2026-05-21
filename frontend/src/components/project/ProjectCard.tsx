@@ -22,6 +22,7 @@ import ConfirmDialog from "../ui/ConfirmDialog";
 import { formatDateTime } from "./projectCard.helpers";
 import { buildActionChecklist } from "./projectCard.helpers";
 import { useProjectReviewState } from "./useProjectReviewState";
+import { evaluateRunDataHealth } from "./runDataHealth";
 import "./ProjectCard.css";
 
 interface ProjectCardProps {
@@ -159,11 +160,8 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
     resultStatusUpper === "PENDING" ||
     resultStatusUpper === "EXTRACTING" ||
     resultStatusUpper === "GRADING";
-  const hasUsableRunData = !!(
-    (pageReviewItems && pageReviewItems.length > 0) ||
-    (gradingDetail?.criteria_results && gradingDetail.criteria_results.length > 0) ||
-    (typeof displayScore === "number")
-  );
+  const runHealth = evaluateRunDataHealth(result as any, gradingDetail as any);
+  const hasUsableRunData = runHealth.hasUsableData;
   const isSoftFail = isSoftInvalidAiResponse(result?.status, hasUsableRunData);
   const [selectedType, setSelectedType] = useState<string | null>(null);
 
@@ -429,7 +427,7 @@ export default function ProjectCard({ projectId, setTopbarActions }: ProjectCard
         </div>
 
         {/* Status Notification Banner for non-completed runs */}
-        {result && resultStatusUpper !== "COMPLETED" && (
+        {result && (resultStatusUpper !== "COMPLETED" || runHealth.isCompletedButMissingCriteria) && (
           <div className={`status-banner-v4 is-${result.status?.toLowerCase()}`} style={{ 
             padding: '12px 20px', 
             borderRadius: '10px', 

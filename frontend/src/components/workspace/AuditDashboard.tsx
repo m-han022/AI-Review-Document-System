@@ -23,6 +23,7 @@ import type { GradingRunDetail, GradingRunHistory, Project, DocumentListOut, Ver
 import { useTranslation } from "../LanguageSelector";
 import { Button, Card, StatusBadge } from "../ui";
 import { EmptyState, LoadingState, ErrorState } from "../ui/States";
+import { evaluateRunDataHealth } from "../project/runDataHealth";
 
 type UiStatus = "idle" | "loading" | "ready" | "empty" | "error";
 type DetailStatus = "idle" | "loading" | "ready" | "error";
@@ -375,6 +376,15 @@ export default function AuditDashboard() {
             />
           ) : state.detailStatus === "ready" && state.selectedRunDetail ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+              {(() => {
+                const health = evaluateRunDataHealth(state.selectedRunDetail.grading_run as any, state.selectedRunDetail);
+                if (!health.isCompletedButMissingCriteria) return null;
+                return (
+                  <div style={{ padding: "10px 12px", border: "1px solid var(--ds-color-warning-light)", background: "var(--ds-color-warning-soft)", borderRadius: "8px", fontSize: "13px" }}>
+                    {String(t("project.gradingDataIncomplete") || "Run COMPLETED nhưng thiếu dữ liệu tiêu chí. Vui lòng regrade để đồng bộ dữ liệu.")}
+                  </div>
+                );
+              })()}
               {/* Metadata Grid */}
               <article className="audit-detail-grid">
                 <DetailField label={String(t("project.projectName"))} value={String(state.selectedRunDetail.submission.project_name || t("common.noValue"))} />

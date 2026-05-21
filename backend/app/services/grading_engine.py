@@ -807,6 +807,7 @@ def grade_submission(
         inc_counter("grading_ai_fallback_total", status="RECOVERY_FALLBACK", **metric_context)
     if contract_errors:
         inc_counter("grading_ai_invalid_schema_total", status="INVALID_SCHEMA", **metric_context)
+        inc_counter("grading_ai_normalize_fallback_total", status="CONTRACT_REPAIRED", **metric_context)
 
     # [FIX BUG-04] Only write to cache when use_cache=True.
     # refresh_cache=True means "force re-grade", not "cache the result for future use_cache=False calls".

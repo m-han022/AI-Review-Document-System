@@ -3,6 +3,12 @@ import io
 import re
 import pdfplumber
 from pathlib import Path
+from app.services.parsers import (
+    extract_text_from_txt,
+    extract_text_from_xlsx,
+    extract_multimodal_from_image,
+    extract_text_stub_from_image,
+)
 
 
 def extract_text_from_pdf(file_path: str) -> str:
@@ -213,12 +219,7 @@ def extract_multimodal_content(file_path: str) -> List[Dict[str, Any]]:
     elif extension == '.pptx':
         return extract_multimodal_from_pptx(str(file_path))
     elif extension in {'.png', '.jpg', '.jpeg'}:
-        from PIL import Image
-
-        with Image.open(str(file_path_obj)) as image:
-            img_byte_arr = io.BytesIO()
-            image.convert("RGB").save(img_byte_arr, format="JPEG", quality=85)
-            return [{"text": f"[Image 1]\n{file_path_obj.name}", "images": [img_byte_arr.getvalue()]}]
+        return extract_multimodal_from_image(str(file_path_obj))
     elif extension in {'.txt', '.xlsx'}:
         return [{"text": extract_text_from_file(str(file_path_obj)), "images": []}]
     else:
@@ -235,25 +236,11 @@ def extract_text_from_file(file_path: str) -> str:
     elif extension == '.pptx':
         return extract_text_from_pptx(str(file_path))
     elif extension == '.txt':
-        return file_path.read_text(encoding="utf-8", errors="replace")
+        return extract_text_from_txt(str(file_path))
     elif extension == '.xlsx':
-        from openpyxl import load_workbook
-
-        wb = load_workbook(filename=str(file_path), data_only=True, read_only=True)
-        try:
-            parts: list[str] = []
-            for sheet in wb.worksheets:
-                parts.append(f"[Sheet {sheet.title}]")
-                for row in sheet.iter_rows(values_only=True):
-                    cells = [str(v).strip() for v in row if v is not None and str(v).strip()]
-                    if cells:
-                        parts.append(" | ".join(cells))
-            return "\n".join(parts)
-        finally:
-            wb.close()
+        return extract_text_from_xlsx(str(file_path))
     elif extension in {'.png', '.jpg', '.jpeg'}:
-        # Image-first grading relies on multimodal extraction; keep text stub for schema compatibility.
-        return f"[Image File]\n{file_path.name}"
+        return extract_text_stub_from_image(str(file_path))
     else:
         raise ValueError(
             f"Unsupported file format: {extension}. Supported formats: .pdf, .pptx, .txt, .xlsx, .png, .jpg, .jpeg."

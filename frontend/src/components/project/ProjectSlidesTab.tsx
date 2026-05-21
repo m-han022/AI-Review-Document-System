@@ -241,7 +241,7 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
                       <LayersIcon size="sm" /> {t("project.documentViewer.title")}
                     </h3>
 
-                    {gradingDetail?.document_version?.filename.toLowerCase().endsWith(".pdf") && !pdfUnavailable ? (
+                    {gradingDetail?.document_version?.preview_status === "SUPPORTED_INLINE" && !pdfUnavailable ? (
                       <div className="evidence-card-v3" style={{ width: '100%', aspectRatio: '16 / 9', minHeight: '360px', maxHeight: '540px', padding: 0, overflow: 'hidden', background: '#f1f5f9', borderRadius: '12px', border: '1px solid var(--ds-color-border)' }}>
                         <iframe 
                           src={`${gradingDetail?.document_version?.id ? getVersionFileUrl(gradingDetail.document_version.id) : getSubmissionFileUrl(projectId)}#page=${activeSlide.page_number ?? activeSlide.slide_number}`}
@@ -250,7 +250,7 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
                           style={{ width: '100%', height: '100%', border: 'none', background: 'transparent' }}
                         />
                       </div>
-                    ) : gradingDetail?.document_version?.filename.toLowerCase().endsWith(".pdf") ? (
+                    ) : gradingDetail?.document_version?.preview_status === "SUPPORTED_INLINE" ? (
                       <div className="evidence-card-v3" style={{ padding: "16px", background: "var(--ds-color-surface)", border: "1px solid var(--ds-color-border)", borderRadius: "10px" }}>
                         <div style={{ fontSize: "13px", color: "var(--ds-color-text-body)", lineHeight: 1.6 }}>
                           {t("project.documentViewer.unavailableDescription")}
@@ -270,7 +270,7 @@ export default function ProjectSlidesTab({ t, projectId, viewModel, setSelectedS
                           </Button>
                         </div>
                       </div>
-                    ) : gradingDetail?.document_version?.filename.toLowerCase().endsWith(".pptx") || gradingDetail?.document_version?.filename.toLowerCase().endsWith(".ppt") ? (
+                    ) : gradingDetail?.document_version?.preview_status === "SUPPORTED_EVIDENCE" ? (
                       evidenceStatus === "COMPLETED" ? (
                         <div className="evidence-card-v3" style={{ width: '100%', aspectRatio: '16 / 9', minHeight: '360px', maxHeight: '540px', padding: 0, overflow: 'hidden', background: '#f1f5f9', borderRadius: '12px', border: '1px solid var(--ds-color-border)' }}>
                           <iframe

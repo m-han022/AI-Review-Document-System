@@ -19,6 +19,7 @@ from app.services.distributed_lock import grading_lock
 from app.services.issue_analytics import issue_breakdown
 from app.metrics import inc_counter, observe_duration_seconds, observe_evalset_duration_seconds
 from app.observability import log_error, log_event
+from app.celery_app import celery_app
 
 ALLOWED_STATUS_TRANSITIONS: dict[str, set[str]] = {
     "PENDING": {"EXTRACTING", "FAILED"},
@@ -29,6 +30,10 @@ ALLOWED_STATUS_TRANSITIONS: dict[str, set[str]] = {
 }
 
 class InvalidAIResultError(ValueError):
+    pass
+
+
+class CompletedRunInvariantError(ValueError):
     pass
 
 class GradingService:
@@ -46,6 +51,29 @@ class GradingService:
             return "unknown"
         doc = self.submission_repo.get_document_for_version(version)
         return (doc.document_type if doc and doc.document_type else "project-review")
+
+    def assert_async_runtime_ready(self) -> None:
+        try:
+            broker_connection = celery_app.connection_for_read()
+            broker_connection.ensure_connection(max_retries=1)
+            broker_connection.release()
+        except Exception as exc:
+            raise RuntimeError(
+                "FAILED_RUNTIME_UNAVAILABLE: Async grading is enabled but the Celery broker is not reachable."
+            ) from exc
+
+        try:
+            inspector = celery_app.control.inspect(timeout=0.5)
+            ping_result = inspector.ping() or {}
+        except Exception as exc:
+            raise RuntimeError(
+                "FAILED_RUNTIME_UNAVAILABLE: Async grading is enabled but Celery worker inspection failed."
+            ) from exc
+
+        if not ping_result:
+            raise RuntimeError(
+                "FAILED_RUNTIME_UNAVAILABLE: Async grading is enabled but no Celery worker is responding."
+            )
 
     def create_pending_run(
         self, 
@@ -175,6 +203,21 @@ class GradingService:
                         to_status=target,
                     )
                     raise ValueError(f"Invalid status transition: {current} -> {target}")
+            if target == "COMPLETED":
+                guarded_ok = self.grading_repo.complete_run_guarded(
+                    run_id=run_id,
+                    graded_at_iso=datetime.now(timezone.utc).isoformat(),
+                )
+                if not guarded_ok:
+                    raise CompletedRunInvariantError(
+                        f"Cannot set COMPLETED for run {run_id}: criteria_results is empty"
+                    )
+                if error_message:
+                    run.error_message = error_message
+                    self.grading_repo.add(run)
+                    self.grading_repo.commit()
+                log_event("grading_status_updated", grading_run_id=run_id, status=status)
+                return
             run.status = status
             if error_message:
                 run.error_message = error_message
@@ -317,6 +360,8 @@ class GradingService:
 
             # 6. Save results
             self._save_grading_results(run, result_data)
+            # Mark COMPLETED only after all result rows are committed successfully.
+            self.update_status(run.id, "COMPLETED")
             log_event(
                 "grading_results_saved",
                 project_id=project_id,
@@ -402,6 +447,12 @@ class GradingService:
             raise ValueError("evaluation_set_id is required for new grading runs")
         scores = result_data.get("criteria_scores")
         if not isinstance(scores, dict) or len(scores) == 0:
+            inc_counter(
+                "grading_persist_criteria_failed_total",
+                document_type=result_data.get("document_type", "unknown"),
+                prompt_level=result_data.get("prompt_level", "unknown"),
+                status="MISSING_CRITERIA_SCORES",
+            )
             raise InvalidAIResultError("Invalid AI output: missing criteria_scores")
         run.score = result_data["score"]
         run.total_score = result_data["total_score"]
@@ -420,7 +471,9 @@ class GradingService:
         run.final_prompt_snapshot = result_data.get("final_prompt_snapshot")
         run.evaluation_set_id = result_data.get("evaluation_set_id")
         run.draft_feedback = result_data["draft_feedback"]
-        run.status = result_data.get("status", "COMPLETED")
+        # Mark completed before commit after criteria validation/persistence passes
+        # to avoid active-run unique index conflicts on retry/idempotent flows.
+        run.status = "COMPLETED"
         run.graded_at = datetime.now(timezone.utc).isoformat()
         
         self.grading_repo.add(run)
@@ -463,7 +516,19 @@ class GradingService:
             inserted_criteria += 1
 
         if inserted_criteria == 0:
+            inc_counter(
+                "grading_persist_criteria_failed_total",
+                document_type=result_data.get("document_type", "unknown"),
+                prompt_level=result_data.get("prompt_level", "unknown"),
+                status="ZERO_CRITERIA_ROWS",
+            )
             raise InvalidAIResultError("Invalid AI output: no criteria rows persisted")
+        inc_counter(
+            "grading_persist_criteria_success_total",
+            document_type=result_data.get("document_type", "unknown"),
+            prompt_level=result_data.get("prompt_level", "unknown"),
+            status="SUCCESS",
+        )
 
         # Save slide reviews
         for rev in (result_data.get("page_reviews") or result_data.get("slide_reviews") or []):

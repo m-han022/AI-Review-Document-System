@@ -4,7 +4,6 @@ from app.storage import store
 from app.models import GradeResponse, GradeRequest, SubmissionDocumentVersion, Submission, EvaluationSet, SlideReviewOut
 from app.database import engine, get_session
 from app.config import settings
-from app.celery_app import celery_app
 from app.tasks import grade_document_version_task
 from app.repositories.submission_repository import SubmissionRepository
 from app.repositories.grading_repository import GradingRepository
@@ -15,6 +14,12 @@ from app.observability import log_error, log_event
 from sqlmodel import Session, select
 
 router = APIRouter()
+
+ERROR_FAILED_INVALID_AI_RESPONSE = "FAILED_INVALID_AI_RESPONSE"
+ERROR_FAILED_PERSIST_CRITERIA = "FAILED_PERSIST_CRITERIA"
+ERROR_FAILED_RUNTIME_UNAVAILABLE = "FAILED_RUNTIME_UNAVAILABLE"
+ERROR_FAILED_TIMEOUT = "FAILED_TIMEOUT"
+ERROR_GRADING_VALIDATION_FAILED = "GRADING_VALIDATION_FAILED"
 
 def get_grading_service(session: Session = Depends(get_session)) -> GradingService:
     sub_repo = SubmissionRepository(session)
@@ -27,41 +32,6 @@ from app.services.evaluation_bundle_resolver import resolve_evaluation_bundle
 def _ensure_active_evaluation_set(session: Session, document_type: str, level: str) -> EvaluationSet:
     return ensure_active_evaluation_set(session, document_type, level)
 
-
-def _assert_async_runtime_ready() -> None:
-    try:
-        broker_connection = celery_app.connection_for_read()
-        broker_connection.ensure_connection(max_retries=1)
-        broker_connection.release()
-    except Exception as exc:
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                "Async grading is enabled but the Celery broker is not reachable. "
-                "Start Redis or disable USE_CELERY for local development."
-            ),
-        ) from exc
-
-    try:
-        inspector = celery_app.control.inspect(timeout=0.5)
-        ping_result = inspector.ping() or {}
-    except Exception as exc:
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                "Async grading is enabled but Celery worker inspection failed. "
-                "Start a Celery worker or disable USE_CELERY for local development."
-            ),
-        ) from exc
-
-    if not ping_result:
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                "Async grading is enabled but no Celery worker is responding. "
-                "Start a Celery worker or disable USE_CELERY for local development."
-            ),
-        )
 
 async def _perform_grading(
     service: GradingService,
@@ -126,7 +96,16 @@ async def _perform_grading(
 
             # Check if we should use Celery
             if settings.use_celery:
-                _assert_async_runtime_ready()
+                try:
+                    service.assert_async_runtime_ready()
+                except RuntimeError as exc:
+                    raise HTTPException(
+                        status_code=503,
+                        detail={
+                            "error_code": ERROR_FAILED_RUNTIME_UNAVAILABLE,
+                            "message": str(exc),
+                        },
+                    ) from exc
                 # Dispatch task for each document
                 run = service.create_pending_run(
                     submission_id=submission.id,
@@ -208,16 +187,29 @@ async def _perform_grading(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
+        err_text = str(e)
+        lowered = err_text.lower()
+        if "invalid_ai_result_error" in lowered or "invalid ai" in lowered:
+            error_code = ERROR_FAILED_INVALID_AI_RESPONSE
+        elif "criteria" in lowered and ("persist" in lowered or "missing" in lowered):
+            error_code = ERROR_FAILED_PERSIST_CRITERIA
+        elif "timeout" in lowered:
+            error_code = ERROR_FAILED_TIMEOUT
+        else:
+            error_code = "GRADING_FAILED"
         log_error(
             "grading_failed",
-            error_code="GRADING_FAILED",
+            error_code=error_code,
             project_id=project_id,
             document_version_id=document_version_id,
-            detail=str(e),
+            detail=err_text,
         )
         raise HTTPException(
             status_code=502,
-            detail=f"Grading failed: {str(e)}",
+            detail={
+                "error_code": error_code,
+                "message": f"Grading failed: {err_text}",
+            },
         )
 
 @router.post("/grade/{project_id}", response_model=GradeResponse)

@@ -114,8 +114,8 @@ class SubmissionStore:
         if current not in {"PENDING", "EXTRACTING", "GRADING"}:
             return
 
-        # If grading artifacts are already persisted, this run is effectively completed.
-        if criteria_count > 0 or slide_count > 0:
+        # A run is effectively completed only when criteria rows are persisted.
+        if criteria_count > 0:
             run.status = "COMPLETED"
             if run.total_score is None and criteria_count > 0:
                 run.total_score = int(round(sum(float(item.score) for item in criteria_rows)))
@@ -124,6 +124,17 @@ class SubmissionStore:
             if not run.graded_at:
                 run.graded_at = datetime.now(timezone.utc).isoformat()
             run.error_message = None
+            session.add(run)
+            session.commit()
+            session.refresh(run)
+            return
+
+        # Slide-only persistence without criteria is inconsistent and must not be auto-completed.
+        if slide_count > 0 and criteria_count == 0:
+            run.status = "FAILED"
+            run.error_message = "Run has slide reviews but missing criteria_results (invariant violation)."
+            if not run.graded_at:
+                run.graded_at = datetime.now(timezone.utc).isoformat()
             session.add(run)
             session.commit()
             session.refresh(run)
@@ -164,6 +175,12 @@ class SubmissionStore:
     ) -> DocumentVersionOut | None:
         if version is None or version.id is None:
             return None
+        filename = (version.filename or "").lower()
+        preview_status = "UNSUPPORTED_PREVIEW"
+        if filename.endswith(".pdf"):
+            preview_status = "SUPPORTED_INLINE"
+        elif filename.endswith(".pptx") or filename.endswith(".ppt"):
+            preview_status = "SUPPORTED_EVIDENCE"
         return DocumentVersionOut(
             id=version.id,
             submission_id=version.submission_id,
@@ -179,6 +196,7 @@ class SubmissionStore:
             language="vi" if version.language == "vi" else "ja",
             uploaded_at=version.uploaded_at,
             is_latest=bool(version.is_latest),
+            preview_status=preview_status,
         )
 
     def _submission_out_from_record(self, record: SubmissionRecord) -> SubmissionOut:

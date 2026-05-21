@@ -1,5 +1,6 @@
 import hashlib
 import re
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -8,6 +9,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from app.config import UPLOADS_DIR
 from app.models import LanguageCode, UploadResponse
 from app.observability import log_error, log_event
+from app.metrics import inc_counter
 from app.services.pdf_parser import detect_language_from_text, extract_text_from_file
 from app.services.evidence_pdf_service import queue_evidence_pdf_generation
 from app.storage import store
@@ -15,6 +17,34 @@ from app.storage import store
 router = APIRouter()
 
 PROJECT_PATTERN = re.compile(r"^(P\d+)[_\-](.+?)\.(pdf|pptx|txt|xlsx|png|jpg|jpeg)$", re.IGNORECASE)
+ALLOWED_EXTENSIONS = {".pdf", ".pptx", ".txt", ".xlsx", ".png", ".jpg", ".jpeg"}
+MIME_BY_EXTENSION = {
+    ".pdf": {"application/pdf"},
+    ".pptx": {"application/vnd.openxmlformats-officedocument.presentationml.presentation"},
+    ".txt": {"text/plain"},
+    ".xlsx": {"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
+    ".png": {"image/png"},
+    ".jpg": {"image/jpeg"},
+    ".jpeg": {"image/jpeg"},
+}
+MAX_SIZE_BY_EXTENSION = {
+    ".pdf": 30 * 1024 * 1024,
+    ".pptx": 50 * 1024 * 1024,
+    ".txt": 5 * 1024 * 1024,
+    ".xlsx": 15 * 1024 * 1024,
+    ".png": 10 * 1024 * 1024,
+    ".jpg": 10 * 1024 * 1024,
+    ".jpeg": 10 * 1024 * 1024,
+}
+EXTRACT_TIMEOUT_SECONDS_BY_EXTENSION = {
+    ".txt": 5.0,
+    ".xlsx": 12.0,
+    ".png": 8.0,
+    ".jpg": 8.0,
+    ".jpeg": 8.0,
+    ".pdf": 20.0,
+    ".pptx": 25.0,
+}
 
 MESSAGES = {
     "vi": {
@@ -27,6 +57,8 @@ MESSAGES = {
         "empty_pdf": "Could not extract content from file.",
         "upload_failed": "Upload failed during file processing.",
         "upload_success": "Upload successful",
+        "invalid_mime": "File MIME type does not match extension.",
+        "file_too_large": "File exceeds max allowed size for this type.",
     },
     "ja": {
         "pdf_only": "Supported file types: PDF, PowerPoint (.pptx), text (.txt), Excel (.xlsx), image (.png/.jpg/.jpeg).",
@@ -38,6 +70,8 @@ MESSAGES = {
         "empty_pdf": "Could not extract content from file.",
         "upload_failed": "Upload failed during file processing.",
         "upload_success": "Upload successful",
+        "invalid_mime": "File MIME type does not match extension.",
+        "file_too_large": "File exceeds max allowed size for this type.",
     },
 }
 
@@ -73,8 +107,17 @@ async def upload_project(
     project_description: str | None = Form(default=None),
 ):
     log_event("upload_received", project_id=project_id, filename=getattr(file, "filename", None), document_type=document_type)
-    if not file.filename or not file.filename.lower().endswith((".pdf", ".pptx", ".txt", ".xlsx", ".png", ".jpg", ".jpeg")):
+    if not file.filename:
         raise HTTPException(status_code=400, detail=MESSAGES[ui_language]["pdf_only"])
+    file_ext = Path(file.filename).suffix.lower()
+    if file_ext not in ALLOWED_EXTENSIONS:
+        inc_counter("ingest_validation_failed_total", document_type=file_ext or "unknown", prompt_level="ingest", status="UNSUPPORTED_EXT")
+        raise HTTPException(status_code=400, detail=MESSAGES[ui_language]["pdf_only"])
+    provided_mime = (file.content_type or "").lower().strip()
+    expected_mimes = MIME_BY_EXTENSION.get(file_ext, set())
+    if provided_mime and expected_mimes and provided_mime not in expected_mimes:
+        inc_counter("ingest_validation_failed_total", document_type=file_ext, prompt_level="ingest", status="MIME_MISMATCH")
+        raise HTTPException(status_code=400, detail=MESSAGES[ui_language]["invalid_mime"])
 
     match = PROJECT_PATTERN.match(file.filename)
     resolved_project_id = (project_id or "").strip().upper()
@@ -107,6 +150,10 @@ async def upload_project(
         content = await file.read()
         if not content:
             raise HTTPException(status_code=400, detail=MESSAGES[ui_language]["empty_file"])
+        max_size = MAX_SIZE_BY_EXTENSION.get(file_ext)
+        if max_size is not None and len(content) > max_size:
+            inc_counter("ingest_validation_failed_total", document_type=file_ext, prompt_level="ingest", status="FILE_TOO_LARGE")
+            raise HTTPException(status_code=400, detail=MESSAGES[ui_language]["file_too_large"])
 
         with open(save_path, "wb") as saved_file:
             saved_file.write(content)
@@ -129,7 +176,13 @@ async def upload_project(
                 extracted_text = existing.extracted_text
 
         if not extracted_text:
+            started_extract = time.monotonic()
             extracted_text = extract_text_from_file(str(save_path))
+            elapsed = time.monotonic() - started_extract
+            timeout_limit = EXTRACT_TIMEOUT_SECONDS_BY_EXTENSION.get(file_ext)
+            if timeout_limit is not None and elapsed > timeout_limit:
+                inc_counter("ingest_extract_timeout_total", document_type=file_ext, prompt_level="ingest", status="TIMEOUT")
+                raise HTTPException(status_code=400, detail="File extraction timed out for this file type.")
         
         if not extracted_text.strip():
             raise HTTPException(status_code=400, detail=MESSAGES[ui_language]["empty_pdf"])

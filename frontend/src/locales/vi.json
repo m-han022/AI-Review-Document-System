@@ -544,6 +544,7 @@
     "versionLabel": "Phiên bản",
     "gradingDateLabel": "Ngày chấm",
     "gradingFailedLabel": "Đánh giá thất bại",
+    "gradingDataIncomplete": "Run đã COMPLETED nhưng dữ liệu tiêu chí chưa đầy đủ. Vui lòng chấm lại để đồng bộ dữ liệu.",
     "gradingProcessing": "Đang tiến hành đánh giá...",
     "actionChecklist": "Checklist hành động",
     "detailedBreakdown": "Phân tích chi tiết tiêu chí",

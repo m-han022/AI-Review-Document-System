@@ -318,6 +318,31 @@ def test_upload_rejects_invalid_filename_pattern(client: TestClient):
     assert docs_res.json() == []
 
 
+def test_upload_rejects_mime_extension_mismatch(client: TestClient):
+    client.post("/api/projects", json={"project_id": "P121", "project_name": "Mime Mismatch"})
+    files = {"file": ("P121_Notes.txt", b"hello", "image/png")}
+    response = client.post(
+        "/api/upload",
+        files=files,
+        data={"language": "ja", "project_id": "P121", "document_type": "project-review"},
+    )
+    assert response.status_code == 400
+    assert "mime type does not match extension" in response.json()["detail"].lower()
+
+
+def test_upload_rejects_oversize_txt(client: TestClient):
+    client.post("/api/projects", json={"project_id": "P122", "project_name": "Size Limit"})
+    oversized = b"a" * (5 * 1024 * 1024 + 1)
+    files = {"file": ("P122_Big.txt", oversized, "text/plain")}
+    response = client.post(
+        "/api/upload",
+        files=files,
+        data={"language": "ja", "project_id": "P122", "document_type": "project-review"},
+    )
+    assert response.status_code == 400
+    assert "exceeds max allowed size" in response.json()["detail"].lower()
+
+
 def test_document_summary_returns_document_id_for_hierarchical_flow(client: TestClient):
     client.post("/api/projects", json={"project_id": "P102", "project_name": "Hierarchy Test"})
     files = {"file": ("P102_Doc.pdf", b"content", "application/pdf")}
@@ -368,6 +393,10 @@ def test_audit_runs_list_with_filters(client: TestClient):
     assert isinstance(rows, list)
     assert len(rows) >= 1
     assert any(int(row["document_version_id"]) == int(version_id) for row in rows)
+    # Invariant guard: COMPLETED runs must persist criteria rows.
+    for row in rows:
+        if (row.get("status") or "").upper() == "COMPLETED":
+            assert int(row.get("criteria_result_count") or 0) > 0
 
 
 def test_audit_run_detail_endpoint(client: TestClient):
@@ -393,6 +422,57 @@ def test_audit_run_detail_endpoint(client: TestClient):
             ).first()
             assert run is not None
             run_id = run.id
+
+
+def test_audit_run_exposes_failed_persist_criteria_error_code(client: TestClient):
+    project_id = "P202"
+    client.post("/api/projects", json={"project_id": project_id, "project_name": "Audit Error Code"})
+    files = {"file": ("P202_Doc.pdf", b"content", "application/pdf")}
+    upload_res = client.post(
+        "/api/upload",
+        files=files,
+        data={"language": "ja", "project_id": project_id, "document_name": "Doc A", "document_type": "project-review"},
+    )
+    assert upload_res.status_code == 200
+    version_id = upload_res.json()["document_version_id"]
+    _ensure_manual_eval_set(client)
+
+    with patch("app.services.grading_service.grade_submission") as mock_grade:
+        mock_grade.return_value = {
+            "score": 88,
+            "total_score": 88,
+            "content_hash": "x",
+            "document_version_id": version_id,
+            "rubric_version": "v1",
+            "rubric_hash": "rh",
+            "gemini_model": "mock-model",
+            "prompt_version": "v1",
+            "prompt_level": "medium",
+            "policy_version": "v1",
+            "policy_hash": "ph",
+            "required_rule_hash": "rrh",
+            "prompt_hash": "prh",
+            "criteria_hash": "ch",
+            "grading_schema_version": "v1",
+            "final_prompt_snapshot": "snapshot",
+            "evaluation_set_id": 1,
+            "criteria_scores": {},
+            "criteria_suggestions": {"vi": {}, "ja": {}},
+            "draft_feedback": {"vi": "x", "ja": "y"},
+            "slide_reviews": [],
+            "page_reviews": [],
+            "status": "COMPLETED",
+        }
+        grade_res = client.post("/api/grade", json={"document_version_id": version_id, "prompt_level": "medium"})
+        assert grade_res.status_code == 422
+
+    list_res = client.get(f"/api/audit/runs?project_id={project_id}&limit=10&offset=0")
+    assert list_res.status_code == 200
+    rows = list_res.json()
+    assert len(rows) >= 1
+    latest = rows[0]
+    assert (latest.get("status") or "").upper() == "FAILED"
+    assert latest.get("error_code") == "FAILED_PERSIST_CRITERIA"
 
     list_res = client.get(f"/api/audit/runs?project_id={project_id}&document_version_id={version_id}&limit=1&offset=0")
     assert list_res.status_code == 200

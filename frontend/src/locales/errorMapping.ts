@@ -10,6 +10,14 @@ export function mapErrorCodeToI18nKey(code?: ApiErrorCode | null): string {
       return "api.upload.failed";
     case "GRADING_FAILED":
       return "api.grading.failed";
+    case "FAILED_INVALID_AI_RESPONSE":
+      return "api.grading.failed";
+    case "FAILED_PERSIST_CRITERIA":
+      return "api.grading.failed";
+    case "FAILED_RUNTIME_UNAVAILABLE":
+      return "api.grading.failed";
+    case "FAILED_TIMEOUT":
+      return "api.grading.timeout";
     case "EVALUATION_SET_REQUIRED":
       return "api.evaluationSet.required";
     case "EVALUATION_SET_INVALID":
@@ -36,4 +44,3 @@ export function mapErrorCodeToI18nKey(code?: ApiErrorCode | null): string {
       return "api.unknown";
   }
 }
-

@@ -532,6 +532,7 @@
     "versionLabel": "バージョン",
     "gradingDateLabel": "評価日",
     "gradingFailedLabel": "評価失敗",
+    "gradingDataIncomplete": "Run は COMPLETED ですが、評価基準データが不足しています。再採点してデータを同期してください。",
     "gradingProcessing": "評価中...",
     "rerunReview": "レビュー再実行",
     "rerunSuccess": "レビュー再実行リクエストを送信しました。",

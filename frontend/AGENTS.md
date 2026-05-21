@@ -1,4 +1,4 @@
-# Frontend AGENTS
+﻿# Frontend AGENTS
 
 ## Scope
 
@@ -17,11 +17,13 @@
 - Không để key used-by-code bị thiếu locale.
 - Không merge nếu `Used keys missing in locales > 0`.
 
-## Encoding Rules
+## Encoding Rules (Mandatory)
 
-- Tất cả file text phải UTF-8.
-- Không dùng replace thô trên file locale/constants dễ gây mojibake.
-- Khi chỉnh JSON locale: parse JSON -> update field -> write UTF-8.
+- `frontend/src/locales/*.json` bắt buộc `UTF-8 (no BOM)`.
+- Tất cả file text frontend (`.json`, `.ts`, `.tsx`, `.css`, `.md`) phải là UTF-8.
+- Không dùng replace thô trên locale/constants dễ gây mojibake.
+- Khi chỉnh JSON locale: parse JSON -> update field -> write UTF-8 no BOM.
+- Nếu phát hiện chuỗi nghi mojibake (`Ã`, `Â`, `�`) trong locale trọng yếu (`vi`, `ja`, `en`): fail gate và không merge.
 
 ## Contract-First Change Note (Bắt buộc)
 
@@ -36,6 +38,7 @@ Khi thay đổi dữ liệu hiển thị liên quan backend payload, PR phải n
 Trước merge/release phải pass:
 - `npm run build`
 - `npm run check:i18n`
+- Khuyến nghị chạy chuẩn qua: `..\scripts\frontend-gate.ps1`
 
 Nếu fail gate: không merge.
 

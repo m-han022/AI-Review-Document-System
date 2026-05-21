@@ -35,11 +35,19 @@ async def get_evaluation_set_runtime_health() -> dict:
     fallback_re = re.compile(
         r'^grading_ai_fallback_total\{document_type="([^"]+)",prompt_level="([^"]+)",status="([^"]+)"\}\s+([0-9.eE+-]+)$'
     )
+    normalize_fallback_re = re.compile(
+        r'^grading_ai_normalize_fallback_total\{document_type="([^"]+)",prompt_level="([^"]+)",status="([^"]+)"\}\s+([0-9.eE+-]+)$'
+    )
+    persist_fail_re = re.compile(
+        r'^grading_persist_criteria_failed_total\{document_type="([^"]+)",prompt_level="([^"]+)",status="([^"]+)"\}\s+([0-9.eE+-]+)$'
+    )
 
     by_set: dict[tuple[str, str, str, str], dict[str, float]] = defaultdict(lambda: {"sum": 0.0, "count": 0.0})
     failed_by_scope: dict[tuple[str, str], float] = defaultdict(float)
     parse_fail_by_scope: dict[tuple[str, str], float] = defaultdict(float)
     fallback_by_scope: dict[tuple[str, str], float] = defaultdict(float)
+    normalize_fallback_by_scope: dict[tuple[str, str], float] = defaultdict(float)
+    persist_fail_by_scope: dict[tuple[str, str], float] = defaultdict(float)
     total_by_scope: dict[tuple[str, str], float] = defaultdict(float)
     trend_buffer: dict[tuple[str, str], deque[float]] = defaultdict(lambda: deque(maxlen=20))
 
@@ -76,6 +84,16 @@ async def get_evaluation_set_runtime_health() -> dict:
         if m_fallback:
             doc_type, level, _status, value = m_fallback.groups()
             fallback_by_scope[(doc_type, level)] += float(value)
+            continue
+        m_norm = normalize_fallback_re.match(line)
+        if m_norm:
+            doc_type, level, _status, value = m_norm.groups()
+            normalize_fallback_by_scope[(doc_type, level)] += float(value)
+            continue
+        m_persist = persist_fail_re.match(line)
+        if m_persist:
+            doc_type, level, _status, value = m_persist.groups()
+            persist_fail_by_scope[(doc_type, level)] += float(value)
 
     items = []
     for (set_id, doc_type, level, status), agg in sorted(by_set.items()):
@@ -85,9 +103,13 @@ async def get_evaluation_set_runtime_health() -> dict:
         scope_failed = failed_by_scope.get((doc_type, level), 0.0)
         scope_parse_fail = parse_fail_by_scope.get((doc_type, level), 0.0)
         scope_fallback = fallback_by_scope.get((doc_type, level), 0.0)
+        scope_normalize_fallback = normalize_fallback_by_scope.get((doc_type, level), 0.0)
+        scope_persist_fail = persist_fail_by_scope.get((doc_type, level), 0.0)
         failed_rate = (scope_failed / scope_total) if scope_total > 0 else 0.0
         parse_fail_rate = (scope_parse_fail / scope_total) if scope_total > 0 else 0.0
         fallback_rate = (scope_fallback / scope_total) if scope_total > 0 else 0.0
+        normalize_fallback_rate = (scope_normalize_fallback / scope_total) if scope_total > 0 else 0.0
+        persist_fail_rate = (scope_persist_fail / scope_total) if scope_total > 0 else 0.0
         latencies = sorted(latency_samples.get((doc_type, level, status.upper(), set_id), []))
         p95_latency = 0.0
         if latencies:
@@ -105,12 +127,26 @@ async def get_evaluation_set_runtime_health() -> dict:
                 "failed_rate_scope": round(failed_rate, 4),
                 "ai_parse_fail_rate_scope": round(parse_fail_rate, 4),
                 "ai_fallback_rate_scope": round(fallback_rate, 4),
+                "ai_normalize_fallback_rate_scope": round(normalize_fallback_rate, 4),
+                "persist_criteria_fail_rate_scope": round(persist_fail_rate, 4),
                 "recent_counts": list(trend_buffer.get((set_id, status.upper()), [])),
             }
         )
 
+    alerts: list[dict] = []
+    for item in items:
+        if item["status"] != "COMPLETED":
+            continue
+        if item["failed_rate_scope"] > settings.runtime_health_fail_rate_threshold:
+            alerts.append({"severity": "high", "code": "ALERT_FAIL_RATE_HIGH", "scope": item})
+        if item["ai_parse_fail_rate_scope"] > settings.runtime_health_ai_parse_fail_rate_threshold:
+            alerts.append({"severity": "medium", "code": "ALERT_AI_PARSE_FAIL_RATE_HIGH", "scope": item})
+        if item["persist_criteria_fail_rate_scope"] > 0:
+            alerts.append({"severity": "high", "code": "ALERT_PERSIST_CRITERIA_FAIL", "scope": item})
+
     return {
         "items": items,
+        "alerts": alerts,
         "thresholds": {
             "fail_rate": settings.runtime_health_fail_rate_threshold,
             "p95_latency_seconds": settings.runtime_health_p95_latency_threshold_seconds,

@@ -74,6 +74,7 @@ export interface GradingRunHistory {
   grading_schema_version?: string | null;
   final_prompt_snapshot?: string | null;
   status: string;
+  error_code?: string | null;
   error_message?: string | null;
   graded_at?: string | null;
   criteria_result_count: number;
@@ -187,6 +188,7 @@ export interface DocumentVersion {
   language: LanguageCode;
   uploaded_at: string;
   is_latest: boolean;
+  preview_status?: "SUPPORTED_INLINE" | "SUPPORTED_EVIDENCE" | "UNSUPPORTED_PREVIEW" | null;
 }
 
 export interface GradingRunDetail {

@@ -195,6 +195,7 @@ async def list_audit_runs(
                     grading_schema_version=run.grading_schema_version,
                     final_prompt_snapshot=run.final_prompt_snapshot,
                     status=run.status,
+                    error_code=_derive_error_code(run),
                     error_message=run.error_message,
                     graded_at=run.graded_at,
                     criteria_result_count=criteria_count_map.get(run_id, 0),
@@ -341,3 +342,17 @@ async def get_audit_run_detail(run_id: int):
     if not detail:
         raise HTTPException(status_code=404, detail=f"Grading run {run_id} not found")
     return detail
+def _derive_error_code(run: GradingRun) -> str | None:
+    status = (run.status or "").upper()
+    if status == "FAILED":
+        message = (run.error_message or "").lower()
+        if "missing criteria_scores" in message or "criteria_results is empty" in message:
+            return "FAILED_PERSIST_CRITERIA"
+        if "invalid ai" in message:
+            return "FAILED_INVALID_AI_RESPONSE"
+        if "timeout" in message:
+            return "FAILED_TIMEOUT"
+        return "GRADING_FAILED"
+    if status in {"PENDING", "EXTRACTING", "GRADING"}:
+        return "GRADING_IN_PROGRESS"
+    return None

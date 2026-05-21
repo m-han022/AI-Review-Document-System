@@ -572,6 +572,8 @@ Khi tái cấu trúc theo hướng clean architecture / modular design:
 - Bắt buộc có bước kiểm tra encoding + mojibake trong CI hoặc local gate.
 - Nếu phát hiện chuỗi nghi ngờ mojibake ở docs/i18n thì fail gate.
 - i18n check phải fail khi locale trọng yếu (`vi`, `ja`, `en`) có mojibake hoặc key corruption.
+- Bắt buộc `locales/*.json` dùng `UTF-8 (no BOM)`; nếu phát hiện BOM thì fail gate.
+- Trước merge frontend, bắt buộc chạy bằng script chuẩn: `.\scripts\frontend-gate.ps1` (hoặc tương đương có cùng check).
 
 ### Incident Playbook
 

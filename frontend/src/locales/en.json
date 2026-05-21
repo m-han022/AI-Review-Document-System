@@ -692,6 +692,7 @@
                     "exportReport":  "Export report",
                     "exportPdfReport":  "Export PDF report",
                     "gradingFailedLabel":  "Grading failed",
+                    "gradingDataIncomplete": "Run is completed but criteria data is incomplete. Please regrade to synchronize data.",
                     "gradingProcessing":  "Grading in progress...",
                     "detailedBreakdown":  "Detailed criteria breakdown",
                     "noTrendData":  "No trend comparison data yet",

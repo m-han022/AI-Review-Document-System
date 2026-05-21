@@ -17,6 +17,14 @@ COUNTER_NAMES: Final[tuple[str, ...]] = (
     "grading_ai_parse_failed_total",
     "grading_ai_fallback_total",
     "grading_ai_invalid_schema_total",
+    "grading_ai_normalize_fallback_total",
+    "grading_persist_criteria_failed_total",
+    "grading_persist_criteria_success_total",
+    "ingest_extract_timeout_total",
+    "ingest_validation_failed_total",
+    "ingest_ocr_unavailable_total",
+    "ingest_ocr_failed_total",
+    "ingest_ocr_success_total",
 )
 DURATION_METRIC_NAME: Final[str] = "grading_duration_seconds"
 
