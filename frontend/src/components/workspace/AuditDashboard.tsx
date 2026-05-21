@@ -59,7 +59,8 @@ type Action =
   | { type: "DETAIL_START" }
   | { type: "DETAIL_SUCCESS"; detail: GradingRunDetail }
   | { type: "DETAIL_ERROR"; message: string }
-  | { type: "DETAIL_RETRY" };
+  | { type: "DETAIL_RETRY" }
+  | { type: "CLEAR_SELECTION" };
 
 const DEFAULT_FILTERS: AuditFilterState = {
   projectId: "",
