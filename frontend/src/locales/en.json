@@ -198,7 +198,8 @@
                                 "fetchFailed":  "Failed to load grading history."
                             },
                 "project":  {
-                                "fetchFailed":  "Failed to load project."
+                                "fetchFailed":  "Failed to load project.",
+                                "deleteFailed":  "Failed to delete project."
                             },
                 "document":  {
                                  "fetchFailed":  "Failed to load document."
@@ -857,6 +858,7 @@
                         "regrade":  "Regrade",
                         "regradeAll":  "Regrade All",
                         "deleteSelected":  "Delete Selected",
+                        "deleteProject":  "Delete Project",
                         "searchPlaceholder":  "Search by document name...",
                         "filterAllDocumentTypes":  "All Document Types",
                         "filterAllStatuses":  "All Statuses",

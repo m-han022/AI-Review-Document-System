@@ -198,7 +198,8 @@
       "fetchFailed": "採点履歴を取得できませんでした。"
     },
     "project": {
-      "fetchFailed": "プロジェクト情報を取得できませんでした。"
+      "fetchFailed": "プロジェクト情報を取得できませんでした。",
+      "deleteFailed": "プロジェクトを削除できませんでした。"
     },
     "document": {
       "fetchFailed": "ドキュメント情報を取得できませんでした。"
@@ -860,6 +861,7 @@
     "regrade": "再採点",
     "regradeAll": "すべて再採点",
     "deleteSelected": "選択項目を削除",
+    "deleteProject": "プロジェクトを削除",
     "searchPlaceholder": "資料名で検索...",
     "filterAllDocumentTypes": "すべての資料タイプ",
     "filterAllStatuses": "すべての状態",

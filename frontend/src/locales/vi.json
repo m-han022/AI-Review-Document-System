@@ -198,7 +198,8 @@
       "fetchFailed": "Không thể tải lịch sử chấm. Vui lòng thử lại."
     },
     "project": {
-      "fetchFailed": "Không thể tải dự án. Vui lòng thử lại."
+      "fetchFailed": "Không thể tải dự án. Vui lòng thử lại.",
+      "deleteFailed": "Không thể xóa dự án. Vui lòng thử lại."
     },
     "document": {
       "fetchFailed": "Không thể tải tài liệu. Vui lòng thử lại."
@@ -860,6 +861,7 @@
     "regrade": "Chấm lại",
     "regradeAll": "Chấm lại tất cả",
     "deleteSelected": "Xóa mục đã chọn",
+    "deleteProject": "Xóa dự án",
     "searchPlaceholder": "Tìm theo tên tài liệu...",
     "filterAllDocumentTypes": "Tất cả loại tài liệu",
     "filterAllStatuses": "Tất cả trạng thái",
