@@ -1,7 +1,7 @@
 import type { GradingRunHistory, Project, DocumentListOut, VersionListOut } from "../../types";
 import { Button, Card, Input, Select, SearchableSelect, StatusBadge } from "../ui";
 import { EmptyState, LoadingState } from "../ui/States";
-import { ChevronLeftIcon, ChevronRightIcon } from "../ui/Icon";
+import { ChevronLeftIcon, ChevronRightIcon, TrashIcon } from "../ui/Icon";
 import {
   auditErrorSummary,
   auditReviewedAtLabel,
@@ -132,6 +132,7 @@ export function AuditRunsTableSection({
   offset,
   limit,
   onSelectRun,
+  onDeleteProject,
   onPreviousPage,
   onNextPage,
 }: {
@@ -143,6 +144,7 @@ export function AuditRunsTableSection({
   offset: number;
   limit: number;
   onSelectRun: (runId: number) => void;
+  onDeleteProject: (projectId: string) => void;
   onPreviousPage: () => void;
   onNextPage: () => void;
 }) {
@@ -160,13 +162,14 @@ export function AuditRunsTableSection({
               <th style={{ width: "100px" }}>{t("project.totalScore")}</th>
               <th style={{ width: "130px" }}>{t("common.status")}</th>
               <th style={{ width: "170px" }}>{t("project.reviewedAt")}</th>
+              <th style={{ width: "90px" }}>{t("common.actions")}</th>
             </tr>
           </thead>
           <tbody>
             {status === "loading" ? (
-              <tr><td colSpan={7}><LoadingState title={t("common.loading")} /></td></tr>
+              <tr><td colSpan={8}><LoadingState title={t("common.loading")} /></td></tr>
             ) : status === "empty" ? (
-              <tr><td colSpan={7}><EmptyState title={t("sm.auditDashboard.empty")} compact /></td></tr>
+              <tr><td colSpan={8}><EmptyState title={t("sm.auditDashboard.empty")} compact /></td></tr>
             ) : (
               rows.map((row) => (
                 <tr
@@ -192,6 +195,20 @@ export function AuditRunsTableSection({
                     </div>
                   </td>
                   <td className="text-muted" style={{ fontSize: "11px" }}>{auditReviewedAtLabel(row.graded_at)}</td>
+                  <td>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      title={t("submissions.deleteProject")}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!row.project_id) return;
+                        onDeleteProject(row.project_id);
+                      }}
+                    >
+                      <TrashIcon size="sm" />
+                    </Button>
+                  </td>
                 </tr>
               ))
             )}

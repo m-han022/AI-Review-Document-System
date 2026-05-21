@@ -17,7 +17,7 @@ import {
 
 import { 
   getAuditRunDetail, listProjects, listProjectDocuments, listDocumentVersions, 
-  listAuditRuns, exportAuditRunsCsv, getLanguage, gradeSubmission 
+  listAuditRuns, exportAuditRunsCsv, getLanguage, gradeSubmission, deleteSubmission 
 } from "../../api/client";
 import type { GradingRunDetail, GradingRunHistory, Project, DocumentListOut, VersionListOut } from "../../types";
 import { useTranslation } from "../LanguageSelector";
@@ -300,6 +300,27 @@ export default function AuditDashboard() {
       });
   };
 
+  const handleDeleteProject = async (projectId: string) => {
+    const target = projectsList.find((p) => p.project_id === projectId);
+    const label = target?.project_name || projectId;
+    const confirmed = window.confirm(`${String(t("submissions.deleteConfirm"))}\n${label}`);
+    if (!confirmed) return;
+
+    try {
+      await deleteSubmission(projectId);
+      if (state.selectedRunDetail?.submission?.project_id === projectId) {
+        dispatch({ type: "CLEAR_SELECTION" });
+      }
+      fetchRows();
+      listProjects(200, 0).then(setProjectsList).catch(() => undefined);
+    } catch (err) {
+      dispatch({
+        type: "FETCH_ERROR",
+        message: err instanceof Error ? err.message : String(t("api.project.deleteFailed")),
+      });
+    }
+  };
+
 
   return (
     <div className="audit-container">
@@ -326,6 +347,7 @@ export default function AuditDashboard() {
         offset={state.filters.offset}
         limit={state.filters.limit}
         onSelectRun={handleSelectRun}
+        onDeleteProject={handleDeleteProject}
         onPreviousPage={() =>
           dispatch({ type: "SET_FILTER", key: "offset", value: Math.max(0, state.filters.offset - state.filters.limit) })
         }
