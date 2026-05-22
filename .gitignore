@@ -59,4 +59,5 @@ regression.pptx
 
 # Test files
 test_*.py
+!backend/tests/test_*.py
 TEST_*.md
