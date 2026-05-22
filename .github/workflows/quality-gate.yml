@@ -51,10 +51,18 @@ jobs:
         # Keep explicit file list to focus on core grading regression gate.
         run: |
           ls -la
-          ls -la backend
-          ls -la backend/tests
-          python -m pytest -q \
-            backend/tests/test_core_flows.py \
-            backend/tests/test_output_schema_and_defaults.py \
-            backend/tests/test_multi_doc.py \
-            backend/tests/test_version_management.py
+          if [ -d tests ]; then
+            ls -la tests
+            python -m pytest -q \
+              tests/test_core_flows.py \
+              tests/test_output_schema_and_defaults.py \
+              tests/test_multi_doc.py \
+              tests/test_version_management.py
+          else
+            ls -la backend/tests
+            python -m pytest -q \
+              backend/tests/test_core_flows.py \
+              backend/tests/test_output_schema_and_defaults.py \
+              backend/tests/test_multi_doc.py \
+              backend/tests/test_version_management.py
+          fi
