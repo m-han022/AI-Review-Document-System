@@ -4,6 +4,7 @@
 
 - `dev-start-sync.ps1`: local sync mode, safe default for day-to-day development.
 - `dev-start-async.ps1`: local async mode with Redis + Celery worker expectations.
+- `dev-preflight.ps1`: host preflight checks (ExecutionPolicy, Redis, Docker daemon, ports, worker presence).
 - `dev-stop.ps1`: stop local frontend/backend/worker; use `-StopRedis` to stop Docker Redis too.
 
 ## Presentation generators

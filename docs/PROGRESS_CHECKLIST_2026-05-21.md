@@ -1,6 +1,6 @@
 ﻿# Progress Checklist (Saved)
 
-Updated: 2026-05-21
+Updated: 2026-05-22
 
 Legend: [x]=Done, [~]=In Progress, [ ]=Pending, [d]=Deferred, [c]=Cancelled
 
@@ -29,6 +29,12 @@ Legend: [x]=Done, [~]=In Progress, [ ]=Pending, [d]=Deferred, [c]=Cancelled
 - [x] Backend tests: PASS (`pytest -q`)
 - [x] Frontend i18n gate: PASS (`npm run check:i18n`)
 - [x] Frontend build gate: PASS (`npm run build`)
+
+### Gate Evidence (2026-05-22)
+
+- [x] `cd backend && pytest -q` -> `96 passed, 4 warnings`
+- [x] `cd frontend && npm run check:i18n` -> PASS
+- [x] `cd frontend && npm run build` -> PASS
 
 ## Risk Register / Priority Backlog (New)
 
@@ -76,7 +82,12 @@ Note: metrics router/service.
   - Docker daemon check
   - ports check
   - worker ping
-- [ ] In checklist tự khắc phục.
+- [x] Thêm preflight script cho dev async môi trường host:
+  - ExecutionPolicy check
+  - Docker daemon check
+  - ports check
+  - worker ping
+- [x] In checklist tự khắc phục.
 Note: `scripts/dev-start-async.ps1`, `scripts/dev-stop.ps1`.
 
 ### Low
@@ -97,6 +108,22 @@ Note: `scripts/dev-start-async.ps1`, `scripts/dev-stop.ps1`.
 - [ ] Monitor remote CI workflow after push for sustained green state.
 - [ ] Optional: add `.gitattributes` rule for stronger text encoding consistency.
 - [ ] Optional: add automated BOM detection step in CI pipeline.
+
+## Incident Runbook (Quick)
+
+- Async start fails (`FAILED_RUNTIME_UNAVAILABLE`):
+  - Symptom: grade API returns 503 runtime unavailable.
+  - Action: run `.\\scripts\\dev-preflight.ps1`; if Redis down, start Docker daemon + `docker compose up -d redis`; then rerun `.\\scripts\\dev-start-async.ps1`.
+- Completed run but missing criteria warning:
+  - Symptom: UI banner `gradingDataIncomplete` / audit warning.
+  - Action: regrade target version; inspect `/api/metrics/evaluation-sets/health` for `ALERT_PERSIST_CRITERIA_FAIL`.
+- OCR ingest alerts:
+  - `ALERT_OCR_UNAVAILABLE_RATE_HIGH`: verify OCR dependency/runtime on host.
+  - `ALERT_OCR_FAILED_RATE_HIGH`: inspect failed image samples and parser logs.
+  - `ALERT_INGEST_TIMEOUT_RATE_HIGH`: reduce upload size or increase worker resources.
+- Frontend gate failure:
+  - Symptom: `check:i18n` missing keys/mojibake or build fail.
+  - Action: run `cd frontend && npm run check:i18n`, fix missing locale keys/encoding, then `npm run build`.
 
 ## Resume Notes
 
@@ -120,7 +147,7 @@ Note: `scripts/dev-start-async.ps1`, `scripts/dev-stop.ps1`.
 - [x] Keep current upload API/flow (no contract break).
 - [x] `txt_parser` implemented (UTF-8 read with controlled fallback).
 - [x] `xlsx_parser` implemented (sheet/row/cell bounded extraction).
-- [~] `image_parser` implemented with multimodal image payload; OCR best-effort + confidence threshold + status logging ?? c?, alerting policy c?n pending.
+- [x] `image_parser` implemented with multimodal image payload; OCR best-effort + confidence threshold + status logging + alerting policy.
 - [x] Dispatcher integration completed in existing parser service (no flow rewrite).
 
 2. Versioning/audit model integrity
@@ -165,19 +192,19 @@ Note: `scripts/dev-start-async.ps1`, `scripts/dev-stop.ps1`.
 
 - [x] Phase 1 (.txt): baseline + hardening complete.
 - [x] Phase 2 (.xlsx): baseline + limits/timeout hardening complete.
-- [~] Phase 3 (.png + OCR): baseline image path complete; OCR threshold/metrics ?? c?; alerting policy pending.
+- [x] Phase 3 (.png + OCR): baseline image path + OCR threshold/metrics + alerting policy complete.
 - [c] Feature flags per phase (`txt`, `xlsx`, `png_ocr`) CANCELLED by decision (2026-05-21: keep always-on support; no toggle).
 
 ### Risk Controls (Current)
 
-- [~] OCR/png noise: size guard done; confidence heuristic + OCR status log added; strict confidence threshold added in parser (2026-05-21); alerting policy pending.
+- [x] OCR/png noise: size guard + confidence threshold + OCR status metrics + alerting policy done.
 - [x] XLSX large input: sheet/row/cell bounds + timeout guard done.
 - [~] TXT encoding: UTF-8 controlled fallback done; fallback telemetry pending.
 
 ### Next High-Value Actions
 
 - [c] Implement phase feature flags for fast rollback. CANCELLED by current decision: always-on.
-- [~] Introduce OCR policy (confidence threshold + low-confidence fallback + metrics). (2026-05-21: metrics + status logging done; strict threshold policy added (alerting policy still pending))
+- [x] Introduce OCR policy (confidence threshold + low-confidence fallback + metrics + alerting policy).
 - [x] Add observability counters for parser fallback/timeouts by file type. (2026-05-21: ingest validation/timeout + OCR status counters wired)
 - [x] Resolved celery idempotent retry regression after COMPLETED invariant hardening (2026-05-21: set run status COMPLETED before commit once criteria persistence passes).
 
@@ -194,7 +221,19 @@ Note: `scripts/dev-start-async.ps1`, `scripts/dev-stop.ps1`.
 
 ### Week 2 (Operational Visibility & UX Consistency)
 
-- [~] Alerting policy for OCR low-confidence / invalid AI rate / ingest timeout anomalies. (invalid AI + persist alerts done; OCR-specific threshold action pending)
+- [x] Alerting policy for OCR low-confidence / invalid AI rate / ingest timeout anomalies. (health endpoint now exposes OCR/ingest rates + alerts)
+
+### OCR Alert Playbook (Ops)
+
+- `ALERT_OCR_UNAVAILABLE_RATE_HIGH`:
+  - Likely cause: OCR runtime/tool not installed or unavailable on host.
+  - Action: verify OCR dependency availability on worker host, then re-run failed uploads.
+- `ALERT_OCR_FAILED_RATE_HIGH`:
+  - Likely cause: corrupted image inputs or OCR runtime instability.
+  - Action: inspect sample failed files, check parser logs, retry with known-good PNG.
+- `ALERT_INGEST_TIMEOUT_RATE_HIGH`:
+  - Likely cause: oversized/complex files or host resource pressure.
+  - Action: enforce stricter upload size, scale worker resources, and re-run affected jobs.
 - [x] runDataHealth helper unification for UI fallback + messaging consistency.
 - [d] Dedicated viewers for txt/xlsx/png (only if scope expands beyond fallback UX).
 - [d] Optional `source_mime` metadata field + migration (only if audit requirement emerges).

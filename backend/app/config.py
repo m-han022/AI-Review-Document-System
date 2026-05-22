@@ -45,6 +45,15 @@ class Settings:
         self.runtime_health_ai_fallback_rate_threshold = float(
             os.getenv("RUNTIME_HEALTH_AI_FALLBACK_RATE_THRESHOLD", "0.1")
         )
+        self.runtime_health_ingest_ocr_unavailable_rate_threshold = float(
+            os.getenv("RUNTIME_HEALTH_INGEST_OCR_UNAVAILABLE_RATE_THRESHOLD", "0.2")
+        )
+        self.runtime_health_ingest_ocr_failed_rate_threshold = float(
+            os.getenv("RUNTIME_HEALTH_INGEST_OCR_FAILED_RATE_THRESHOLD", "0.05")
+        )
+        self.runtime_health_ingest_timeout_rate_threshold = float(
+            os.getenv("RUNTIME_HEALTH_INGEST_TIMEOUT_RATE_THRESHOLD", "0.05")
+        )
         self.use_evaluation_bundle_v2_read = os.getenv("USE_EVALUATION_BUNDLE_V2_READ", "false").lower() == "true"
         self.use_evaluation_bundle_v2_write = os.getenv("USE_EVALUATION_BUNDLE_V2_WRITE", "false").lower() == "true"
         self.use_evaluation_bundle_v2_ui = os.getenv("USE_EVALUATION_BUNDLE_V2_UI", "false").lower() == "true"

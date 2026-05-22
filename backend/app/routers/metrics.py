@@ -41,6 +41,18 @@ async def get_evaluation_set_runtime_health() -> dict:
     persist_fail_re = re.compile(
         r'^grading_persist_criteria_failed_total\{document_type="([^"]+)",prompt_level="([^"]+)",status="([^"]+)"\}\s+([0-9.eE+-]+)$'
     )
+    ingest_ocr_unavailable_re = re.compile(
+        r'^ingest_ocr_unavailable_total\{document_type="([^"]+)",prompt_level="([^"]+)",status="([^"]+)"\}\s+([0-9.eE+-]+)$'
+    )
+    ingest_ocr_failed_re = re.compile(
+        r'^ingest_ocr_failed_total\{document_type="([^"]+)",prompt_level="([^"]+)",status="([^"]+)"\}\s+([0-9.eE+-]+)$'
+    )
+    ingest_ocr_success_re = re.compile(
+        r'^ingest_ocr_success_total\{document_type="([^"]+)",prompt_level="([^"]+)",status="([^"]+)"\}\s+([0-9.eE+-]+)$'
+    )
+    ingest_timeout_re = re.compile(
+        r'^ingest_extract_timeout_total\{document_type="([^"]+)",prompt_level="([^"]+)",status="([^"]+)"\}\s+([0-9.eE+-]+)$'
+    )
 
     by_set: dict[tuple[str, str, str, str], dict[str, float]] = defaultdict(lambda: {"sum": 0.0, "count": 0.0})
     failed_by_scope: dict[tuple[str, str], float] = defaultdict(float)
@@ -50,6 +62,10 @@ async def get_evaluation_set_runtime_health() -> dict:
     persist_fail_by_scope: dict[tuple[str, str], float] = defaultdict(float)
     total_by_scope: dict[tuple[str, str], float] = defaultdict(float)
     trend_buffer: dict[tuple[str, str], deque[float]] = defaultdict(lambda: deque(maxlen=20))
+    ingest_ocr_unavailable_total = 0.0
+    ingest_ocr_failed_total = 0.0
+    ingest_ocr_success_total = 0.0
+    ingest_timeout_total = 0.0
 
     for line in payload.splitlines():
         line = line.strip()
@@ -94,6 +110,26 @@ async def get_evaluation_set_runtime_health() -> dict:
         if m_persist:
             doc_type, level, _status, value = m_persist.groups()
             persist_fail_by_scope[(doc_type, level)] += float(value)
+            continue
+        m_ocr_un = ingest_ocr_unavailable_re.match(line)
+        if m_ocr_un:
+            _doc, _level, _status, value = m_ocr_un.groups()
+            ingest_ocr_unavailable_total += float(value)
+            continue
+        m_ocr_fail = ingest_ocr_failed_re.match(line)
+        if m_ocr_fail:
+            _doc, _level, _status, value = m_ocr_fail.groups()
+            ingest_ocr_failed_total += float(value)
+            continue
+        m_ocr_ok = ingest_ocr_success_re.match(line)
+        if m_ocr_ok:
+            _doc, _level, _status, value = m_ocr_ok.groups()
+            ingest_ocr_success_total += float(value)
+            continue
+        m_timeout = ingest_timeout_re.match(line)
+        if m_timeout:
+            _doc, _level, _status, value = m_timeout.groups()
+            ingest_timeout_total += float(value)
 
     items = []
     for (set_id, doc_type, level, status), agg in sorted(by_set.items()):
@@ -144,6 +180,23 @@ async def get_evaluation_set_runtime_health() -> dict:
         if item["persist_criteria_fail_rate_scope"] > 0:
             alerts.append({"severity": "high", "code": "ALERT_PERSIST_CRITERIA_FAIL", "scope": item})
 
+    ingest_ocr_total = ingest_ocr_unavailable_total + ingest_ocr_failed_total + ingest_ocr_success_total
+    ingest_ocr_unavailable_rate = (ingest_ocr_unavailable_total / ingest_ocr_total) if ingest_ocr_total > 0 else 0.0
+    ingest_ocr_failed_rate = (ingest_ocr_failed_total / ingest_ocr_total) if ingest_ocr_total > 0 else 0.0
+    ingest_timeout_rate = (ingest_timeout_total / ingest_ocr_total) if ingest_ocr_total > 0 else 0.0
+    if ingest_ocr_unavailable_rate > settings.runtime_health_ingest_ocr_unavailable_rate_threshold:
+        alerts.append(
+            {"severity": "medium", "code": "ALERT_OCR_UNAVAILABLE_RATE_HIGH", "scope": {"rate": round(ingest_ocr_unavailable_rate, 4)}}
+        )
+    if ingest_ocr_failed_rate > settings.runtime_health_ingest_ocr_failed_rate_threshold:
+        alerts.append(
+            {"severity": "high", "code": "ALERT_OCR_FAILED_RATE_HIGH", "scope": {"rate": round(ingest_ocr_failed_rate, 4)}}
+        )
+    if ingest_timeout_rate > settings.runtime_health_ingest_timeout_rate_threshold:
+        alerts.append(
+            {"severity": "high", "code": "ALERT_INGEST_TIMEOUT_RATE_HIGH", "scope": {"rate": round(ingest_timeout_rate, 4)}}
+        )
+
     return {
         "items": items,
         "alerts": alerts,
@@ -152,6 +205,19 @@ async def get_evaluation_set_runtime_health() -> dict:
             "p95_latency_seconds": settings.runtime_health_p95_latency_threshold_seconds,
             "ai_parse_fail_rate": settings.runtime_health_ai_parse_fail_rate_threshold,
             "ai_fallback_rate": settings.runtime_health_ai_fallback_rate_threshold,
+            "ingest_ocr_unavailable_rate": settings.runtime_health_ingest_ocr_unavailable_rate_threshold,
+            "ingest_ocr_failed_rate": settings.runtime_health_ingest_ocr_failed_rate_threshold,
+            "ingest_timeout_rate": settings.runtime_health_ingest_timeout_rate_threshold,
+        },
+        "ingest_health": {
+            "ocr_total": int(ingest_ocr_total),
+            "ocr_unavailable_total": int(ingest_ocr_unavailable_total),
+            "ocr_failed_total": int(ingest_ocr_failed_total),
+            "ocr_success_total": int(ingest_ocr_success_total),
+            "extract_timeout_total": int(ingest_timeout_total),
+            "ocr_unavailable_rate": round(ingest_ocr_unavailable_rate, 4),
+            "ocr_failed_rate": round(ingest_ocr_failed_rate, 4),
+            "timeout_rate": round(ingest_timeout_rate, 4),
         },
         "resolution_reason_totals": get_resolution_reason_totals(),
     }

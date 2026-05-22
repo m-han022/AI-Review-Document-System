@@ -10,6 +10,7 @@ File này quy định cách quản lý dev scripts, presentation generators và 
 
 - `dev-start-sync.ps1`: local sync mode (mặc định, khuyến nghị cho dev hằng ngày).
 - `dev-start-async.ps1`: local async mode (cần Redis + Celery worker).
+- `dev-preflight.ps1`: kiểm tra preflight host trước khi chạy async (ExecutionPolicy, Redis, Docker daemon, ports, worker).
 - `dev-stop.ps1`: dừng local frontend/backend/worker; dùng `-StopRedis` nếu cần dừng Redis Docker.
 
 ## Startup Verification

@@ -23,6 +23,15 @@ function Test-PortOpen {
 
 Write-Host "[dev-async] Preparing async local environment"
 
+Write-Host "[dev-async] Running preflight checks"
+$preflightScript = Join-Path $PSScriptRoot "dev-preflight.ps1"
+if (Test-Path $preflightScript) {
+  & $preflightScript
+  if ($LASTEXITCODE -ne 0) {
+    throw "[dev-async] Preflight failed. Fix issues above and retry."
+  }
+}
+
 if (-not (Test-PortOpen -HostName "localhost" -Port 6379)) {
   if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     throw "[dev-async] Redis is not reachable on localhost:6379 and Docker is not available. Start Redis manually first."
