@@ -105,7 +105,7 @@ Note: `scripts/dev-start-async.ps1`, `scripts/dev-stop.ps1`.
 
 ## Remaining / Next Time
 
-- [ ] Monitor remote CI workflow after push for sustained green state.
+- [x] Monitor remote CI workflow after push for sustained green state.
 - [ ] Optional: add `.gitattributes` rule for stronger text encoding consistency.
 - [ ] Optional: add automated BOM detection step in CI pipeline.
 
