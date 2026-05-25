@@ -2,7 +2,6 @@ import pytest
 from sqlmodel import Session, select, delete
 from app.database import engine, create_db_and_tables
 from app.models import Rubric, PromptVersion, EvaluationPolicy, GradingRun, EvaluationSet, RequiredRuleSet
-from app.services.prompt_policy import get_active_policy, get_active_prompt_version
 from app.services.prompt_composer import PromptComposer
 from app.services.grading_engine import build_grading_signature
 
@@ -140,10 +139,35 @@ def test_cache_signature_changes():
             select(EvaluationPolicy).where(EvaluationPolicy.level == level, EvaluationPolicy.status == "active")
         ).first()
         if policy is None:
-            policy = get_active_policy(level)
+            policy = session.exec(
+                select(EvaluationPolicy).where(EvaluationPolicy.level == level)
+            ).first()
+            if policy is None:
+                policy = EvaluationPolicy(
+                    level=level,
+                    version="cache-policy-v1",
+                    content="cache policy content",
+                    status="active",
+                    created_at="now",
+                )
+            else:
+                policy.status = "active"
+            session.add(policy)
+            session.commit()
+            session.refresh(policy)
 
         rules = session.exec(select(RequiredRuleSet).where(RequiredRuleSet.status == "active")).first()
-        assert rules is not None
+        if rules is None:
+            rules = RequiredRuleSet(
+                version="cache-rules-v1",
+                hash="cache-rules-hash-v1",
+                content='["JSON only"]',
+                status="active",
+                created_at="now",
+            )
+            session.add(rules)
+            session.commit()
+            session.refresh(rules)
 
         session.add(
             EvaluationSet(

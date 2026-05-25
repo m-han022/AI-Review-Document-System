@@ -1,5 +1,6 @@
 import os
 import pytest
+from contextlib import contextmanager
 from typing import Generator
 from fastapi.testclient import TestClient
 from sqlmodel import Session, SQLModel, create_engine, select
@@ -64,17 +65,30 @@ def mock_pdf_parser():
 
 @pytest.fixture(autouse=True)
 def mock_gemini():
-    """Mock Gemini API client and response."""
-    with patch("app.services.grading_engine.get_gemini_client") as mock_get_client:
-        mock_client = MagicMock()
-        mock_get_client.return_value = mock_client
-        
-        # Mock the response object
-        mock_response = MagicMock()
-        mock_response.text = '{"score":85,"criteria_scores":{"review_tong_the":20,"diem_tot":20,"diem_xau":25,"chinh_sach":20},"criteria_suggestions":{"vi":{"review_tong_the":{"evaluation":"tot","improvement":"giu vung"},"diem_tot":{"evaluation":"tot","improvement":"bo sung bang chung"},"diem_xau":{"evaluation":"can cai thien","improvement":"lam ro issue"},"chinh_sach":{"evaluation":"co huong","improvement":"bo sung owner/deadline"}},"ja":{"review_tong_the":{"evaluation":"ok","improvement":"maintain"},"diem_tot":{"evaluation":"ok","improvement":"add evidence"},"diem_xau":{"evaluation":"needs work","improvement":"clarify issues"},"chinh_sach":{"evaluation":"partial","improvement":"add owner/deadline"}}},"draft_feedback":{"vi":"Tot","ja":"Good"},"page_reviews":[]}'
-        mock_client.generate_content.return_value = mock_response
-        
-        yield mock_client
+    """Mock Gemini end-to-end so tests never depend on backend/.env or a real API."""
+    with patch("app.services.grading_engine.settings.gemini_api_key", "test-key"):
+        with patch("app.services.grading_engine.settings.gemini_api_keys", ["test-key"]):
+            with patch("app.services.grading_engine.get_gemini_client") as mock_get_client:
+                mock_client = MagicMock()
+                mock_get_client.return_value = mock_client
+
+                # Mock the response object
+                mock_response = MagicMock()
+                mock_response.text = '{"score":85,"criteria_scores":{"review_tong_the":20,"diem_tot":20,"diem_xau":25,"chinh_sach":20},"criteria_suggestions":{"vi":{"review_tong_the":{"evaluation":"tot","improvement":"giu vung"},"diem_tot":{"evaluation":"tot","improvement":"bo sung bang chung"},"diem_xau":{"evaluation":"can cai thien","improvement":"lam ro issue"},"chinh_sach":{"evaluation":"co huong","improvement":"bo sung owner/deadline"}},"ja":{"review_tong_the":{"evaluation":"ok","improvement":"maintain"},"diem_tot":{"evaluation":"ok","improvement":"add evidence"},"diem_xau":{"evaluation":"needs work","improvement":"clarify issues"},"chinh_sach":{"evaluation":"partial","improvement":"add owner/deadline"}}},"draft_feedback":{"vi":"Tot","ja":"Good"},"page_reviews":[]}'
+                mock_client.generate_content.return_value = mock_response
+
+                yield mock_client
+
+
+@pytest.fixture(autouse=True)
+def mock_grading_lock():
+    """Avoid Redis dependency and lock wait time in unit/integration tests."""
+    @contextmanager
+    def _lock(_key: str, **_kwargs):
+        yield True
+
+    with patch("app.services.grading_service.grading_lock", _lock):
+        yield
 
 @pytest.fixture(autouse=True)
 def mock_storage_dir(tmp_path):

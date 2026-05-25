@@ -29,10 +29,14 @@ Legend: [x]=Done, [~]=In Progress, [ ]=Pending, [d]=Deferred, [c]=Cancelled
 - [x] Backend tests: PASS (`pytest -q`)
 - [x] Frontend i18n gate: PASS (`npm run check:i18n`)
 - [x] Frontend build gate: PASS (`npm run build`)
+- [~] Remote GitHub Actions backend-tests: rerun after fixing test isolation.
 
 ### Gate Evidence (2026-05-22)
 
 - [x] `cd backend && pytest -q` -> `96 passed, 4 warnings`
+- [x] `cd backend && python -m pytest -q tests/test_core_flows.py tests/test_output_schema_and_defaults.py tests/test_multi_doc.py tests/test_version_management.py` -> `48 passed`
+- [x] Root cause for remote backend-tests failure: tests depended on local `backend/.env`/Gemini key and Redis lock availability in clean CI checkout.
+- [x] Fix applied: mock Gemini key/client and grading lock in test fixtures; make cache signature test seed policy/rules when absent.
 - [x] `cd frontend && npm run check:i18n` -> PASS
 - [x] `cd frontend && npm run build` -> PASS
 
