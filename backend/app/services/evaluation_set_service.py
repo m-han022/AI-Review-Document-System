@@ -91,6 +91,15 @@ def _ensure_active_policy(session: Session, level: str) -> EvaluationPolicy:
     session.refresh(policy)
     return policy
 
+
+def _rubric_has_criteria(session: Session, rubric_id: int | None) -> bool:
+    if not rubric_id:
+        return False
+    row = session.exec(
+        select(RubricCriterionRecord.id).where(RubricCriterionRecord.rubric_id == rubric_id)
+    ).first()
+    return row is not None
+
 def _archive_active_sets(session: Session, document_type: str, level: str) -> None:
     lvl = normalize_prompt_level(level)
     existing_actives = session.exec(
@@ -135,7 +144,12 @@ def bootstrap_evaluation_set_logic(
         )
     ).first()
     if existing:
-        return existing
+        rubric_ref = session.get(Rubric, existing.rubric_version_id)
+        if rubric_ref and _rubric_has_criteria(session, rubric_ref.id):
+            return existing
+        existing.status = "archived"
+        session.add(existing)
+        session.commit()
 
     # 2. Find dependencies
     rubric = session.exec(
@@ -186,6 +200,10 @@ def bootstrap_evaluation_set_logic(
     if not rubric:
         # If still no rubric, we can't bootstrap. 
         raise ValueError(f"Cannot bootstrap EvaluationSet: No active rubric for {document_type} and no template found.")
+    if not _rubric_has_criteria(session, rubric.id):
+        raise ValueError(
+            f"Cannot bootstrap EvaluationSet: rubric {document_type}/{rubric.version} has no criteria"
+        )
     new_set = EvaluationSet(
         name=name or f"{document_type}-{lvl}-auto-v1",
         document_type=document_type,

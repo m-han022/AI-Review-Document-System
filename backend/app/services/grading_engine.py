@@ -227,7 +227,9 @@ def _build_cache_key(signature: dict[str, Any]) -> str:
 def _get_criteria_config(document_type: str | None, rubric_version: str | None = None) -> tuple[list[str], dict[str, float]]:
     metadata_config = get_rubric_criteria_config(document_type=document_type, version=rubric_version)
     if metadata_config is not None:
-        return metadata_config
+        keys, max_scores = metadata_config
+        if keys and max_scores:
+            return keys, max_scores
     config = DOCUMENT_CONFIGS.get(document_type, DOCUMENT_CONFIGS["default"])
     return config["keys"], config["max_scores"]
 
